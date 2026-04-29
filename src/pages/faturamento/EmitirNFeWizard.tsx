@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -94,6 +95,12 @@ const wizardSchema = z.object({
   natureza_descricao: z.string().min(1),
   finalidade: z.enum(["1", "2", "3", "4"]).default("1"),
   tipo_operacao: z.enum(["saida", "entrada"]).default("saida"),
+  indicador_presenca: z.enum(["0", "1", "2", "3", "4", "9"]).default("0"),
+  data_saida: z.string().optional(),
+  hora_saida: z.string().optional(),
+  via_intermediador: z.boolean().default(false),
+  intermediador_cnpj: z.string().optional(),
+  intermediador_identificador: z.string().optional(),
   // Passo 2
   cliente_id: z.string().min(1, "Selecione um destinatário"),
   cliente_nome: z.string(),
@@ -106,6 +113,11 @@ const wizardSchema = z.object({
   frete_valor: z.coerce.number().min(0).default(0),
   outras_despesas: z.coerce.number().min(0).default(0),
   desconto_valor: z.coerce.number().min(0).default(0),
+  transportadora_id: z.string().nullable().optional(),
+  transportadora_nome: z.string().optional(),
+  transportadora_cnpj: z.string().optional(),
+  veiculo_placa: z.string().optional(),
+  veiculo_uf: z.string().optional(),
   forma_pagamento: z.string().default("01"),
   observacoes: z.string().optional(),
   // Vínculo opcional com Ordem de Venda (Onda 4)
@@ -114,7 +126,10 @@ const wizardSchema = z.object({
   // Vínculo opcional com NF-e referenciada (Onda 5: devolução/complementar)
   nf_referenciada_id: z.string().nullable().optional(),
   nf_referenciada_chave: z.string().nullable().optional(),
-});
+}).refine(
+  (v) => !v.data_saida || v.data_saida >= v.data_emissao,
+  { message: "Data de saída não pode ser anterior à emissão.", path: ["data_saida"] },
+);
 type WizardData = z.infer<typeof wizardSchema>;
 
 const STEPS = [
@@ -267,6 +282,64 @@ function Step1Identificacao() {
         <div className="space-y-1">
           <Label>Data de emissão *</Label>
           <Input type="date" {...register("data_emissao")} />
+        </div>
+        <div className="space-y-1">
+          <Label>Indicador de presença *</Label>
+          <Select
+            value={watch("indicador_presenca")}
+            onValueChange={(v) => setValue("indicador_presenca", v as WizardData["indicador_presenca"], { shouldDirty: true })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">0 — Não se aplica</SelectItem>
+              <SelectItem value="1">1 — Operação presencial</SelectItem>
+              <SelectItem value="2">2 — Não presencial, internet</SelectItem>
+              <SelectItem value="3">3 — Não presencial, teleatendimento</SelectItem>
+              <SelectItem value="4">4 — NFC-e em entrega a domicílio</SelectItem>
+              <SelectItem value="9">9 — Não presencial, outros</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label>Data de saída</Label>
+          <Input type="date" {...register("data_saida")} />
+          {formState.errors.data_saida && (
+            <p className="text-xs text-destructive">{formState.errors.data_saida.message}</p>
+          )}
+        </div>
+        <div className="space-y-1">
+          <Label>Hora de saída</Label>
+          <Input type="time" step={1} {...register("hora_saida")} placeholder="HH:MM:SS" />
+        </div>
+        <div className="sm:col-span-2 rounded-md border p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Operação via intermediador (marketplace)</Label>
+              <p className="text-xs text-muted-foreground">
+                Ative para vendas via plataforma digital (NT 2020.006).
+              </p>
+            </div>
+            <Switch
+              checked={watch("via_intermediador") ?? false}
+              onCheckedChange={(v) => setValue("via_intermediador", v, { shouldDirty: true })}
+            />
+          </div>
+          {watch("via_intermediador") && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">CNPJ do intermediador *</Label>
+                <Input
+                  {...register("intermediador_cnpj")}
+                  placeholder="00000000000000"
+                  maxLength={14}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Identificador do pedido na plataforma</Label>
+                <Input {...register("intermediador_identificador")} placeholder="ex.: ML123456789" />
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -614,6 +687,17 @@ function Step3Itens() {
   const [open, setOpen] = useState(false);
   const debouncedBusca = useDebounce(busca, 300);
 
+  // M-02: CST/CSOSN default depende do CRT da empresa
+  const { data: empresaCrt } = useQuery({
+    queryKey: ["empresa-config-crt"],
+    queryFn: async () => {
+      const { data } = await supabase.from("empresa_config").select("crt").maybeSingle();
+      return (data?.crt as string | null) ?? "3";
+    },
+    staleTime: 5 * 60_000,
+  });
+  const cstDefault = (empresaCrt === "1" || empresaCrt === "2") ? "102" : "00";
+
   const { data: produtos } = useQuery({
     queryKey: ["produtos-busca-wizard", debouncedBusca],
     queryFn: async () => {
@@ -642,7 +726,7 @@ function Step3Itens() {
       descricao: p.descricao,
       ncm: (p.ncm ?? "").padStart(8, "0").slice(0, 8) || "00000000",
       cfop: "",
-      cst: "00",
+      cst: cstDefault,
       origem_mercadoria: "0",
       unidade: p.unidade_medida ?? "UN",
       quantidade: qtd,
@@ -670,7 +754,7 @@ function Step3Itens() {
       descricao: "",
       ncm: "",
       cfop: "",
-      cst: "00",
+      cst: cstDefault,
       origem_mercadoria: "0",
       unidade: "UN",
       quantidade: 1,
@@ -755,8 +839,100 @@ function Step3Itens() {
 
 // ============ Passo 4 — Transporte e Pagamento ============
 
+interface TransportadoraRow {
+  id: string;
+  nome_razao_social: string;
+  cpf_cnpj: string | null;
+  uf: string | null;
+}
+
+function TransportadoraPicker() {
+  const { setValue, watch } = useFormContext<WizardData>();
+  const [busca, setBusca] = useState("");
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounce(busca, 300);
+
+  const transportadoraNome = watch("transportadora_nome");
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["transportadoras-busca", debounced],
+    queryFn: async () => {
+      let q = supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social, cpf_cnpj, uf")
+        .eq("ativo", true)
+        .eq("transportadora", true)
+        .order("nome_razao_social")
+        .limit(20);
+      if (debounced) {
+        q = q.or(`nome_razao_social.ilike.%${debounced}%,cpf_cnpj.ilike.%${debounced}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as TransportadoraRow[];
+    },
+    enabled: open,
+  });
+
+  const selecionar = (t: TransportadoraRow) => {
+    setValue("transportadora_id", t.id, { shouldDirty: true });
+    setValue("transportadora_nome", t.nome_razao_social, { shouldDirty: true });
+    setValue("transportadora_cnpj", t.cpf_cnpj ?? "", { shouldDirty: true });
+    setOpen(false);
+  };
+
+  const limpar = () => {
+    setValue("transportadora_id", null, { shouldDirty: true });
+    setValue("transportadora_nome", "", { shouldDirty: true });
+    setValue("transportadora_cnpj", "", { shouldDirty: true });
+  };
+
+  return (
+    <div className="space-y-1 sm:col-span-2">
+      <Label>Transportadora</Label>
+      <div className="flex gap-2">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="flex-1 justify-between">
+              {transportadoraNome || "Selecionar transportadora…"}
+              <Truck className="h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[420px] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput placeholder="Nome ou CNPJ…" value={busca} onValueChange={setBusca} />
+              <CommandList>
+                {isFetching && <p className="p-3 text-xs text-muted-foreground">Buscando…</p>}
+                <CommandEmpty>
+                  Nenhuma transportadora cadastrada. Marque o flag “transportadora” no fornecedor.
+                </CommandEmpty>
+                <CommandGroup>
+                  {(data ?? []).map((t) => (
+                    <CommandItem key={t.id} value={t.id} onSelect={() => selecionar(t)}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{t.nome_razao_social}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t.cpf_cnpj ?? "—"} · {t.uf ?? "?"}
+                        </span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {transportadoraNome && (
+          <Button variant="ghost" size="sm" onClick={limpar}>Limpar</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Step4Transporte() {
   const { register, watch, setValue } = useFormContext<WizardData>();
+  const modal = watch("frete_modalidade");
   return (
     <Card>
       <CardHeader>
@@ -781,6 +957,29 @@ function Step4Transporte() {
           <Label>Valor do frete</Label>
           <Input type="number" step="0.01" {...register("frete_valor")} />
         </div>
+        {modal !== "9" && (
+          <>
+            <TransportadoraPicker />
+            <div className="space-y-1">
+              <Label>Placa do veículo</Label>
+              <Input
+                {...register("veiculo_placa")}
+                placeholder="ABC1D23"
+                maxLength={8}
+                style={{ textTransform: "uppercase" }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>UF do veículo</Label>
+              <Input
+                {...register("veiculo_uf")}
+                placeholder="SP"
+                maxLength={2}
+                style={{ textTransform: "uppercase" }}
+              />
+            </div>
+          </>
+        )}
         <div className="space-y-1">
           <Label>Outras despesas</Label>
           <Input type="number" step="0.01" {...register("outras_despesas")} />
@@ -903,6 +1102,12 @@ export default function EmitirNFeWizard() {
       natureza_descricao: "",
       finalidade: "1",
       tipo_operacao: "saida",
+      indicador_presenca: "0",
+      data_saida: "",
+      hora_saida: "",
+      via_intermediador: false,
+      intermediador_cnpj: "",
+      intermediador_identificador: "",
       cliente_id: "",
       cliente_nome: "",
       cliente_uf: "",
@@ -912,6 +1117,11 @@ export default function EmitirNFeWizard() {
       frete_valor: 0,
       outras_despesas: 0,
       desconto_valor: 0,
+      transportadora_id: null,
+      transportadora_nome: "",
+      transportadora_cnpj: "",
+      veiculo_placa: "",
+      veiculo_uf: "",
       forma_pagamento: "01",
       observacoes: "",
     },
@@ -1045,6 +1255,39 @@ export default function EmitirNFeWizard() {
       toast.success(
         `Pedido ${ov.numero} carregado: ${itensWizard.length} ${itensWizard.length === 1 ? "item" : "itens"} prontos para faturar. Aplique a matriz fiscal nos itens.`,
       );
+
+      // A-03: aplicar matriz fiscal automaticamente em cada item
+      const ufDestino = form.getValues("cliente_uf");
+      if (ufDestino && itensWizard.length > 0) {
+        toast.info("Aplicando matriz fiscal automaticamente…");
+        let aplicadas = 0;
+        for (let i = 0; i < itensWizard.length; i++) {
+          const it = itensWizard[i];
+          if (!it.produto_id) continue;
+          try {
+            const { data: m } = await supabase.rpc("aplicar_matriz_fiscal", {
+              p_produto_id: it.produto_id,
+              p_uf_destino: ufDestino,
+              p_tipo_operacao: "saida",
+            });
+            const mr = m as { matched?: boolean; cfop?: string; cst_csosn?: string; aliquota_icms?: number; aliquota_pis?: number; aliquota_cofins?: number } | null;
+            if (mr?.matched) {
+              if (mr.cfop) form.setValue(`itens.${i}.cfop`, mr.cfop);
+              if (mr.cst_csosn) form.setValue(`itens.${i}.cst`, mr.cst_csosn);
+              form.setValue(`itens.${i}.icms_aliquota`, Number(mr.aliquota_icms ?? 0));
+              form.setValue(`itens.${i}.pis_aliquota`, Number(mr.aliquota_pis ?? 0));
+              form.setValue(`itens.${i}.cofins_aliquota`, Number(mr.aliquota_cofins ?? 0));
+              form.setValue(`itens.${i}.matriz_aplicada`, true);
+              aplicadas++;
+            }
+          } catch {
+            /* segue: matriz pode ser ajustada manualmente */
+          }
+        }
+        if (aplicadas > 0) {
+          toast.success(`Matriz fiscal aplicada em ${aplicadas} de ${itensWizard.length} itens.`);
+        }
+      }
     } catch (err) {
       notifyError(err);
     }
@@ -1202,6 +1445,15 @@ export default function EmitirNFeWizard() {
           outras_despesas: data.outras_despesas,
           desconto_valor: data.desconto_valor,
           observacoes: data.observacoes ?? null,
+          indicador_presenca: data.indicador_presenca,
+          data_saida: data.data_saida || null,
+          hora_saida: data.hora_saida || null,
+          transportadora_id: data.transportadora_id ?? null,
+          veiculo_placa: data.veiculo_placa ? data.veiculo_placa.toUpperCase() : null,
+          veiculo_uf: data.veiculo_uf ? data.veiculo_uf.toUpperCase() : null,
+          via_intermediador: data.via_intermediador ?? false,
+          intermediador_cnpj: data.via_intermediador ? (data.intermediador_cnpj || null) : null,
+          intermediador_identificador: data.via_intermediador ? (data.intermediador_identificador || null) : null,
           valor_produtos: valorProdutos,
           valor_total: totalNF,
           icms_valor: totaisIcms,

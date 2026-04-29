@@ -16,6 +16,7 @@ export type FiscalSefazStatus =
   | "nao_enviada"
   | "pendente_envio"
   | "em_processamento"
+  | "aguardando_protocolo"
   | "autorizada"
   | "rejeitada"
   | "cancelada_sefaz"
@@ -119,6 +120,12 @@ export const fiscalSefazStatusMap: Record<string, FiscalStatusVisual> = {
     icon: Clock3,
     description: "SEFAZ recebeu e está processando a solicitação.",
   },
+  aguardando_protocolo: {
+    label: "Aguardando protocolo",
+    classes: "bg-info/10 text-info border-info/20",
+    icon: Clock3,
+    description: "Lote enviado, aguardando número de protocolo da SEFAZ.",
+  },
   autorizada: {
     label: "Autorizada",
     classes: "bg-success/10 text-success border-success/20",
@@ -167,6 +174,7 @@ export const fiscalSefazStatusOptions = [
   "nao_enviada",
   "pendente_envio",
   "em_processamento",
+  "aguardando_protocolo",
   "autorizada",
   "rejeitada",
   "cancelada_sefaz",

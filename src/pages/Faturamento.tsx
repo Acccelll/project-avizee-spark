@@ -6,7 +6,6 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   FileText,
@@ -26,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
+import { ConsultaDocumentos } from "@/pages/faturamento/ConsultaDocumentos";
+import { FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { InutilizacaoDrawer } from "@/pages/fiscal/components/InutilizacaoDrawer";
 import { StatusSefazUFWidget } from "@/pages/fiscal/components/StatusSefazUFWidget";
 import { ContingenciaSvcDrawer } from "@/pages/fiscal/components/ContingenciaSvcDrawer";
@@ -141,21 +142,6 @@ async function fetchUltimasNotas(): Promise<DocResumo[]> {
   }));
 }
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) return <Badge variant="outline">—</Badge>;
-  const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    autorizada: { label: "Autorizada", variant: "default" },
-    rejeitada: { label: "Rejeitada", variant: "destructive" },
-    cancelada: { label: "Cancelada", variant: "secondary" },
-    pendente: { label: "Pendente", variant: "outline" },
-    em_processamento: { label: "Em processamento", variant: "outline" },
-    aguardando_protocolo: { label: "Aguardando", variant: "outline" },
-    importada_externa: { label: "Importada", variant: "secondary" },
-  };
-  const cfg = map[status] ?? { label: status, variant: "outline" as const };
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
-}
-
 export default function Faturamento() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -182,20 +168,33 @@ export default function Faturamento() {
     const sp = searchParams;
     if (sp.get("tab") === "manifestacao") {
       const nfeId = sp.get("nfe");
+      const returnTab = (sp.get("returnTab") as TabKey) || (VALID_TABS.includes(tab) ? tab : "painel");
       setManifHighlight(nfeId);
       setManifOpen(true);
       // Limpa o param "tab=manifestacao" para não reabrir em re-renders;
-      // mantém a aba atual.
+      // restaura a aba de origem (returnTab) se informada.
       const next = new URLSearchParams(sp);
       next.delete("tab");
       next.delete("nfe");
+      next.delete("returnTab");
+      next.set("tab", returnTab);
       setSearchParams(next, { replace: true });
     }
     // Apenas no mount/quando a query muda externamente.
   }, [searchParams, setSearchParams]);
 
-  const kpisQuery = useQuery({ queryKey: ["faturamento-kpis"], queryFn: fetchPainelKpis });
-  const ultimasQuery = useQuery({ queryKey: ["faturamento-ultimas"], queryFn: fetchUltimasNotas });
+  const kpisQuery = useQuery({
+    queryKey: ["faturamento-kpis"],
+    queryFn: fetchPainelKpis,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const ultimasQuery = useQuery({
+    queryKey: ["faturamento-ultimas"],
+    queryFn: fetchUltimasNotas,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   const kpis = kpisQuery.data;
 
@@ -303,7 +302,7 @@ export default function Faturamento() {
                               {formatDate(n.data_emissao)} · {formatCurrency(Number(n.valor_total ?? 0))}
                             </p>
                           </div>
-                          <StatusBadge status={n.status_sefaz} />
+                          <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} />
                         </li>
                       ))}
                     </ul>
@@ -378,29 +377,7 @@ export default function Faturamento() {
 
         {/* DOCUMENTOS */}
         <TabsContent value="documentos" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documentos fiscais</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Operações pós-emissão: CC-e e devolução ficam no detalhe de cada
-                NF autorizada. Inutilização de faixa abre pelo botão abaixo.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => navigate("/fiscal?tipo=saida")}>Notas de saída</Button>
-                <Button variant="outline" onClick={() => navigate("/fiscal?tipo=entrada")}>
-                  Notas de entrada
-                </Button>
-                <Button variant="outline" onClick={() => setInutOpen(true)} className="gap-2">
-                  <Ban className="h-4 w-4" /> Inutilizar numeração
-                </Button>
-                <Button variant="outline" onClick={() => setManifOpen(true)} className="gap-2">
-                  <Inbox className="h-4 w-4" /> Manifestação do destinatário
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ConsultaDocumentos />
         </TabsContent>
       </Tabs>
 
