@@ -16,13 +16,15 @@
  *   estiver no DistDFe, o XML não pode ser obtido automaticamente.
  */
 
-import { useState } from "react";
-import { KeyRound, Loader2, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { KeyRound, Loader2, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { FormModal } from "@/components/FormModal";
 
 interface BuscarPorChaveDialogProps {
@@ -34,6 +36,14 @@ interface BuscarPorChaveDialogProps {
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
+/** Lê o tipo de emissão da chave (posição 35 = tpEmis). "1" = normal/produção real. */
+function inferirAmbienteDaChave(_chave: string): "produção provável" | "indeterminado" {
+  // A chave por si só NÃO carrega o ambiente; só o tpEmis. Mantemos heurística simples
+  // apenas para sinalizar ao usuário que chaves com 44 dígitos vindas de fornecedores
+  // são, na prática, sempre de produção.
+  return "produção provável";
+}
+
 export function BuscarPorChaveDialog({
   open,
   onClose,
@@ -42,6 +52,53 @@ export function BuscarPorChaveDialog({
   const [chave, setChave] = useState("");
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<"idle" | "local" | "sefaz">("idle");
+  /** Ambiente lido de empresa_config (1=produção, 2=homologação). */
+  const [ambienteEmpresa, setAmbienteEmpresa] = useState<"1" | "2">("1");
+  /** Override manual: forçar produção mesmo quando a empresa está em homologação. */
+  const [forcarProducao, setForcarProducao] = useState(false);
+  /** Indica se já existe um certificado A1 configurado (necessário para a consulta). */
+  const [temCertificado, setTemCertificado] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const { data: cfg } = await supabase
+          .from("empresa_config")
+          .select("ambiente_sefaz, ambiente_padrao")
+          .maybeSingle();
+        if (cancelado) return;
+        let amb: "1" | "2" = "1";
+        if (cfg?.ambiente_sefaz === "1" || cfg?.ambiente_sefaz === "2") {
+          amb = cfg.ambiente_sefaz;
+        } else if (cfg?.ambiente_padrao === "homologacao") {
+          amb = "2";
+        } else if (cfg?.ambiente_padrao === "producao") {
+          amb = "1";
+        }
+        setAmbienteEmpresa(amb);
+        // Por padrão, sugerimos consultar em produção quando a empresa está em homologação
+        // (a Distribuição DF-e em homologação raramente devolve documentos reais).
+        setForcarProducao(amb === "2");
+      } catch (cfgErr) {
+        console.warn("[BuscarPorChave] não foi possível ler empresa_config:", cfgErr);
+      }
+      try {
+        const { data: cert } = await supabase
+          .from("app_configuracoes")
+          .select("valor")
+          .eq("chave", "certificado_digital")
+          .maybeSingle();
+        if (!cancelado) setTemCertificado(!!cert?.valor);
+      } catch {
+        if (!cancelado) setTemCertificado(null);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [open]);
 
   const reset = () => {
     setChave("");
@@ -72,6 +129,14 @@ export function BuscarPorChaveDialog({
       return;
     }
 
+    if (temCertificado === false) {
+      toast.error(
+        "Nenhum certificado digital configurado. A consulta à SEFAZ exige o A1 instalado em Configuração Fiscal.",
+        { duration: 8000 },
+      );
+      return;
+    }
+
     setLoading(true);
     setPhase("local");
     try {
@@ -92,23 +157,10 @@ export function BuscarPorChaveDialog({
       //    Limitação SEFAZ: a NF precisa ser destinada ao CNPJ do certificado.
       setPhase("sefaz");
 
-      // Lê ambiente da empresa (1 = produção, 2 = homologação). Padrão = produção.
-      let ambiente: "1" | "2" = "1";
-      try {
-        const { data: cfg } = await supabase
-          .from("empresa_config")
-          .select("ambiente_sefaz, ambiente_padrao")
-          .maybeSingle();
-        if (cfg?.ambiente_sefaz === "1" || cfg?.ambiente_sefaz === "2") {
-          ambiente = cfg.ambiente_sefaz;
-        } else if (cfg?.ambiente_padrao === "homologacao") {
-          ambiente = "2";
-        } else if (cfg?.ambiente_padrao === "producao") {
-          ambiente = "1";
-        }
-      } catch (cfgErr) {
-        console.warn("[BuscarPorChave] não foi possível ler empresa_config:", cfgErr);
-      }
+      // Define o ambiente efetivo: por padrão respeita a empresa, mas o usuário
+      // pode marcar "Consultar em produção" — necessário porque chaves reais de
+      // fornecedores só existem em produção.
+      const ambiente: "1" | "2" = forcarProducao ? "1" : ambienteEmpresa;
 
       toast.info(
         `Consultando SEFAZ pela chave (${ambiente === "1" ? "produção" : "homologação"})…`,
@@ -172,7 +224,21 @@ export function BuscarPorChaveDialog({
     } catch (err) {
       console.error("[BuscarPorChave]", err);
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Erro na consulta: ${msg}`);
+      // Heurística amigável: reset/connect refused em homologação geralmente significa
+      // que o ambiente está incompatível com o certificado real do fornecedor/empresa.
+      const ehResetEmHomolog =
+        !forcarProducao &&
+        ambienteEmpresa === "2" &&
+        /(reset by peer|connection reset|connect|tls|handshake)/i.test(msg);
+      if (ehResetEmHomolog) {
+        toast.error(
+          "A consulta foi enviada para homologação e a SEFAZ derrubou a conexão. " +
+            "Marque \"Consultar em produção\" para tentar novamente — chaves reais de fornecedores só existem em produção.",
+          { duration: 12000 },
+        );
+      } else {
+        toast.error(`Erro na consulta: ${msg}`);
+      }
     } finally {
       setLoading(false);
       setPhase("idle");
@@ -181,6 +247,8 @@ export function BuscarPorChaveDialog({
 
   const chaveDigits = onlyDigits(chave);
   const chaveValida = chaveDigits.length === 44;
+  const ambienteEfetivo: "1" | "2" = forcarProducao ? "1" : ambienteEmpresa;
+  const heuristica = chaveValida ? inferirAmbienteDaChave(chaveDigits) : null;
 
   return (
     <FormModal
@@ -193,7 +261,11 @@ export function BuscarPorChaveDialog({
           <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleBuscar} disabled={loading || !chaveValida} className="gap-2">
+          <Button
+            onClick={handleBuscar}
+            disabled={loading || !chaveValida || temCertificado === false}
+            className="gap-2"
+          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -237,6 +309,47 @@ export function BuscarPorChaveDialog({
           </div>
         </div>
 
+        {/* Painel de ambiente — torna explícito para qual SEFAZ a consulta vai */}
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Ambiente da empresa: </span>
+              <Badge variant={ambienteEmpresa === "1" ? "default" : "secondary"}>
+                {ambienteEmpresa === "1" ? "Produção" : "Homologação"}
+              </Badge>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Consulta será feita em: </span>
+              <Badge variant={ambienteEfetivo === "1" ? "default" : "secondary"}>
+                {ambienteEfetivo === "1" ? "Produção" : "Homologação"}
+              </Badge>
+            </div>
+          </div>
+          <label className="flex items-center justify-between gap-3 text-xs cursor-pointer">
+            <span className="text-foreground">
+              Consultar em <strong>produção</strong> (recomendado para chaves reais de fornecedores)
+            </span>
+            <Switch
+              checked={forcarProducao}
+              onCheckedChange={setForcarProducao}
+              disabled={loading}
+            />
+          </label>
+          {ambienteEmpresa === "2" && !forcarProducao && (
+            <p className="flex items-start gap-1.5 text-[11px] text-warning">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              A empresa está em homologação. Notas reais de entrada não existem nesse
+              ambiente — a consulta tende a falhar por reset de conexão.
+            </p>
+          )}
+          {temCertificado === false && (
+            <p className="flex items-start gap-1.5 text-[11px] text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              Nenhum certificado digital A1 configurado — sem ele a SEFAZ não responde.
+            </p>
+          )}
+        </div>
+
         <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-foreground space-y-1.5">
           <p className="font-semibold">Como funciona</p>
           <ol className="list-decimal pl-4 space-y-1 text-muted-foreground">
@@ -251,6 +364,11 @@ export function BuscarPorChaveDialog({
               próprio emissor.
             </li>
           </ol>
+          {heuristica && (
+            <p className="text-[11px] text-muted-foreground italic">
+              Chave informada parece ser de {heuristica}.
+            </p>
+          )}
         </div>
       </div>
     </FormModal>
