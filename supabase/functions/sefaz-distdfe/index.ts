@@ -358,14 +358,17 @@ Deno.serve(async (req) => {
       //  - Connection reset / TLS / handshake: instabilidade do AN ou
       //    incompatibilidade do certificado com o ambiente selecionado.
       const looksLikeHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(raw);
-      const looksLikeReset = /Connection reset|connect|reset by peer|tls|handshake|EOF/i.test(raw);
+      const looksLikeUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(raw);
+      const looksLikeReset = /Connection reset|reset by peer|EOF/i.test(raw);
+      const looksLikeTls = /tls|handshake|alert/i.test(raw);
       let hint = "";
       if (looksLikeHttp2) {
+        hint = " — o webservice NFeDistribuicaoDFe exige HTTP/1.1; ajuste o cliente para forçar http1.";
+      } else if (looksLikeUnknownIssuer) {
+        hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
+      } else if (looksLikeReset || looksLikeTls) {
         hint =
-          " — o webservice NFeDistribuicaoDFe exige HTTP/1.1 e o cliente tentou HTTP/2. Atualize a edge function para forçar http1.";
-      } else if (looksLikeReset) {
-        hint =
-          ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`;
+          " — falha de transporte TLS contra o Ambiente Nacional (NFeDistribuicaoDFe). Não é necessariamente erro de ambiente/certificado A1: o serviço da Receita pode estar instável ou exigir renegociação TLS que o runtime atual não suporta. Tente novamente em alguns minutos; se persistir, verifique status do AN no portal NF-e.";
       }
       return json({
         sucesso: false,
