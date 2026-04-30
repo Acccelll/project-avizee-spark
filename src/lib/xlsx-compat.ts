@@ -26,24 +26,28 @@ function resolveCellValue(value: unknown): unknown {
   if (value == null || value instanceof Date) return value;
   if (typeof value !== "object") return value;
 
-  if ("formula" in value || "sharedFormula" in value) {
-    return resolveCellValue(value.result ?? null);
+  const record = value as Record<string, unknown>;
+
+  if ("formula" in record || "sharedFormula" in record) {
+    return resolveCellValue(record.result ?? null);
   }
 
-  if ("richText" in value && Array.isArray(value.richText)) {
-    return value.richText.map((part) => part.text).join("");
+  if (Array.isArray(record.richText)) {
+    return record.richText
+      .map((part) => (typeof part === "object" && part && "text" in (part as Record<string, unknown>) ? String((part as Record<string, unknown>).text ?? "") : ""))
+      .join("");
   }
 
-  if ("text" in value && typeof value.text === "string") {
-    return value.text;
+  if (typeof record.text === "string") {
+    return record.text;
   }
 
-  if ("hyperlink" in value && typeof value.hyperlink === "string") {
-    return "text" in value && typeof value.text === "string" ? value.text : value.hyperlink;
+  if (typeof record.hyperlink === "string") {
+    return typeof record.text === "string" ? record.text : record.hyperlink;
   }
 
-  if ("result" in value) {
-    return resolveCellValue(value.result ?? null);
+  if ("result" in record) {
+    return resolveCellValue(record.result ?? null);
   }
 
   return value;
