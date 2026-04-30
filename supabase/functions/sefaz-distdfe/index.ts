@@ -324,8 +324,14 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "POST",
         headers: {
-          "Content-Type": "application/soap+xml; charset=utf-8",
-          SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse",
+          // SOAP 1.2: SOAPAction vai DENTRO do Content-Type, conforme spec
+          // (RFC/SOAP 1.2). Servidores IIS do AN são estritos — enviar um
+          // header `SOAPAction:` separado, à moda SOAP 1.1, frequentemente
+          // resulta em reset de conexão em vez de Fault legível.
+          "Content-Type":
+            'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          Accept: "application/soap+xml, text/xml; charset=utf-8",
+          "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
         },
         body: envelope,
         // @ts-ignore — option client é específica do Deno
