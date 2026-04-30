@@ -167,6 +167,22 @@ export function BuscarPorChaveDialog({
       return;
     }
 
+    // Throttle: NT 2014.002 v1.30 limita ~20 consChNFe/hora antes de
+    // bloquear o CNPJ por 1h (cStat 656). Avisamos antes de chegar lá.
+    const hits = consultasNaUltimaHora();
+    if (hits.length >= LIMITE_POR_HORA) {
+      const maisAntiga = Math.min(...hits);
+      const minutosRestantes = Math.max(
+        1,
+        Math.ceil((maisAntiga + 60 * 60 * 1000 - Date.now()) / 60_000),
+      );
+      toast.error(
+        `Limite de ${LIMITE_POR_HORA} consultas por hora atingido. Aguarde ~${minutosRestantes} min para evitar bloqueio do CNPJ pela SEFAZ (cStat 656 — consumo indevido).`,
+        { duration: 12000 },
+      );
+      return;
+    }
+
     setLoading(true);
     setPhase("local");
     try {
@@ -200,6 +216,7 @@ export function BuscarPorChaveDialog({
         "sefaz-distdfe",
         { body: { action: "consultar-chave", chNFe: chaveLimpa, ambiente } },
       );
+      registrarConsulta();
 
       if (syncErr) {
         const msg =
