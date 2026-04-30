@@ -4,6 +4,7 @@ import { OriginContextBanner } from "@/components/navigation/OriginContextBanner
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
+import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Upload, KeyRound } from "lucide-react";
@@ -172,6 +173,9 @@ const Fiscal = () => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [parcelas, setParcelas] = useState(1);
+  const [primeiroVencimento, setPrimeiroVencimento] = useState<string>("");
+  const [intervaloDias, setIntervaloDias] = useState<number>(30);
+  const [parcelasPlano, setParcelasPlano] = useState<import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
@@ -714,7 +718,8 @@ const Fiscal = () => {
     setSaving(true);
     try {
       const savedTotal = totalNF || form.valor_total;
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos };
+      const planoParcelas = form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
+      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
       const nfId = await upsertNotaFiscalComItens({
         mode: mode === "create" ? "create" : "edit",
         nfId: selected?.id,
@@ -1267,6 +1272,19 @@ const Fiscal = () => {
               <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={form.gera_financeiro} onChange={(e) => setForm({ ...form, gera_financeiro: e.target.checked })} className="rounded" />Gera Financeiro</label>
             </div>
           </div>
+          {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && (
+            <ParcelasFiscalEditor
+              total={totalNF || form.valor_total}
+              qtdParcelas={parcelas}
+              dataEmissao={form.data_emissao}
+              primeiroVencimento={primeiroVencimento}
+              intervaloDias={intervaloDias}
+              parcelas={parcelasPlano}
+              onPrimeiroVencimentoChange={setPrimeiroVencimento}
+              onIntervaloChange={setIntervaloDias}
+              onParcelasChange={setParcelasPlano}
+            />
+          )}
           {contasContabeis.length > 0 && (
             <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
               <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
