@@ -227,16 +227,26 @@ export function BuscarPorChaveDialog({
       // Heurísticas: priorizamos a mensagem real do backend e só sugerimos
       // "trocar para produção" quando faz sentido.
       const ehHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(msg);
-      const ehReset = /(reset by peer|connection reset|connect|tls|handshake)/i.test(msg);
+      const ehUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(msg);
+      const ehReset = /(reset by peer|connection reset|EOF|tls|handshake|alert)/i.test(msg);
       if (ehHttp2) {
         toast.error(
           "A SEFAZ recusou a conexão por exigir HTTP/1.1. A correção foi aplicada na função fiscal — recarregue a página e tente novamente em alguns segundos.",
           { duration: 12000 },
         );
+      } else if (ehUnknownIssuer) {
+        toast.error(
+          "A cadeia ICP-Brasil do servidor SEFAZ não foi reconhecida pelo ambiente. Reporte ao suporte técnico para incluir os certificados raiz no cliente HTTP fiscal.",
+          { duration: 12000 },
+        );
       } else if (ehReset && !forcarProducao && ambienteEmpresa === "2") {
         toast.error(
-          "A consulta foi enviada para homologação e a SEFAZ derrubou a conexão. " +
-            'Marque "Consultar em produção" para tentar novamente — chaves reais de fornecedores só existem em produção.',
+          'A consulta foi enviada para homologação e o Ambiente Nacional derrubou a conexão. Marque "Consultar em produção" para tentar novamente — chaves reais de fornecedores só existem em produção.',
+          { duration: 12000 },
+        );
+      } else if (ehReset) {
+        toast.error(
+          "Falha de transporte TLS com o Ambiente Nacional NFeDistribuicaoDFe. Isso normalmente indica indisponibilidade temporária do serviço da Receita — não é necessariamente problema do certificado A1. Tente novamente em alguns minutos.",
           { duration: 12000 },
         );
       } else {
