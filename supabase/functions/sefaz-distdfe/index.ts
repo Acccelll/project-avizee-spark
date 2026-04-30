@@ -182,10 +182,12 @@ function montarDistDFeInt(opts: {
 function envelopeSoap(distDFeInt: string, cUF: string): string {
   // NT 2014.002 — IIS do Ambiente Nacional aceita SOAP 1.1. O Header
   // `nfeCabecMsg` é OBRIGATÓRIO segundo o WSDL do serviço (cUF +
-  // versaoDados). Sem ele o servidor responde com cStat 215/239 ou,
-  // dependendo da versão do IIS, derruba a conexão antes de gerar o
-  // SOAP Fault — comportamento idêntico ao "connection reset by peer"
-  // observado em produção em abr/2026.
+  // versaoDados). IMPORTANTE: o `cUF` deste header refere-se à UF do
+  // WEBSERVICE (Ambiente Nacional = 91), NÃO à UF do interessado. O
+  // cUFAutor (UF do interessado) vai apenas no corpo `distDFeInt`.
+  // Enviar a UF da empresa aqui faz o IIS do AN derrubar a conexão
+  // (comportamento idêntico ao "connection reset by peer" observado
+  // em produção em abr/2026).
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
   return `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
@@ -409,7 +411,9 @@ Deno.serve(async (req) => {
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
       : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
-    const envelope = envelopeSoap(distDFeInt, cUFAutor);
+    // cUF do nfeCabecMsg = UF do webservice (AN sempre 91), independente
+    // da UF da empresa. O cUFAutor (interessado) já foi para o corpo.
+    const envelope = envelopeSoap(distDFeInt, "91");
     const url = endpointAN(ambiente);
 
     log.info("preparado envio SEFAZ", {
