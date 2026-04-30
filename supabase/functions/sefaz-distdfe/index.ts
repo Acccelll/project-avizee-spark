@@ -421,24 +421,48 @@ Deno.serve(async (req) => {
       certChainBytes: certPem.length,
     });
 
-    // Diagnóstico: testa GET ?wsdl com o mesmo cliente mTLS para isolar se
-    // o problema é mTLS+TLS (handshake) ou específico do POST/SOAP.
+    // Diagnóstico: probes para isolar a camada que falha.
+    //  A) GET ?wsdl SEM mTLS  → testa se TLS puro contra o servidor SEFAZ funciona.
+    //  B) GET na raiz NF-e (host genérico) SEM mTLS → testa se a Receita responde
+    //     ao runtime do Deno em geral.
+    //  C) GET ?wsdl COM mTLS  → repete o canal completo.
     try {
       const probe = await fetch(`${url}?wsdl`, {
         method: "GET",
-        headers: { "User-Agent": "AviZee-ERP/1.0 (+probe)" },
+        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeA)" },
+      });
+      const txt = await probe.text();
+      log.info("probe A GET ?wsdl SEM mTLS", {
+        status: probe.status, bytes: txt.length, preview: txt.slice(0, 160),
+      });
+    } catch (e: any) {
+      log.info("probe A failed", { erro: e?.message ?? String(e) });
+    }
+    try {
+      const probe = await fetch("https://www.nfe.fazenda.gov.br/portal/principal.aspx", {
+        method: "GET",
+        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeB)" },
+      });
+      const txt = await probe.text();
+      log.info("probe B GET portal NF-e", {
+        status: probe.status, bytes: txt.length,
+      });
+    } catch (e: any) {
+      log.info("probe B failed", { erro: e?.message ?? String(e) });
+    }
+    try {
+      const probe = await fetch(`${url}?wsdl`, {
+        method: "GET",
+        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeC)" },
         // @ts-ignore
         client,
       });
-      const probeText = await probe.text();
-      log.info("probe GET ?wsdl", {
-        status: probe.status,
-        contentType: probe.headers.get("content-type"),
-        bytes: probeText.length,
-        preview: probeText.slice(0, 160),
+      const txt = await probe.text();
+      log.info("probe C GET ?wsdl COM mTLS", {
+        status: probe.status, bytes: txt.length, preview: txt.slice(0, 160),
       });
     } catch (e: any) {
-      log.info("probe GET ?wsdl failed", { erro: e?.message ?? String(e) });
+      log.info("probe C failed", { erro: e?.message ?? String(e) });
     }
 
     const controller = new AbortController();
