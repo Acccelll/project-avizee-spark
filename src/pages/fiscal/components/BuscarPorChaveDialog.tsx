@@ -36,6 +36,36 @@ interface BuscarPorChaveDialogProps {
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
+/**
+ * Throttling client-side para respeitar o limite da NT 2014.002 v1.30:
+ * o Ambiente Nacional bloqueia o CNPJ por 1 hora se houver mais de
+ * 20 consultas consChNFe na última hora (cStat 656). Mantemos um buffer
+ * defensivo de 18 consultas/h por aba.
+ */
+const STORAGE_KEY = "fiscal:consChNFe:hits";
+const LIMITE_POR_HORA = 18;
+
+function consultasNaUltimaHora(): number[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as number[];
+    const corte = Date.now() - 60 * 60 * 1000;
+    return Array.isArray(arr) ? arr.filter((t) => t > corte) : [];
+  } catch {
+    return [];
+  }
+}
+
+function registrarConsulta(): void {
+  const hits = [...consultasNaUltimaHora(), Date.now()];
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hits));
+  } catch {
+    /* sem storage — segue sem throttle */
+  }
+}
+
 /** Lê o tipo de emissão da chave (posição 35 = tpEmis). "1" = normal/produção real. */
 function inferirAmbienteDaChave(_chave: string): "produção provável" | "indeterminado" {
   // A chave por si só NÃO carrega o ambiente; só o tpEmis. Mantemos heurística simples
@@ -137,6 +167,22 @@ export function BuscarPorChaveDialog({
       return;
     }
 
+    // Throttle: NT 2014.002 v1.30 limita ~20 consChNFe/hora antes de
+    // bloquear o CNPJ por 1h (cStat 656). Avisamos antes de chegar lá.
+    const hits = consultasNaUltimaHora();
+    if (hits.length >= LIMITE_POR_HORA) {
+      const maisAntiga = Math.min(...hits);
+      const minutosRestantes = Math.max(
+        1,
+        Math.ceil((maisAntiga + 60 * 60 * 1000 - Date.now()) / 60_000),
+      );
+      toast.error(
+        `Limite de ${LIMITE_POR_HORA} consultas por hora atingido. Aguarde ~${minutosRestantes} min para evitar bloqueio do CNPJ pela SEFAZ (cStat 656 — consumo indevido).`,
+        { duration: 12000 },
+      );
+      return;
+    }
+
     setLoading(true);
     setPhase("local");
     try {
@@ -170,6 +216,7 @@ export function BuscarPorChaveDialog({
         "sefaz-distdfe",
         { body: { action: "consultar-chave", chNFe: chaveLimpa, ambiente } },
       );
+      registrarConsulta();
 
       if (syncErr) {
         const msg =
@@ -181,14 +228,18 @@ export function BuscarPorChaveDialog({
       type SefazResp = {
         sucesso?: boolean;
         erro?: string;
+        codigoTransporte?: string;
         cStat?: string;
         xMotivo?: string;
+        mensagemCstat?: string | null;
         docs?: Array<{ schema?: string; xml?: string; chave?: string }>;
       };
       const r = (result ?? {}) as SefazResp;
 
       if (r.sucesso === false) {
-        throw new Error(r.erro ?? "Falha desconhecida no SEFAZ.");
+        const e = new Error(r.erro ?? "Falha desconhecida no SEFAZ.");
+        (e as any).codigoTransporte = r.codigoTransporte;
+        throw e;
       }
 
       // Procura o doc da chave consultada (procNFe completo).
@@ -216,19 +267,21 @@ export function BuscarPorChaveDialog({
       // Não encontrou — devolve a mensagem real da SEFAZ (cStat + xMotivo).
       const cStat = r.cStat ?? "";
       const xMotivo = r.xMotivo ?? "Documento não localizado.";
-      const explicacao =
-        cStat === "137" || cStat === "138"
-          ? `${xMotivo} (cStat ${cStat}). A NF-e existe mas não está vinculada ao CNPJ do certificado configurado — peça o XML diretamente ao emissor.`
-          : `${xMotivo}${cStat ? ` (cStat ${cStat})` : ""}.`;
+      // Mensagem amigável (catálogo NT 2014.002 v1.30, seção 4) tem
+      // prioridade sobre o xMotivo cru, que vem em CAIXA-ALTA sem acentos.
+      const amigavel = r.mensagemCstat ?? xMotivo;
+      const explicacao = cStat
+        ? `${amigavel} (cStat ${cStat})`
+        : amigavel;
       toast.error(`SEFAZ: ${explicacao}`, { duration: 10000 });
     } catch (err) {
       console.error("[BuscarPorChave]", err);
       const msg = err instanceof Error ? err.message : String(err);
-      // Heurísticas: priorizamos a mensagem real do backend e só sugerimos
-      // "trocar para produção" quando faz sentido.
-      const ehHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(msg);
-      const ehUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(msg);
-      const ehReset = /(reset by peer|connection reset|EOF|tls|handshake|alert)/i.test(msg);
+      const codigo = (err as any)?.codigoTransporte as string | undefined;
+      const ehHttp2 = codigo === "HTTP2_REQUIRED" || /HTTP\/1\.1|http2 error|stream error/i.test(msg);
+      const ehUnknownIssuer = codigo === "UNKNOWN_ISSUER" || /UnknownIssuer|invalid peer certificate/i.test(msg);
+      const ehReset = codigo === "CONNECTION_RESET" || codigo === "TLS_FAILURE" ||
+        /(reset by peer|connection reset|EOF|tls|handshake|alert)/i.test(msg);
       if (ehHttp2) {
         toast.error(
           "A SEFAZ recusou a conexão por exigir HTTP/1.1. A correção foi aplicada na função fiscal — recarregue a página e tente novamente em alguns segundos.",
@@ -246,7 +299,7 @@ export function BuscarPorChaveDialog({
         );
       } else if (ehReset) {
         toast.error(
-          "Falha de transporte TLS com o Ambiente Nacional NFeDistribuicaoDFe. Isso normalmente indica indisponibilidade temporária do serviço da Receita — não é necessariamente problema do certificado A1. Tente novamente em alguns minutos.",
+          "O Ambiente Nacional fechou a conexão sem responder. Como o Portal NF-e segue funcionando, isto indica divergência de protocolo (envelope SOAP) ou cadeia ICP-Brasil ausente no runtime — não é instabilidade da Receita. Reporte ao suporte se persistir.",
           { duration: 12000 },
         );
       } else {

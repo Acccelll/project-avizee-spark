@@ -41,6 +41,58 @@ function json(data: unknown, status = 200) {
   });
 }
 
+// ── UF → código IBGE (cUFAutor) ──────────────────────────────────
+// NT 2014.002 v1.30: cUFAutor é o código IBGE da UF do interessado
+// (ex.: 35=SP, 29=BA). Fallback "91" só quando UF não estiver configurada.
+const UF_PARA_IBGE: Record<string, string> = {
+  AC: "12", AL: "27", AP: "16", AM: "13", BA: "29", CE: "23", DF: "53",
+  ES: "32", GO: "52", MA: "21", MT: "51", MS: "50", MG: "31", PA: "15",
+  PB: "25", PR: "41", PE: "26", PI: "22", RJ: "33", RN: "24", RS: "43",
+  RO: "11", RR: "14", SC: "42", SP: "35", SE: "28", TO: "17",
+};
+
+// ── Catálogo oficial cStat (NT 2014.002 v1.30, seção 4) ─────────
+const CSTAT_DESC: Record<string, string> = {
+  "108": "Serviço paralisado momentaneamente.",
+  "109": "Serviço paralisado sem previsão.",
+  "137": "Nenhum documento localizado para o CNPJ do certificado.",
+  "138": "Documento localizado.",
+  "214": "Tamanho da mensagem excedeu o limite de 10 KB.",
+  "215": "Falha no schema XML.",
+  "217": "NF-e inexistente para a chave de acesso informada.",
+  "236": "Chave de acesso com dígito verificador inválido.",
+  "238": "Versão do XML superior à versão vigente.",
+  "239": "Versão do XML não suportada.",
+  "252": "Ambiente informado diverge do ambiente do Web Service.",
+  "280": "Certificado de transmissor inválido.",
+  "281": "Certificado de transmissor com data de validade vencida.",
+  "283": "Cadeia do certificado de transmissor com erro.",
+  "284": "Certificado de transmissor revogado.",
+  "285": "Certificado de transmissor difere de ICP-Brasil.",
+  "286": "Erro de acesso à LCR do certificado de transmissor.",
+  "402": "XML com codificação diferente de UTF-8.",
+  "404": "Uso de prefixo de namespace não permitido.",
+  "472": "CPF consultado difere do CPF do certificado digital.",
+  "473": "Certificado de transmissor sem CNPJ ou CPF.",
+  "489": "CNPJ informado inválido.",
+  "490": "CPF informado inválido.",
+  "589": "NSU informado superior ao maior NSU do Ambiente Nacional.",
+  "593": "CNPJ-base consultado difere do CNPJ-base do certificado — o A1 não pertence à empresa configurada.",
+  "614": "Chave de acesso inválida (UF inválida).",
+  "615": "Chave de acesso inválida (ano).",
+  "616": "Chave de acesso inválida (mês).",
+  "617": "Chave de acesso inválida (CNPJ).",
+  "618": "Chave de acesso inválida (modelo diferente de 55).",
+  "619": "Chave de acesso inválida (número da NF = 0).",
+  "632": "Solicitação fora do prazo: NF-e tem mais de 90 dias e não está mais disponível.",
+  "640": "CNPJ/CPF do interessado não tem permissão para consultar esta NF-e — peça o XML diretamente ao emissor.",
+  "641": "NF-e indisponível para o emitente (use 'Consultar SEFAZ' na lista, não esta busca).",
+  "653": "NF-e cancelada — arquivo indisponível para download.",
+  "654": "NF-e denegada — arquivo indisponível para download.",
+  "656": "Consumo indevido: o CNPJ foi bloqueado por 1 hora por excesso de consultas. Aguarde antes de tentar novamente.",
+  "999": "Erro não catalogado pelo Ambiente Nacional.",
+};
+
 async function requireAuth(req: Request) {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Token de autenticação ausente.");
@@ -109,19 +161,20 @@ function montarDistDFeInt(opts: {
 }
 
 function envelopeSoap(distDFeInt: string): string {
-  // SOAP 1.2 exigido pelo Manual NF-e (NFeDistribuicaoDFe).
-  // O conteúdo do nfeDadosMsg deve ser entregue como XML inline (sem
-  // declaração `<?xml ?>` interna) — alguns servidores rejeitam quando há
-  // BOM/declaração duplicada, devolvendo reset em vez de SOAP Fault.
+  // NT 2014.002 v1.30 — todos os exemplos oficiais usam SOAP 1.1
+  // (xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"), Content-Type
+  // text/xml e header SOAPAction separado. SOAP 1.2 não é aceito pelo
+  // endpoint IIS do Ambiente Nacional e provoca reset de conexão.
+  // Conteúdo do nfeDadosMsg vai inline, sem declaração <?xml?> interna.
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
   return `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
-    `<soap12:Body>` +
+    `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+    `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
     `</nfeDistDFeInteresse>` +
-    `</soap12:Body>` +
-    `</soap12:Envelope>`;
+    `</soap:Body>` +
+    `</soap:Envelope>`;
 }
 
 function endpointAN(amb: "1" | "2"): string {
@@ -257,6 +310,22 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Lê UF da empresa para compor cUFAutor conforme NT 2014.002 v1.30.
+    let cUFAutor = "91";
+    try {
+      const { data: cfg } = await adminClient
+        .from("empresa_config")
+        .select("uf")
+        .limit(1)
+        .maybeSingle();
+      const uf = String((cfg as any)?.uf ?? "").trim().toUpperCase();
+      if (uf && UF_PARA_IBGE[uf]) cUFAutor = UF_PARA_IBGE[uf];
+      else log.info("cUFAutor fallback 91", { uf_lida: uf });
+    } catch (e) {
+      log.info("cUFAutor fallback 91 (erro lendo empresa_config)", { e: String(e) });
+    }
+
     const { data: blob, error: dlErr } = await adminClient.storage
       .from("dbavizee")
       .download("certificados/empresa.pfx");
@@ -312,8 +381,8 @@ Deno.serve(async (req) => {
     }
 
     const distDFeInt = action === "consultar-chave"
-      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput })
-      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
+      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
+      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
     const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 
@@ -324,13 +393,12 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "POST",
         headers: {
-          // SOAP 1.2: SOAPAction vai DENTRO do Content-Type, conforme spec
-          // (RFC/SOAP 1.2). Servidores IIS do AN são estritos — enviar um
-          // header `SOAPAction:` separado, à moda SOAP 1.1, frequentemente
-          // resulta em reset de conexão em vez de Fault legível.
-          "Content-Type":
-            'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-          Accept: "application/soap+xml, text/xml; charset=utf-8",
+          // NT 2014.002 v1.30: SOAP 1.1 com Content-Type text/xml e
+          // SOAPAction como header HTTP separado (entre aspas).
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction:
+            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          Accept: "text/xml, application/soap+xml; charset=utf-8",
           "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
         },
         body: envelope,
@@ -368,13 +436,22 @@ Deno.serve(async (req) => {
         hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
       } else if (looksLikeReset || looksLikeTls) {
         hint =
-          " — falha de transporte TLS contra o Ambiente Nacional (NFeDistribuicaoDFe). Não é necessariamente erro de ambiente/certificado A1: o serviço da Receita pode estar instável ou exigir renegociação TLS que o runtime atual não suporta. Tente novamente em alguns minutos; se persistir, verifique status do AN no portal NF-e.";
+          " — falha de transporte contra o Ambiente Nacional. Causa típica: divergência de protocolo SOAP (o IIS do AN exige SOAP 1.1) ou cadeia ICP-Brasil ausente no runtime. Como o Portal NF-e responde normalmente para consultas, o serviço da Receita está no ar.";
       }
       return json({
         sucesso: false,
         ambiente,
         cnpj,
         erro: `${raw}${hint}`,
+        codigoTransporte: looksLikeUnknownIssuer
+          ? "UNKNOWN_ISSUER"
+          : looksLikeHttp2
+          ? "HTTP2_REQUIRED"
+          : looksLikeReset
+          ? "CONNECTION_RESET"
+          : looksLikeTls
+          ? "TLS_FAILURE"
+          : "TRANSPORT_ERROR",
       });
     } finally {
       try {
@@ -398,6 +475,7 @@ Deno.serve(async (req) => {
       ambiente,
       cStat: parsed.cStat,
       xMotivo: parsed.xMotivo,
+      mensagemCstat: CSTAT_DESC[parsed.cStat] ?? null,
       ultNSU: parsed.ultNSU,
       maxNSU: parsed.maxNSU,
       docs: parsed.docs,
