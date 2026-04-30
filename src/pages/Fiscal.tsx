@@ -216,8 +216,11 @@ const Fiscal = () => {
 
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
   // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
-  // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST, IPI, frete e
-  // outras despesas acrescem; desconto subtrai. Regra unificada em calcularTotalNF.
+  // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
+  // ao total da nota — junto com frete e outras despesas; desconto subtrai.
+  // Regra unificada em calcularTotalNF.
+  const totalImpostos =
+    Number(form.ipi_valor || 0) + Number(form.icms_st_valor || 0);
   const totalNF = calcularTotalNF(
     valorProdutos,
     Number(form.desconto_valor || 0),
