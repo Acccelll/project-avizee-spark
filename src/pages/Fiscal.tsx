@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { calcularTotalNF } from "@/lib/fiscal";
 import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -214,8 +215,20 @@ const Fiscal = () => {
   const [devolucaoItens, setDevolucaoItens] = useState<DevolucaoItem[]>([]);
 
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
-  const totalImpostos = Number(form.icms_valor || 0) + Number(form.ipi_valor || 0) + Number(form.pis_valor || 0) + Number(form.cofins_valor || 0) + Number(form.icms_st_valor || 0);
-  const totalNF = valorProdutos + Number(form.frete_valor || 0) + totalImpostos + Number(form.outras_despesas || 0) - Number(form.desconto_valor || 0);
+  // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
+  // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
+  // ao total da nota — junto com frete e outras despesas; desconto subtrai.
+  // Regra unificada em calcularTotalNF.
+  const totalImpostos =
+    Number(form.ipi_valor || 0) + Number(form.icms_st_valor || 0);
+  const totalNF = calcularTotalNF(
+    valorProdutos,
+    Number(form.desconto_valor || 0),
+    Number(form.icms_st_valor || 0),
+    Number(form.ipi_valor || 0),
+    Number(form.frete_valor || 0),
+    Number(form.outras_despesas || 0),
+  );
 
   useEffect(() => {
     const load = async () => {
