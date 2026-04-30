@@ -356,15 +356,25 @@ export function BuscarPorChaveDialog({
         <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-foreground space-y-1.5">
           <p className="font-semibold">Como funciona</p>
           <ol className="list-decimal pl-4 space-y-1 text-muted-foreground">
-            <li>Procuramos primeiro nos XMLs já recebidos por DistDFe (instantâneo).</li>
             <li>
-              Se não encontrarmos, sincronizamos com a SEFAZ usando o certificado digital
-              configurado.
+              Procuramos primeiro nos XMLs já recebidos por <strong>DistDFe</strong>
+              {" "}(instantâneo, sem custo SEFAZ).
             </li>
             <li>
-              <strong>Limitação:</strong> a SEFAZ só devolve XMLs destinados ao CNPJ do
-              certificado. Notas emitidas para outros CNPJs precisam ser obtidas com o
-              próprio emissor.
+              Se não encontrarmos, consultamos o <strong>Ambiente Nacional</strong>
+              {" "}via NFeDistribuicaoDFe (<code>consChNFe</code>) usando o certificado
+              digital configurado.
+            </li>
+            <li>
+              <strong>Importante:</strong> esta busca traz o <em>XML/resumo</em>{" "}
+              destinado ao CNPJ do certificado — <strong>não é</strong> a consulta
+              pública universal de NF-e por chave. Para verificar a situação/protocolo
+              de uma NF-e já cadastrada use a ação <em>Consultar SEFAZ</em> na lista
+              de notas (NFeConsultaProtocolo4).
+            </li>
+            <li>
+              Notas emitidas para outros CNPJs precisam ser obtidas com o próprio
+              emissor.
             </li>
           </ol>
           {heuristica && (
