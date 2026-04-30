@@ -4,6 +4,7 @@ import { OriginContextBanner } from "@/components/navigation/OriginContextBanner
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
+import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Upload, KeyRound } from "lucide-react";
