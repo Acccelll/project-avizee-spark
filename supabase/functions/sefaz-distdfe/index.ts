@@ -339,7 +339,12 @@ Deno.serve(async (req) => {
       const hint = looksLikeReset
         ? ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`
         : "";
-      return json({ sucesso: false, erro: `${raw}${hint}` });
+      return json({
+        sucesso: false,
+        ambiente,
+        cnpj,
+        erro: `${raw}${hint}`,
+      });
     } finally {
       try {
         // @ts-ignore
