@@ -264,16 +264,23 @@ export function BuscarPorChaveDialog({
         return;
       }
 
-      // Não encontrou — devolve a mensagem real da SEFAZ (cStat + xMotivo).
+      // Não encontrou XML — mas se a SEFAZ devolveu cStat oficial, isso é
+      // resposta fiscal legítima (ex.: 137 — chave não vinculada ao CNPJ
+      // do certificado, 656 — consumo indevido). Diferenciamos do erro
+      // técnico genérico.
       const cStat = r.cStat ?? "";
       const xMotivo = r.xMotivo ?? "Documento não localizado.";
-      // Mensagem amigável (catálogo NT 2014.002 v1.30, seção 4) tem
-      // prioridade sobre o xMotivo cru, que vem em CAIXA-ALTA sem acentos.
       const amigavel = r.mensagemCstat ?? xMotivo;
-      const explicacao = cStat
-        ? `${amigavel} (cStat ${cStat})`
-        : amigavel;
-      toast.error(`SEFAZ: ${explicacao}`, { duration: 10000 });
+      if (cStat) {
+        // Resposta fiscal oficial: usar info (cStat 138 sem doc é raro mas
+        // possível; 137 = chave não vinculada). Mostra cStat e xMotivo.
+        toast.info(
+          `SEFAZ respondeu (cStat ${cStat}): ${amigavel}`,
+          { duration: 12000 },
+        );
+      } else {
+        toast.error(`SEFAZ não retornou documento: ${amigavel}`, { duration: 10000 });
+      }
     } catch (err) {
       console.error("[BuscarPorChave]", err);
       const msg = err instanceof Error ? err.message : String(err);
