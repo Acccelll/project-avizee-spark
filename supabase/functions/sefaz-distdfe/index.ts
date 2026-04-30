@@ -301,14 +301,7 @@ Deno.serve(async (req) => {
 
   const log = createLogger("sefaz-distdfe", req);
   try {
-    // Diagnóstico temporário: permite header X-Diag-Token para bypass
-    // de auth (apenas para fechar a causa raiz do reset com SEFAZ).
-    const diag = req.headers.get("x-diag-token");
-    if (diag !== "AVIZEE_DIAG_2026") {
-      await requireAuth(req);
-    } else {
-      log.info("DIAG mode (auth bypass)", {});
-    }
+    await requireAuth(req);
     const body = await req.json().catch(() => ({}));
     const action: string = body.action ?? "consultar-nsu";
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
@@ -427,57 +420,6 @@ Deno.serve(async (req) => {
       envelopeBytes: envelope.length,
       certChainBytes: certPem.length,
     });
-
-    // Diagnóstico: probes para isolar a camada que falha.
-    //  A) GET ?wsdl SEM mTLS  → testa se TLS puro contra o servidor SEFAZ funciona.
-    //  B) GET na raiz NF-e (host genérico) SEM mTLS → testa se a Receita responde
-    //     ao runtime do Deno em geral.
-    //  C) GET ?wsdl COM mTLS  → repete o canal completo.
-    try {
-      const probe = await fetch(`${url}?wsdl`, {
-        method: "GET",
-        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeA)" },
-      });
-      const txt = await probe.text();
-      log.info("probe A GET ?wsdl SEM mTLS", {
-        status: probe.status, bytes: txt.length, preview: txt.slice(0, 160),
-      });
-    } catch (e: any) {
-      log.info("probe A failed", { erro: e?.message ?? String(e) });
-    }
-    try {
-      const probe = await fetch("https://www.nfe.fazenda.gov.br/portal/principal.aspx", {
-        method: "GET",
-        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeB)" },
-      });
-      const txt = await probe.text();
-      log.info("probe B GET portal NF-e", {
-        status: probe.status, bytes: txt.length,
-      });
-    } catch (e: any) {
-      log.info("probe B failed", { erro: e?.message ?? String(e) });
-    }
-    try {
-      // Probe D: POST real do envelope SEM o cliente mTLS customizado.
-      // Se o servidor responder (mesmo com 403/erro fiscal), confirma que
-      // o reset está sendo causado pelo Deno.createHttpClient (mTLS).
-      const probe = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction:
-            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-          "User-Agent": "AviZee-ERP/1.0 (+probeD)",
-        },
-        body: envelope,
-      });
-      const txt = await probe.text();
-      log.info("probe D POST SEM mTLS", {
-        status: probe.status, bytes: txt.length, preview: txt.slice(0, 240),
-      });
-    } catch (e: any) {
-      log.info("probe D failed", { erro: e?.message ?? String(e) });
-    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
