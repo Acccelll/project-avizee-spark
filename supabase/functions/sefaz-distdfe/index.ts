@@ -451,18 +451,25 @@ Deno.serve(async (req) => {
       log.info("probe B failed", { erro: e?.message ?? String(e) });
     }
     try {
-      const probe = await fetch(`${url}?wsdl`, {
-        method: "GET",
-        headers: { "User-Agent": "AviZee-ERP/1.0 (+probeC)" },
-        // @ts-ignore
-        client,
+      // Probe D: POST real do envelope SEM o cliente mTLS customizado.
+      // Se o servidor responder (mesmo com 403/erro fiscal), confirma que
+      // o reset está sendo causado pelo Deno.createHttpClient (mTLS).
+      const probe = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction:
+            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          "User-Agent": "AviZee-ERP/1.0 (+probeD)",
+        },
+        body: envelope,
       });
       const txt = await probe.text();
-      log.info("probe C GET ?wsdl COM mTLS", {
-        status: probe.status, bytes: txt.length, preview: txt.slice(0, 160),
+      log.info("probe D POST SEM mTLS", {
+        status: probe.status, bytes: txt.length, preview: txt.slice(0, 240),
       });
     } catch (e: any) {
-      log.info("probe C failed", { erro: e?.message ?? String(e) });
+      log.info("probe D failed", { erro: e?.message ?? String(e) });
     }
 
     const controller = new AbortController();
