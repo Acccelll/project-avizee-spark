@@ -22,12 +22,39 @@ async function loadExcelJS(): Promise<ExcelJSModule> {
 
 /* ---------- Internal helpers ---------- */
 
+function resolveCellValue(value: ExcelJSNs.CellValue): unknown {
+  if (value == null || value instanceof Date) return value;
+  if (typeof value !== "object") return value;
+
+  if ("formula" in value || "sharedFormula" in value) {
+    return resolveCellValue(value.result ?? null);
+  }
+
+  if ("richText" in value && Array.isArray(value.richText)) {
+    return value.richText.map((part) => part.text).join("");
+  }
+
+  if ("text" in value && typeof value.text === "string") {
+    return value.text;
+  }
+
+  if ("hyperlink" in value && typeof value.hyperlink === "string") {
+    return "text" in value && typeof value.text === "string" ? value.text : value.hyperlink;
+  }
+
+  if ("result" in value) {
+    return resolveCellValue(value.result ?? null);
+  }
+
+  return value;
+}
+
 function worksheetToRows(ws: ExcelJSNs.Worksheet): unknown[][] {
   const rows: unknown[][] = [];
   ws.eachRow({ includeEmpty: false }, (row) => {
     const values: unknown[] = [];
     row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      values[colNumber - 1] = cell.value;
+      values[colNumber - 1] = resolveCellValue(cell.value);
     });
     rows.push(values);
   });
