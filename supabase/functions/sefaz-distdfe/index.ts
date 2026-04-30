@@ -381,8 +381,8 @@ Deno.serve(async (req) => {
     }
 
     const distDFeInt = action === "consultar-chave"
-      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput })
-      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
+      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
+      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
     const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 
@@ -393,13 +393,12 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "POST",
         headers: {
-          // SOAP 1.2: SOAPAction vai DENTRO do Content-Type, conforme spec
-          // (RFC/SOAP 1.2). Servidores IIS do AN são estritos — enviar um
-          // header `SOAPAction:` separado, à moda SOAP 1.1, frequentemente
-          // resulta em reset de conexão em vez de Fault legível.
-          "Content-Type":
-            'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-          Accept: "application/soap+xml, text/xml; charset=utf-8",
+          // NT 2014.002 v1.30: SOAP 1.1 com Content-Type text/xml e
+          // SOAPAction como header HTTP separado (entre aspas).
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction:
+            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          Accept: "text/xml, application/soap+xml; charset=utf-8",
           "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
         },
         body: envelope,
