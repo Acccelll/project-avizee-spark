@@ -14,3 +14,5 @@ type: feature
 - Reuso: `useNFeXmlImport.importXml` aceita `File | string`; handler em `Fiscal.tsx` é agnóstico à origem.
 - Edge `sefaz-distdfe` aceita actions `consultar-nsu` (incremental) e `consultar-chave` (pontual).
 - Transporte: o webservice `NFeDistribuicaoDFe.asmx` exige HTTP/1.1. O `Deno.createHttpClient` da edge function MUST ser criado com `{ http1: true, http2: false }` além de `cert`/`key`. Sem isso, o servidor responde `endpoint requires HTTP/1.1` e o Deno falha o request por ALPN h2.
+- SOAP 1.2 obrigatório: header `Content-Type: application/soap+xml; charset=utf-8; action="..."` (action embutido no Content-Type, NÃO em `SOAPAction:` separado). Envelope com namespace `http://www.w3.org/2003/05/soap-envelope`. Enviar `SOAPAction:` como header SOAP 1.1 contra o IIS do AN resulta em `connection reset by peer`, não em SOAP Fault.
+- URLs oficiais do AN (Portal Nacional NF-e): produção `https://www1.nfe.fazenda.gov.br/...`, homologação `https://hom1.nfe.fazenda.gov.br/...` (NÃO `hom.nfe.fazenda.gov.br`).

@@ -109,21 +109,27 @@ function montarDistDFeInt(opts: {
 }
 
 function envelopeSoap(distDFeInt: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-  <soap:Header/>
-  <soap:Body>
-    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-      <nfeDadosMsg>${distDFeInt}</nfeDadosMsg>
-    </nfeDistDFeInteresse>
-  </soap:Body>
-</soap:Envelope>`;
+  // SOAP 1.2 exigido pelo Manual NF-e (NFeDistribuicaoDFe).
+  // O conteúdo do nfeDadosMsg deve ser entregue como XML inline (sem
+  // declaração `<?xml ?>` interna) — alguns servidores rejeitam quando há
+  // BOM/declaração duplicada, devolvendo reset em vez de SOAP Fault.
+  const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+    `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
+    `</nfeDistDFeInteresse>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
 }
 
 function endpointAN(amb: "1" | "2"): string {
   return amb === "1"
     ? "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx"
-    : "https://hom.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
+    // URL oficial publicada no Portal Nacional NF-e (lista de Web Services AN).
+    // O domínio antigo `hom.nfe.fazenda.gov.br` derruba a conexão.
+    : "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
 }
 
 // ── Parsing do retorno ───────────────────────────────────────────
@@ -318,8 +324,14 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "POST",
         headers: {
-          "Content-Type": "application/soap+xml; charset=utf-8",
-          SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse",
+          // SOAP 1.2: SOAPAction vai DENTRO do Content-Type, conforme spec
+          // (RFC/SOAP 1.2). Servidores IIS do AN são estritos — enviar um
+          // header `SOAPAction:` separado, à moda SOAP 1.1, frequentemente
+          // resulta em reset de conexão em vez de Fault legível.
+          "Content-Type":
+            'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          Accept: "application/soap+xml, text/xml; charset=utf-8",
+          "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
         },
         body: envelope,
         // @ts-ignore — option client é específica do Deno
@@ -346,14 +358,17 @@ Deno.serve(async (req) => {
       //  - Connection reset / TLS / handshake: instabilidade do AN ou
       //    incompatibilidade do certificado com o ambiente selecionado.
       const looksLikeHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(raw);
-      const looksLikeReset = /Connection reset|connect|reset by peer|tls|handshake|EOF/i.test(raw);
+      const looksLikeUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(raw);
+      const looksLikeReset = /Connection reset|reset by peer|EOF/i.test(raw);
+      const looksLikeTls = /tls|handshake|alert/i.test(raw);
       let hint = "";
       if (looksLikeHttp2) {
+        hint = " — o webservice NFeDistribuicaoDFe exige HTTP/1.1; ajuste o cliente para forçar http1.";
+      } else if (looksLikeUnknownIssuer) {
+        hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
+      } else if (looksLikeReset || looksLikeTls) {
         hint =
-          " — o webservice NFeDistribuicaoDFe exige HTTP/1.1 e o cliente tentou HTTP/2. Atualize a edge function para forçar http1.";
-      } else if (looksLikeReset) {
-        hint =
-          ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`;
+          " — falha de transporte TLS contra o Ambiente Nacional (NFeDistribuicaoDFe). Não é necessariamente erro de ambiente/certificado A1: o serviço da Receita pode estar instável ou exigir renegociação TLS que o runtime atual não suporta. Tente novamente em alguns minutos; se persistir, verifique status do AN no portal NF-e.";
       }
       return json({
         sucesso: false,
