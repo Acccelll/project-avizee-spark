@@ -7,7 +7,7 @@ import { FormModal } from "@/components/FormModal";
 import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { Upload, KeyRound } from "lucide-react";
+import { Upload, KeyRound, ScanLine } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -50,6 +50,7 @@ import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
+import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -181,6 +182,7 @@ const Fiscal = () => {
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
@@ -996,6 +998,16 @@ const Fiscal = () => {
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => setScannerOpen(true)}
+            aria-label="Ler chave por código de barras ou QR Code"
+          >
+            <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+            <span className="hidden xs:inline">Ler </span>QR/Código
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
             onClick={() => xmlInputRef.current?.click()}
             aria-label="Importar XML de NF-e"
           >
@@ -1375,6 +1387,28 @@ const Fiscal = () => {
               `Erro ao processar XML: ${err instanceof Error ? err.message : String(err)}`,
             );
           }
+        }}
+      />
+
+      {/* Scanner de chave (câmera/upload/digitação) — extrai apenas a chave;
+          os fluxos de consulta/XML continuam canônicos. */}
+      <FiscalChaveScannerDialog
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onBuscarXml={(chave) => {
+          // Copia a chave para a área de transferência para o usuário colar
+          // no BuscarPorChaveDialog (que não aceita chave inicial via prop hoje).
+          void navigator.clipboard?.writeText(chave).catch(() => {});
+          setScannerOpen(false);
+          setBuscarChaveOpen(true);
+          toast.info("Chave copiada — cole no campo abaixo para buscar o XML.");
+        }}
+        onConsultarSituacao={(chave) => {
+          void navigator.clipboard?.writeText(chave).catch(() => {});
+          toast.info(
+            `Chave ${chave.slice(0, 6)}…${chave.slice(-4)} pronta. Use "Consultar SEFAZ" na nota correspondente para situação/protocolo.`,
+          );
+          setScannerOpen(false);
         }}
       />
 

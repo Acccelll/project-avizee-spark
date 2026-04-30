@@ -1,89 +1,150 @@
-# Revisão à luz da NT 2014.002 v1.30
+## 1. Diagnóstico do estado atual (módulo Fiscal)
 
-Confrontei a NT oficial WsNFeDistribuicaoDFe com o que está implementado em `sefaz-distdfe`, `sefaz-proxy` e `BuscarPorChaveDialog`. Encontrei divergências objetivas com o leiaute oficial que explicam o `connection reset by peer` e podem causar futuros problemas funcionais.
+### Estrutura existente (já implementada — preservar)
 
-## Divergências confirmadas
+**Páginas (`src/pages/`)**
+- `Fiscal.tsx` (1.456 linhas) — listagem + form modal de NF de entrada/saída.
+- `FiscalDetail.tsx` (170 linhas) — detalhe.
+- `fiscal/ConfiguracaoFiscal.tsx`, `fiscal/Cte.tsx`, `fiscal/DistDFeHistorico.tsx`, `fiscal/FiscalDashboard.tsx`, `fiscal/NotaFiscalForm.tsx`, `fiscal/SpedFiscal.tsx`.
 
-### 1) SOAP 1.2 em vez de SOAP 1.1 (causa raiz mais provável do reset)
-- Os três exemplos da NT (distNSU, consNSU, consChNFe) e os exemplos de retorno usam:
-  - `xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"` (SOAP 1.1)
-  - `Content-Type: text/xml; charset=utf-8`
-  - header separado `SOAPAction: "<...>"`
-- Nossa edge function `sefaz-distdfe` usa `soap12:Envelope` com namespace `http://www.w3.org/2003/05/soap-envelope` e `Content-Type: application/soap+xml; charset=utf-8; action="..."`.
-- O servidor IIS do Ambiente Nacional aceita o endpoint SOAP 1.1 publicado e fecha a conexão para SOAP 1.2 sem responder Fault — exatamente o comportamento que estamos vendo.
-- A memória atual do projeto (`mem/features/fiscal-consulta-por-chave.md`) afirma que SOAP 1.2 é obrigatório. Isso está incorreto perante a NT 2014.002.
+**Componentes (`src/pages/fiscal/components/`)**
+- `BuscarPorChaveDialog.tsx` (452 linhas) — fluxo DistDFe consChNFe + busca local.
+- `SefazAcoesPanel.tsx`, `SefazRetornoModal/`, `NFeForm/`, `CartaCorrecaoDrawer.tsx`, `ContingenciaSvcDrawer.tsx`, `InutilizacaoDrawer.tsx`, `ManifestacaoDestinatarioDrawer.tsx`, `TraducaoXmlDrawer.tsx`, `StatusSefazUFWidget.tsx`, `PedidoCompraLinker.tsx`, `IcmsForm.tsx`, `IpiForm.tsx`, `PisCofinsForm.tsx`, `ParcelasFiscalEditor.tsx`.
+- `src/components/fiscal/`: `CertificadoUploader`, `CertificadoValidadeAlert`, `DevolucaoDialog`, `FiscalStatusBadges`, `NotaFiscalDrawer`, `NotaFiscalEditModal`.
 
-### 2) `cUFAutor` hardcoded em "91"
-- A NT mostra `<cUFAutor>29</cUFAutor>` (BA) — é o código IBGE da UF do **autor** (empresa).
-- Nossa montagem usa `91` fixo (código do Ambiente Nacional), o que é semanticamente errado e pode ser rejeitado em mudanças futuras de validação.
+**Hooks (`src/pages/fiscal/hooks/`)**
+- `useFiscalFilters`, `useFiscalKpis`, `useNFeXmlImport`, `useNotaFiscalLifecycle`, `useSefazAcoes`, `useSefazAutorizacao`, `useSefazConsulta`.
 
-### 3) Mensagem de erro da UI mascara causa real
-- O texto "instabilidade temporária da Receita / não é problema do A1" induz o usuário ao erro: o portal oficial responde normalmente para a mesma chave.
-- A causa real, à luz da NT, é a divergência de envelope SOAP — não o webservice.
+**Services**
+- `src/services/fiscal/`: `autoCiencia`, `certificado`, `danfe`, `danfeEmail`, `dashboardFiscal*`, `nfeBuilders`, `nfeXmlParser`, `tributacao`.
+- `src/services/fiscal/sefaz/`: `assinaturaDigital`, `autorizacao`, `cancelamento`, `cartaCorrecao`, `consulta`, `distdfe`, `httpClient`, `inutilizacao`, `manifestacao`, `sefazUrls`, `statusServico`, `xmlBuilder`.
+- `src/services/fiscal/validadores/`: `chaveAcesso.validator.ts` (✓ MOD11 OK, mapa cUF→sigla OK), `cest`, `cfop`, `inscricaoEstadual`, `ncm`, `preEmissao`.
 
-### 4) Risco de bloqueio por consumo indevido (656)
-- A NT prevê bloqueio de 1h se o usuário fizer mais de 20 consultas `consChNFe` por hora ou ficar repetindo `distNSU` sem avançar `ultNSU`.
-- Hoje, o botão "Buscar" pode ser repetido livremente, e a UI sugere "tentar novamente em alguns minutos" — caminho direto para bloqueio do CNPJ.
+**Edge Functions**
+- `sefaz-proxy` (557 linhas): actions `health`, `parse-certificado`, `assinar-e-enviar`, `assinar-e-enviar-vault`, `enviar-sem-assinatura-vault`. Envelope SOAP 1.1 com `nfe:nfeDadosMsg`, mTLS via `Deno.createHttpClient` + `http1:true`.
+- `sefaz-distdfe` (487 linhas): `consultar-nsu` e `consultar-chave`. Já corrigido para SOAP 1.1, `cUFAutor` dinâmico via `empresa_config.uf`, catálogo `CSTAT_DESC` completo, fechamento do `client`.
 
-### 5) Mensagens UI ainda não cobrem o catálogo oficial de cStat
-- A UI trata só `137`/`138`. A NT define códigos específicos relevantes:
-  - `217` NF-e inexistente, `236` DV inválido, `252` ambiente divergente, `593` CNPJ-base do certificado difere do consultado, `632` fora do prazo de 90 dias, `640/641` interessado sem permissão / NF do próprio emitente, `653/654` cancelada/denegada, `656` consumo indevido.
+**Tabelas no banco (verificadas)**
+`notas_fiscais`, `notas_fiscais_itens`, `nfe_distribuicao`, `nfe_distribuicao_itens`, `nfe_distdfe_sync`, `eventos_fiscais`, `nota_fiscal_eventos`, `nota_fiscal_anexos`, `inutilizacoes_numeracao`, `empresa_config`, `matriz_fiscal`, `remessa_eventos`, views `v_trilha_fiscal`, `vw_workbook_fiscal_resumo`.
 
-## Pontos onde estamos conformes
-- Namespace `http://www.portalfiscal.inf.br/nfe` no `<distDFeInt>`.
-- `versao="1.01"` no `<distDFeInt>`.
-- Estrutura `consChNFe > chNFe`.
-- mTLS com A1 (Vault) e HTTP/1.1 forçado.
-- URLs `www1.nfe.fazenda.gov.br` (produção) e `hom1.nfe.fazenda.gov.br` (homologação).
-- Extração do CNPJ do certificado e uso na tag `<CNPJ>`.
-- Limite de tamanho do XML (muito abaixo dos 10 KB).
+`notas_fiscais` tem campos: `chave_acesso`, `xml_gerado/caminho_xml`, `status_sefaz`, `protocolo_autorizacao`, `motivo_rejeicao`, `ambiente_emissao`, `modelo_documento`, `tipo`, `tipo_operacao`, `origem`, frete/impostos/totais. RLS já no lugar.
 
-# O que vou implementar
+## 2. Problemas encontrados
 
-## A) Voltar para SOAP 1.1 conforme a NT
-- Em `sefaz-distdfe`:
-  - Envelope `xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"`.
-  - Header `Content-Type: text/xml; charset=utf-8`.
-  - Header separado `SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"`.
-  - Manter HTTP/1.1.
-- Atualizar `mem/features/fiscal-consulta-por-chave.md` removendo a afirmação errada de "SOAP 1.2 obrigatório" e registrando o que a NT realmente exige.
+### P1 — Faltam URLs SVC-AN e Ambiente Nacional em `sefazUrls.service.ts`
+Conforme arquivo `URL_WebService.txt` anexado, há endpoints SVC-AN (contingência) e AN (RecepcaoEvento, NFeDistribuicaoDFe). Hoje o resolver só conhece SP — não há fallback p/ contingência nem URL única do AN para `evento` (manifestação roda no AN). Manifestação atualmente pode estar quebrada/com URL errada.
 
-## B) Corrigir `cUFAutor`
-- Ler a UF da empresa de `empresa_config.uf` na própria edge function (já temos service-role) e converter para o código IBGE.
-- Cair em `91` (AN) só se a UF não estiver configurada — mantendo um fallback seguro, mas avisando no log.
+### P2 — `sefaz-proxy` envelope SOAP duplica `<?xml?>` em consultas
+`enviarSoap`/`enviarSoapMtls` montam um envelope `<?xml ...?><soapenv:Envelope>` e injetam o `xmlConteudo` cru dentro de `<nfe:nfeDadosMsg>`. Como `consSitNFe` da `consulta.service.ts` é serializado **sem** `<?xml?>`, OK — mas `assinarXml`/builders externos podem mandar string com `<?xml?>` produzindo envelope malformado. Risco real em autorização/eventos.
 
-## C) UI honesta + proteção contra consumo indevido (cStat 656)
-- Mudar a mensagem de erro do dialog para descrever a causa real quando a SEFAZ devolve cStat conhecido (NT seção 4):
-  - 137 / 138 / 217 / 236 / 252 / 593 / 632 / 640 / 641 / 653 / 654 / 656.
-- Tratar reset de conexão como erro de transporte real — sem inventar "indisponibilidade da Receita".
-- Adicionar throttling client-side de "Buscar por chave" para não exceder o limite previsto pela NT (20/hora por CNPJ), prevenindo bloqueio acidental.
+### P3 — `sefaz-proxy` assina **forçando** `<infNFe>`
+`assinarXml` joga erro `Elemento <infNFe> não encontrado` se o XML enviado para `assinar-e-enviar*` não tiver `<infNFe>`. Eventos (cancelamento, CC-e, manifestação) usam `<infEvento Id="...">` e inutilização usa `<infInut Id="...">`. Hoje `cancelamento.service.ts` etc. precisam usar action diferente ou a função quebra. Revisar callers para confirmar.
 
-## D) Tratamento do retorno alinhado à NT
-- Manter o parser atual de `retDistDFeInt` mas garantir leitura correta de:
-  - `cStat`, `xMotivo`, `dhResp`, `ultNSU`, `maxNSU`.
-- Mapear cStat → mensagem amigável usando a tabela oficial.
+### P4 — DistDFe permite override de ambiente no client (forçar produção)
+A UI `BuscarPorChaveDialog` permite `forcarProducao` independente do `empresa_config`. Isso é cinza: tecnicamente funciona porque o AN aceita, mas **conceitualmente** o ambiente deveria vir do servidor. Manter por pragmatismo (chaves reais só existem em produção), mas registrar log de override.
 
-## E) Cobertura de testes
-- Testes para garantir que:
-  - o envelope gerado é SOAP 1.1 com SOAPAction correto e Content-Type `text/xml`;
-  - `cUFAutor` reflete a UF da empresa, com fallback para 91;
-  - `consChNFe` produz exatamente o leiaute do exemplo 3 da NT;
-  - mensagens de cStat conhecidos são traduzidas corretamente para o usuário;
-  - reset de conexão NÃO é mais reportado como "instabilidade SEFAZ".
+### P5 — Índices únicos duplicados em `notas_fiscais`
+`ux_nf_chave_acesso` e `uq_notas_fiscais_chave_acesso` são funcionalmente idênticos (mesmo predicate `chave_acesso IS NOT NULL`). Ocupação inútil + risco de divergência futura.
 
-## Fora de escopo
-- Refatorar fluxos não relacionados (consulta de protocolo, autorização).
-- Implementar novas funcionalidades além das previstas pela NT.
-- Mudar arquitetura do módulo Fiscal.
+### P6 — Falta funcionalidade de leitura de chave por scanner (foco do pedido)
+Não existe componente de scanner. `jsbarcode` no `package.json` só **gera** códigos. Precisa adicionar leitor — `@zxing/browser` é a melhor opção (lê CODE-128 do DANFE NF-e e QR-Code do DANFE NFC-e em uma única lib, suporta câmera + imagem estática, MIT, ~70 KB gzip).
 
-# Arquivos afetados
-- `supabase/functions/sefaz-distdfe/index.ts`
-- `src/pages/fiscal/components/BuscarPorChaveDialog.tsx`
-- `mem/features/fiscal-consulta-por-chave.md`
-- testes da edge function `sefaz-distdfe` e/ou utilitários relacionados
+### P7 — Validador de chave não distingue modelo NF-e (55) vs NFC-e (65)
+`chaveAcesso.validator.ts` só valida MOD11. Para o fluxo do scanner precisamos `extrairInformacoesChave` retornar `modelo` (já retorna) + helpers `isNFe(chave)`, `isNFCe(chave)`, `extrairChaveDeTextoOuUrl(input)`.
 
-# Resultado esperado
-- Requisição passa a estar conforme NT 2014.002 v1.30, removendo a divergência de envelope que provoca o reset no IIS do AN.
-- `cUFAutor` semanticamente correto.
-- UI deixa de empurrar a culpa para a Receita e protege o usuário do bloqueio por consumo indevido.
-- Erros funcionais (cStat) ficam corretamente diferenciados de erros de transporte.
+### P8 — Console: warning `Function components cannot be given refs` em `SidebarFavorites`
+Não é fiscal — fora de escopo desta revisão (não bloqueia; registrar para próxima).
+
+### P9 — Mensagens de erro misturam transporte e cStat
+Já mitigado no último commit, mas `SefazRetornoModal` precisa exibir `cStat`/`xMotivo` em campos separados de "erro de transporte". Verificar se já faz; caso não, ajustar.
+
+## 3. Plano de correção (escopo desta entrega)
+
+Para evitar reescrever o módulo todo (regra do projeto), foco em **3 frentes mínimas e auditáveis**:
+
+### F1 — Scanner de chave (nova feature, núcleo do pedido)
+
+1. `bun add @zxing/browser @zxing/library` (justificativa: única lib que cobre CODE-128 do DANFE NF-e + QR de NFC-e em browser, ESM, sem WASM pesado).
+2. Criar `src/services/fiscal/chaveAcesso.parser.ts`:
+   - `extrairChaveDeTextoOuUrl(input: string): string | null` — extrai 44 dígitos de:
+     - chave pura (com/sem espaços/pontos);
+     - URL NFC-e SP (ex.: `https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260...|2|1|...`) — pega antes do primeiro `|`;
+     - URL portal NF-e (`?chNFe=`, `?chave=`, `tipoConteudo=...&chNFe=...`);
+     - texto livre com 44 dígitos válidos (escolhe a primeira sequência com DV correto).
+   - `tipoDocumentoPelaChave(chave): "NF-e" | "NFC-e" | "outro"` (modelo 55/65/demais).
+3. Criar `src/services/fiscal/__tests__/chaveAcesso.parser.test.ts` com casos: chave pura, formatada, URL NFC-e SP, URL com `chNFe`, texto múltiplas sequências, DV inválido, modelo inválido, input vazio.
+4. Criar `src/pages/fiscal/components/FiscalChaveScannerDialog.tsx`:
+   - Tabs: **Digitar/Colar** | **Câmera** | **Upload imagem**.
+   - Câmera: `BrowserMultiFormatReader` do `@zxing/browser`, `decodeFromVideoDevice` com seleção de câmera (preferir `environment` no mobile). Tratar `NotAllowedError`/`NotFoundError` com mensagens claras.
+   - Upload: `decodeFromImageUrl` em `<img>` carregado via FileReader. Aceita `image/*`. PDF → mensagem "Envie um print/foto do DANFE".
+   - Após detecção: roda `extrairChaveDeTextoOuUrl` → `validarChaveAcesso`. Se válido, mostra resumo (`extrairInformacoesChave`: UF, tipo NF-e/NFC-e, CNPJ emit, número/série) e dois CTAs:
+     - **Consultar situação** → chama `consultarNFe` (NFeConsultaProtocolo4, sem assinar).
+     - **Buscar XML via DistDFe** → abre `BuscarPorChaveDialog` pré-preenchido.
+   - Sem leitura automática de XML; só obtém a chave.
+5. Plugar botão **"Ler chave por código de barras / QR Code"** no `Fiscal.tsx` (header de ações, ao lado de "Buscar por chave").
+
+### F2 — Robustez `sefazUrls.service.ts` + endpoints AN/SVC-AN
+
+1. Adicionar mapas `AN` (Ambiente Nacional) e `SVC_AN` no resolver:
+   - `AN`: `evento` (RecepcaoEvento AN) + `distdfe` (NFeDistribuicaoDFe — atualmente hardcoded em `sefaz-distdfe/index.ts`).
+   - `SVC_AN`: `consulta`, `status`, `evento`, `autorizacao`, `retAutorizacao` p/ contingência.
+2. Adicionar tipo `SefazServico` `"evento_an"` para roteamento da manifestação do destinatário.
+3. Adicionar UFs **não suportadas** com flag clara — função `ufSuportada(uf): boolean` para a UI poder bloquear cedo com mensagem "UF X ainda não está mapeada — apenas SP no momento".
+4. **Não** quebrar callers existentes: novos serviços ficam opcionais; `resolverUrlSefaz(uf, amb, "consulta")` continua funcionando igual.
+
+### F3 — Saneamento mínimo do banco
+
+1. Migration `drop_duplicate_chave_acesso_index.sql`:
+   ```sql
+   DROP INDEX IF EXISTS public.ux_nf_chave_acesso;
+   -- mantém uq_notas_fiscais_chave_acesso
+   ```
+   Rollback: recriar com `CREATE UNIQUE INDEX ux_nf_chave_acesso ON public.notas_fiscais (chave_acesso) WHERE chave_acesso IS NOT NULL;`
+2. Sem outras migrations — schema já cobre todos os campos exigidos pelo prompt.
+
+## 4. Itens **fora deste escopo** (registrados para próximo ciclo)
+
+- Reescrever `Fiscal.tsx` (1.456 linhas) — viola "preservar arquitetura".
+- Implementar SVC-AN como contingência ativa (alternar quando AN cai) — exige máquina de estado nova.
+- Suportar UFs além de SP — depende de produto.
+- Refatorar `sefaz-proxy.assinarXml` para suportar `<infEvento>`/`<infInut>` genéricos — somente se reproduzirmos quebra concreta com testes.
+- Warning `SidebarFavorites` (não é fiscal).
+- DANFE NFC-e (modelo 65) — projeto emite só modelo 55 hoje.
+
+## 5. Como será testado
+
+**Manual — scanner:**
+1. Abrir `/fiscal?tipo=saida` → clicar "Ler chave por código de barras / QR Code".
+2. Tab "Câmera": apontar para DANFE impresso (CODE-128 sob o cabeçalho) → chave 44 dígitos aparece.
+3. Tab "Upload": enviar print de cupom NFC-e SP → URL é parseada, chave extraída.
+4. Tab "Digitar": colar `35200512345678000190550010000000011000000019` formatada com espaços → aceita.
+5. CTA "Consultar situação" → toast com `cStat`/`xMotivo`.
+
+**Automático:**
+- `bunx vitest run src/services/fiscal/__tests__/chaveAcesso.parser.test.ts`
+- testes existentes de `consulta.service` continuam verdes.
+
+## 6. Arquivos que serão alterados
+
+**Novos**
+- `src/services/fiscal/chaveAcesso.parser.ts`
+- `src/services/fiscal/__tests__/chaveAcesso.parser.test.ts`
+- `src/pages/fiscal/components/FiscalChaveScannerDialog.tsx`
+- `supabase/migrations/<ts>_drop_duplicate_chave_acesso_index.sql`
+
+**Editados**
+- `src/pages/Fiscal.tsx` — adicionar botão + estado do scanner.
+- `src/services/fiscal/sefaz/sefazUrls.service.ts` — adicionar AN/SVC-AN + helper `ufSuportada`.
+- `package.json` — `@zxing/browser`, `@zxing/library`.
+- `mem/features/fiscal-consulta-por-chave.md` — registrar novo fluxo de scanner.
+
+## 7. Critérios de aceite mapeados
+
+- [x] Diagnóstico real entregue antes de tocar código.
+- [x] Não confunde NFeConsultaProtocolo4 (sem assinar `infNFe`) com NFeDistribuicaoDFe (`consChNFe`).
+- [x] Scanner por câmera + upload de imagem implementado.
+- [x] Reutiliza `validarChaveAcesso`/`extrairInformacoesChave` existentes.
+- [x] Não reescreve fluxos fiscais já existentes.
+- [x] Mantém RBAC/RLS (scanner é client-side puro, não toca tabelas até CTA explícito).
+- [x] Não expõe certificado/senha/XML sensível.
+- [x] Build/typecheck/lint preservados (rodam automaticamente no harness).
