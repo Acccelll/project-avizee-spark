@@ -36,6 +36,36 @@ interface BuscarPorChaveDialogProps {
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
+/**
+ * Throttling client-side para respeitar o limite da NT 2014.002 v1.30:
+ * o Ambiente Nacional bloqueia o CNPJ por 1 hora se houver mais de
+ * 20 consultas consChNFe na última hora (cStat 656). Mantemos um buffer
+ * defensivo de 18 consultas/h por aba.
+ */
+const STORAGE_KEY = "fiscal:consChNFe:hits";
+const LIMITE_POR_HORA = 18;
+
+function consultasNaUltimaHora(): number[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as number[];
+    const corte = Date.now() - 60 * 60 * 1000;
+    return Array.isArray(arr) ? arr.filter((t) => t > corte) : [];
+  } catch {
+    return [];
+  }
+}
+
+function registrarConsulta(): void {
+  const hits = [...consultasNaUltimaHora(), Date.now()];
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hits));
+  } catch {
+    /* sem storage — segue sem throttle */
+  }
+}
+
 /** Lê o tipo de emissão da chave (posição 35 = tpEmis). "1" = normal/produção real. */
 function inferirAmbienteDaChave(_chave: string): "produção provável" | "indeterminado" {
   // A chave por si só NÃO carrega o ambiente; só o tpEmis. Mantemos heurística simples
