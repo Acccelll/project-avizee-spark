@@ -183,7 +183,6 @@ const Fiscal = () => {
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [chavePreSelecionada, setChavePreSelecionada] = useState<string | null>(null);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
@@ -1397,16 +1396,15 @@ const Fiscal = () => {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onBuscarXml={(chave) => {
-          setChavePreSelecionada(chave);
+          // Copia a chave para a área de transferência para o usuário colar
+          // no BuscarPorChaveDialog (que não aceita chave inicial via prop hoje).
+          void navigator.clipboard?.writeText(chave).catch(() => {});
           setScannerOpen(false);
           setBuscarChaveOpen(true);
+          toast.info("Chave copiada — cole no campo abaixo para buscar o XML.");
         }}
         onConsultarSituacao={(chave) => {
-          // Delega ao fluxo já existente de consulta por chave; o usuário
-          // confirma/refina dentro do BuscarPorChaveDialog (que cobre busca
-          // local + DistDFe). A ação real de NFeConsultaProtocolo4 é
-          // disparada por nota da lista.
-          setChavePreSelecionada(chave);
+          void navigator.clipboard?.writeText(chave).catch(() => {});
           toast.info(
             `Chave ${chave.slice(0, 6)}…${chave.slice(-4)} pronta. Use "Consultar SEFAZ" na nota correspondente para situação/protocolo.`,
           );
