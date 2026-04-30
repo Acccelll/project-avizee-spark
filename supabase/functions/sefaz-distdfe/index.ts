@@ -123,7 +123,9 @@ function envelopeSoap(distDFeInt: string): string {
 function endpointAN(amb: "1" | "2"): string {
   return amb === "1"
     ? "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx"
-    : "https://hom.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
+    // URL oficial publicada no Portal Nacional NF-e (lista de Web Services AN).
+    // O domínio antigo `hom.nfe.fazenda.gov.br` derruba a conexão.
+    : "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
 }
 
 // ── Parsing do retorno ───────────────────────────────────────────
