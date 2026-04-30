@@ -1391,6 +1391,29 @@ const Fiscal = () => {
         }}
       />
 
+      {/* Scanner de chave (câmera/upload/digitação) — extrai apenas a chave;
+          os fluxos de consulta/XML continuam canônicos. */}
+      <FiscalChaveScannerDialog
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onBuscarXml={(chave) => {
+          setChavePreSelecionada(chave);
+          setScannerOpen(false);
+          setBuscarChaveOpen(true);
+        }}
+        onConsultarSituacao={(chave) => {
+          // Delega ao fluxo já existente de consulta por chave; o usuário
+          // confirma/refina dentro do BuscarPorChaveDialog (que cobre busca
+          // local + DistDFe). A ação real de NFeConsultaProtocolo4 é
+          // disparada por nota da lista.
+          setChavePreSelecionada(chave);
+          toast.info(
+            `Chave ${chave.slice(0, 6)}…${chave.slice(-4)} pronta. Use "Consultar SEFAZ" na nota correspondente para situação/protocolo.`,
+          );
+          setScannerOpen(false);
+        }}
+      />
+
       {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
       <TraducaoXmlDrawer
         open={traducaoOpen}
