@@ -118,18 +118,37 @@ function pfxToPem(base64: string, senha: string): { certPem: string; keyPem: str
   if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
 
   const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const certBag = certBags[forge.pki.oids.certBag]?.[0];
-  if (!certBag?.cert) throw new Error("Certificado X.509 não encontrado no PFX.");
+  const allCerts = (certBags[forge.pki.oids.certBag] ?? [])
+    .map((b) => b?.cert)
+    .filter((c): c is forge.pki.Certificate => !!c);
+  if (allCerts.length === 0) throw new Error("Certificado X.509 não encontrado no PFX.");
 
-  const certPem = forge.pki.certificateToPem(certBag.cert);
+  // Identifica o certificado folha (cliente A1): aquele cujo Subject NÃO é
+  // Issuer de nenhum outro certificado do bundle. Os demais (intermediários)
+  // entram no PEM em ordem para o servidor validar a cadeia ICP-Brasil sem
+  // depender do truststore do runtime.
+  const subjectHash = (c: forge.pki.Certificate) =>
+    c.subject.attributes.map((a) => `${a.shortName}=${a.value}`).join(",");
+  const issuerHash = (c: forge.pki.Certificate) =>
+    c.issuer.attributes.map((a) => `${a.shortName}=${a.value}`).join(",");
+  const subjectsThatAreIssuers = new Set(allCerts.map((c) => issuerHash(c)));
+  const leaf =
+    allCerts.find((c) => !subjectsThatAreIssuers.has(subjectHash(c))) ?? allCerts[0];
+  const intermediates = allCerts.filter((c) => c !== leaf);
+
+  // Concatena leaf + intermediários em PEM. Deno usa rustls, que aceita
+  // múltiplos certificados no mesmo arquivo PEM como cadeia do cliente.
+  const certPem = [leaf, ...intermediates]
+    .map((c) => forge.pki.certificateToPem(c))
+    .join("\n");
   const keyPem = forge.pki.privateKeyToPem(keyBag.key as forge.pki.rsa.PrivateKey);
 
-  // CNPJ — do serialNumber (OID 2.5.4.5)
+  // CNPJ — do serialNumber (OID 2.5.4.5) do certificado folha.
   let cnpj = "";
-  const sn = certBag.cert.subject.getField({ shortName: "serialNumber" });
+  const sn = leaf.subject.getField({ shortName: "serialNumber" });
   if (sn) cnpj = String(sn.value).replace(/\D/g, "");
   if (!cnpj || cnpj.length < 14) {
-    const cn = certBag.cert.subject.getField("CN");
+    const cn = leaf.subject.getField("CN");
     if (cn) {
       const m = String(cn.value).match(/(\d{14})/);
       if (m) cnpj = m[1];
@@ -160,15 +179,22 @@ function montarDistDFeInt(opts: {
 </distDFeInt>`;
 }
 
-function envelopeSoap(distDFeInt: string): string {
-  // NT 2014.002 v1.30 — todos os exemplos oficiais usam SOAP 1.1
-  // (xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"), Content-Type
-  // text/xml e header SOAPAction separado. SOAP 1.2 não é aceito pelo
-  // endpoint IIS do Ambiente Nacional e provoca reset de conexão.
-  // Conteúdo do nfeDadosMsg vai inline, sem declaração <?xml?> interna.
+function envelopeSoap(distDFeInt: string, cUF: string): string {
+  // NT 2014.002 — IIS do Ambiente Nacional aceita SOAP 1.1. O Header
+  // `nfeCabecMsg` é OBRIGATÓRIO segundo o WSDL do serviço (cUF +
+  // versaoDados). Sem ele o servidor responde com cStat 215/239 ou,
+  // dependendo da versão do IIS, derruba a conexão antes de gerar o
+  // SOAP Fault — comportamento idêntico ao "connection reset by peer"
+  // observado em produção em abr/2026.
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
   return `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+    `<soap:Header>` +
+    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+    `<cUF>${cUF}</cUF>` +
+    `<versaoDados>1.01</versaoDados>` +
+    `</nfeCabecMsg>` +
+    `</soap:Header>` +
     `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
@@ -383,8 +409,18 @@ Deno.serve(async (req) => {
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
       : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
-    const envelope = envelopeSoap(distDFeInt);
+    const envelope = envelopeSoap(distDFeInt, cUFAutor);
     const url = endpointAN(ambiente);
+
+    log.info("preparado envio SEFAZ", {
+      url,
+      ambiente,
+      action,
+      cUFAutor,
+      cnpjLen: cnpj.length,
+      envelopeBytes: envelope.length,
+      certChainBytes: certPem.length,
+    });
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
@@ -408,6 +444,13 @@ Deno.serve(async (req) => {
       });
       clearTimeout(timer);
       xmlRetorno = await resp.text();
+      log.info("resposta SEFAZ recebida", {
+        statusHttp: resp.status,
+        statusText: resp.statusText,
+        contentType: resp.headers.get("content-type"),
+        bytes: xmlRetorno.length,
+        preview: xmlRetorno.slice(0, 240),
+      });
       if (!resp.ok) {
         return json({
           sucesso: false,
