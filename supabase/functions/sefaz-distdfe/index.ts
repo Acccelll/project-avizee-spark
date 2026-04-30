@@ -179,15 +179,22 @@ function montarDistDFeInt(opts: {
 </distDFeInt>`;
 }
 
-function envelopeSoap(distDFeInt: string): string {
-  // NT 2014.002 v1.30 — todos os exemplos oficiais usam SOAP 1.1
-  // (xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"), Content-Type
-  // text/xml e header SOAPAction separado. SOAP 1.2 não é aceito pelo
-  // endpoint IIS do Ambiente Nacional e provoca reset de conexão.
-  // Conteúdo do nfeDadosMsg vai inline, sem declaração <?xml?> interna.
+function envelopeSoap(distDFeInt: string, cUF: string): string {
+  // NT 2014.002 — IIS do Ambiente Nacional aceita SOAP 1.1. O Header
+  // `nfeCabecMsg` é OBRIGATÓRIO segundo o WSDL do serviço (cUF +
+  // versaoDados). Sem ele o servidor responde com cStat 215/239 ou,
+  // dependendo da versão do IIS, derruba a conexão antes de gerar o
+  // SOAP Fault — comportamento idêntico ao "connection reset by peer"
+  // observado em produção em abr/2026.
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
   return `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+    `<soap:Header>` +
+    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+    `<cUF>${cUF}</cUF>` +
+    `<versaoDados>1.01</versaoDados>` +
+    `</nfeCabecMsg>` +
+    `</soap:Header>` +
     `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
@@ -402,8 +409,18 @@ Deno.serve(async (req) => {
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
       : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
-    const envelope = envelopeSoap(distDFeInt);
+    const envelope = envelopeSoap(distDFeInt, cUFAutor);
     const url = endpointAN(ambiente);
+
+    log.info("preparado envio SEFAZ", {
+      url,
+      ambiente,
+      action,
+      cUFAutor,
+      cnpjLen: cnpj.length,
+      envelopeBytes: envelope.length,
+      certChainBytes: certPem.length,
+    });
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
@@ -427,6 +444,13 @@ Deno.serve(async (req) => {
       });
       clearTimeout(timer);
       xmlRetorno = await resp.text();
+      log.info("resposta SEFAZ recebida", {
+        statusHttp: resp.status,
+        statusText: resp.statusText,
+        contentType: resp.headers.get("content-type"),
+        bytes: xmlRetorno.length,
+        preview: xmlRetorno.slice(0, 240),
+      });
       if (!resp.ok) {
         return json({
           sucesso: false,
