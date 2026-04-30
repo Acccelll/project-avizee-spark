@@ -179,28 +179,27 @@ function montarDistDFeInt(opts: {
 </distDFeInt>`;
 }
 
-function envelopeSoap(distDFeInt: string, cUF: string): string {
-  // NT 2014.002 — IIS do Ambiente Nacional aceita SOAP 1.1. O Header
-  // `nfeCabecMsg` é OBRIGATÓRIO segundo o WSDL do serviço (cUF +
-  // versaoDados). Sem ele o servidor responde com cStat 215/239 ou,
-  // dependendo da versão do IIS, derruba a conexão antes de gerar o
-  // SOAP Fault — comportamento idêntico ao "connection reset by peer"
-  // observado em produção em abr/2026.
+function envelopeSoap(distDFeInt: string): string {
+  // NT 2014.002 — IIS do Ambiente Nacional. Diferente dos demais serviços
+  // (Autorizacao4 / RetAutorizacao4 / ConsultaProtocolo4), o WSDL do
+  // **NFeDistribuicaoDFe NÃO declara `nfeCabecMsg`** — apenas
+  // `nfeDadosMsg`. Enviar `Header/nfeCabecMsg` faz o IIS do AN derrubar
+  // a conexão antes de gerar SOAP Fault (observado como "connection
+  // reset by peer" em abr/2026).
+  // Usamos SOAP 1.2 conforme exemplo oficial do Portal Nacional para
+  // este serviço (Content-Type application/soap+xml). O AN aceita 1.1
+  // sem o header também, mas mantemos 1.2 por aderência ao exemplo.
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
   return `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
-    `<soap:Header>` +
-    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
-    `<cUF>${cUF}</cUF>` +
-    `<versaoDados>1.01</versaoDados>` +
-    `</nfeCabecMsg>` +
-    `</soap:Header>` +
-    `<soap:Body>` +
+    `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+    `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
+    `xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
     `</nfeDistDFeInteresse>` +
-    `</soap:Body>` +
-    `</soap:Envelope>`;
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
 }
 
 function endpointAN(amb: "1" | "2"): string {
@@ -409,7 +408,9 @@ Deno.serve(async (req) => {
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
       : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
-    const envelope = envelopeSoap(distDFeInt, cUFAutor);
+    // cUF do nfeCabecMsg = UF do webservice (AN sempre 91), independente
+    // da UF da empresa. O cUFAutor (interessado) já foi para o corpo.
+    const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 
     log.info("preparado envio SEFAZ", {
@@ -429,12 +430,12 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "POST",
         headers: {
-          // NT 2014.002 v1.30: SOAP 1.1 com Content-Type text/xml e
-          // SOAPAction como header HTTP separado (entre aspas).
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction:
-            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-          Accept: "text/xml, application/soap+xml; charset=utf-8",
+          // NFeDistribuicaoDFe usa SOAP 1.2 (application/soap+xml) com
+          // a action embutida no Content-Type — não envia SOAPAction
+          // como header HTTP separado.
+          "Content-Type":
+            'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          Accept: "application/soap+xml, text/xml; charset=utf-8",
           "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
         },
         body: envelope,
