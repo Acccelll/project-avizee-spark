@@ -172,6 +172,9 @@ const Fiscal = () => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [parcelas, setParcelas] = useState(1);
+  const [primeiroVencimento, setPrimeiroVencimento] = useState<string>("");
+  const [intervaloDias, setIntervaloDias] = useState<number>(30);
+  const [parcelasPlano, setParcelasPlano] = useState<import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
