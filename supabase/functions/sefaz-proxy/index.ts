@@ -230,6 +230,121 @@ async function enviarSoap(
   }
 }
 
+// ── Envio SOAP com mTLS (sem assinatura) ─────────────────────────
+
+/**
+ * Converte PFX (base64) em PEM (cert + chave privada). Usado pelo modo mTLS.
+ */
+function pfxToPem(
+  base64: string,
+  senha: string,
+): { certPem: string; keyPem: string } {
+  const derBytes = forge.util.decode64(base64);
+  const asn1 = forge.asn1.fromDer(derBytes);
+  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
+
+  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
+  if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
+
+  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
+  const certBag = certBags[forge.pki.oids.certBag]?.[0];
+  if (!certBag?.cert) {
+    throw new Error("Certificado X.509 não encontrado no PFX.");
+  }
+
+  const certPem = forge.pki.certificateToPem(certBag.cert);
+  const keyPem = forge.pki.privateKeyToPem(
+    keyBag.key as forge.pki.rsa.PrivateKey,
+  );
+  return { certPem, keyPem };
+}
+
+/**
+ * Envia um envelope SOAP usando mTLS com o A1 do Vault, sem aplicar XMLDSig.
+ * Usado para consultas (ex.: NFeConsultaProtocolo4 / consSitNFe).
+ */
+async function enviarSoapMtls(
+  xmlConteudo: string,
+  url: string,
+  soapAction: string,
+  certPem: string,
+  keyPem: string,
+): Promise<{
+  sucesso: boolean;
+  xmlRetorno?: string;
+  erro?: string;
+  statusHttp?: number;
+}> {
+  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <nfe:nfeDadosMsg>${xmlConteudo}</nfe:nfeDadosMsg>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+  let client: Deno.HttpClient | undefined;
+  try {
+    // @ts-ignore — http1/http2 são opções específicas do Deno e os legados
+    // SEFAZ exigem HTTP/1.1.
+    client = Deno.createHttpClient({
+      cert: certPem,
+      key: keyPem,
+      http1: true,
+      http2: false,
+    });
+  } catch (e) {
+    return {
+      sucesso: false,
+      erro: `Falha ao criar cliente mTLS: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/xml; charset=utf-8",
+        SOAPAction: soapAction,
+      },
+      body: envelope,
+      // @ts-ignore — option client é específica do Deno
+      client,
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const xmlRetorno = await response.text();
+    if (!response.ok) {
+      return {
+        sucesso: false,
+        erro: `HTTP ${response.status}: ${response.statusText}`,
+        statusHttp: response.status,
+        xmlRetorno,
+      };
+    }
+    return { sucesso: true, xmlRetorno, statusHttp: response.status };
+  } catch (err) {
+    clearTimeout(timer);
+    const raw = err instanceof Error
+      ? err.name === "AbortError"
+        ? "Timeout de 30s ao conectar com a SEFAZ"
+        : err.message
+      : String(err);
+    return { sucesso: false, erro: raw };
+  } finally {
+    try {
+      // @ts-ignore — close é estável em Deno
+      client?.close?.();
+    } catch (_) { /* ignore */ }
+  }
+}
+
 // ── Handler principal ────────────────────────────────────────────
 
 Deno.serve(async (req) => {
