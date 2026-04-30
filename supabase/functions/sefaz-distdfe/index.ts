@@ -436,13 +436,22 @@ Deno.serve(async (req) => {
         hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
       } else if (looksLikeReset || looksLikeTls) {
         hint =
-          " — falha de transporte TLS contra o Ambiente Nacional (NFeDistribuicaoDFe). Não é necessariamente erro de ambiente/certificado A1: o serviço da Receita pode estar instável ou exigir renegociação TLS que o runtime atual não suporta. Tente novamente em alguns minutos; se persistir, verifique status do AN no portal NF-e.";
+          " — falha de transporte contra o Ambiente Nacional. Causa típica: divergência de protocolo SOAP (o IIS do AN exige SOAP 1.1) ou cadeia ICP-Brasil ausente no runtime. Como o Portal NF-e responde normalmente para consultas, o serviço da Receita está no ar.";
       }
       return json({
         sucesso: false,
         ambiente,
         cnpj,
         erro: `${raw}${hint}`,
+        codigoTransporte: looksLikeUnknownIssuer
+          ? "UNKNOWN_ISSUER"
+          : looksLikeHttp2
+          ? "HTTP2_REQUIRED"
+          : looksLikeReset
+          ? "CONNECTION_RESET"
+          : looksLikeTls
+          ? "TLS_FAILURE"
+          : "TRANSPORT_ERROR",
       });
     } finally {
       try {
@@ -466,6 +475,7 @@ Deno.serve(async (req) => {
       ambiente,
       cStat: parsed.cStat,
       xMotivo: parsed.xMotivo,
+      mensagemCstat: CSTAT_DESC[parsed.cStat] ?? null,
       ultNSU: parsed.ultNSU,
       maxNSU: parsed.maxNSU,
       docs: parsed.docs,
