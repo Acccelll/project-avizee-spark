@@ -41,6 +41,58 @@ function json(data: unknown, status = 200) {
   });
 }
 
+// ── UF → código IBGE (cUFAutor) ──────────────────────────────────
+// NT 2014.002 v1.30: cUFAutor é o código IBGE da UF do interessado
+// (ex.: 35=SP, 29=BA). Fallback "91" só quando UF não estiver configurada.
+const UF_PARA_IBGE: Record<string, string> = {
+  AC: "12", AL: "27", AP: "16", AM: "13", BA: "29", CE: "23", DF: "53",
+  ES: "32", GO: "52", MA: "21", MT: "51", MS: "50", MG: "31", PA: "15",
+  PB: "25", PR: "41", PE: "26", PI: "22", RJ: "33", RN: "24", RS: "43",
+  RO: "11", RR: "14", SC: "42", SP: "35", SE: "28", TO: "17",
+};
+
+// ── Catálogo oficial cStat (NT 2014.002 v1.30, seção 4) ─────────
+const CSTAT_DESC: Record<string, string> = {
+  "108": "Serviço paralisado momentaneamente.",
+  "109": "Serviço paralisado sem previsão.",
+  "137": "Nenhum documento localizado para o CNPJ do certificado.",
+  "138": "Documento localizado.",
+  "214": "Tamanho da mensagem excedeu o limite de 10 KB.",
+  "215": "Falha no schema XML.",
+  "217": "NF-e inexistente para a chave de acesso informada.",
+  "236": "Chave de acesso com dígito verificador inválido.",
+  "238": "Versão do XML superior à versão vigente.",
+  "239": "Versão do XML não suportada.",
+  "252": "Ambiente informado diverge do ambiente do Web Service.",
+  "280": "Certificado de transmissor inválido.",
+  "281": "Certificado de transmissor com data de validade vencida.",
+  "283": "Cadeia do certificado de transmissor com erro.",
+  "284": "Certificado de transmissor revogado.",
+  "285": "Certificado de transmissor difere de ICP-Brasil.",
+  "286": "Erro de acesso à LCR do certificado de transmissor.",
+  "402": "XML com codificação diferente de UTF-8.",
+  "404": "Uso de prefixo de namespace não permitido.",
+  "472": "CPF consultado difere do CPF do certificado digital.",
+  "473": "Certificado de transmissor sem CNPJ ou CPF.",
+  "489": "CNPJ informado inválido.",
+  "490": "CPF informado inválido.",
+  "589": "NSU informado superior ao maior NSU do Ambiente Nacional.",
+  "593": "CNPJ-base consultado difere do CNPJ-base do certificado — o A1 não pertence à empresa configurada.",
+  "614": "Chave de acesso inválida (UF inválida).",
+  "615": "Chave de acesso inválida (ano).",
+  "616": "Chave de acesso inválida (mês).",
+  "617": "Chave de acesso inválida (CNPJ).",
+  "618": "Chave de acesso inválida (modelo diferente de 55).",
+  "619": "Chave de acesso inválida (número da NF = 0).",
+  "632": "Solicitação fora do prazo: NF-e tem mais de 90 dias e não está mais disponível.",
+  "640": "CNPJ/CPF do interessado não tem permissão para consultar esta NF-e — peça o XML diretamente ao emissor.",
+  "641": "NF-e indisponível para o emitente (use 'Consultar SEFAZ' na lista, não esta busca).",
+  "653": "NF-e cancelada — arquivo indisponível para download.",
+  "654": "NF-e denegada — arquivo indisponível para download.",
+  "656": "Consumo indevido: o CNPJ foi bloqueado por 1 hora por excesso de consultas. Aguarde antes de tentar novamente.",
+  "999": "Erro não catalogado pelo Ambiente Nacional.",
+};
+
 async function requireAuth(req: Request) {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Token de autenticação ausente.");
