@@ -22,7 +22,7 @@ async function loadExcelJS(): Promise<ExcelJSModule> {
 
 /* ---------- Internal helpers ---------- */
 
-function resolveCellValue(value: ExcelJSNs.CellValue): unknown {
+function resolveCellValue(value: unknown): unknown {
   if (value == null || value instanceof Date) return value;
   if (typeof value !== "object") return value;
 
