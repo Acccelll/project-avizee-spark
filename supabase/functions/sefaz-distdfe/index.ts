@@ -109,15 +109,19 @@ function montarDistDFeInt(opts: {
 }
 
 function envelopeSoap(distDFeInt: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-  <soap:Header/>
-  <soap:Body>
-    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-      <nfeDadosMsg>${distDFeInt}</nfeDadosMsg>
-    </nfeDistDFeInteresse>
-  </soap:Body>
-</soap:Envelope>`;
+  // SOAP 1.2 exigido pelo Manual NF-e (NFeDistribuicaoDFe).
+  // O conteúdo do nfeDadosMsg deve ser entregue como XML inline (sem
+  // declaração `<?xml ?>` interna) — alguns servidores rejeitam quando há
+  // BOM/declaração duplicada, devolvendo reset em vez de SOAP Fault.
+  const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+    `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
+    `</nfeDistDFeInteresse>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
 }
 
 function endpointAN(amb: "1" | "2"): string {
