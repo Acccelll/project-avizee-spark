@@ -12,12 +12,11 @@ import {
   fetchAuthProfile,
   fetchAuthRoles,
   fetchAuthPermissions,
+  type AuthProfileRow,
 } from "@/services/auth.service";
 
-/** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
 export type { AppRole };
 
-/** Values that may exist in legacy rows but are no longer issued. */
 const LEGACY_ROLES = new Set(["moderator", "user"]);
 const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
@@ -28,20 +27,10 @@ interface ResolvedPermissions {
   denied: PermissionKey[];
 }
 
-async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`${label}_timeout`)), AUTH_BOOTSTRAP_TIMEOUT_MS);
-    }),
-  ]);
-}
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  /** True once the initial roles + permissions fetches for the current user have settled (success or error). */
   permissionsLoaded: boolean;
   profile: {
     nome: string | null;
@@ -50,13 +39,10 @@ interface AuthContextType {
     avatar_url: string | null;
   } | null;
   roles: AppRole[];
-  /** Permissões individuais concedidas (allowed=true). */
   extraPermissions: PermissionKey[];
-  /** Permissões individuais explicitamente revogadas (allowed=false) — vencem permissões herdadas do papel. */
   deniedPermissions: PermissionKey[];
   hasRole: (role: AppRole) => boolean;
   signOut: () => Promise<void>;
-  /** Re-busca o profile do usuário atual (útil após edição em Configurações). */
   refreshProfile: () => Promise<void>;
 }
 
@@ -73,6 +59,52 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   refreshProfile: async () => {},
 });
+
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label}_timeout`)), AUTH_BOOTSTRAP_TIMEOUT_MS);
+    }),
+  ]);
+}
+
+async function resolveProfile(userId: string): Promise<AuthProfileRow | null> {
+  try {
+    return await fetchAuthProfile(userId);
+  } catch (err) {
+    logger.error("[auth] Failed to fetch profile", err);
+    return null;
+  }
+}
+
+async function resolvePermissions(userId: string): Promise<ResolvedPermissions> {
+  const [rolesResult, permissionsResult] = await Promise.allSettled([
+    fetchAuthRoles(userId),
+    fetchAuthPermissions(userId),
+  ]);
+
+  let roles: AppRole[] = [];
+  let allowed: PermissionKey[] = [];
+  let denied: PermissionKey[] = [];
+
+  if (rolesResult.status === "fulfilled") {
+    roles = rolesResult.value.filter(
+      (role): role is AppRole => !LEGACY_ROLES.has(role) && VALID_APP_ROLES.has(role),
+    );
+  } else {
+    logger.error("[auth] Failed to fetch roles", rolesResult.reason);
+  }
+
+  if (permissionsResult.status === "fulfilled") {
+    allowed = permissionsResult.value.allowed;
+    denied = permissionsResult.value.denied;
+  } else {
+    logger.error("[auth] Failed to fetch extra permissions", permissionsResult.reason);
+  }
+
+  return { roles, allowed, denied };
+}
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -92,9 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [deniedPermissions, setDeniedPermissions] = useState<PermissionKey[]>([]);
   const manualSignOut = useRef(false);
   const bootstrapRequestId = useRef(0);
-  const mountedRef = useRef(true);
   const userRef = useRef<User | null>(null);
   const permissionsLoadedRef = useRef(false);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     userRef.current = user;
@@ -104,170 +136,153 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     permissionsLoadedRef.current = permissionsLoaded;
   }, [permissionsLoaded]);
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const data = await fetchAuthProfile(userId);
-      if (data) setProfile(data);
-    } catch (err) {
-      logger.error("[auth] Failed to fetch profile", err);
-    }
-  };
+  const resetAuthState = useCallback(() => {
+    bootstrapRequestId.current += 1;
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setRoles([]);
+    setExtraPermissions([]);
+    setDeniedPermissions([]);
+    setPermissionsLoaded(false);
+  }, []);
 
-  const fetchRoles = async (userId: string) => {
-    try {
-      const data = await fetchAuthRoles(userId);
-      const validRoles = data.filter(
-        (r): r is AppRole => !LEGACY_ROLES.has(r) && VALID_APP_ROLES.has(r),
-      );
-      setRoles(validRoles);
-    } catch (err) {
-      logger.error("[auth] Failed to fetch roles", err);
-      setRoles([]);
-    }
-  };
-
-  const fetchExtraPermissions = async (userId: string) => {
-    try {
-      const { allowed, denied } = await fetchAuthPermissions(userId);
-      setExtraPermissions(allowed);
-      setDeniedPermissions(denied);
-    } catch (err) {
-      logger.error("[auth] Failed to fetch extra permissions", err);
-      setExtraPermissions([]);
-      setDeniedPermissions([]);
-    }
-  };
-
-  const fetchPermissions = async (userId: string, options?: { background?: boolean }) => {
-    const fetchId = ++permissionsFetchId.current;
+  const hydrateUserState = useCallback(async (userId: string, options?: { background?: boolean }) => {
+    const requestId = ++bootstrapRequestId.current;
     const background = options?.background ?? false;
 
     if (!background) {
+      setLoading(true);
       setPermissionsLoaded(false);
     }
 
     try {
-      await Promise.all([fetchRoles(userId), fetchExtraPermissions(userId)]);
-    } finally {
-      if (fetchId === permissionsFetchId.current) {
-        setPermissionsLoaded(true);
-      }
-    }
-  };
+      const [resolvedProfile, resolvedPermissions] = await withTimeout(
+        Promise.all([
+          resolveProfile(userId),
+          resolvePermissions(userId),
+        ]),
+        "auth_bootstrap",
+      );
 
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
+      if (!mountedRef.current || requestId !== bootstrapRequestId.current) return;
 
-    let isMounted = true;
-
-    const safetyTimeout = setTimeout(() => {
-      if (!isMounted) return;
-      setLoading((currentLoading) => {
-        if (currentLoading) {
-          console.warn("[auth] Auth initialization timed out. Forcing loading false.");
-          return false;
-        }
-        return currentLoading;
-      });
-    }, 5000);
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      const currentUser = userRef.current;
-      const sameUser = currentSession?.user?.id === currentUser?.id;
-
-      if (event === 'SIGNED_OUT' && !manualSignOut.current && currentUser) {
-        toast.error("Sua sessão expirou. Faça login novamente.");
-      }
-      manualSignOut.current = false;
-
-      if (currentSession?.user) {
-        setSession(currentSession);
-
-        if (!sameUser) {
-          setUser(currentSession.user);
-        }
-
-        if (event === 'TOKEN_REFRESHED' && sameUser) {
-          clearTimeout(safetyTimeout);
-          setLoading(false);
-          return;
-        }
-
-        // INITIAL_SESSION (refresh com sessão persistida) e SIGNED_IN (login fresco)
-        // ambos precisam carregar profile + permissions ANTES de liberar a UI.
-        // Caso contrário o usuário aterrissa em rotas protegidas com
-        // `permissionsLoaded=false` → menus vazios, dashboards "zerados",
-        // até o fetch resolver. Bug de UX confirmado em 04/2026 (vendedor sem
-        // menu após login). Ver `mem://auth/sincronizacao-sessao-inicial`.
-        if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !sameUser)) {
-          try {
-            await Promise.all([
-              fetchProfile(currentSession.user.id),
-              fetchPermissions(currentSession.user.id),
-            ]);
-          } finally {
-            clearTimeout(safetyTimeout);
-            setLoading(false);
-          }
-          return;
-        }
-
-        clearTimeout(safetyTimeout);
-        setLoading(false);
-        fetchProfile(currentSession.user.id);
-        fetchPermissions(currentSession.user.id, {
-          background: sameUser && permissionsLoadedRef.current,
-        });
-        return;
-      }
-
-      setSession(currentSession);
-      setUser(null);
+      setProfile(resolvedProfile);
+      setRoles(resolvedPermissions.roles);
+      setExtraPermissions(resolvedPermissions.allowed);
+      setDeniedPermissions(resolvedPermissions.denied);
+    } catch (err) {
+      logger.error("[auth] Failed to hydrate auth state", err);
+      if (!mountedRef.current || requestId !== bootstrapRequestId.current) return;
       setProfile(null);
       setRoles([]);
       setExtraPermissions([]);
       setDeniedPermissions([]);
-      setPermissionsLoaded(false);
-      clearTimeout(safetyTimeout);
+    } finally {
+      if (!mountedRef.current || requestId !== bootstrapRequestId.current) return;
+      setPermissionsLoaded(true);
       setLoading(false);
+    }
+  }, []);
+
+  const applySession = useCallback((nextSession: Session | null) => {
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
+    const handleAuthEvent = (event: AuthChangeEvent, currentSession: Session | null) => {
+      const currentUser = userRef.current;
+      const sameUser = currentSession?.user?.id === currentUser?.id;
+
+      if (event === "SIGNED_OUT" && !manualSignOut.current && currentUser) {
+        toast.error("Sua sessão expirou. Faça login novamente.");
+      }
+      manualSignOut.current = false;
+
+      if (!currentSession?.user) {
+        resetAuthState();
+        setLoading(false);
+        return;
+      }
+
+      applySession(currentSession);
+
+      if (event === "TOKEN_REFRESHED" && sameUser && permissionsLoadedRef.current) {
+        setLoading(false);
+        return;
+      }
+
+      const shouldBlock = !sameUser || !permissionsLoadedRef.current;
+      void hydrateUserState(currentSession.user.id, { background: !shouldBlock });
+    };
+
+    const bootstrap = async () => {
+      try {
+        const { data, error } = await withTimeout(supabase.auth.getSession(), "get_session");
+        if (!mountedRef.current) return;
+        if (error) throw error;
+
+        if (!data.session?.user) {
+          resetAuthState();
+          setLoading(false);
+          return;
+        }
+
+        applySession(data.session);
+        await hydrateUserState(data.session.user.id);
+      } catch (err) {
+        logger.error("[auth] Failed to restore session", err);
+        if (!mountedRef.current) return;
+        resetAuthState();
+        setLoading(false);
+      }
+    };
+
+    void bootstrap();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (event === "INITIAL_SESSION") return;
+      setTimeout(() => {
+        if (!mountedRef.current) return;
+        handleAuthEvent(event, currentSession);
+      }, 0);
     });
 
     return () => {
-      isMounted = false;
-      clearTimeout(safetyTimeout);
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession, hydrateUserState, resetAuthState]);
 
   const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
 
   const refreshProfile = useCallback(async () => {
     const currentUser = userRef.current;
     if (!currentUser) return;
-    await fetchProfile(currentUser.id);
+    const refreshed = await resolveProfile(currentUser.id);
+    if (!mountedRef.current || currentUser.id !== userRef.current?.id) return;
+    setProfile(refreshed);
   }, []);
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
     manualSignOut.current = true;
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setRoles([]);
-    setExtraPermissions([]);
-    setDeniedPermissions([]);
-    setPermissionsLoaded(false);
-    // Centraliza o redirect — qualquer caller (header, mobile menu, expiração)
-    // garante o mesmo destino e evita estados intermediários onde a UI antiga
-    // continua montada após o logout.
+    resetAuthState();
     if (typeof window !== "undefined") {
       window.location.assign("/login");
     }
-  }, []);
+  }, [resetAuthState]);
 
   const contextValue = useMemo(
     () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut, refreshProfile }),
