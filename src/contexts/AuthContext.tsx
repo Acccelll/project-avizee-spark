@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode, useMemo } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session, type AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -20,6 +20,22 @@ export type { AppRole };
 /** Values that may exist in legacy rows but are no longer issued. */
 const LEGACY_ROLES = new Set(["moderator", "user"]);
 const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
+
+interface ResolvedPermissions {
+  roles: AppRole[];
+  allowed: PermissionKey[];
+  denied: PermissionKey[];
+}
+
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label}_timeout`)), AUTH_BOOTSTRAP_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 interface AuthContextType {
   user: User | null;
@@ -75,7 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [extraPermissions, setExtraPermissions] = useState<PermissionKey[]>([]);
   const [deniedPermissions, setDeniedPermissions] = useState<PermissionKey[]>([]);
   const manualSignOut = useRef(false);
-  const permissionsFetchId = useRef(0);
+  const bootstrapRequestId = useRef(0);
+  const mountedRef = useRef(true);
   const userRef = useRef<User | null>(null);
   const permissionsLoadedRef = useRef(false);
 
