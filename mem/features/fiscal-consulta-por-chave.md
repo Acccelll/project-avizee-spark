@@ -13,3 +13,4 @@ type: feature
 - Limitação SEFAZ (legal): NFeDistribuicaoDFe só devolve XMLs cuja NF é destinada ao CNPJ do certificado A1. cStat 137/138 = chave existe mas não é vinculada — UI exibe `xMotivo` real e orienta solicitar ao emissor.
 - Reuso: `useNFeXmlImport.importXml` aceita `File | string`; handler em `Fiscal.tsx` é agnóstico à origem.
 - Edge `sefaz-distdfe` aceita actions `consultar-nsu` (incremental) e `consultar-chave` (pontual).
+- Transporte: o webservice `NFeDistribuicaoDFe.asmx` exige HTTP/1.1. O `Deno.createHttpClient` da edge function MUST ser criado com `{ http1: true, http2: false }` além de `cert`/`key`. Sem isso, o servidor responde `endpoint requires HTTP/1.1` e o Deno falha o request por ALPN h2.
