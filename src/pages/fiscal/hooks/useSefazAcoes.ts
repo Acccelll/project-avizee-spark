@@ -219,9 +219,12 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
       try {
         const cfg = await lerConfigEmpresa();
         const url = resolverUrlSefaz(cfg.uf, cfg.ambiente, "consulta");
+        // Consulta de protocolo (NFeConsultaProtocolo4) usa mTLS sem XMLDSig.
+        // Repassamos o ambiente real da empresa para que `tpAmb` no XML bata
+        // com a URL resolvida pelo `resolverUrlSefaz`.
         const result = await consultarNFe(
           nf.chave_acesso,
-          { tipo: "A1", conteudo: "", senha: "" },
+          cfg.ambiente,
           url,
         );
         setUltimoRetorno({
