@@ -1,43 +1,55 @@
-Diagnóstico confirmado
+## Diagnóstico
+A causa real não é mais o ambiente de homologação/produção.
 
-A falha não está no modal nem no parser do XML. O fluxo front → backend está chegando até a função de backend, mas a consulta está sendo disparada no ambiente errado.
+A evidência está no erro atual exibido na tela:
 
-Evidências encontradas
-- O fluxo da tela está correto: `BuscarPorChaveDialog` faz primeiro a busca local em `nfe_distribuicao` e, se não achar, chama a função `sefaz-distdfe` com `action: "consultar-chave"`.
-- Os logs da função confirmam requisições reais com a chave informada e `ambiente: "2"`.
-- No banco, `empresa_config` está salvo com:
-  - `ambiente_padrao = 'homologacao'`
-  - `ambiente_sefaz = '2'`
-- O certificado configurado existe e, pelos metadados salvos, está válido até `2026-12-26`.
-- `nfe_distribuicao` está vazio e `nfe_distdfe_sync` também está vazio, então o problema não é cache local, duplicidade nem XML já sincronizado.
-- O erro exibido pelo sistema aponta exatamente para o endpoint de homologação:
-  `https://hom.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx`
-  com `Connection reset by peer`.
+```text
+https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx
+client error (SendRequest): http2 error: stream error received: endpoint requires HTTP/1.1
+```
 
-Causa real
-- A busca por chave está sendo enviada para homologação porque a configuração fiscal da empresa está em homologação.
-- Para notas reais de entrada, isso bloqueia a consulta no handshake/conexão com o endpoint de homologação, antes mesmo de haver retorno SOAP útil.
-- Ou seja: hoje o sistema está obedecendo a configuração salva, mas essa configuração está incompatível com o uso esperado do recurso.
+Isso mostra que:
+- a consulta já está indo para o endpoint de produção;
+- a falha ocorre antes do processamento fiscal da NF-e;
+- o problema está na camada de transporte HTTP da edge function `sefaz-distdfe`.
 
-O que vou corrigir
-1. Ajustar a configuração fiscal para que a consulta por chave use o ambiente correto da empresa.
-2. Endurecer o fluxo da busca por chave para não depender silenciosamente de uma configuração errada:
-   - exibir claramente o ambiente ativo dentro do diálogo;
-   - melhorar a mensagem de erro para deixar explícito quando a consulta foi feita em homologação;
-   - permitir tentativa guiada no ambiente correto quando houver indício de incompatibilidade.
-3. Revisar a função `sefaz-distdfe` para retornar diagnóstico mais objetivo no caso de reset de conexão, incluindo ambiente efetivo usado e contexto do certificado.
-4. Validar o fluxo completo: cache local → chamada da função → retorno do XML → processamento da NF de entrada.
+Hoje a função cria o cliente mTLS com `Deno.createHttpClient({ cert, key })`, sem restringir protocolo. O endpoint legado `NFeDistribuicaoDFe.asmx` está rejeitando a negociação em HTTP/2 e exige HTTP/1.1. Por isso trocar o ambiente na administração não resolve.
 
-Arquivos/áreas a revisar na implementação
-- `src/pages/fiscal/components/BuscarPorChaveDialog.tsx`
-- `src/pages/fiscal/ConfiguracaoFiscal.tsx`
-- `src/services/fiscal.service.ts`
+Também revisei a documentação/manual do serviço de distribuição da NF-e e o endpoint continua sendo o webservice SOAP legado do Ambiente Nacional; além disso, a documentação do Deno expõe exatamente os flags `http1` e `http2` para controlar esse comportamento.
+
+## Plano de correção
+1. Ajustar a edge function `supabase/functions/sefaz-distdfe/index.ts` para abrir o cliente mTLS forçando HTTP/1.1 e desabilitando HTTP/2.
+2. Melhorar o tratamento de erro da função para devolver uma mensagem explícita quando o servidor rejeitar HTTP/2, evitando novo falso diagnóstico de “ambiente incompatível”.
+3. Atualizar `src/pages/fiscal/components/BuscarPorChaveDialog.tsx` para exibir a causa correta quando a consulta falhar por protocolo, priorizando a mensagem do backend.
+4. Validar o fluxo completo da busca por chave: cache local `nfe_distribuicao` -> consulta SEFAZ -> retorno do XML -> persistência local.
+5. Revisar o caminho compartilhado de comunicação SOAP fiscal para evitar reincidência do mesmo problema em outros serviços que venham a usar `createHttpClient` com mTLS.
+
+## Arquivos previstos
 - `supabase/functions/sefaz-distdfe/index.ts`
+- `src/pages/fiscal/components/BuscarPorChaveDialog.tsx`
+- possível revisão auxiliar em serviços fiscais relacionados, se houver reaproveitamento do cliente HTTP
 
-Detalhes técnicos
-- Hoje o front lê `empresa_config.ambiente_sefaz` e, quando ele vale `2`, força a consulta para homologação.
-- A função `sefaz-distdfe` recebeu exatamente esse valor nos logs recentes.
-- O certificado não aparenta estar expirado, então a hipótese principal não é vencimento do A1, e sim ambiente incorreto para a consulta que está sendo tentada.
-- Não há evidência de quebra no parser, no modal ou no armazenamento local da distribuição.
+## Detalhes técnicos
+- Alteração principal esperada no backend:
+  ```ts
+  Deno.createHttpClient({
+    cert: certPem,
+    key: keyPem,
+    http1: true,
+    http2: false,
+  })
+  ```
+- Manter o restante do fluxo `consChNFe` intacto: geração do `distDFeInt`, envelope SOAP, parse de `retDistDFeInt` e cache em `nfe_distribuicao`.
+- Ajustar a heurística atual do frontend, que hoje ainda sugere incompatibilidade de ambiente para erros de conexão; no cenário atual isso mascara a causa verdadeira.
+- Não há necessidade de migração de banco para esta correção.
 
-Se aprovar, eu aplico a correção completa no fluxo e deixo a busca por chave mais robusta para não voltar a falhar de forma silenciosa.
+## Validação após a correção
+- Testar a mesma chave de 44 dígitos usada no print.
+- Confirmar que a chamada chega ao endpoint de produção sem erro de protocolo.
+- Confirmar um dos resultados esperados:
+  - XML retornado e salvo em cache local; ou
+  - resposta fiscal válida da SEFAZ (`cStat`/`xMotivo`), sem erro de transporte.
+- Garantir que o toast mostrado ao usuário reflita a causa real da falha, caso a NF-e não pertença ao CNPJ do certificado ou não esteja disponível.
+
+## Resultado esperado
+A consulta por chave volta a funcionar no serviço de distribuição da NF-e, e quando houver falha futura o sistema passará a informar corretamente se o problema é de protocolo, vínculo da NF-e com o certificado, indisponibilidade da SEFAZ ou ausência do XML.

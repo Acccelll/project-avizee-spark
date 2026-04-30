@@ -288,8 +288,16 @@ Deno.serve(async (req) => {
     // Cliente HTTP com mTLS
     let client: Deno.HttpClient;
     try {
+      // O endpoint legado NFeDistribuicaoDFe.asmx (Ambiente Nacional) só aceita
+      // HTTP/1.1. Sem forçar `http2: false`, o Deno tenta ALPN h2 e o servidor
+      // derruba a conexão com "endpoint requires HTTP/1.1".
       // @ts-ignore — Deno.createHttpClient é estável em Deno Deploy
-      client = Deno.createHttpClient({ cert: certPem, key: keyPem });
+      client = Deno.createHttpClient({
+        cert: certPem,
+        key: keyPem,
+        http1: true,
+        http2: false,
+      });
     } catch (e: any) {
       return json(
         { sucesso: false, erro: `Falha ao criar cliente mTLS: ${e.message}` },
@@ -332,13 +340,21 @@ Deno.serve(async (req) => {
       const raw = e?.name === "AbortError"
         ? "Timeout de 45s ao conectar com o Ambiente Nacional"
         : e?.message ?? String(e);
-      // Reset/Connect refused costuma indicar incompatibilidade de ambiente
-      // (certificado de produção tentando handshake em homologação ou vice-versa)
-      // ou indisponibilidade momentânea da SEFAZ.
+      // Diferenciar causas conhecidas de transporte:
+      //  - HTTP/2 forçado por ALPN: o servidor responde "endpoint requires HTTP/1.1".
+        //    Já mitigado por http2:false, mas mantemos a mensagem para diagnóstico.
+      //  - Connection reset / TLS / handshake: instabilidade do AN ou
+      //    incompatibilidade do certificado com o ambiente selecionado.
+      const looksLikeHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(raw);
       const looksLikeReset = /Connection reset|connect|reset by peer|tls|handshake|EOF/i.test(raw);
-      const hint = looksLikeReset
-        ? ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`
-        : "";
+      let hint = "";
+      if (looksLikeHttp2) {
+        hint =
+          " — o webservice NFeDistribuicaoDFe exige HTTP/1.1 e o cliente tentou HTTP/2. Atualize a edge function para forçar http1.";
+      } else if (looksLikeReset) {
+        hint =
+          ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`;
+      }
       return json({
         sucesso: false,
         ambiente,
