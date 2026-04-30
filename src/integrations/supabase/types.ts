@@ -8671,6 +8671,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      importacao_garantir_pessoa: {
+        Args: { p_codigo_legado: string; p_nome?: string; p_tipo: string }
+        Returns: string
+      }
       importar_nfe_entrada: {
         Args: { p_empresa_id?: string; p_payload: Json }
         Returns: Json
