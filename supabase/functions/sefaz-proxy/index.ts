@@ -364,7 +364,7 @@ Deno.serve(async (req) => {
       return json(
         {
           error:
-            "Campo 'action' ausente. Use 'health', 'parse-certificado', 'assinar-e-enviar' ou 'assinar-e-enviar-vault'.",
+            "Campo 'action' ausente. Use 'health', 'parse-certificado', 'assinar-e-enviar', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.",
         },
         400,
       );
@@ -472,9 +472,81 @@ Deno.serve(async (req) => {
       return json(resultado);
     }
 
+    if (action === "enviar-sem-assinatura-vault") {
+      const { xml, url, soapAction } = body;
+      if (!xml || !url || !soapAction) {
+        return json(
+          { error: "xml, url e soapAction são obrigatórios" },
+          400,
+        );
+      }
+
+      const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
+      if (!senha) {
+        return json(
+          {
+            sucesso: false,
+            erro:
+              "Secret CERTIFICADO_PFX_SENHA não configurado — configure em Administração > Fiscal.",
+          },
+          500,
+        );
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const { data: blob, error: dlErr } = await adminClient.storage
+        .from("dbavizee")
+        .download("certificados/empresa.pfx");
+
+      if (dlErr || !blob) {
+        return json(
+          {
+            sucesso: false,
+            erro:
+              `Não foi possível ler o certificado A1 do Storage: ${
+                dlErr?.message ?? "arquivo ausente"
+              }`,
+          },
+          500,
+        );
+      }
+
+      const arrBuf = await blob.arrayBuffer();
+      const certBase64 = forge.util.encode64(
+        String.fromCharCode(...new Uint8Array(arrBuf)),
+      );
+
+      let certPem: string;
+      let keyPem: string;
+      try {
+        const r = pfxToPem(certBase64, senha);
+        certPem = r.certPem;
+        keyPem = r.keyPem;
+      } catch (e: any) {
+        return json({
+          sucesso: false,
+          erro: `Falha ao ler PFX: ${e.message ?? String(e)}`,
+        });
+      }
+
+      const resultado = await enviarSoapMtls(
+        xml,
+        url,
+        soapAction,
+        certPem,
+        keyPem,
+      );
+      return json(resultado);
+    }
+
     return json(
       {
-        error: `action '${action}' inválida. Use 'health', 'parse-certificado', 'assinar-e-enviar' ou 'assinar-e-enviar-vault'.`,
+        error: `action '${action}' inválida. Use 'health', 'parse-certificado', 'assinar-e-enviar', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.`,
       },
       400,
     );
