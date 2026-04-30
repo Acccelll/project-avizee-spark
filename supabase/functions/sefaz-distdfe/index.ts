@@ -421,6 +421,26 @@ Deno.serve(async (req) => {
       certChainBytes: certPem.length,
     });
 
+    // Diagnóstico: testa GET ?wsdl com o mesmo cliente mTLS para isolar se
+    // o problema é mTLS+TLS (handshake) ou específico do POST/SOAP.
+    try {
+      const probe = await fetch(`${url}?wsdl`, {
+        method: "GET",
+        headers: { "User-Agent": "AviZee-ERP/1.0 (+probe)" },
+        // @ts-ignore
+        client,
+      });
+      const probeText = await probe.text();
+      log.info("probe GET ?wsdl", {
+        status: probe.status,
+        contentType: probe.headers.get("content-type"),
+        bytes: probeText.length,
+        preview: probeText.slice(0, 160),
+      });
+    } catch (e: any) {
+      log.info("probe GET ?wsdl failed", { erro: e?.message ?? String(e) });
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
     let xmlRetorno = "";
