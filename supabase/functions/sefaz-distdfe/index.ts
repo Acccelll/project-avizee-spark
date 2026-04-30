@@ -310,6 +310,22 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Lê UF da empresa para compor cUFAutor conforme NT 2014.002 v1.30.
+    let cUFAutor = "91";
+    try {
+      const { data: cfg } = await adminClient
+        .from("empresa_config")
+        .select("uf")
+        .limit(1)
+        .maybeSingle();
+      const uf = String((cfg as any)?.uf ?? "").trim().toUpperCase();
+      if (uf && UF_PARA_IBGE[uf]) cUFAutor = UF_PARA_IBGE[uf];
+      else log.info("cUFAutor fallback 91", { uf_lida: uf });
+    } catch (e) {
+      log.info("cUFAutor fallback 91 (erro lendo empresa_config)", { e: String(e) });
+    }
+
     const { data: blob, error: dlErr } = await adminClient.storage
       .from("dbavizee")
       .download("certificados/empresa.pfx");
