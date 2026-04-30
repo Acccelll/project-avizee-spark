@@ -1271,6 +1271,19 @@ const Fiscal = () => {
               <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={form.gera_financeiro} onChange={(e) => setForm({ ...form, gera_financeiro: e.target.checked })} className="rounded" />Gera Financeiro</label>
             </div>
           </div>
+          {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && (
+            <ParcelasFiscalEditor
+              total={totalNF || form.valor_total}
+              qtdParcelas={parcelas}
+              dataEmissao={form.data_emissao}
+              primeiroVencimento={primeiroVencimento}
+              intervaloDias={intervaloDias}
+              parcelas={parcelasPlano}
+              onPrimeiroVencimentoChange={setPrimeiroVencimento}
+              onIntervaloChange={setIntervaloDias}
+              onParcelasChange={setParcelasPlano}
+            />
+          )}
           {contasContabeis.length > 0 && (
             <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
               <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
