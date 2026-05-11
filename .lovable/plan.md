@@ -1,52 +1,71 @@
-## Fase A — Squash plan housekeeping
+## Escopo
 
-Quatro mudanças sem risco de regressão e sem migration de DB.
+Melhorias visuais e de organização do menu lateral (`AppSidebar` + componentes em `src/components/sidebar/` + `src/lib/navigation.ts`). Sem mudar lógica de permissão, badges (origem dos números) ou rotas.
 
-### Passo 1 — Corrigir `src/services/admin/sessoes.service.ts`
+Atendo as 5 prioridades **altas** do feedback + 2 médias de baixo risco. As baixas e estruturais maiores (subgrupos terceiro nível, redesenho de Cadastros) ficam fora — listadas em "Não inclui" para futuro.
 
-Substituir o acesso direto a `user_sessions` (tabela inexistente) por chamadas à Edge Function `admin-sessions`, padrão já usado por `adminSessions.service.ts` e `useSessoes.ts`.
+---
 
-- Remover `supabaseUntyped` e o cast.
-- `listarSessoes(opts)` → `supabase.functions.invoke('admin-sessions', { body: { action: 'list' } })`, depois aplicar `apenasAtivas` / `userId` em memória sobre o array retornado.
-- `revogarSessao(sessionId)` → a Edge Function revoga por `userId`. Como a interface pública atual recebe `sessionId` mas nenhum consumidor importa este módulo (verificado: `rg` retornou 0 hits), renomear o parâmetro para `userId` e invocar `{ action: 'revoke', userId }`. Manter o nome da função.
-- Manter `UserSession` e `ListarSessoesOptions` como tipos exportados; mapear o payload da Edge (`SessaoAtiva`) para `UserSession` preenchendo: `id`, `user_id`, `created_at`, `last_active_at` ← `last_sign_in_at ?? created_at`, `ip_address` ← `ip`, `user_agent`, `is_active: true`.
-- Atualizar o JSDoc do topo do arquivo (não mais "tabela `user_sessions`").
+## Mudanças
 
-### Passo 2 — `scripts/check-schema-drift.mjs`
+### 1. Renomear "Suprimentos e Logística" → "Estoque e Logística"
+`src/lib/navigation.ts`, `navSections[key='estoque'].title`. Resolve a quebra de linha no print e fica mais coerente com os subitens (Posição Atual / Logística). Sem impacto em rotas, keys ou permissões.
 
-Antes do loop de impressão de `unknownTables` (linha ~323), adicionar:
+### 2. Corrigir overflow horizontal do sidebar
+`src/components/sidebar/SidebarSectionItem.tsx` e `SidebarSection.tsx`:
+- Garantir `min-w-0` no flex container do botão e `truncate` (já existe em alguns lugares — auditar).
+- No `<aside>` do `AppSidebar`, manter `overflow-hidden` lateral (já tem) e no `<nav>` trocar `overflow-y-auto` por `overflow-y-auto overflow-x-hidden` explícito.
+- Adicionar `title={item.title}` no botão do item (tooltip nativo) para nomes longos truncados (ex.: "Auditoria de Duplicidades", "Backlog faturamento").
 
-```js
-// Exceções conhecidas — não são tabelas do banco:
-//  - dbavizee, email-assets: nomes de buckets de Storage (.storage.from)
-//  - x: placeholder usado em comentário JSDoc de fromUntyped.ts
-const KNOWN_EXCEPTIONS = new Set(['dbavizee', 'email-assets', 'x']);
+### 3. Eliminar duplicação de badge "Financeiro 86 / Lançamentos 86"
+`src/hooks/useSidebarBadges.ts`:
+- Manter o badge consolidado no **grupo** Financeiro (somatório vencidos+a vencer).
+- Remover a entrada `'/financeiro'` de `itemBadges` para que o subitem "Lançamentos" não exiba o mesmo número. O usuário entende pela hierarquia que o total do módulo vem de lançamentos.
+- Mesmo tratamento para Fiscal (`/fiscal` e `/faturamento`): manter no grupo, remover do leaf duplicado quando o número é idêntico ao do grupo. Decisão: preservar `/faturamento` (NF-e entrada) porque mede dimensão diferente de `/fiscal` (rejeitadas saída) — apenas remover `/financeiro` e `/estoque` (são iguais ao grupo).
+- `/orcamentos` e `/administracao` permanecem (são informações específicas, não duplicam o módulo de forma ambígua porque o módulo Comercial tem outros itens; admin idem).
+
+### 4. Reforçar diferenciação visual ativo / hover / favorito
+`src/components/sidebar/SidebarSectionItem.tsx`:
+- Item ativo: já tem fundo `bg-primary/10` + texto primary; **adicionar barra lateral esquerda de 2px** (já existe na Section pai, replicar no leaf — hoje só está em `SidebarFavorites`).
+- Hover inativo: manter `hover:bg-accent` (sutil).
+- Estrela: comportamento atual está correto (vazia em hover, preenchida quando favoritado) — apenas garantir contraste do ícone vazio (`text-muted-foreground` → ok).
+- Documentar no `mem://` o contrato visual.
+
+### 5. Reordenar Fiscal por uso operacional
+`src/lib/navigation.ts`, ordem dos itens em `fiscal.items[0].items`:
 ```
-
-E filtrar:
-```js
-for (const [t, n] of [...unknownTables.entries()]
-  .filter(([t]) => !KNOWN_EXCEPTIONS.has(t))
-  .sort()) { ... }
+Emitir NF-e
+Notas de Saída
+Notas de Entrada
+Consulta documentos
+Faturamento
+Backlog faturamento
+Dashboard Fiscal
+Histórico DistDF-e
+Cadastros fiscais
 ```
+Sem criar terceiro nível (subgrupo Operação/Gestão/Configuração) — adiar até validar com usuários.
 
-Ajustar também a checagem `if (unknownTables.size > 0)` para considerar o tamanho pós-filtro (não imprimir o cabeçalho se vazio).
+### 6. (Médio) Placeholder de busca melhor
+`AppSidebar.tsx` linha 125: "Buscar..." → "Buscar módulos, telas..." (mais descritivo).
 
-### Passo 3 — Criar `docs/fase-a-schema-inventory.md`
+### 7. (Médio) Estado dos grupos já persiste por usuário
+Verificado em `useNavigationState` — usa `useUserPreference` com chave `sidebar_sections_state_v2`. **Já atendido**, apenas mencionar na nota.
 
-Novo documento com o conteúdo fornecido pelo usuário (inventário de objetos críticos, sequences, buckets, cron jobs, SECURITY DEFINER functions, tabelas de maior churn, instruções de pg_dump manual e tabela de status).
+---
 
-### Passo 4 — Criar `scripts/schema-inventory.sql`
+## Não inclui (defer)
 
-Novo arquivo com as 7 queries fornecidas (sequences, tabelas+tamanho, SECURITY DEFINER, RLS policies, triggers, cron.job, índices compostos) para o desenvolvedor executar no Supabase Dashboard → SQL Editor.
+- Reorganizar Cadastros em subgrupos (Pessoas/Comercial/Interno) — está compreensível.
+- Separar Configurações de Administração como módulo próprio — exigiria decisão de produto e mexer em permissões.
+- Subgrupos de 3º nível em Fiscal — só reordenar agora.
+- Modo compacto, tooltip popover em módulos colapsados (já tem flyout), badges clicáveis com filtro, "colapsar todos os grupos rapidamente".
+- Seção Favoritos: **já existe** (`SidebarFavorites` no topo, `useFavoritos` persistido em `user_preferences`), apenas validar que a estrela atual de fato popula a seção — nenhuma mudança de código necessária.
 
-### Passo 5 — Atualizar `docs/migrations-squash-plan.md`
-
-- Cabeçalho: trocar "Status: plano" por "Status: **Fase A em andamento** (2026-05-11). Inventário: 254 migrations (de 20260409 até 20260508). +66 desde a versão anterior. CI: schema-drift check rodando em ci.yml — item concluído."
-- Adicionar nota na seção "Recomendação atual" (ou criar a seção se não existir) advertindo que Fase C deve aguardar até velocidade ≤2 migrations/dia por ≥3 dias consecutivos.
+---
 
 ## Validação
 
-- `node scripts/check-schema-drift.mjs` → não deve listar `dbavizee`, `x`, `email-assets`.
-- `tsc -p tsconfig.strict-core.json --noEmit` cobrindo `src/services/admin/sessoes.service.ts` (sem o cast `any`, deve compilar limpo).
-- Sem migration de DB nesta onda.
+- Build TS passa.
+- Visual: abrir `/`, expandir Financeiro → confirmar badge só no grupo; abrir Fiscal → confirmar nova ordem; ver "Estoque e Logística" em uma linha; sidebar sem barra horizontal.
+- Sem alteração em testes existentes (smoke tests não dependem de rótulos de menu).
