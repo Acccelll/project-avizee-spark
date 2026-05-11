@@ -12,6 +12,7 @@
  * vez de excluir") em vez de propagar erros crus do Postgres.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase/fromUntyped";
 
 export interface DependencyCheck {
   /** Tabela onde checar a existência de referências. */
@@ -53,9 +54,7 @@ export async function checkDependencies(
 ): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   for (const dep of deps) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count, error } = await (supabase as any)
-      .from(dep.table)
+    const { count, error } = await fromUntyped(dep.table)
       .select("id", { count: "exact", head: true })
       .eq(dep.column, id);
     if (error) {
@@ -90,16 +89,13 @@ export async function safeDelete(opts: SafeDeleteOptions): Promise<void> {
   }
 
   if (hardDelete) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from(table).delete().eq("id", id);
+    const { error } = await fromUntyped(table).delete().eq("id", id);
     if (error) throw error;
     return;
   }
 
   // Soft delete por padrão.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from(table)
+  const { error } = await fromUntyped(table)
     .update({ ativo: false })
     .eq("id", id);
   if (error) throw error;
