@@ -399,3 +399,33 @@ export async function fetchOrcamentoDetalhes(orcamentoId: string, signal: AbortS
 
   return { orcamento: orc, items: it ?? [], linkedOV: ov ?? null };
 }
+
+// ── Resposta pública do cliente (OrcamentoPublico) ──────────────────────────
+
+/**
+ * Registra a resposta do cliente (aprovado/rejeitado) via RPC pública.
+ * Lança erro — caller decide UX (toast).
+ */
+export async function acaoClienteOrcamento(
+  token: string,
+  acao: string,
+  comentario: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc("acao_cliente_orcamento" as never, {
+    p_token: token,
+    p_acao: acao,
+    p_comentario: comentario,
+  } as never);
+  if (error) throw error;
+}
+
+/**
+ * Notifica o time sobre a resposta do cliente (best-effort — nunca lança).
+ */
+export async function notifyOrcamentoResposta(token: string, acao: string): Promise<void> {
+  try {
+    await supabase.functions.invoke("notify-orcamento-resposta", { body: { token, acao } });
+  } catch (err) {
+    logger.info("notify-orcamento-resposta skipped", err);
+  }
+}
