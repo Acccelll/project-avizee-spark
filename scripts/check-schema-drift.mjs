@@ -270,6 +270,11 @@ function main() {
   const drift = []; // {file, table, col, kind}
   const unknownTables = new Map(); // table → count
 
+  // Exceções conhecidas — não são tabelas do banco:
+  //  - dbavizee, email-assets: nomes de buckets de Storage (.storage.from)
+  //  - x: placeholder usado em comentário JSDoc de fromUntyped.ts
+  const KNOWN_EXCEPTIONS = new Set(["dbavizee", "email-assets", "x"]);
+
   const files = walk(SRC_DIR);
   for (const file of files) {
     if (file.includes("/integrations/supabase/")) continue;
@@ -316,11 +321,14 @@ function main() {
   console.log(`\n📊 Tabelas extraídas de types.ts: ${tables.size}`);
   console.log(`📁 Arquivos varridos em src/: ${files.length}`);
 
-  if (unknownTables.size > 0) {
+  const filteredUnknown = [...unknownTables.entries()].filter(
+    ([t]) => !KNOWN_EXCEPTIONS.has(t),
+  );
+  if (filteredUnknown.length > 0) {
     console.log(
       `\n⚠  Tabelas/views referenciadas mas ausentes em types.ts (podem ser views ou tabelas novas):`,
     );
-    for (const [t, n] of [...unknownTables.entries()].sort()) {
+    for (const [t, n] of filteredUnknown.sort()) {
       console.log(`   - ${t} (${n} ocorrência${n > 1 ? "s" : ""})`);
     }
   }

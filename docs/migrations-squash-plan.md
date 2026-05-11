@@ -1,7 +1,8 @@
 # Plano de Squashing de Migrations
 
-> Status: **plano** (não executar sem janela de manutenção e backup completo).
-> Inventário: 188 migrations em `supabase/migrations/` (de `20260409` até `20260503`).
+> Status: **Fase A em andamento** (2026-05-11).
+> Inventário: 254 migrations (de `20260409` até `20260508`). +66 desde a versão anterior do plano.
+> CI: schema-drift check rodando em `ci.yml` (job `schema-drift`) — item concluído.
 
 ## Por que squash?
 
@@ -70,3 +71,7 @@ Só executar quando A e B estiverem 100% verdes em Test por ≥7 dias.
 
 **Adiar Fase C.** Executar Fase A imediatamente (gera `_baseline.reference` e
 valida drift). Fase B só quando precisarmos onboardar novo ambiente.
+
+> **Fase C: AGUARDAR** — velocidade atual de 8–18 migrations/dia impede squash
+> estável. Retomar quando atividade cair para ≤2 migrations/dia por ≥3 dias
+> consecutivos.
