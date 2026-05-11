@@ -11,7 +11,6 @@
  * Mensagens são humanas e informam ao usuário o que fazer ("Desative em
  * vez de excluir") em vez de propagar erros crus do Postgres.
  */
-import { supabase } from "@/integrations/supabase/client";
 import { fromUntyped } from "@/lib/supabase/fromUntyped";
 
 export interface DependencyCheck {
