@@ -510,7 +510,7 @@ const Fornecedores = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (f) => remove(f.id) : undefined}
+            onDelete={canExcluir ? async (f) => { await remove(f.id); invalidateKpiQualidade(); } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
