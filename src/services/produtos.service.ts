@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 /**
  * Service centralizando consultas usadas por `Produtos.tsx`.
@@ -150,6 +151,61 @@ export async function saveProdutoFornecedores(params: {
 export async function deleteProduto(id: string): Promise<void> {
   const { error } = await supabase.from("produtos").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ── CRUD básico (ProdutoForm) ────────────────────────────────────────────────
+
+export async function getProdutoById(id: string): Promise<Tables<"produtos"> | null> {
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Tables<"produtos"> | null) ?? null;
+}
+
+export async function createProduto(
+  payload: TablesInsert<"produtos">,
+): Promise<Tables<"produtos">> {
+  const { data, error } = await supabase
+    .from("produtos")
+    .insert(payload as never)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Tables<"produtos">;
+}
+
+export async function updateProduto(
+  id: string,
+  payload: TablesUpdate<"produtos">,
+): Promise<void> {
+  const { error } = await supabase
+    .from("produtos")
+    .update(payload as never)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+// ── KPIs (Produtos.tsx) ──────────────────────────────────────────────────────
+
+export interface ProdutoEstoqueSummary {
+  criticos: number;
+  zerados: number;
+  abaixo_minimo: number;
+}
+
+export async function fetchProdutosEstoqueSummary(): Promise<ProdutoEstoqueSummary> {
+  const { data, error } = await supabase.rpc("produtos_estoque_summary");
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  const r = (row ?? {}) as { criticos?: number; zerados?: number; abaixo_minimo?: number };
+  return {
+    criticos: Number(r.criticos ?? 0),
+    zerados: Number(r.zerados ?? 0),
+    abaixo_minimo: Number(r.abaixo_minimo ?? 0),
+  };
 }
 
 /** Lookup leve para autocompletes (id/nome/sku/codigo_interno). */
