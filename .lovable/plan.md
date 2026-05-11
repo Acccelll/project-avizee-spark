@@ -1,59 +1,49 @@
 ## Objetivo
 
-Migrar chamadas diretas ao Supabase nos módulos **Produto**, **Orçamento (público)** e em utilitários (**Help**, **Município IBGE**) para a camada de serviços, seguindo o padrão de `src/services/CONTRACTS.md`: funções async tipadas, `throw` em erro, sem `toast`/`navigate` dentro do service, e tipagem via `@/integrations/supabase/types`.
+Migrar chamadas diretas ao Supabase nos hooks de página de **Financeiro**, **Comercial** e **Admin (sessões)** para a camada de serviços, mantendo o padrão: funções async tipadas, `throw` no erro, sem `toast`/`navigate`/invalidação dentro do service.
 
-## Serviços — estender
+## Serviços — estender / criar
 
-### 1. `src/services/produtos.service.ts`
-Adicionar (não duplicar nada já existente — apenas `deleteProduto` e `fetchProdutoDetalhes` cobrem hoje o CRUD):
+### 1. Financeiro — novo submódulo `src/services/financeiro/listagem.ts`
 
-- `getProdutoById(id: string): Promise<Tables<'produtos'> | null>`
-  Wrap de `from('produtos').select('*').eq('id', id).maybeSingle()`. Retorna `data` ou `null`; `throw` no erro.
-- `createProduto(payload: TablesInsert<'produtos'>): Promise<Tables<'produtos'>>`
-  Wrap de `from('produtos').insert(payload).select('*').single()`.
-- `updateProduto(id: string, payload: TablesUpdate<'produtos'>): Promise<void>`
-  Wrap de `from('produtos').update(payload).eq('id', id)`.
-- `fetchProdutosEstoqueSummary(): Promise<{ criticos: number; zerados: number; abaixo_minimo: number }>`
-  Wrap de `rpc('produtos_estoque_summary')` — normaliza array/objeto e converte para `Number(...)` (move a lógica que hoje vive na queryFn de `Produtos.tsx`).
+`financeiro.service.ts` é um facade que re-exporta de `services/financeiro/*`. Em vez de inflar o barrel raiz, adiciono um novo submódulo dedicado e re-exporto via `services/financeiro/index.ts`:
 
-Imports novos: `Tables`, `TablesInsert`, `TablesUpdate` de `@/integrations/supabase/types`.
+- `FinanceiroListarParams` — `{ dateFrom, dateTo, tipos, status, bancos, origens, formas, cartoes, search, orderBy, ascending, offset, limit }` (todos opcionais/nulos exceto `offset`/`limit`).
+- `FinanceiroPagedResult` — `{ ids: string[]; totalCount: number }`.
+- `listarFinanceiroLancamentosIds(params): Promise<FinanceiroPagedResult>` — wrap de `rpc('listar_financeiro_lancamentos_ids', { p_date_from, p_date_to, p_tipos, p_status, p_bancos, p_origens, p_formas, p_cartoes, p_search, p_order_by, p_ascending, p_offset, p_limit })`. Normaliza `data` (objeto com `ids` / `total_count`) para o shape acima. `throw` no erro.
+- `KpisFinanceiroParams` — mesmos filtros sem paginação/ordem.
+- `KpisFinanceiroResult` — mover `FinanceiroKpisResult` (10 campos numéricos) e a constante `EMPTY` para o service.
+- `fetchKpisFinanceiro(params): Promise<KpisFinanceiroResult>` — wrap de `rpc('kpis_financeiro', { ...mesmos p_* })`. Mescla com `EMPTY` antes de retornar.
 
-### 2. `src/services/orcamentos.service.ts`
+Re-exporta tudo em `src/services/financeiro/index.ts` e (opcional) também via `src/services/financeiro.service.ts` para simetria com os demais símbolos. Tipos importam de `@/integrations/supabase/types` quando necessário.
+
+### 2. Comercial — estender `src/services/comercial/pedidosVenda.service.ts`
+
 Adicionar:
+- `PedidoOperacionalPatch` — `{ status?, po_number?, data_po_cliente?, data_prometida_despacho?, prazo_despacho_dias?, observacoes? }` (todos `string | number | null` opcionais; mover do hook).
+- `salvarPedidoOperacional(id: string, patch: PedidoOperacionalPatch): Promise<void>` — wrap de `rpc('salvar_pedido_operacional', { p_id: id, p_patch: patch as never })`. `throw` no erro com a `error.message` original.
 
-- `acaoClienteOrcamento(token: string, acao: string, comentario: string | null): Promise<void>`
-  Wrap de `rpc('acao_cliente_orcamento' as never, { p_token, p_acao, p_comentario } as never)`. `throw` no erro (caller mostra toast).
-- `notifyOrcamentoResposta(token: string, acao: string): Promise<void>`
-  Wrap de `functions.invoke('notify-orcamento-resposta', { body: { token, acao } })`. **Best-effort**: faz `try/catch` interno e loga via `logger`, nunca `throw` (mantém o comportamento `.catch(() => {})` atual).
+### 3. Admin — novo arquivo `src/services/admin/adminSessions.service.ts`
 
-Sem `toast`/`navigate` nas novas funções.
+⚠️ `src/services/admin/sessoes.service.ts` já existe mas opera **na tabela `user_sessions`** — semântica diferente do fluxo `admin-sessions` (Edge Function com `service_role`). Para evitar colisão de nomes/significado, criar arquivo separado:
 
-## Serviços — criar
+- `SessaoAtiva` — mover a interface (`id, user_id, user_email, user_name, created_at, last_sign_in_at, user_agent, ip`) do hook para o service.
+- `listSessoesAtivas(): Promise<SessaoAtiva[]>` — wrap de `functions.invoke<SessaoAtiva[]>('admin-sessions', { body: { action: 'list' } })`. `throw` com `error.message` ou fallback.
+- `revogarSessaoAtiva(userId: string): Promise<void>` — wrap de `functions.invoke('admin-sessions', { body: { action: 'revoke', userId } })`. Nome com sufixo `Ativa` evita colidir com `revogarSessao` (DB) já exportado por `sessoes.service.ts`.
 
-### 3. `src/services/help.service.ts` (novo)
-- `submitHelpFeedback(userId: string, route: string, helpful: boolean): Promise<void>`
-  Wrap de `from('help_feedback').insert({ user_id: userId, route, helpful })`. `throw` no erro.
-
-### 4. `src/services/municipio.service.ts` (novo)
-- Reexporta `MunicipioIbge` (mover a interface para o service e re-export do hook para compatibilidade).
-- `buscarMunicipioIbgeDb(nome: string, uf: string): Promise<MunicipioIbge | null>`
-  Wrap de `rpc('buscar_municipio_ibge', { p_nome, p_uf })`. **Não faz throw** — em qualquer erro ou data vazio retorna `null` (é apenas o cache local; o fallback HTTP do IBGE roda no hook).
-
-O `upsert` em `ibge_municipios` e o fetch da API pública do IBGE permanecem no hook (não fazem parte do escopo).
-
-## Refatorações (apenas trocar a chamada — UX/toasts/invalidações intactos)
+## Refatorações (somente troca da chamada — query keys, invalidações, toasts e UX intactos)
 
 | Arquivo | Substituições |
 |---|---|
-| `src/pages/Produtos.tsx` | queryFn passa a chamar `fetchProdutosEstoqueSummary()` direto |
-| `src/pages/produtos/ProdutoForm.tsx` | linha 189 → `getProdutoById(id)`; linha 340 → `createProduto(payload)`; linha 344 → `updateProduto(id, payload)` |
-| `src/pages/OrcamentoPublico.tsx` | bloco do `rpc('acao_cliente_orcamento')` → `try { await acaoClienteOrcamento(...) } catch { toast.error(...) }`; chamada à edge function → `notifyOrcamentoResposta(token, acao)` (sem `.catch`, já é best-effort) |
-| `src/components/help/HelpDrawer.tsx` | `sendFeedback` usa `try { await submitHelpFeedback(user.id, entry.route, helpful) } catch { toast.error(...) }` |
-| `src/hooks/useMunicipioIbge.ts` | passo (1) usa `buscarMunicipioIbgeDb(nome, uf)`; passo (2) fallback IBGE API + upsert em `ibge_municipios` permanece inalterado |
+| `src/pages/financeiro/hooks/useFinanceiroLancamentosPaged.ts` | bloco `supabase.rpc('listar_financeiro_lancamentos_ids', ...)` → `await listarFinanceiroLancamentosIds({ ...filters, orderBy: 'data_vencimento', ascending: false, offset, limit: pageSize })`. O segundo passo (`from('financeiro_lancamentos').select(...).in('id', ids)`) permanece — está fora do escopo. |
+| `src/pages/financeiro/hooks/useFinanceiroKpisRpc.ts` | queryFn passa a chamar `fetchKpisFinanceiro(filters)`. Tipo `FinanceiroKpisResult` re-exportado pelo service (mantém `export type` no hook por compat). |
+| `src/pages/comercial/hooks/useSalvarPedido.ts` | `mutationFn` chama `salvarPedidoOperacional(id, patch)`. |
+| `src/hooks/useSessoes.ts` | funções locais `fetchSessoes`/`revogarSessao` substituídas por `listSessoesAtivas` e `revogarSessaoAtiva`; `mutationFn: (userId) => revogarSessaoAtiva(userId)`. |
 
-Imports diretos a `@/integrations/supabase/client` removidos dos arquivos refatorados quando não restar uso. No `useMunicipioIbge.ts` o import permanece (upsert em `ibge_municipios`).
+Imports diretos a `@/integrations/supabase/client` removidos dos 4 hooks (nenhum usa supabase fora das chamadas migradas, exceto `useFinanceiroLancamentosPaged` que mantém o import por causa do segundo passo `from(...).in('id', ids)`).
 
 ## Fora de escopo
-- Mover o `upsert` do `ibge_municipios` ou o fetch IBGE para service.
-- Alterar lógica de UX, toasts, invalidação de cache ou navegação.
-- Refatorar outros call-sites (apenas os 5 arquivos listados).
+
+- Mover o `select` relacional + reidratação por `Map<id,row>` em `useFinanceiroLancamentosPaged` para o service (segundo passo continua no hook).
+- Refatorar `sessoes.service.ts` (DB-based) ou unificá-lo com o novo service de Edge Function.
+- Alterar query keys, invalidações, toasts ou nomes de mutações públicas dos hooks.
