@@ -102,3 +102,8 @@ export const cancelarPedidoCompra = (args: RpcArgs<"cancelar_pedido_compra">) =>
 
 export const receberCompra = (args: RpcArgs<"receber_compra">) =>
   invokeRpc("receber_compra", args);
+
+// ── Sidebar / dashboards ───────────────────────────────────────────────────
+
+export const fetchSidebarAlertsKpis = () =>
+  invokeRpc("sidebar_alerts_kpis", {} as RpcArgs<"sidebar_alerts_kpis">);

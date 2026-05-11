@@ -19,51 +19,18 @@ export interface SidebarAlertsRaw {
 export async function fetchSidebarAlertsRaw(
   options: { isAdmin?: boolean } = {},
 ): Promise<SidebarAlertsRaw> {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const plus3 = new Date(now);
-  plus3.setDate(now.getDate() + 3);
-  const dueSoon = plus3.toISOString().slice(0, 10);
-
-  const [
-    { count: vencidos },
-    { count: vencer },
-    estoqueBaixoRes,
-    { count: orcPendentes },
-    { count: nfRej },
-    { count: nfEntrada },
-  ] = await Promise.all([
-    supabase
-      .from("financeiro_lancamentos")
-      .select("*", { count: "exact", head: true })
-      .eq("ativo", true)
-      .in("status", ["aberto", "vencido"])
-      .lt("data_vencimento", today),
-    supabase
-      .from("financeiro_lancamentos")
-      .select("*", { count: "exact", head: true })
-      .eq("ativo", true)
-      .eq("status", "aberto")
-      .gte("data_vencimento", today)
-      .lte("data_vencimento", dueSoon),
-    supabase.rpc("count_estoque_baixo" as never),
-    supabase
-      .from("orcamentos")
-      .select("*", { count: "exact", head: true })
-      .eq("ativo", true)
-      .in("status", ["pendente", "aguardando_aprovacao", "em_analise"]),
-    supabase
-      .from("notas_fiscais")
-      .select("*", { count: "exact", head: true })
-      .eq("ativo", true)
-      .eq("status", "rejeitada"),
-    supabase
-      .from("nfe_distribuicao")
-      .select("*", { count: "exact", head: true })
-      .eq("status_manifestacao", "sem_manifestacao"),
-  ]);
-
-  const baixoCount = Number((estoqueBaixoRes as { data?: number | null }).data ?? 0);
+  // Consolida 6 contadores em 1 round-trip (RPC server-side, polling 90s).
+  // CURRENT_DATE no servidor evita drift de timezone entre clientes.
+  const { data, error } = await supabase.rpc("sidebar_alerts_kpis");
+  if (error) throw error;
+  const row = ((Array.isArray(data) ? data[0] : data) ?? {}) as {
+    financeiro_vencidos?: number;
+    financeiro_vencer?: number;
+    estoque_baixo?: number;
+    orcamentos_pendentes?: number;
+    nf_rejeitadas?: number;
+    nfe_sem_manifestacao?: number;
+  };
 
   // Fila DLQ — só admin tem GRANT na RPC; para os demais a chamada é pulada.
   let filaEmailDLQ = 0;
@@ -87,12 +54,12 @@ export async function fetchSidebarAlertsRaw(
   }
 
   return {
-    financeiroVencidos: vencidos || 0,
-    financeiroVencer: vencer || 0,
-    estoqueBaixo: baixoCount,
-    orcamentosPendentes: orcPendentes || 0,
-    nfRejeitadas: nfRej || 0,
-    nfeEntradaSemManifestacao: nfEntrada || 0,
+    financeiroVencidos: row.financeiro_vencidos ?? 0,
+    financeiroVencer: row.financeiro_vencer ?? 0,
+    estoqueBaixo: row.estoque_baixo ?? 0,
+    orcamentosPendentes: row.orcamentos_pendentes ?? 0,
+    nfRejeitadas: row.nf_rejeitadas ?? 0,
+    nfeEntradaSemManifestacao: row.nfe_sem_manifestacao ?? 0,
     filaEmailDLQ,
   };
 }
