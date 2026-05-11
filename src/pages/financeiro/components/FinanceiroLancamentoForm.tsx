@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Barcode } from "lucide-react";
+import { Barcode, AlertCircle } from "lucide-react";
 import { BoletoReaderModal } from "@/components/financeiro/BoletoReaderModal";
 import { formatCurrency } from "@/lib/format";
 import type { Cliente, Fornecedor } from "@/types/domain";
@@ -16,6 +17,7 @@ import type { ContaBancaria } from "@/types/domain";
 import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   form: LancamentoForm;
@@ -35,6 +37,7 @@ interface Props {
 // `pago` e `parcial` são DERIVADOS de baixas (trigger trg_sync_financeiro_saldo).
 // `vencido` é estado efetivo derivado, nunca persistido.
 const STATUS_READONLY = new Set(["parcial", "pago"]);
+const FORMAS_COM_BOLETO = new Set(["", "boleto", "boleto_dda"]);
 const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   parcial: "secondary",
   pago: "default",
@@ -61,8 +64,26 @@ export function FinanceiroLancamentoForm({
   const selectStatusValue = form.status === "vencido" ? "aberto" : form.status;
   const [boletoOpen, setBoletoOpen] = useState(false);
 
+  const isCartaoCredito = form.forma_pagamento === "cartao_credito";
+  const dataPagamentoEditable = form.status === "pago" || form.status === "parcial";
+  const showBoleto = form.tipo === "pagar" && FORMAS_COM_BOLETO.has(form.forma_pagamento);
+  const showContaBancaria = !isCartaoCredito;
+
+  const handleSubmit = (e: FormEvent) => {
+    if (isCartaoCredito && !form.cartao_id) {
+      e.preventDefault();
+      toast({
+        title: "Cartão obrigatório",
+        description: "Selecione um cartão cadastrado para forma 'Cartão de Crédito'.",
+        variant: "destructive",
+      });
+      return;
+    }
+    onSubmit(e);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="space-y-2"><Label>Tipo</Label>
           <Select value={form.tipo} onValueChange={(v) => updateField("tipo", v)}>
@@ -89,7 +110,7 @@ export function FinanceiroLancamentoForm({
             </Select>
           )}
           <p className="text-[11px] text-muted-foreground mt-1">
-            Status <strong>Pago/Parcial</strong> é derivado das baixas. Use <strong>Baixar</strong> para liquidar.
+            <strong>Pago/Parcial</strong> são definidos automaticamente pelas baixas. Para liquidar, use <strong>Registrar Baixa</strong>.
           </p>
           {form.status === "vencido" && (
             <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
