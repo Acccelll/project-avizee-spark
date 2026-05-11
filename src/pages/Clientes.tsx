@@ -648,9 +648,9 @@ const Clientes = () => {
               active={inativoOnly}
             />
             <SummaryCard
-              title="Incompletos (página)"
+              title="Incompletos"
               shortTitle="Incompletos"
-              value={summaryIncompletosPagina}
+              value={summaryIncompletos}
               icon={AlertTriangle}
               variant="warning"
               onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
