@@ -36,3 +36,28 @@ export async function cancelarPedidoVenda(input: {
   if (error) throw new Error(error.message);
   return data as unknown as CancelarPedidoVendaResult;
 }
+
+/** Patch operacional do pedido de venda (status, PO, datas, observações). */
+export interface PedidoOperacionalPatch {
+  status?: string | null;
+  po_number?: string | null;
+  data_po_cliente?: string | null;
+  data_prometida_despacho?: string | null;
+  prazo_despacho_dias?: number | null;
+  observacoes?: string | null;
+}
+
+/**
+ * RPC `salvar_pedido_operacional` (SECURITY DEFINER + search_path) — atualiza
+ * campos operacionais do pedido com auditoria via trigger único.
+ */
+export async function salvarPedidoOperacional(
+  id: string,
+  patch: PedidoOperacionalPatch,
+): Promise<void> {
+  const { error } = await supabase.rpc("salvar_pedido_operacional", {
+    p_id: id,
+    p_patch: patch as never,
+  });
+  if (error) throw new Error(error.message);
+}
