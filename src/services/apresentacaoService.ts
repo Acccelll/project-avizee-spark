@@ -55,7 +55,7 @@ export async function incluirTemplateApresentacao(input: {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_templates')
     .insert({
       nome: input.nome,
@@ -394,7 +394,7 @@ export type ApresentacaoCadenciaDraft = Omit<
 
 export async function listarApresentacaoCadencias(): Promise<ApresentacaoCadencia[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_cadencia')
     .select('*')
     .order('created_at', { ascending: false });
@@ -415,7 +415,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
   };
   if (input.id) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('apresentacao_cadencia')
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq('id', input.id)
@@ -425,7 +425,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
     return data as ApresentacaoCadencia;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_cadencia')
     .insert(payload)
     .select('*')
@@ -464,7 +464,7 @@ export async function carregarPreferenciasApresentacao(): Promise<ApresentacaoPr
   const userId = userData.user?.id;
   if (!userId) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_preferencias')
     .select('*')
     .eq('user_id', userId)
@@ -478,7 +478,7 @@ export async function salvarPreferenciasApresentacao(prefs: ApresentacaoPreferen
   const userId = userData.user?.id;
   if (!userId) return;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from('apresentacao_preferencias')
     .upsert(
       { user_id: userId, ...prefs, updated_at: new Date().toISOString() },

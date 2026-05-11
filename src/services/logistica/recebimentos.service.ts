@@ -26,7 +26,7 @@ export async function registrarRecebimento(input: RegistrarRecebimentoInput): Pr
 }
 
 export async function marcarDivergencia(recebimentoId: string, motivo: string): Promise<void> {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("recebimentos_compra")
     .update({ tem_divergencia: true, motivo_divergencia: motivo })
     .eq("id", recebimentoId);
@@ -38,7 +38,7 @@ export function useRecebimentosPorPedido(pedidoCompraId: string | null) {
     queryKey: ["recebimentos-compra", pedidoCompraId],
     enabled: Boolean(pedidoCompraId),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("recebimentos_compra")
         .select("*, recebimentos_compra_itens(*)")
         .eq("pedido_compra_id", pedidoCompraId)
