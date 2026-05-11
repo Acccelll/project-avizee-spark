@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { invokeRpc } from "@/types/rpc";
 
 export interface RegistrarRecebimentoInput {
   pedido_compra_id: string;
@@ -13,15 +14,14 @@ export interface RegistrarRecebimentoInput {
 }
 
 export async function registrarRecebimento(input: RegistrarRecebimentoInput): Promise<string> {
-  const { data, error } = await (supabase.rpc as any)("registrar_recebimento_compra", {
+  const data = await invokeRpc("registrar_recebimento_compra", {
     p_pedido_compra_id: input.pedido_compra_id,
     p_data_recebimento: input.data_recebimento,
-    p_itens: input.itens,
-    p_observacoes: input.observacoes ?? null,
-    p_nota_fiscal_id: input.nota_fiscal_id ?? null,
-    p_compra_id: input.compra_id ?? null,
-  });
-  if (error) throw new Error(error.message);
+    p_itens: input.itens as never,
+    p_observacoes: input.observacoes ?? undefined,
+    p_nota_fiscal_id: input.nota_fiscal_id ?? undefined,
+    p_compra_id: input.compra_id ?? undefined,
+  } as never);
   return data as string;
 }
 
