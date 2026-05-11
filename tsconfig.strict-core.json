@@ -43,7 +43,11 @@
     "src/services/budget.service.ts",
     "src/pages/logistica/**/*",
     "src/services/financeiro/conciliacaoQueries.ts",
-    "src/services/financeiro/extratoImportacoes.service.ts"
+    "src/services/financeiro/extratoImportacoes.service.ts",
+    "src/services/_shared/**/*",
+    "src/hooks/useSupabaseCrud.ts",
+    "src/hooks/useTableCount.ts",
+    "src/hooks/useFieldUnique.ts"
   ],
   "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }

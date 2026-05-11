@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase/fromUntyped";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
@@ -156,7 +157,8 @@ export function useSupabaseCrud<R = any>({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const buildQuery = (): any => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let query: any = (supabase as any).from(table)
+        // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
+        let query: any = fromUntyped(table)
           .select(select, { count: "exact" })
           .order(orderBy, { ascending });
         query = applyFilters(query, filter);
@@ -246,7 +248,8 @@ export function useSupabaseCrud<R = any>({
     mutationFn: async (record: Partial<R>) => {
       if (!supabase) throw new Error("Supabase não configurado");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: result, error } = await (supabase as any).from(table).insert(record).select().single();
+      // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
+      const { data: result, error } = await fromUntyped(table).insert(record).select().single();
       if (error) throw error;
       return result as R;
     },
@@ -263,7 +266,8 @@ export function useSupabaseCrud<R = any>({
     mutationFn: async ({ id, record }: { id: string; record: Partial<R> }) => {
       if (!supabase) throw new Error("Supabase não configurado");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: result, error } = await (supabase as any).from(table).update(record).eq("id", id).select().single();
+      // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
+      const { data: result, error } = await fromUntyped(table).update(record).eq("id", id).select().single();
       if (error) throw error;
       return result as R;
     },
@@ -304,11 +308,12 @@ export function useSupabaseCrud<R = any>({
       if (!supabase) throw new Error("Supabase não configurado");
       if (soft && shouldSoftDelete) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any).from(table).update({ ativo: false }).eq("id", id);
+        // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
+        const { error } = await fromUntyped(table).update({ ativo: false }).eq("id", id);
         if (error) throw error;
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any).from(table).delete().eq("id", id);
+        const { error } = await fromUntyped(table).delete().eq("id", id);
         if (error) throw error;
       }
     },
