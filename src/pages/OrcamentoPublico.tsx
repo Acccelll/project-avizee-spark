@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { acaoClienteOrcamento, notifyOrcamentoResposta } from "@/services/orcamentos.service";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CheckCircle, XCircle, Loader2, Mail, Phone, Globe, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -276,25 +277,19 @@ export default function OrcamentoPublico() {
       return;
     }
     setActionLoading(true);
-    const { error: rpcErr } = await supabase.rpc("acao_cliente_orcamento" as never, {
-      p_token: token,
-      p_acao: acao,
-      p_comentario: comentarioFinal || null,
-    } as never);
-    if (rpcErr) {
+    try {
+      await acaoClienteOrcamento(token, acao, comentarioFinal || null);
+    } catch {
       toast.error("Erro ao registrar sua resposta. Tente novamente.");
       setActionLoading(false);
       return;
-    } else {
-      setActionDone(acao);
-      setData((prev) => (prev ? { ...prev, status: acao } : prev));
-      setDialogAcao(null);
-      setComentario("");
-      // Dispara notificação ao time (best-effort, não bloqueia UX).
-      supabase.functions
-        .invoke("notify-orcamento-resposta", { body: { token, acao } })
-        .catch(() => {});
     }
+    setActionDone(acao);
+    setData((prev) => (prev ? { ...prev, status: acao } : prev));
+    setDialogAcao(null);
+    setComentario("");
+    // Dispara notificação ao time (best-effort, não bloqueia UX).
+    void notifyOrcamentoResposta(token, acao);
     setActionLoading(false);
   };
 

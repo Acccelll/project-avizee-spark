@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { ThumbsDown, ThumbsUp, Play, ArrowRight } from 'lucide-react';
 import { resolveHelpEntry } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { submitHelpFeedback } from '@/services/help.service';
 
 /**
  * Drawer lateral que renderiza a entry de ajuda da rota atual. Reage à URL
@@ -26,12 +26,9 @@ export function HelpDrawer() {
     async (helpful: boolean) => {
       setFeedback(helpful ? 'up' : 'down');
       if (!user?.id || !entry) return;
-      const { error } = await supabase.from('help_feedback').insert({
-        user_id: user.id,
-        route: entry.route,
-        helpful,
-      });
-      if (error) {
+      try {
+        await submitHelpFeedback(user.id, entry.route, helpful);
+      } catch {
         toast.error('Não foi possível registrar seu feedback.');
         setFeedback(null);
         return;
