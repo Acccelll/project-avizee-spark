@@ -17,36 +17,7 @@ export interface FiscalKpisFilters {
   search?: string | null;
 }
 
-export interface FiscalKpisResult {
-  totalCount: number;
-  rascunho: number;
-  pendente: number;
-  confirmada: number;
-  /** Inclui `confirmada + autorizada + importada` (paridade com o card "Confirmadas"). */
-  confirmadas_efetivas: number;
-  cancelada: number;
-  denegada: number;
-  rejeitada: number;
-  total_valor: number;
-  total_valor_confirmada: number;
-  total_entrada: number;
-  total_saida: number;
-}
-
-const EMPTY: FiscalKpisResult = {
-  totalCount: 0,
-  rascunho: 0,
-  pendente: 0,
-  confirmada: 0,
-  confirmadas_efetivas: 0,
-  cancelada: 0,
-  denegada: 0,
-  rejeitada: 0,
-  total_valor: 0,
-  total_valor_confirmada: 0,
-  total_entrada: 0,
-  total_saida: 0,
-};
+export type { FiscalKpisResult } from "@/services/fiscal/dashboardFiscal.service";
 
 /**
  * Carrega os KPIs do módulo Fiscal via RPC `kpis_fiscal`, aplicando os
