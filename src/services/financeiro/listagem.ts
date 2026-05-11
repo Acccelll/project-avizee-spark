@@ -54,8 +54,8 @@ const KPIS_EMPTY: KpisFinanceiroResult = {
   total_parcial: 0,
 };
 
-function arrOrNull(v: string[] | null | undefined): string[] | null {
-  return v && v.length ? v : null;
+function arrOrNone(v: string[] | null | undefined): string[] | undefined {
+  return v && v.length ? v : undefined;
 }
 
 /**
@@ -66,15 +66,15 @@ export async function listarFinanceiroLancamentosIds(
   params: FinanceiroListarParams,
 ): Promise<FinanceiroPagedResult> {
   const { data, error } = await supabase.rpc("listar_financeiro_lancamentos_ids", {
-    p_date_from: params.dateFrom ?? null,
-    p_date_to: params.dateTo ?? null,
-    p_tipos: arrOrNull(params.tipos ?? null),
-    p_status: arrOrNull(params.status ?? null),
-    p_bancos: arrOrNull(params.bancos ?? null),
-    p_origens: arrOrNull(params.origens ?? null),
-    p_formas: arrOrNull(params.formas ?? null),
-    p_cartoes: arrOrNull(params.cartoes ?? null),
-    p_search: params.search?.trim() || null,
+    p_date_from: params.dateFrom ?? undefined,
+    p_date_to: params.dateTo ?? undefined,
+    p_tipos: arrOrNone(params.tipos ?? undefined),
+    p_status: arrOrNone(params.status ?? undefined),
+    p_bancos: arrOrNone(params.bancos ?? undefined),
+    p_origens: arrOrNone(params.origens ?? undefined),
+    p_formas: arrOrNone(params.formas ?? undefined),
+    p_cartoes: arrOrNone(params.cartoes ?? undefined),
+    p_search: params.search?.trim() || undefined,
     p_order_by: params.orderBy ?? "data_vencimento",
     p_ascending: params.ascending ?? false,
     p_offset: params.offset,
@@ -93,15 +93,15 @@ export async function fetchKpisFinanceiro(
   params: KpisFinanceiroParams,
 ): Promise<KpisFinanceiroResult> {
   const { data, error } = await supabase.rpc("kpis_financeiro", {
-    p_date_from: params.dateFrom ?? null,
-    p_date_to: params.dateTo ?? null,
-    p_tipos: arrOrNull(params.tipos ?? null),
-    p_status: arrOrNull(params.status ?? null),
-    p_bancos: arrOrNull(params.bancos ?? null),
-    p_origens: arrOrNull(params.origens ?? null),
-    p_formas: arrOrNull(params.formas ?? null),
-    p_cartoes: arrOrNull(params.cartoes ?? null),
-    p_search: params.search?.trim() || null,
+    p_date_from: params.dateFrom ?? undefined,
+    p_date_to: params.dateTo ?? undefined,
+    p_tipos: arrOrNone(params.tipos ?? undefined),
+    p_status: arrOrNone(params.status ?? undefined),
+    p_bancos: arrOrNone(params.bancos ?? undefined),
+    p_origens: arrOrNone(params.origens ?? undefined),
+    p_formas: arrOrNone(params.formas ?? undefined),
+    p_cartoes: arrOrNone(params.cartoes ?? undefined),
+    p_search: params.search?.trim() || undefined,
   });
   if (error) throw error;
   return { ...KPIS_EMPTY, ...((data as Partial<KpisFinanceiroResult>) ?? {}) };
