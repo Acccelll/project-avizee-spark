@@ -189,6 +189,31 @@ const Clientes = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
+  // Predicados PostgREST para o filtro "Cadastro" (server-side).
+  // Cada item vira um `.or(...)` separado em useSupabaseCrud — múltiplos
+  // filtros são ANDed entre si, espelhando o `every(...)` que existia
+  // client-side. Mantém os critérios alinhados com getMissingFields().
+  const cadastroOrFilters = useMemo(() => {
+    const SEM_TELEFONE = "and(celular.is.null,telefone.is.null)";
+    const SEM_EMAIL = "or(email.is.null,email.eq.)";
+    const SEM_CONTATO = `and(${SEM_TELEFONE},${SEM_EMAIL})`;
+    const SEM_PRAZO = "or(prazo_padrao.is.null,prazo_padrao.lte.0)";
+    const SEM_DOC = "or(cpf_cnpj.is.null,cpf_cnpj.eq.)";
+    const SEM_ENDERECO = "or(cidade.is.null,uf.is.null)";
+    // "incompleto" replica getMissingFields (sem grupo): doc OU telefone OU
+    // email OU prazo OU endereço inválidos.
+    const INCOMPLETO = `or(${SEM_DOC},${SEM_TELEFONE},${SEM_EMAIL},${SEM_PRAZO},${SEM_ENDERECO})`;
+    const map: Record<string, string> = {
+      incompleto: INCOMPLETO,
+      sem_contato: SEM_CONTATO,
+      sem_telefone: SEM_TELEFONE,
+      sem_email: SEM_EMAIL,
+      sem_prazo: SEM_PRAZO,
+      sem_grupo: "grupo_economico_id.is.null",
+    };
+    return cadastroFilters.map((f) => map[f]).filter(Boolean);
+  }, [cadastroFilters]);
+
   // Avalia "qualidade cadastral" do cliente — completo se possui documento,
   // contato (tel ou cel), e-mail, prazo > 0 e endereço (cidade+uf).
   // O detalhe do que falta vai num tooltip e alimenta os filtros "Cadastro".
