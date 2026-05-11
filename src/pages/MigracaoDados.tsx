@@ -59,6 +59,25 @@ import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Monitor } from "lucide-react";
 
+/** Interface comum dos hooks de importação consumidos por esta tela. */
+interface IImportacaoHook {
+  file: File | null;
+  sheets: string[];
+  currentSheet: string;
+  headers: string[];
+  mapping: Record<string, string>;
+  importType?: string;
+  previewData: unknown[];
+  isProcessing: boolean;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSheetChange: (s: string) => void;
+  setMapping: (m: Record<string, string>) => void;
+  setImportType?: (t: string) => void;
+  generatePreview: () => Promise<void>;
+  processImport: () => Promise<unknown>;
+  finalizeImport: (loteId?: string) => Promise<unknown>;
+}
+
 export default function MigracaoDados() {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
