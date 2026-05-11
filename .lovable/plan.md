@@ -1,77 +1,67 @@
-## Drawer de Lançamentos Financeiros — Plano de melhorias
+## Editar Lançamento — Melhorias do formulário
 
-Foco: limpar dados técnicos/brutos exibidos (`[object Object]`, `cartao_credito`), corrigir truncamento ("Saldo em Aber..."), adicionar contexto temporal, melhorar segurança da exclusão e enriquecer abas Resumo, Origem e Histórico.
-
-Escopo restrito a `src/components/financeiro/FinanceiroDrawer.tsx` + 1 helper novo. Sem mudanças em RPCs, schema, baixas, services ou banco.
+Escopo: `src/pages/financeiro/components/FinanceiroLancamentoForm.tsx` (UI) + uso de helper existente `displayObservacoes` (já criado). Sem mudanças de schema, RPCs ou services.
 
 ### Alta prioridade
 
-1. **Eliminar `[object Object]` em `observacoes`**
-   - Criar helper `displayObservacoes(value: unknown): string` em `src/lib/displayLancamento.ts`:
-     - `string` → retorna a string (filtra `"[object Object]"` → `""`).
-     - `object` → tenta renderizar pares chave/valor amigáveis (ex.: `{ origem: "CP", referencia: "Manual" }` → `"Origem: Conta a Pagar\nReferência: Manual"`); fallback `JSON.stringify` formatado.
-     - `null/undefined/""` → `null` (não renderiza a seção).
-   - Aplicar em `Resumo > Observações` e `Histórico > Observações Internas`.
-   - Mesmo tratamento aplicado a `payload.motivo` na coluna "Detalhes" da Trilha de Auditoria.
+1. **Status já é parcialmente protegido — reforçar microcopy**
+   - O componente já bloqueia `pago/parcial` (readonly) e oferece apenas `Aberto` e `Cancelado` no Select. Manter.
+   - Trocar a frase explicativa por algo mais direto: *"Pago/Parcial são definidos automaticamente pelas baixas. Para liquidar, use **Registrar Baixa**."*
+   - Adicionar tooltip no label "Status" com o mesmo texto.
 
-2. **Corrigir truncamento "Saldo em Aber..."**
-   - Trocar label do `DrawerSummaryCard` para **"Em Aberto"** e adicionar `hint="Saldo restante"` (já suportado pelo componente).
-   - Aplicar também na aba "Baixas" para manter consistência.
+2. **Data Pagamento desabilitada em lançamento aberto**
+   - Quando `form.status !== "pago" && form.status !== "parcial"`, desabilitar o `Input type="date"` de `data_pagamento`.
+   - Substituir o valor visual por placeholder "Preenchida na baixa".
+   - Microcopy abaixo do campo: *"Preenchida automaticamente ao registrar baixa."*
+   - Em modo `edit`, se já houver `data_pagamento` (caso histórico), mostrar readonly em vez de input editável.
 
-3. **Forma de pagamento amigável**
-   - No Resumo, substituir `selected.forma_pagamento || "—"` por:
-     ```ts
-     FORMA_PAGAMENTO_LABELS[normalizeFormaPagamento(selected.forma_pagamento)] ?? selected.forma_pagamento ?? "—"
-     ```
-   - Reaproveitar `normalizeFormaPagamento` + `FORMA_PAGAMENTO_LABELS` já existentes em `src/lib/financeiro.ts`.
-   - Aplicar o mesmo na coluna "Forma" da tabela de Baixas.
+3. **"Ler boleto" só para boleto/boleto_dda**
+   - Trocar a condição `form.tipo === "pagar"` por `form.tipo === "pagar" && (form.forma_pagamento === "boleto" || form.forma_pagamento === "boleto_dda" || !form.forma_pagamento)`.
+   - Mantém o botão visível antes de escolher forma (default plausível); some quando o usuário escolhe PIX/Cartão/Transferência/Dinheiro.
 
-4. **Status temporal (chip de prazo)**
-   - Reutilizar o `<PrazoChip>` recém-introduzido na grid (em `financeiroColumns.tsx`). Extrair para `src/components/financeiro/PrazoChip.tsx` para reuso.
-   - No header do drawer, ao lado do `<StatusBadge>` no `badge`, renderizar também `<PrazoChip lancamento={selected} />` (Vencido, Vence hoje, Vence em N dias, Parcial). Para `pago`/`cancelado` o chip não renderiza.
+4. **Cartão obrigatório quando forma = cartão de crédito**
+   - Remover o fallback `<Input placeholder="Nome do cartão">` quando `cartoes.length === 0`. Em vez disso, exibir um aviso: *"Nenhum cartão cadastrado. Cadastre em **Financeiro → Cartões** para usar esta forma de pagamento."* com link/botão para a rota de cartões.
+   - Bloquear submit (validação local) quando `forma_pagamento === "cartao_credito"` e `!form.cartao_id` — toast de erro.
+   - Ocultar o campo "Cartão" quando a forma de pagamento **não** for `cartao_credito` (hoje ele aparece sempre).
 
-5. **Proteger ação de cancelar/excluir**
-   - Trocar o `runAction(() => onDelete(...))` por `useConfirmDestructive` com:
-     - verb: "Cancelar"
-     - entity: descrição + valor formatado
-     - sideEffects: `["Lançamento sai do contas a pagar/receber", "Pode afetar relatórios e conciliações", "Caso haja baixa registrada, a ação será bloqueada — estorne antes"]`
-   - Continua bloqueado por permissão `financeiro:cancelar` (já existe). Hard-delete continua via `financeiro:excluir` (regra atual mantida).
+5. **Conta Bancária condicional à forma**
+   - Ocultar o campo "Conta Bancária" quando `forma_pagamento === "cartao_credito"` (a conta é definida na fatura do cartão).
+   - Manter visível para: vazio, pix, boleto, boleto_dda, transferencia, debito, dinheiro, outros.
+   - Microcopy: *"Conta prevista para liquidação. Não obrigatório."*
+
+6. **Observações — eliminar `[object Object]` na exibição**
+   - O `Textarea` mostra `form.observacoes` cru. Quando o valor inicial vier com `"[object Object]"` ou JSON serializado, normalizar **uma vez** ao carregar para edição com `displayObservacoes` (helper já existente em `src/lib/displayLancamento.ts`).
+   - Aplicação: no ponto onde o form é populado para edição (provavelmente `useFinanceiroActions`/`Financeiro.tsx` onde se faz `setForm({...lancamento})`). Tratamento puramente cosmético — não altera valor no banco até o usuário salvar.
+   - Alternativa simpler se preferir manter escopo só no form: aplicar `displayObservacoes` ao receber `form.observacoes` via `useMemo` para exibição inicial e gravar a versão normalizada de volta no form na primeira renderização (efeito controlado por `mode === "edit"`).
 
 ### Média prioridade
 
-6. **Enriquecer Resumo > Identificação**
-   - Adicionar abaixo de "Descrição" os campos: Documento (`numero_documento` se existir), Parcela (`X/Y` se existir), Emissão (`data_emissao` se existir), Vencimento, Competência (`competencia` se existir).
-   - Usar fallback `—` quando ausente. Verificar campos disponíveis no tipo `LancamentoFinanceiro` antes de renderizar (evita TS errors — render condicional).
+7. **Valor com prefixo R$**
+   - Envolver o `Input type="number"` numa div com prefix visual `R$` (estilo `pl-9` + span absoluto), mantendo o `type=number` para compatibilidade com `step=0.01`. Sem trocar para mascara customizada (evita regressão).
 
-7. **Botão "Editar" com label em telas largas**
-   - No `DrawerActionBar`, manter ícone, mas exibir texto "Editar" via `aria-label`/tooltip já presente. (Mudança mínima — `DrawerActionBar` define o layout; manter como está se exigir refactor maior). Apenas garantir tooltip explícito.
+8. **Fornecedor/Cliente dinâmico — já está correto**
+   - Já há renderização condicional (`form.tipo === "receber"` → Cliente; `=== "pagar"` → Fornecedor). Sem mudança.
 
-8. **Histórico — labels e responsável**
-   - Mapear `e.evento` para labels amigáveis: `criacao→Criação`, `baixa→Baixa registrada`, `estorno→Estorno`, `edicao→Edição`, `cancelamento→Cancelamento`.
-   - Quando `payload.user_email` ou `payload.responsavel` existir, mostrar como segunda linha em "Detalhes".
-   - Padronizar timestamp com `toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })`.
-
-9. **Origem mais explícita**
-   - Adicionar campo "Módulo de origem" (derivado de `origem_tipo` via novo helper `getOrigemModulo`: fiscal_nota→"Fiscal", comercial→"Comercial", compras→"Compras", etc.).
-   - Manter os `RelationalLink` já existentes.
+9. **Indicador de alterações não salvas**
+   - Comparar `form` com snapshot inicial via `useMemo` + `JSON.stringify`. Quando dirty, mostrar dot/pulso ao lado do botão "Salvar" e usar `useBeforeUnloadGuard` (hook já existente) para alertar fechamento.
 
 ### Baixa prioridade
 
-10. **Tooltips/microcopy**
-    - Adicionar `hint` nos `DrawerSummaryCard`: "Valor original do título" (Valor Total), "Total liquidado até hoje" (Recebido/Pago), "Saldo restante" (Em Aberto).
-    - Tooltip no botão "Registrar Baixa" no header explicando que abre fluxo de baixa total/parcial.
+10. **Tooltips** em "Status" e "Data Pagamento" (já cobertos nos itens 1 e 2).
+11. **Microcopy** dos campos condicionais (já cobertos nos itens 4 e 5).
 
-11. **Reduzir redundância do "Registrar Baixa"**
-    - Manter botão grande no topo; na aba Baixas, manter apenas no `DetailEmpty` (já está assim — confirmar).
+### Arquivos alterados
 
-### Detalhes técnicos
+- `src/pages/financeiro/components/FinanceiroLancamentoForm.tsx` — todas as mudanças de UI/visibilidade/validação.
+- Possivelmente `src/pages/financeiro/hooks/useFinanceiroActions.ts` ou `src/pages/Financeiro.tsx` — apenas para normalizar `observacoes` ao popular o form em edição (item 6, se escolhermos o caminho "na entrada").
 
-**Arquivos editados:**
-- `src/lib/displayLancamento.ts` — adicionar `displayObservacoes`.
-- `src/components/financeiro/PrazoChip.tsx` — extrair do `financeiroColumns.tsx` (mover, reexportar para a coluna).
-- `src/pages/financeiro/config/financeiroColumns.tsx` — passar a importar `PrazoChip` do novo local.
-- `src/components/financeiro/FinanceiroDrawer.tsx` — todas as mudanças de UI listadas acima.
+### Fora do escopo
 
-**Arquivos não tocados:** services, RPCs, schema, hooks de baixa/estorno, tabela financeiroColumns (apenas import).
+- Trigger de banco já garante que `pago/parcial` só via baixa (mem `lancamento-pago-requer-baixa`).
+- Não há mudança em RPCs, services, schema, ou no fluxo de baixa.
+- Não tocaremos no Drawer (já tratado em ciclo anterior).
 
-**Validação:** `tsc` clean, smoke visual no drawer (abas Resumo/Baixas/Origem/Histórico) com lançamento aberto, vencido e pago.
+### Validação
+
+- `tsc` clean.
+- Smoke manual: abrir form em `create` e `edit`; alternar formas de pagamento (pix → boleto → cartao_credito) e verificar visibilidade de Cartão / Conta Bancária / Ler boleto; tentar salvar cartão sem `cartao_id`; abrir lançamento com `observacoes = "[object Object]"` legado e confirmar renderização limpa.
