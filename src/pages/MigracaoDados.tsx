@@ -131,8 +131,7 @@ export default function MigracaoDados() {
     generatePreview,
     processImport,
     finalizeImport
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } = activeHook as any;
+  } = activeHook as unknown as IImportacaoHook;
 
   const filteredLotes = lotes.filter(lote => {
     const matchesSearch = lote.arquivo_nome?.toLowerCase().includes(searchTerm.toLowerCase());
