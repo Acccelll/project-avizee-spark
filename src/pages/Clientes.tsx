@@ -245,13 +245,21 @@ const Clientes = () => {
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
+    orFilters: cadastroOrFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
     pageSize: 50,
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
-  const totalAtivos = useTableCount("clientes", { ativo: true }).data ?? null;
-  const totalComGrupo = useTableCount("clientes", { grupo_economico_id: { not: { is: null } } }).data ?? null;
+  // KPI agregado server-side de qualidade cadastral (substitui contagens
+  // client-side que ficavam incorretas sob paginação 50/pág).
+  const { data: kpiQualidade } = useQuery({
+    queryKey: ["clientes", "kpi-qualidade"],
+    queryFn: fetchKpiClientesQualidade,
+    staleTime: 60_000,
+  });
+  const totalAtivos = kpiQualidade?.total_ativos ?? null;
+  const totalComGrupo = kpiQualidade?.com_grupo ?? null;
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
