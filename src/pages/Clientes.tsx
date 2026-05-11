@@ -603,12 +603,8 @@ const Clientes = () => {
   // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
   const summaryAtivos = totalAtivos ?? 0;
   const totalRegistros = totalCount ?? data.length;
-  // KPI client-side: contagem de cadastros incompletos na página atual.
-  // TODO: substituir por RPC agregado (kpi_clientes_qualidade) numa próxima onda.
-  const summaryIncompletosPagina = useMemo(
-    () => data.filter((c) => getMissingFields(c).filter((m) => m !== "grupo").length > 0).length,
-    [data],
-  );
+  // KPI global vindo de kpi_clientes_qualidade (RPC server-side).
+  const summaryIncompletos = kpiQualidade?.incompletos ?? 0;
   // Mantém o total de "com grupo" disponível para análise futura.
   void totalComGrupo;
 
