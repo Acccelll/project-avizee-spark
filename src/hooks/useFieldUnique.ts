@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase/fromUntyped";
 
 /**
  * Verifica se o valor de um campo é único dentro de uma tabela.
@@ -31,8 +31,7 @@ export function useFieldUnique(
     staleTime: 30_000,
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let q: any = (supabase as any)
-        .from(table)
+      let q: any = fromUntyped(table)
         .select("id", { count: "exact", head: true })
         .eq(column, trimmed);
       if (excludeId) q = q.neq("id", excludeId);
