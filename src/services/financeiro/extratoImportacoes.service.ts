@@ -41,9 +41,8 @@ export async function persistirExtratoOFX(input: {
   }));
 
   const { error, count } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabela nova, types ainda não regenerados
     .from("financeiro_extrato_importacoes")
-    .upsert(rows, {
+    .upsert(rows as never, {
       onConflict: "conta_bancaria_id,fitid",
       ignoreDuplicates: true,
       count: "exact",
