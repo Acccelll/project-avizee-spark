@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getProdutoById, createProduto, updateProduto } from "@/services/produtos.service";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,8 +186,7 @@ export default function ProdutoForm({
     (async () => {
       setLoading(true);
       try {
-        const { data: p, error } = await supabase.from("produtos").select("*").eq("id", id).maybeSingle();
-        if (error) throw error;
+        const p = await getProdutoById(id);
         if (!p) { toast.error("Produto não encontrado"); navigate("/produtos", { replace: true }); return; }
         if (cancelled) return;
         const prod = p as unknown as Produto;
@@ -337,12 +336,10 @@ export default function ProdutoForm({
       let produtoId: string;
       try {
         if (mode === "create") {
-          const { data: created, error } = await supabase.from("produtos").insert(payload as never).select("*").single();
-          if (error) throw error;
+          const created = await createProduto(payload as never);
           produtoId = (created as { id: string }).id;
         } else if (id) {
-          const { error } = await supabase.from("produtos").update(payload as never).eq("id", id);
-          if (error) throw error;
+          await updateProduto(id, payload as never);
           produtoId = id;
         } else {
           return;
