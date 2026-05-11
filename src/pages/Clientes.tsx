@@ -689,7 +689,7 @@ const Clientes = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (c) => remove(c.id) : undefined}
+            onDelete={canExcluir ? async (c) => { await remove(c.id); invalidateKpiQualidade(); } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
