@@ -436,7 +436,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
 
 export async function removerApresentacaoCadencia(id: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).from('apresentacao_cadencia').delete().eq('id', id);
+  const { error } = await supabase.from('apresentacao_cadencia').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -505,7 +505,7 @@ export async function registrarTelemetriaSlides(
     geracao_id: geracaoId ?? null,
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('apresentacao_slide_telemetria').insert(rows);
+  await supabase.from('apresentacao_slide_telemetria').insert(rows);
 }
 
 export interface SlideUsoAggregado {
