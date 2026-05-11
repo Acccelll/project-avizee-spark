@@ -517,8 +517,7 @@ export interface SlideUsoAggregado {
 }
 
 export async function listarSlideUsoAgregado(): Promise<SlideUsoAggregado[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('vw_apresentacao_slide_uso')
     .select('*')
     .order('total_gerado', { ascending: false });
