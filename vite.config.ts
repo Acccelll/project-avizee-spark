@@ -108,11 +108,11 @@ export default defineConfig(({ mode }) => {
             // intercepta GET por padrão.
             urlPattern: ({ url, request }) =>
               request.method === "GET" &&
-              /\/rest\/v1\/(clientes|fornecedores|produtos|app_configuracoes)/.test(url.pathname),
+              /\/rest\/v1\/(clientes|fornecedores|produtos|app_configuracoes|grupos_economicos|transportadoras|formas_pagamento|contas_bancarias)/.test(url.pathname),
             handler: "StaleWhileRevalidate",
             options: {
               cacheName: "supabase-listas",
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 5 },
               cacheableResponse: { statuses: [200] },
             },
           },

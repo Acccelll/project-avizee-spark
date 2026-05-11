@@ -19,7 +19,7 @@ export type { AppRole };
 
 const LEGACY_ROLES = new Set(["moderator", "user"]);
 const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 15_000;
 
 interface ResolvedPermissions {
   roles: AppRole[];
