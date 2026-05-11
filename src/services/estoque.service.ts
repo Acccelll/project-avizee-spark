@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TableRow, TableInsert } from "@/types/domain";
+import { invokeRpc } from "@/types/rpc";
 
 export type ProdutoRow = TableRow<"produtos">;
 export type EstoqueMovimentoRow = TableRow<"estoque_movimentos">;
