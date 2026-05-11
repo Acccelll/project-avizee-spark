@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { notifyError } from "@/utils/errorMessages";
+import { atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import { ParcelasFiscalEditor, gerarPlanoParcelas, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import type { NotaFiscal } from "@/types/domain";
 
@@ -60,13 +60,12 @@ export function EditarPagamentoNotaModal({ open, onClose, nota, onSaved }: Props
           ? (plano.length === qtdParcelas ? plano : gerarPlanoParcelas(total, qtdParcelas, primeiroVenc, intervalo))
           : [{ numero: 1, vencimento: condicao === "a_prazo" ? primeiroVenc : (nota.data_emissao || new Date().toISOString().split("T")[0]), valor: total }];
 
-      const { error } = await supabase.rpc("atualizar_financeiro_nota", {
-        p_nota_id: nota.id,
-        p_forma_pagamento: forma,
-        p_condicao_pagamento: condicao,
-        p_parcelas: parcelasPayload as never,
-      } as never);
-      if (error) throw error;
+      await atualizarFinanceiroNota({
+        notaId: nota.id,
+        formaPagamento: forma,
+        condicaoPagamento: condicao,
+        parcelas: parcelasPayload as never,
+      });
       toast.success("Pagamento atualizado e lançamentos regenerados.");
       onSaved?.();
       onClose();

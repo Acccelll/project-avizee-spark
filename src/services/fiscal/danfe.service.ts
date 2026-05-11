@@ -14,6 +14,7 @@
 import { jsPDF } from "jspdf";
 import JsBarcode from "jsbarcode";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface DanfeItemInput {
   descricao: string;
@@ -343,4 +344,30 @@ export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
     doc.save(`DANFE-${data.numero}-serie${data.serie ?? "1"}.pdf`);
   }
   return blob;
+}
+
+// ───────────────────── Consulta DANFE por chave (proxy) ───────────────────────
+
+export interface DanfeConsultaResult {
+  ok: boolean;
+  status?: number;
+  data?: unknown;
+  error?: string;
+}
+
+/**
+ * Consulta a NF-e por chave usando a edge `consultadanfe-proxy` (API de
+ * fallback paga). O caller decide o que fazer com o payload (extrair XML,
+ * mensagem de erro, etc.).
+ */
+export async function consultarDanfePorChave(
+  chave: string,
+): Promise<DanfeConsultaResult> {
+  const { data, error } = await supabase.functions.invoke("consultadanfe-proxy", {
+    body: { action: "consulta", chave },
+  });
+  if (error) {
+    throw new Error(error.message ?? "Falha ao chamar API de fallback.");
+  }
+  return (data ?? { ok: false }) as DanfeConsultaResult;
 }

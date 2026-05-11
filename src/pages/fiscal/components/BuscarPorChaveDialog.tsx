@@ -15,12 +15,12 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2, Search, AlertTriangle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormModal } from "@/components/FormModal";
 import { consultarNFePorChave } from "@/services/fiscal/sefaz/distdfe.service";
+import { consultarDanfePorChave } from "@/services/fiscal/danfe.service";
 
 const FALLBACK_CONSULTADANFE_ENABLED =
   import.meta.env.VITE_FEATURE_FALLBACK_CONSULTADANFE === "true";
@@ -126,11 +126,7 @@ export function BuscarPorChaveDialog({
       }
 
       // Fallback: consultadanfe-proxy (API paga, sem restrição de destinatário).
-      const { data, error } = await supabase.functions.invoke("consultadanfe-proxy", {
-        body: { action: "consulta", chave: chaveLimpa },
-      });
-      if (error) throw new Error(error.message ?? "Falha ao chamar API de fallback.");
-      const resp = data as { ok?: boolean; status?: number; data?: unknown; error?: string };
+      const resp = await consultarDanfePorChave(chaveLimpa);
       if (!resp?.ok) {
         const msg = extrairMensagem(resp?.data) ?? resp?.error ?? `Status ${resp?.status}`;
         toast.error(`Fallback falhou: ${msg}`, { duration: 10000 });

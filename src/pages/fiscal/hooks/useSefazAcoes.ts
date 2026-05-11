@@ -19,6 +19,11 @@ import {
   registrarEventoFiscal,
   registrarRetornoSefaz,
 } from "@/services/fiscal.service";
+import {
+  proximoNumeroNfe,
+  gerarChaveAcessoNfe,
+  updateNotaFiscalCampo,
+} from "@/services/fiscal/numeracao.service";
 import { validarPreEmissao } from "@/services/fiscal/validadores/preEmissao.validator";
 import type { NotaFiscal } from "@/types/domain";
 
@@ -133,35 +138,14 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
       let dadosAtuais = dadosNFe;
       try {
         if (!nfAtual.numero || nfAtual.numero === "0") {
-          const { data: numData, error: numErr } = await supabase.rpc(
-            "proximo_numero_nfe",
-            { p_serie: nfAtual.serie ?? "1" },
-          );
-          if (numErr) throw numErr;
-          const row = Array.isArray(numData) ? numData[0] : numData;
-          const novoNumero = String(row?.numero ?? "");
-          if (!novoNumero) throw new Error("RPC proximo_numero_nfe não retornou número.");
-          await supabase
-            .from("notas_fiscais")
-            .update({ numero: novoNumero })
-            .eq("id", nfAtual.id);
+          const novoNumero = await proximoNumeroNfe(nfAtual.serie ?? "1");
+          await updateNotaFiscalCampo(nfAtual.id, { numero: novoNumero });
           nfAtual = { ...nfAtual, numero: novoNumero };
           dadosAtuais = { ...dadosAtuais, numero: novoNumero };
         }
         if (!nfAtual.chave_acesso || nfAtual.chave_acesso.length !== 44) {
-          const { data: chaveData, error: chaveErr } = await supabase.rpc(
-            "gerar_chave_acesso_nfe",
-            { p_nf_id: nfAtual.id },
-          );
-          if (chaveErr) throw chaveErr;
-          const novaChave = String(chaveData ?? "");
-          if (novaChave.length !== 44) {
-            throw new Error("RPC gerar_chave_acesso_nfe retornou chave inválida.");
-          }
-          await supabase
-            .from("notas_fiscais")
-            .update({ chave_acesso: novaChave })
-            .eq("id", nfAtual.id);
+          const novaChave = await gerarChaveAcessoNfe(nfAtual.id);
+          await updateNotaFiscalCampo(nfAtual.id, { chave_acesso: novaChave });
           nfAtual = { ...nfAtual, chave_acesso: novaChave };
           dadosAtuais = { ...dadosAtuais, chave: novaChave };
         }

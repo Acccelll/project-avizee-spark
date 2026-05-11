@@ -5,6 +5,9 @@
  * Em produção, esse serviço consultaria uma tabela de regras fiscais ou API externa.
  */
 
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
 export type RegimeTributario = "simples_nacional" | "lucro_presumido" | "lucro_real";
 
 export interface SugestaoTributacaoParams {
@@ -106,4 +109,90 @@ export function sugerirTributacao(params: SugestaoTributacaoParams): SugestaoTri
     pisAliquota,
     cofinAliquota,
   };
+}
+
+// ───────────────────────── Matriz Fiscal & Naturezas ──────────────────────────
+
+type NaturezaInsert = Database["public"]["Tables"]["naturezas_operacao"]["Insert"];
+type NaturezaUpdate = Database["public"]["Tables"]["naturezas_operacao"]["Update"];
+type MatrizFiscalInsert = Database["public"]["Tables"]["matriz_fiscal"]["Insert"];
+type MatrizFiscalUpdate = Database["public"]["Tables"]["matriz_fiscal"]["Update"];
+
+export interface AplicarMatrizParams {
+  produtoId: string;
+  ufDestino: string;
+  tipoOperacao: "saida" | "entrada";
+}
+
+export interface MatrizFiscalResult {
+  matched?: boolean;
+  cfop?: string;
+  cst_csosn?: string;
+  origem_mercadoria?: string;
+  aliquota_icms?: number;
+  aliquota_pis?: number;
+  aliquota_cofins?: number;
+  aliquota_ipi?: number;
+  matriz_nome?: string;
+}
+
+/** Aplica a matriz fiscal ao produto/UF/tipo. Wrappa `aplicar_matriz_fiscal`. */
+export async function aplicarMatrizFiscal(
+  params: AplicarMatrizParams,
+): Promise<MatrizFiscalResult> {
+  const { data, error } = await supabase.rpc("aplicar_matriz_fiscal", {
+    p_produto_id: params.produtoId,
+    p_uf_destino: params.ufDestino,
+    p_tipo_operacao: params.tipoOperacao,
+  });
+  if (error) throw error;
+  return (data ?? {}) as MatrizFiscalResult;
+}
+
+/** Cria ou atualiza uma natureza de operação. */
+export async function saveNaturezaOperacao(
+  payload: NaturezaInsert | NaturezaUpdate,
+  editingId?: string,
+): Promise<void> {
+  if (editingId) {
+    const { error } = await supabase
+      .from("naturezas_operacao")
+      .update(payload as NaturezaUpdate)
+      .eq("id", editingId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase
+    .from("naturezas_operacao")
+    .insert([payload as NaturezaInsert]);
+  if (error) throw error;
+}
+
+export async function deleteNaturezaOperacao(id: string): Promise<void> {
+  const { error } = await supabase.from("naturezas_operacao").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Cria ou atualiza uma regra da matriz fiscal. */
+export async function saveMatrizRegra(
+  payload: MatrizFiscalInsert | MatrizFiscalUpdate,
+  editingId?: string,
+): Promise<void> {
+  if (editingId) {
+    const { error } = await supabase
+      .from("matriz_fiscal")
+      .update(payload as MatrizFiscalUpdate)
+      .eq("id", editingId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase
+    .from("matriz_fiscal")
+    .insert([payload as MatrizFiscalInsert]);
+  if (error) throw error;
+}
+
+export async function deleteMatrizRegra(id: string): Promise<void> {
+  const { error } = await supabase.from("matriz_fiscal").delete().eq("id", id);
+  if (error) throw error;
 }

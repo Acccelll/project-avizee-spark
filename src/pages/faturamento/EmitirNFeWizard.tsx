@@ -48,6 +48,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicarMatrizFiscal } from "@/services/fiscal/tributacao.service";
+import { getEmpresaConfigPrincipal } from "@/services/fiscal/empresaConfig.service";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -560,16 +562,17 @@ function ItemRow({ index, onRemove }: { index: number; onRemove: () => void }) {
       toast.warning("Selecione o destinatário antes.");
       return;
     }
-    const { data, error } = await supabase.rpc("aplicar_matriz_fiscal", {
-      p_produto_id: item.produto_id,
-      p_uf_destino: ufDestino,
-      p_tipo_operacao: "saida",
-    });
-    if (error) {
+    let r;
+    try {
+      r = await aplicarMatrizFiscal({
+        produtoId: item.produto_id,
+        ufDestino,
+        tipoOperacao: "saida",
+      });
+    } catch (error) {
       notifyError(error);
       return;
     }
-    const r = data as { matched?: boolean; cfop?: string; cst_csosn?: string; origem_mercadoria?: string; aliquota_icms?: number; aliquota_pis?: number; aliquota_cofins?: number; aliquota_ipi?: number; matriz_nome?: string };
     if (!r?.matched) {
       toast.warning("Nenhuma regra fiscal cadastrada para essa combinação.");
       return;
@@ -692,8 +695,12 @@ function Step3Itens() {
   const { data: empresaCrt } = useQuery({
     queryKey: ["empresa-config-crt"],
     queryFn: async () => {
-      const { data } = await supabase.from("empresa_config").select("crt").maybeSingle();
-      return (data?.crt as string | null) ?? "3";
+      try {
+        const cfg = await getEmpresaConfigPrincipal();
+        return ((cfg as { crt?: string | null })?.crt) ?? "3";
+      } catch {
+        return "3";
+      }
     },
     staleTime: 5 * 60_000,
   });
@@ -1266,12 +1273,11 @@ export default function EmitirNFeWizard() {
           const it = itensWizard[i];
           if (!it.produto_id) continue;
           try {
-            const { data: m } = await supabase.rpc("aplicar_matriz_fiscal", {
-              p_produto_id: it.produto_id,
-              p_uf_destino: ufDestino,
-              p_tipo_operacao: "saida",
+            const mr = await aplicarMatrizFiscal({
+              produtoId: it.produto_id,
+              ufDestino,
+              tipoOperacao: "saida",
             });
-            const mr = m as { matched?: boolean; cfop?: string; cst_csosn?: string; aliquota_icms?: number; aliquota_pis?: number; aliquota_cofins?: number } | null;
             if (mr?.matched) {
               if (mr.cfop) form.setValue(`itens.${i}.cfop`, mr.cfop);
               if (mr.cst_csosn) form.setValue(`itens.${i}.cst`, mr.cst_csosn);
