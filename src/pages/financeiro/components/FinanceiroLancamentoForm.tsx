@@ -204,7 +204,7 @@ export function FinanceiroLancamentoForm({
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 text-warning shrink-0" />
                 <div>
                   Nenhum cartão cadastrado.{" "}
-                  <Link to="/financeiro/cartoes" className="underline font-medium">Cadastrar cartão</Link> para usar esta forma de pagamento.
+                  <Link to="/cartoes-credito" className="underline font-medium">Cadastrar cartão</Link> para usar esta forma de pagamento.
                 </div>
               </div>
             )}
