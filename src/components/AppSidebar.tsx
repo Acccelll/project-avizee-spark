@@ -122,14 +122,14 @@ export function AppSidebar({
           >
             <Search className="h-4 w-4 shrink-0" />
             {!collapsed && (
-              <span className="flex-1 truncate text-left">Buscar...</span>
+              <span className="flex-1 truncate text-left">Buscar módulos, telas...</span>
             )}
           </button>
         </div>
 
         {/* Navigation */}
         <nav
-          className="flex-1 overflow-y-auto px-2 py-3"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3"
           role="navigation"
           aria-label="Módulos do sistema"
         >
