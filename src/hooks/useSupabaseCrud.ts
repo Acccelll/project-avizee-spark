@@ -38,6 +38,14 @@ interface UseCrudOptions {
    * ou `undefined`, nenhum filtro é aplicado.
    */
   statusFilter?: { column: string; values: string[] };
+  /**
+   * Lista de expressões PostgREST para `.or(...)` adicionais. Cada item é
+   * aplicado como um `.or(expr)` separado (que o PostgREST trata como AND
+   * entre grupos). Útil para predicados compostos (ex.: "incompleto" =
+   * vários OR encadeados) sem deixar o cálculo client-side e perder a
+   * paginação server-side.
+   */
+  orFilters?: string[];
   hasAtivo?: boolean;
   /**
    * Controls whether list queries apply `eq("ativo", true)`.
