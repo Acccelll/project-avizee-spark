@@ -42,9 +42,8 @@ export function useSidebarBadges(): SidebarBadges {
 
     const itemBadges: Record<string, BadgeInfo> = {
       '/orcamentos': { count: alerts.orcamentosPendentes, tone: 'warning' },
-      '/financeiro': { count: financeiroTotal, tone: financeiroTone },
-      '/estoque': { count: alerts.estoqueBaixo, tone: 'danger' },
-      '/fiscal': { count: alerts.nfRejeitadas, tone: 'danger' },
+      // '/financeiro' e '/estoque' são leafs cujo número é idêntico ao do
+      // grupo pai — não duplicar. O badge no módulo já comunica.
       '/faturamento': { count: alerts.nfeEntradaSemManifestacao, tone: 'warning' },
       '/administracao': { count: alerts.filaEmailDLQ, tone: 'danger' },
     };
