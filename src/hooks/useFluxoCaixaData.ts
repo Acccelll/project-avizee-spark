@@ -29,6 +29,16 @@ export interface FluxoCaixaData {
   baixas: BaixaFluxo[];
 }
 
+/** Shape do join `financeiro_baixas + financeiro_lancamentos!inner(tipo)`. */
+interface BaixaJoinRow {
+  id: string;
+  lancamento_id: string;
+  data_baixa: string;
+  valor_pago: number | string;
+  conta_bancaria_id: string | null;
+  financeiro_lancamentos: { tipo: "receber" | "pagar" } | null;
+}
+
 export function useFluxoCaixaData(dataInicio: string, dataFim: string) {
   return useQuery<FluxoCaixaData>({
     queryKey: ["fluxo-caixa", dataInicio, dataFim],
