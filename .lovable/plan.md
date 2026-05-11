@@ -1,65 +1,59 @@
-# Migração Fiscal → Camada de Services
+## Objetivo
 
-Extrair todas as chamadas diretas a `supabase.from / rpc / functions` do domínio Fiscal para `src/services/fiscal/*`, seguindo o contrato em `src/services/CONTRACTS.md` (funções tipadas, retorno do domínio, `throw` em erro, sem toast/navigate).
+Migrar chamadas diretas ao Supabase nos módulos **Produto**, **Orçamento (público)** e em utilitários (**Help**, **Município IBGE**) para a camada de serviços, seguindo o padrão de `src/services/CONTRACTS.md`: funções async tipadas, `throw` em erro, sem `toast`/`navigate` dentro do service, e tipagem via `@/integrations/supabase/types`.
 
-## Escopo (8 arquivos consumidores, 5 services)
+## Serviços — estender
 
-### Services — criar/estender
+### 1. `src/services/produtos.service.ts`
+Adicionar (não duplicar nada já existente — apenas `deleteProduto` e `fetchProdutoDetalhes` cobrem hoje o CRUD):
 
-**1. `src/services/fiscal/lifecycle.service.ts` (estender)**
-- `gerarFinanceiroNfeEntrada(notaId, duplicatas, formaPagamento, cartaoId)` → `Promise<void>`. Wrappa `rpc("gerar_financeiro_nfe_entrada")`.
-- `atualizarFinanceiroNota({ notaId, formaPagamento, condicaoPagamento, parcelas })` → `Promise<void>`. Wrappa `rpc("atualizar_financeiro_nota")`.
-- Tipo `Duplicata` exportado (numero, vencimento, valor) e `AtualizarFinanceiroNotaParams`.
+- `getProdutoById(id: string): Promise<Tables<'produtos'> | null>`
+  Wrap de `from('produtos').select('*').eq('id', id).maybeSingle()`. Retorna `data` ou `null`; `throw` no erro.
+- `createProduto(payload: TablesInsert<'produtos'>): Promise<Tables<'produtos'>>`
+  Wrap de `from('produtos').insert(payload).select('*').single()`.
+- `updateProduto(id: string, payload: TablesUpdate<'produtos'>): Promise<void>`
+  Wrap de `from('produtos').update(payload).eq('id', id)`.
+- `fetchProdutosEstoqueSummary(): Promise<{ criticos: number; zerados: number; abaixo_minimo: number }>`
+  Wrap de `rpc('produtos_estoque_summary')` — normaliza array/objeto e converte para `Number(...)` (move a lógica que hoje vive na queryFn de `Produtos.tsx`).
 
-**2. `src/services/fiscal/tributacao.service.ts` (estender — já existe)**
-- `aplicarMatrizFiscal(params)` → `Promise<MatrizFiscalResult>`. Wrappa `rpc("aplicar_matriz_fiscal")`. Substitui as 2 chamadas em `EmitirNFeWizard.tsx`.
-- `deleteNaturezaOperacao(id)` → `Promise<void>`. Wrappa `from("naturezas_operacao").delete().eq("id", id)`.
-- `saveMatrizRegra(payload, editingId?)` → `Promise<void>`. Insert ou update em `matriz_fiscal`.
-- `deleteMatrizRegra(id)` → `Promise<void>`.
+Imports novos: `Tables`, `TablesInsert`, `TablesUpdate` de `@/integrations/supabase/types`.
 
-**3. `src/services/fiscal/numeracao.service.ts` (criar)**
-- `proximoNumeroNfe(serie)` → `Promise<string>`. Wrappa `rpc("proximo_numero_nfe")`.
-- `gerarChaveAcessoNfe(nfId)` → `Promise<string>`. Wrappa `rpc("gerar_chave_acesso_nfe")` (confirmar nome real da RPC ao implementar).
-- `updateNotaFiscalCampo(id, patch)` → `Promise<void>`. Wrappa `from("notas_fiscais").update(patch).eq("id", id)`. Usa `Database["public"]["Tables"]["notas_fiscais"]["Update"]`.
+### 2. `src/services/orcamentos.service.ts`
+Adicionar:
 
-**4. `src/services/fiscal/dashboardFiscal.service.ts` (estender)**
-- `fetchKpisFiscal(filters: FiscalKpisFilters)` → `Promise<FiscalKpisResult>`. Wrappa `rpc("kpis_fiscal")`. Mantém constante `EMPTY` e merge `{ ...EMPTY, ...data }` que hoje vive em `useFiscalKpis`. Tipos passam a viver no service e são re-exportados pelo hook.
+- `acaoClienteOrcamento(token: string, acao: string, comentario: string | null): Promise<void>`
+  Wrap de `rpc('acao_cliente_orcamento' as never, { p_token, p_acao, p_comentario } as never)`. `throw` no erro (caller mostra toast).
+- `notifyOrcamentoResposta(token: string, acao: string): Promise<void>`
+  Wrap de `functions.invoke('notify-orcamento-resposta', { body: { token, acao } })`. **Best-effort**: faz `try/catch` interno e loga via `logger`, nunca `throw` (mantém o comportamento `.catch(() => {})` atual).
 
-**5. `src/services/fiscal/danfe.service.ts` (estender)**
-- `consultarDanfePorChave(chave)` → `Promise<DanfeConsultaResult>`. Wrappa `supabase.functions.invoke("consultadanfe-proxy", { body: { chave } })`. Tipo do resultado derivado da resposta atual usada no Dialog.
+Sem `toast`/`navigate` nas novas funções.
 
-### Refactors de consumidores (apenas substituir a chamada — manter toasts, invalidações e navegação intactos)
+## Serviços — criar
 
-| Arquivo | Substituir por |
+### 3. `src/services/help.service.ts` (novo)
+- `submitHelpFeedback(userId: string, route: string, helpful: boolean): Promise<void>`
+  Wrap de `from('help_feedback').insert({ user_id: userId, route, helpful })`. `throw` no erro.
+
+### 4. `src/services/municipio.service.ts` (novo)
+- Reexporta `MunicipioIbge` (mover a interface para o service e re-export do hook para compatibilidade).
+- `buscarMunicipioIbgeDb(nome: string, uf: string): Promise<MunicipioIbge | null>`
+  Wrap de `rpc('buscar_municipio_ibge', { p_nome, p_uf })`. **Não faz throw** — em qualquer erro ou data vazio retorna `null` (é apenas o cache local; o fallback HTTP do IBGE roda no hook).
+
+O `upsert` em `ibge_municipios` e o fetch da API pública do IBGE permanecem no hook (não fazem parte do escopo).
+
+## Refatorações (apenas trocar a chamada — UX/toasts/invalidações intactos)
+
+| Arquivo | Substituições |
 |---|---|
-| `src/pages/Fiscal.tsx` (2 ocorrências, l. 777 e 820) | `gerarFinanceiroNfeEntrada(...)` |
-| `src/pages/faturamento/EmitirNFeWizard.tsx` (l. 563, 1269) | `aplicarMatrizFiscal(...)` |
-| `src/pages/faturamento/EmitirNFeWizard.tsx` (l. 695 — `empresa_config.crt`) | `getEmpresaConfigPrincipal()` (já existe em `empresaConfig.service.ts`) |
-| `src/pages/faturamento/FaturamentoCadastros.tsx` (l. 194) | `deleteNaturezaOperacao(id)` |
-| `src/pages/faturamento/FaturamentoCadastros.tsx` (l. 531/535) | `saveMatrizRegra(payload, editing?.id)` |
-| `src/pages/faturamento/FaturamentoCadastros.tsx` (l. 554) | `deleteMatrizRegra(id)` |
-| `src/pages/fiscal/hooks/useFiscalKpis.ts` | `fetchKpisFiscal(filters)` dentro do `queryFn` |
-| `src/pages/fiscal/hooks/useSefazAcoes.ts` (l. 136, 152, e qualquer `from("notas_fiscais").update`) | `proximoNumeroNfe`, `gerarChaveAcessoNfe`, `updateNotaFiscalCampo` |
-| `src/pages/fiscal/components/BuscarPorChaveDialog.tsx` (l. 129) | `consultarDanfePorChave(chave)` |
-| `src/components/fiscal/EditarPagamentoNotaModal.tsx` (l. 63) | `atualizarFinanceiroNota({...})` |
+| `src/pages/Produtos.tsx` | queryFn passa a chamar `fetchProdutosEstoqueSummary()` direto |
+| `src/pages/produtos/ProdutoForm.tsx` | linha 189 → `getProdutoById(id)`; linha 340 → `createProduto(payload)`; linha 344 → `updateProduto(id, payload)` |
+| `src/pages/OrcamentoPublico.tsx` | bloco do `rpc('acao_cliente_orcamento')` → `try { await acaoClienteOrcamento(...) } catch { toast.error(...) }`; chamada à edge function → `notifyOrcamentoResposta(token, acao)` (sem `.catch`, já é best-effort) |
+| `src/components/help/HelpDrawer.tsx` | `sendFeedback` usa `try { await submitHelpFeedback(user.id, entry.route, helpful) } catch { toast.error(...) }` |
+| `src/hooks/useMunicipioIbge.ts` | passo (1) usa `buscarMunicipioIbgeDb(nome, uf)`; passo (2) fallback IBGE API + upsert em `ibge_municipios` permanece inalterado |
 
-## Convenções aplicadas
-
-- Imports de tipos vêm de `@/integrations/supabase/types` (`Database["public"]["Tables"][...]["Row" | "Insert" | "Update"]`, `Json`).
-- Services não importam `toast`, `useNavigate`, `useQueryClient` — o caller mantém isso.
-- Erros: `if (error) throw error;` — sem mascarar.
-- RPCs com payload `Json`: cast explícito `as unknown as Json` quando necessário (padrão já em uso em `lifecycle.service.ts`).
-- Não tocar em `src/lib/realtime/*`, `src/types/rpc.ts` nem em `supabase.auth.*` (exceções legítimas pela memória `camada-services-unica`).
-
-## Validação pós-migração
-
-1. `rg "supabase\.(from|rpc|functions|storage)" src/pages/Fiscal* src/pages/faturamento src/pages/fiscal src/components/fiscal` → deve ficar vazio (exceto chamadas a `supabase.auth.*` se houver).
-2. `tsc` limpo (build automático do harness).
-3. Smoke test: `src/test/smoke/*` continuam passando.
-4. Comportamento UX preservado: toasts, navegações e invalidações de cache exatamente onde estavam.
+Imports diretos a `@/integrations/supabase/client` removidos dos arquivos refatorados quando não restar uso. No `useMunicipioIbge.ts` o import permanece (upsert em `ibge_municipios`).
 
 ## Fora de escopo
-
-- Não criar novas RPCs no banco.
-- Não alterar assinaturas de hooks consumidores além do mínimo (eles continuam expondo a mesma API para a UI).
-- Não mexer em `nfeBuilders.service.ts`, `nfeXmlParser.service.ts`, `sefaz.service.ts` ou demais services já migrados.
+- Mover o `upsert` do `ibge_municipios` ou o fetch IBGE para service.
+- Alterar lógica de UX, toasts, invalidação de cache ou navegação.
+- Refatorar outros call-sites (apenas os 5 arquivos listados).
