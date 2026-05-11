@@ -36,7 +36,14 @@
     "src/pages/financeiro/hooks/useConciliacaoBancaria.ts",
     "src/pages/financeiro/hooks/useFinanceiroAuxiliares.ts",
     "src/pages/financeiro/hooks/useFinanceiroKpis.ts",
-    "src/pages/fiscal/**/*"
+    "src/pages/fiscal/**/*",
+    "src/services/apresentacaoService.ts",
+    "src/services/logistica/**/*",
+    "src/services/estoque.service.ts",
+    "src/services/budget.service.ts",
+    "src/pages/logistica/**/*",
+    "src/services/financeiro/conciliacaoQueries.ts",
+    "src/services/financeiro/extratoImportacoes.service.ts"
   ],
   "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }
