@@ -119,10 +119,13 @@ export function useImportacaoEstoque() {
         const validation = validateEstoqueInicialImport(mappedRow);
         const nd = validation.normalizedData;
 
-        const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado as string))
-          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto as string))
-          || (nd.codigo_produto && prodBySku.get(nd.codigo_produto as string))
-          || (nd.codigo_legado && prodBySku.get(nd.codigo_legado as string));
+        const codLegado = nd.codigo_legado ? String(nd.codigo_legado) : "";
+        const codProduto = nd.codigo_produto ? String(nd.codigo_produto) : "";
+        const produtoInfo: ProdutoLookup | undefined =
+          (codLegado ? prodByLegado.get(codLegado) : undefined)
+          ?? (codProduto ? prodByInterno.get(codProduto) : undefined)
+          ?? (codProduto ? prodBySku.get(codProduto) : undefined)
+          ?? (codLegado ? prodBySku.get(codLegado) : undefined);
 
         if (!produtoInfo) {
           validation.valid = false;
