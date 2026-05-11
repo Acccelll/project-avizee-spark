@@ -47,7 +47,11 @@
     "src/services/_shared/**/*",
     "src/hooks/useSupabaseCrud.ts",
     "src/hooks/useTableCount.ts",
-    "src/hooks/useFieldUnique.ts"
+    "src/hooks/useFieldUnique.ts",
+    "src/pages/MigracaoDados.tsx",
+    "src/pages/ApresentacaoGerencial.tsx",
+    "src/hooks/useFluxoCaixaData.ts",
+    "src/hooks/useMetas.ts"
   ],
   "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }

@@ -29,6 +29,16 @@ export interface FluxoCaixaData {
   baixas: BaixaFluxo[];
 }
 
+/** Shape do join `financeiro_baixas + financeiro_lancamentos!inner(tipo)`. */
+interface BaixaJoinRow {
+  id: string;
+  lancamento_id: string;
+  data_baixa: string;
+  valor_pago: number | string;
+  conta_bancaria_id: string | null;
+  financeiro_lancamentos: { tipo: "receber" | "pagar" } | null;
+}
+
 export function useFluxoCaixaData(dataInicio: string, dataFim: string) {
   return useQuery<FluxoCaixaData>({
     queryKey: ["fluxo-caixa", dataInicio, dataFim],
@@ -55,8 +65,7 @@ export function useFluxoCaixaData(dataInicio: string, dataFim: string) {
           .gte("data_baixa", dataInicio)
           .lte("data_baixa", dataFim),
       ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- shape de join Supabase não-tipado
-      const baixas: BaixaFluxo[] = ((baixasRaw as any[]) ?? []).map((b) => ({
+      const baixas: BaixaFluxo[] = ((baixasRaw as BaixaJoinRow[] | null) ?? []).map((b) => ({
         id: b.id,
         lancamento_id: b.lancamento_id,
         data_baixa: b.data_baixa,

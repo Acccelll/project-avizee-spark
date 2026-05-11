@@ -59,6 +59,25 @@ import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Monitor } from "lucide-react";
 
+/** Interface comum dos hooks de importação consumidos por esta tela. */
+interface IImportacaoHook {
+  file: File | null;
+  sheets: string[];
+  currentSheet: string;
+  headers: string[];
+  mapping: Record<string, string>;
+  importType: ImportType;
+  previewData: unknown[];
+  isProcessing: boolean;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSheetChange: (s: string) => void;
+  setMapping: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setImportType: React.Dispatch<React.SetStateAction<ImportType>>;
+  generatePreview: () => Promise<void> | void;
+  processImport: () => Promise<string | null | undefined | void>;
+  finalizeImport: (loteId?: string) => Promise<boolean | void>;
+}
+
 export default function MigracaoDados() {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,8 +131,7 @@ export default function MigracaoDados() {
     generatePreview,
     processImport,
     finalizeImport
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } = activeHook as any;
+  } = activeHook as unknown as IImportacaoHook;
 
   const filteredLotes = lotes.filter(lote => {
     const matchesSearch = lote.arquivo_nome?.toLowerCase().includes(searchTerm.toLowerCase());

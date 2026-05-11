@@ -33,6 +33,8 @@ import { ApresentacaoCadenciaManager } from '@/components/apresentacao/Apresenta
 import { ApresentacaoTelemetriaPanel } from '@/components/apresentacao/ApresentacaoTelemetriaPanel';
 import type { ApresentacaoGeracao, SlideCodigo } from '@/types/apresentacao';
 
+interface SlidesJsonAtivos { ativos: SlideCodigo[] }
+
 export default function ApresentacaoGerencial() {
   const { can } = useCan();
   const queryClient = useQueryClient();
@@ -53,7 +55,10 @@ export default function ApresentacaoGerencial() {
   const { data: cadencias = [] } = useQuery({ queryKey: ['apresentacao-cadencias'], queryFn: listarApresentacaoCadencias, enabled: canVisualizar });
 
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
-  const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as any)?.ativos ?? [], [selectedGeracao]);
+  const selectedSlides = useMemo<SlideCodigo[]>(
+    () => (selectedGeracao?.slides_json as unknown as SlidesJsonAtivos | null)?.ativos ?? [],
+    [selectedGeracao],
+  );
 
   // Onda 9 C-03 — disponibilidade EXCLUSIVAMENTE estrutural via tags_json.tags.
   // Migration backfill (20260508_…) populou tags=['indisponivel'] em registros

@@ -14,6 +14,16 @@ import {
   cancelarLote,
 } from "@/services/importacao.service";
 
+interface ProdutoLookup {
+  id: string;
+  nome: string;
+  estoque_atual: number | null;
+  preco_custo: number | null;
+  codigo_legado?: string | null;
+  codigo_interno?: string | null;
+  sku?: string | null;
+}
+
 /**
  * Hook de importação de estoque inicial com staging real.
  *
@@ -88,9 +98,16 @@ export function useImportacaoEstoque() {
     try {
       const produtosBanco = await listProdutosLookup();
 
-      const prodByLegado = new Map(produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p]));
-      const prodByInterno = new Map(produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p]));
-      const prodBySku = new Map(produtosBanco?.filter((p: any) => p.sku).map((p: any) => [p.sku, p]));
+      const produtos = (produtosBanco ?? []) as unknown as ProdutoLookup[];
+      const prodByLegado = new Map<string, ProdutoLookup>(
+        produtos.filter((p) => p.codigo_legado).map((p) => [p.codigo_legado as string, p]),
+      );
+      const prodByInterno = new Map<string, ProdutoLookup>(
+        produtos.filter((p) => p.codigo_interno).map((p) => [p.codigo_interno as string, p]),
+      );
+      const prodBySku = new Map<string, ProdutoLookup>(
+        produtos.filter((p) => p.sku).map((p) => [p.sku as string, p]),
+      );
 
       const preview = rawRows.map((row, index) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,21 +119,24 @@ export function useImportacaoEstoque() {
         const validation = validateEstoqueInicialImport(mappedRow);
         const nd = validation.normalizedData;
 
-        const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado as string))
-          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto as string))
-          || (nd.codigo_produto && prodBySku.get(nd.codigo_produto as string))
-          || (nd.codigo_legado && prodBySku.get(nd.codigo_legado as string));
+        const codLegado = nd.codigo_legado ? String(nd.codigo_legado) : "";
+        const codProduto = nd.codigo_produto ? String(nd.codigo_produto) : "";
+        const produtoInfo: ProdutoLookup | undefined =
+          (codLegado ? prodByLegado.get(codLegado) : undefined)
+          ?? (codProduto ? prodByInterno.get(codProduto) : undefined)
+          ?? (codProduto ? prodBySku.get(codProduto) : undefined)
+          ?? (codLegado ? prodBySku.get(codLegado) : undefined);
 
         if (!produtoInfo) {
           validation.valid = false;
           const chave = nd.codigo_legado || nd.codigo_produto || '(sem código)';
           validation.errors.push(`Produto não encontrado: ${chave}`);
         } else {
-          nd.produto_id = (produtoInfo as any).id;
-          nd.nome_produto = (produtoInfo as any).nome;
-          nd.estoque_atual_sistema = (produtoInfo as any).estoque_atual || 0;
-          nd.diferenca = Number(nd.quantidade) - ((produtoInfo as any).estoque_atual || 0);
-          nd.custo_unitario = nd.custo_unitario ?? (produtoInfo as any).preco_custo ?? 0;
+          nd.produto_id = produtoInfo.id;
+          nd.nome_produto = produtoInfo.nome;
+          nd.estoque_atual_sistema = produtoInfo.estoque_atual || 0;
+          nd.diferenca = Number(nd.quantidade) - (produtoInfo.estoque_atual || 0);
+          nd.custo_unitario = nd.custo_unitario ?? produtoInfo.preco_custo ?? 0;
         }
 
         return {
