@@ -179,6 +179,11 @@ export function useSupabaseCrud<R = any>({
         if (statusFilter && statusFilter.values.length > 0) {
           query = query.in(statusFilter.column, statusFilter.values);
         }
+        if (orFilters && orFilters.length > 0) {
+          for (const expr of orFilters) {
+            if (expr) query = query.or(expr);
+          }
+        }
         const trimmedSearch = searchTerm.trim();
         if (trimmedSearch && searchColumns.length > 0) {
           const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
