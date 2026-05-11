@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import { salvarPedidoOperacional } from "@/services/comercial/pedidosVenda.service";
 
 interface SalvarPedidoInput {
   id: string;
@@ -27,11 +27,7 @@ export function useSalvarPedido() {
     mutationFn: async ({ id, patch }) => {
       // F-02: usa RPC `salvar_pedido_operacional` (SECURITY DEFINER + search_path)
       // para garantir trilha de auditoria via trigger único e validações server-side.
-      const { error } = await supabase.rpc("salvar_pedido_operacional", {
-        p_id: id,
-        p_patch: patch as never,
-      });
-      if (error) throw new Error(error.message);
+      await salvarPedidoOperacional(id, patch);
     },
     onSuccess: () => {
       INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {

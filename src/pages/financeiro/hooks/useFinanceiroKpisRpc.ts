@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchKpisFinanceiro, type KpisFinanceiroResult } from "@/services/financeiro";
 
 /**
  * Filtros aceitos pela RPC `kpis_financeiro`.
@@ -18,31 +18,7 @@ export interface FinanceiroKpisFilters {
   search?: string | null;
 }
 
-export interface FinanceiroKpisResult {
-  totalCount: number;
-  a_vencer: number;
-  vence_hoje: number;
-  vencido: number;
-  pago: number;
-  parcial: number;
-  total_a_vencer: number;
-  total_vencido: number;
-  total_pago: number;
-  total_parcial: number;
-}
-
-const EMPTY: FinanceiroKpisResult = {
-  totalCount: 0,
-  a_vencer: 0,
-  vence_hoje: 0,
-  vencido: 0,
-  pago: 0,
-  parcial: 0,
-  total_a_vencer: 0,
-  total_vencido: 0,
-  total_pago: 0,
-  total_parcial: 0,
-};
+export type FinanceiroKpisResult = KpisFinanceiroResult;
 
 /**
  * Carrega os KPIs do módulo Financeiro via RPC `kpis_financeiro`, aplicando
@@ -52,21 +28,7 @@ const EMPTY: FinanceiroKpisResult = {
 export function useFinanceiroKpisRpc(filters: FinanceiroKpisFilters) {
   return useQuery({
     queryKey: ["kpis_financeiro", filters],
-    queryFn: async (): Promise<FinanceiroKpisResult> => {
-      const { data, error } = await supabase.rpc("kpis_financeiro", {
-        p_date_from: filters.dateFrom ?? null,
-        p_date_to: filters.dateTo ?? null,
-        p_tipos: filters.tipos?.length ? filters.tipos : null,
-        p_status: filters.status?.length ? filters.status : null,
-        p_bancos: filters.bancos?.length ? filters.bancos : null,
-        p_origens: filters.origens?.length ? filters.origens : null,
-        p_formas: filters.formas?.length ? filters.formas : null,
-        p_cartoes: filters.cartoes?.length ? filters.cartoes : null,
-        p_search: filters.search?.trim() || null,
-      });
-      if (error) throw error;
-      return { ...EMPTY, ...((data as Partial<FinanceiroKpisResult>) ?? {}) };
-    },
+    queryFn: () => fetchKpisFinanceiro(filters),
     placeholderData: (prev) => prev,
     staleTime: 15_000,
   });

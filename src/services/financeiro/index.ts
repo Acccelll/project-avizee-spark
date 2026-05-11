@@ -27,3 +27,14 @@ export { getEffectiveStatus } from "@/lib/financeiro";
 
 export type { Parcela } from "./calculosFinanceiros.service";
 export { gerarParcelas } from "./calculosFinanceiros.service";
+
+export {
+  listarFinanceiroLancamentosIds,
+  fetchKpisFinanceiro,
+} from "./listagem";
+export type {
+  FinanceiroListarParams,
+  FinanceiroPagedResult,
+  KpisFinanceiroParams,
+  KpisFinanceiroResult,
+} from "./listagem";
