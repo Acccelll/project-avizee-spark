@@ -56,14 +56,6 @@ import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { FILTER_W_SM, FILTER_W_MD } from "@/components/list/filterTokens";
 import { AlertCircle, PhoneOff } from "lucide-react";
 
-// Predicado server-side em PostgREST para "sem contato": todos os 3 campos
-// nulos OU strings vazias. Usado em useTableCount inline e como referência
-// para o chip por linha.
-const SEM_CONTATO_OR =
-  "and(or(email.is.null,email.eq.),or(telefone.is.null,telefone.eq.),or(celular.is.null,celular.eq.))";
-const CADASTRO_INCOMPLETO_OR =
-  "or(cpf_cnpj.is.null,cpf_cnpj.eq.,cidade.is.null,cidade.eq.,uf.is.null,uf.eq.)";
-
 function isSemContato(f: { email?: string | null; telefone?: string | null; celular?: string | null }) {
   return !f.email && !f.telefone && !f.celular;
 }
