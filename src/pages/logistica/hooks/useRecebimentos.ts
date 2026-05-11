@@ -6,7 +6,7 @@ import { normalizeRecebimentoStatus } from "@/pages/logistica/logisticaStatus";
 export type { Recebimento };
 
 async function fetchRecebimentos(): Promise<Recebimento[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("vw_recebimentos_consolidado")
     .select("*");
   if (error) throw new Error(error.message);

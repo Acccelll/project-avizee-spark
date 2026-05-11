@@ -11,7 +11,6 @@ export async function listLancamentosParaConciliacao(input: {
   if (!contaId) return [];
 
   const { data, error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("vw_conciliacao_eventos_financeiros")
     .select("lancamento_id, descricao, valor_movimento, data_movimento, tipo, status_titulo, conciliacao_status")
     .eq("conta_bancaria_id", contaId)

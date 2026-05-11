@@ -392,7 +392,6 @@ export type ApresentacaoCadenciaDraft = Omit<
 >;
 
 export async function listarApresentacaoCadencias(): Promise<ApresentacaoCadencia[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from('apresentacao_cadencia')
     .select('*')
@@ -413,7 +412,6 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
     observacoes: input.observacoes ?? null,
   };
   if (input.id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from('apresentacao_cadencia')
       .update({ ...payload, updated_at: new Date().toISOString() })
@@ -423,7 +421,6 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
     if (error) throw error;
     return data as ApresentacaoCadencia;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from('apresentacao_cadencia')
     .insert(payload)
@@ -434,7 +431,6 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
 }
 
 export async function removerApresentacaoCadencia(id: string): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('apresentacao_cadencia').delete().eq('id', id);
   if (error) throw error;
 }
@@ -462,7 +458,6 @@ export async function carregarPreferenciasApresentacao(): Promise<ApresentacaoPr
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from('apresentacao_preferencias')
     .select('*')
@@ -476,7 +471,6 @@ export async function salvarPreferenciasApresentacao(prefs: ApresentacaoPreferen
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await supabase
     .from('apresentacao_preferencias')
     .upsert(
@@ -503,7 +497,6 @@ export async function registrarTelemetriaSlides(
     user_id: userId,
     geracao_id: geracaoId ?? null,
   }));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await supabase.from('apresentacao_slide_telemetria').insert(rows);
 }
 
