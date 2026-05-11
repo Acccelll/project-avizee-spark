@@ -9874,6 +9874,17 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sidebar_alerts_kpis: {
+        Args: never
+        Returns: {
+          estoque_baixo: number
+          financeiro_vencer: number
+          financeiro_vencidos: number
+          nf_rejeitadas: number
+          nfe_sem_manifestacao: number
+          orcamentos_pendentes: number
+        }[]
+      }
       social_alertas_periodo: {
         Args: { _data_fim: string; _data_inicio: string }
         Returns: {
