@@ -259,6 +259,9 @@ const Clientes = () => {
   });
   const totalAtivos = kpiQualidade?.total_ativos ?? null;
   const totalComGrupo = kpiQualidade?.com_grupo ?? null;
+  const queryClient = useQueryClient();
+  const invalidateKpiQualidade = () =>
+    queryClient.invalidateQueries({ queryKey: ["clientes", "kpi-qualidade"] });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -409,6 +412,7 @@ const Clientes = () => {
     try {
       if (mode === "create") await create(payload);
       else if (selected) await update(selected.id, payload);
+      invalidateKpiQualidade();
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
