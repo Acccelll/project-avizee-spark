@@ -54,7 +54,6 @@ export async function incluirTemplateApresentacao(input: {
     if (uploadError) throw uploadError;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from('apresentacao_templates')
     .insert({
@@ -65,7 +64,7 @@ export async function incluirTemplateApresentacao(input: {
       arquivo_path: arquivoPath,
       config_json: input.configJson ?? { origem: 'manual', layout: 'apresentacao_v2' },
       ativo: true,
-    })
+    } as never)
     .select('*')
     .single();
   if (error) throw error;
