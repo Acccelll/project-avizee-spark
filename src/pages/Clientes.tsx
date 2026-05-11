@@ -29,7 +29,11 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
+import {
+  listGruposEconomicosAtivos,
+  listFormasPagamentoAtivas,
+  fetchKpiClientesQualidade,
+} from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
 import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
