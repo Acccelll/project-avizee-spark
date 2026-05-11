@@ -41,7 +41,7 @@ export function useRecebimentosPorPedido(pedidoCompraId: string | null) {
       const { data, error } = await supabase
         .from("recebimentos_compra")
         .select("*, recebimentos_compra_itens(*)")
-        .eq("pedido_compra_id", pedidoCompraId)
+        .eq("pedido_compra_id", pedidoCompraId as string)
         .order("data_recebimento", { ascending: false });
       if (error) throw new Error(error.message);
       return data ?? [];
