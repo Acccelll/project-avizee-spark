@@ -33,6 +33,7 @@ import {
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
+import { gerarFinanceiroNfeEntrada } from "@/services/fiscal/lifecycle.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -774,17 +775,16 @@ const Fiscal = () => {
             const formaPag = xmlOriginInfo.cobranca.tPag
               ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
               : "boleto_dda";
-            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
-              p_nota_id: nfId,
-              p_duplicatas: xmlOriginInfo.cobranca.duplicatas.map((d) => ({
+            await gerarFinanceiroNfeEntrada(
+              nfId,
+              xmlOriginInfo.cobranca.duplicatas.map((d) => ({
                 numero: d.numero,
                 vencimento: d.vencimento,
                 valor: d.valor,
               })),
-              p_forma_pagamento: formaPag,
-              p_cartao_id: form.cartao_id || null,
-            } as never);
-            if (rpcErr) throw rpcErr;
+              formaPag,
+              form.cartao_id || null,
+            );
             toast.success(
               `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Pagar.`,
             );
@@ -817,13 +817,12 @@ const Fiscal = () => {
                 }))
               : [{ numero: "1", vencimento: form.data_emissao, valor: savedTotal }];
           try {
-            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
-              p_nota_id: nfId,
-              p_duplicatas: duplicatas,
-              p_forma_pagamento: "cartao_credito",
-              p_cartao_id: form.cartao_id,
-            } as never);
-            if (rpcErr) throw rpcErr;
+            await gerarFinanceiroNfeEntrada(
+              nfId,
+              duplicatas,
+              "cartao_credito",
+              form.cartao_id,
+            );
             toast.success(`${duplicatas.length} parcela(s) lançada(s) na fatura do cartão.`);
           } catch (rpcErr) {
             logger.error("[fiscal] gerar financeiro cartao:", rpcErr);
