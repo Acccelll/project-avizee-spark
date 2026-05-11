@@ -38,6 +38,14 @@ interface UseCrudOptions {
    * ou `undefined`, nenhum filtro é aplicado.
    */
   statusFilter?: { column: string; values: string[] };
+  /**
+   * Lista de expressões PostgREST para `.or(...)` adicionais. Cada item é
+   * aplicado como um `.or(expr)` separado (que o PostgREST trata como AND
+   * entre grupos). Útil para predicados compostos (ex.: "incompleto" =
+   * vários OR encadeados) sem deixar o cálculo client-side e perder a
+   * paginação server-side.
+   */
+  orFilters?: string[];
   hasAtivo?: boolean;
   /**
    * Controls whether list queries apply `eq("ativo", true)`.
@@ -107,6 +115,7 @@ export function useSupabaseCrud<R = any>({
   filter = [],
   dateRange,
   statusFilter,
+  orFilters,
   hasAtivo = true,
   filterAtivo,
   softDelete,
@@ -129,11 +138,12 @@ export function useSupabaseCrud<R = any>({
   const statusKey = statusFilter && statusFilter.values.length > 0
     ? `${statusFilter.column}:${[...statusFilter.values].sort().join(",")}`
     : "";
+  const orFiltersKey = orFilters && orFilters.length > 0 ? orFilters.join("|") : "";
   const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
   const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
-    [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
+    () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
+    [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
   );
 
   // Quando filtros/busca/ordem mudam em modo paged, reseta para a primeira
@@ -142,7 +152,7 @@ export function useSupabaseCrud<R = any>({
     if (effectiveMode !== "paged") return;
     setPage(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: reage só a deps de filtro/ordem
-  }, [filterKey, dateRangeKey, statusKey, searchTerm, orderBy, ascending, effectiveMode]);
+  }, [filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, orderBy, ascending, effectiveMode]);
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
 
@@ -168,6 +178,11 @@ export function useSupabaseCrud<R = any>({
         }
         if (statusFilter && statusFilter.values.length > 0) {
           query = query.in(statusFilter.column, statusFilter.values);
+        }
+        if (orFilters && orFilters.length > 0) {
+          for (const expr of orFilters) {
+            if (expr) query = query.or(expr);
+          }
         }
         const trimmedSearch = searchTerm.trim();
         if (trimmedSearch && searchColumns.length > 0) {

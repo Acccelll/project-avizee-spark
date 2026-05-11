@@ -9504,6 +9504,27 @@ export type Database = {
         Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
         Returns: undefined
       }
+      kpi_clientes_qualidade: {
+        Args: never
+        Returns: {
+          com_grupo: number
+          incompletos: number
+          sem_contato: number
+          sem_email: number
+          sem_grupo: number
+          sem_prazo: number
+          sem_telefone: number
+          total_ativos: number
+        }[]
+      }
+      kpi_fornecedores_qualidade: {
+        Args: never
+        Returns: {
+          incompletos: number
+          sem_contato: number
+          total_ativos: number
+        }[]
+      }
       kpis_financeiro: {
         Args: {
           p_bancos?: string[]

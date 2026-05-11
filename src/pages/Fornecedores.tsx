@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -13,7 +13,6 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
-import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -23,6 +22,7 @@ import {
   listProdutosDoFornecedor,
   listComprasDoFornecedor,
   deleteProdutoFornecedor,
+  fetchKpiFornecedoresQualidade,
 } from "@/services/fornecedores.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,19 +52,10 @@ import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { FILTER_W_SM, FILTER_W_MD } from "@/components/list/filterTokens";
 import { AlertCircle, PhoneOff } from "lucide-react";
-
-// Predicado server-side em PostgREST para "sem contato": todos os 3 campos
-// nulos OU strings vazias. Usado em useTableCount inline e como referência
-// para o chip por linha.
-const SEM_CONTATO_OR =
-  "and(or(email.is.null,email.eq.),or(telefone.is.null,telefone.eq.),or(celular.is.null,celular.eq.))";
-const CADASTRO_INCOMPLETO_OR =
-  "or(cpf_cnpj.is.null,cpf_cnpj.eq.,cidade.is.null,cidade.eq.,uf.is.null,uf.eq.)";
 
 function isSemContato(f: { email?: string | null; telefone?: string | null; celular?: string | null }) {
   return !f.email && !f.telefone && !f.celular;
@@ -153,35 +144,18 @@ const Fornecedores = () => {
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
-  const totalAtivos = useTableCount("fornecedores", { ativo: true }).data ?? null;
-  const { data: totalSemContato } = useQuery({
-    queryKey: ["fornecedores-count", "sem-contato"],
+  // KPI agregado server-side (substitui 3 queries: count ativo + 2 .or()).
+  const { data: kpiQualidade } = useQuery({
+    queryKey: ["fornecedores", "kpi-qualidade"],
     staleTime: 30_000,
-    queryFn: async ({ signal }) => {
-      const { count, error } = await (supabase as unknown as typeof supabase)
-        .from("fornecedores")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .or(SEM_CONTATO_OR)
-        .abortSignal(signal);
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: fetchKpiFornecedoresQualidade,
   });
-  const { data: totalIncompleto } = useQuery({
-    queryKey: ["fornecedores-count", "incompleto"],
-    staleTime: 30_000,
-    queryFn: async ({ signal }) => {
-      const { count, error } = await (supabase as unknown as typeof supabase)
-        .from("fornecedores")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .or(CADASTRO_INCOMPLETO_OR)
-        .abortSignal(signal);
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
+  const totalAtivos = kpiQualidade?.total_ativos ?? null;
+  const totalSemContato = kpiQualidade?.sem_contato ?? 0;
+  const totalIncompleto = kpiQualidade?.incompletos ?? 0;
+  const queryClient = useQueryClient();
+  const invalidateKpiQualidade = () =>
+    queryClient.invalidateQueries({ queryKey: ["fornecedores", "kpi-qualidade"] });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -307,8 +281,9 @@ const Fornecedores = () => {
     setFormErrors({});
     setSaving(true);
     try {
-      if (mode === "create") await create(form);else
-      if (selected) await update(selected.id, form);
+      if (mode === "create") await create(form);
+      else if (selected) await update(selected.id, form);
+      invalidateKpiQualidade();
       setIsDirty(false);
       if (saveAndNewRef.current && mode === "create") {
         saveAndNewRef.current = false;
@@ -535,7 +510,7 @@ const Fornecedores = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (f) => remove(f.id) : undefined}
+            onDelete={canExcluir ? async (f) => { await remove(f.id); invalidateKpiQualidade(); } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"

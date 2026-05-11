@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -12,7 +13,6 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
-import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -29,7 +29,11 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
+import {
+  listGruposEconomicosAtivos,
+  listFormasPagamentoAtivas,
+  fetchKpiClientesQualidade,
+} from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
 import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
@@ -184,6 +188,31 @@ const Clientes = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
+  // Predicados PostgREST para o filtro "Cadastro" (server-side).
+  // Cada item vira um `.or(...)` separado em useSupabaseCrud — múltiplos
+  // filtros são ANDed entre si, espelhando o `every(...)` que existia
+  // client-side. Mantém os critérios alinhados com getMissingFields().
+  const cadastroOrFilters = useMemo(() => {
+    const SEM_TELEFONE = "and(celular.is.null,telefone.is.null)";
+    const SEM_EMAIL = "or(email.is.null,email.eq.)";
+    const SEM_CONTATO = `and(${SEM_TELEFONE},${SEM_EMAIL})`;
+    const SEM_PRAZO = "or(prazo_padrao.is.null,prazo_padrao.lte.0)";
+    const SEM_DOC = "or(cpf_cnpj.is.null,cpf_cnpj.eq.)";
+    const SEM_ENDERECO = "or(cidade.is.null,uf.is.null)";
+    // "incompleto" replica getMissingFields (sem grupo): doc OU telefone OU
+    // email OU prazo OU endereço inválidos.
+    const INCOMPLETO = `or(${SEM_DOC},${SEM_TELEFONE},${SEM_EMAIL},${SEM_PRAZO},${SEM_ENDERECO})`;
+    const map: Record<string, string> = {
+      incompleto: INCOMPLETO,
+      sem_contato: SEM_CONTATO,
+      sem_telefone: SEM_TELEFONE,
+      sem_email: SEM_EMAIL,
+      sem_prazo: SEM_PRAZO,
+      sem_grupo: "grupo_economico_id.is.null",
+    };
+    return cadastroFilters.map((f) => map[f]).filter(Boolean);
+  }, [cadastroFilters]);
+
   // Avalia "qualidade cadastral" do cliente — completo se possui documento,
   // contato (tel ou cel), e-mail, prazo > 0 e endereço (cidade+uf).
   // O detalhe do que falta vai num tooltip e alimenta os filtros "Cadastro".
@@ -215,13 +244,24 @@ const Clientes = () => {
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
+    orFilters: cadastroOrFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
     pageSize: 50,
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
-  const totalAtivos = useTableCount("clientes", { ativo: true }).data ?? null;
-  const totalComGrupo = useTableCount("clientes", { grupo_economico_id: { not: { is: null } } }).data ?? null;
+  // KPI agregado server-side de qualidade cadastral (substitui contagens
+  // client-side que ficavam incorretas sob paginação 50/pág).
+  const { data: kpiQualidade } = useQuery({
+    queryKey: ["clientes", "kpi-qualidade"],
+    queryFn: fetchKpiClientesQualidade,
+    staleTime: 60_000,
+  });
+  const totalAtivos = kpiQualidade?.total_ativos ?? null;
+  const totalComGrupo = kpiQualidade?.com_grupo ?? null;
+  const queryClient = useQueryClient();
+  const invalidateKpiQualidade = () =>
+    queryClient.invalidateQueries({ queryKey: ["clientes", "kpi-qualidade"] });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -372,6 +412,7 @@ const Clientes = () => {
     try {
       if (mode === "create") await create(payload);
       else if (selected) await update(selected.id, payload);
+      invalidateKpiQualidade();
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
@@ -395,26 +436,9 @@ const Clientes = () => {
         return grupoFilters.includes(groupId);
       });
     }
-    if (cadastroFilters.length > 0) {
-      // Filtros client-side aplicados sobre a página atual.
-      // TODO: migrar para RPC server-side (kpi_clientes_qualidade) numa próxima onda.
-      out = out.filter((c) => {
-        const missing = getMissingFields(c);
-        return cadastroFilters.every((f) => {
-          switch (f) {
-            case "incompleto": return missing.filter((m) => m !== "grupo").length > 0;
-            case "sem_contato": return !(c.celular || c.telefone) && !c.email;
-            case "sem_telefone": return !(c.celular || c.telefone);
-            case "sem_email": return !c.email;
-            case "sem_prazo": return !c.prazo_padrao || c.prazo_padrao <= 0;
-            case "sem_grupo": return !c.grupo_economico_id;
-            default: return true;
-          }
-        });
-      });
-    }
+    // `cadastroFilters` agora é server-side via `orFilters` em useSupabaseCrud.
     return out;
-  }, [data, hasSemGrupoFilter, grupoFilters, cadastroFilters]);
+  }, [data, hasSemGrupoFilter, grupoFilters]);
 
   const columns = [
     {
@@ -582,12 +606,8 @@ const Clientes = () => {
   // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
   const summaryAtivos = totalAtivos ?? 0;
   const totalRegistros = totalCount ?? data.length;
-  // KPI client-side: contagem de cadastros incompletos na página atual.
-  // TODO: substituir por RPC agregado (kpi_clientes_qualidade) numa próxima onda.
-  const summaryIncompletosPagina = useMemo(
-    () => data.filter((c) => getMissingFields(c).filter((m) => m !== "grupo").length > 0).length,
-    [data],
-  );
+  // KPI global vindo de kpi_clientes_qualidade (RPC server-side).
+  const summaryIncompletos = kpiQualidade?.incompletos ?? 0;
   // Mantém o total de "com grupo" disponível para análise futura.
   void totalComGrupo;
 
@@ -631,9 +651,9 @@ const Clientes = () => {
               active={inativoOnly}
             />
             <SummaryCard
-              title="Incompletos (página)"
+              title="Incompletos"
               shortTitle="Incompletos"
-              value={summaryIncompletosPagina}
+              value={summaryIncompletos}
               icon={AlertTriangle}
               variant="warning"
               onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
@@ -669,7 +689,7 @@ const Clientes = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (c) => remove(c.id) : undefined}
+            onDelete={canExcluir ? async (c) => { await remove(c.id); invalidateKpiQualidade(); } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"

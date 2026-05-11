@@ -17,6 +17,40 @@ export type EnderecoEntrega = Tables<"clientes_enderecos_entrega">;
 export type RegistroComunicacao = Tables<"cliente_registros_comunicacao">;
 export type ClienteTransportadoraVinculo = Tables<"cliente_transportadoras">;
 
+// ── KPI de qualidade cadastral (RPC server-side) ──────────────────────────
+
+export interface KpiClientesQualidade {
+  total_ativos: number;
+  incompletos: number;
+  sem_contato: number;
+  sem_telefone: number;
+  sem_email: number;
+  sem_prazo: number;
+  sem_grupo: number;
+  com_grupo: number;
+}
+
+/**
+ * Retorna agregados globais de qualidade cadastral de clientes ativos.
+ * Substitui contagens client-side que ficavam incorretas sob paginação
+ * server-side (a contagem por página, não global).
+ */
+export async function fetchKpiClientesQualidade(): Promise<KpiClientesQualidade> {
+  const { data, error } = await supabase.rpc("kpi_clientes_qualidade");
+  if (error) throw error;
+  const row = (Array.isArray(data) ? data[0] : data) as Partial<KpiClientesQualidade> | null;
+  return {
+    total_ativos: row?.total_ativos ?? 0,
+    incompletos: row?.incompletos ?? 0,
+    sem_contato: row?.sem_contato ?? 0,
+    sem_telefone: row?.sem_telefone ?? 0,
+    sem_email: row?.sem_email ?? 0,
+    sem_prazo: row?.sem_prazo ?? 0,
+    sem_grupo: row?.sem_grupo ?? 0,
+    com_grupo: row?.com_grupo ?? 0,
+  };
+}
+
 // ── Endereços de entrega ───────────────────────────────────────────────────
 
 export async function listEnderecosEntrega(clienteId: string): Promise<EnderecoEntrega[]> {

@@ -5,6 +5,30 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
+// ── KPI de qualidade cadastral (RPC server-side) ──────────────────────────
+
+export interface KpiFornecedoresQualidade {
+  total_ativos: number;
+  sem_contato: number;
+  incompletos: number;
+}
+
+/**
+ * Retorna agregados globais de qualidade cadastral de fornecedores ativos.
+ * Unifica em uma única chamada o que antes eram 3 queries separadas
+ * (`useTableCount` + 2 `.or(...)` em /fornecedores).
+ */
+export async function fetchKpiFornecedoresQualidade(): Promise<KpiFornecedoresQualidade> {
+  const { data, error } = await supabase.rpc("kpi_fornecedores_qualidade");
+  if (error) throw error;
+  const row = (Array.isArray(data) ? data[0] : data) as Partial<KpiFornecedoresQualidade> | null;
+  return {
+    total_ativos: row?.total_ativos ?? 0,
+    sem_contato: row?.sem_contato ?? 0,
+    incompletos: row?.incompletos ?? 0,
+  };
+}
+
 export interface ProdutoFornecedorRow {
   id: string;
   lead_time_dias: number | null;
