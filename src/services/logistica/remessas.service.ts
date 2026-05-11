@@ -231,7 +231,7 @@ export async function marcarRemessaEntregue(remessaId: string): Promise<void> {
 export async function cancelarRemessa(input: { id: string; motivo?: string | null }): Promise<void> {
   const { error } = await supabase.rpc("cancelar_remessa", {
     p_remessa_id: input.id,
-    p_motivo: input.motivo ?? null,
+    p_motivo: input.motivo ?? undefined,
   });
   if (error) throw new Error(error.message);
 }
