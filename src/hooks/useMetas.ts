@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface MetaConfig {
   receber?: number;
@@ -29,7 +30,7 @@ async function saveMetas(metas: MetaConfig): Promise<void> {
   const { error } = await supabase
     .from('app_configuracoes')
     .upsert(
-      { chave: METAS_CHAVE, valor: metas as any, updated_at: new Date().toISOString() },
+      { chave: METAS_CHAVE, valor: metas as unknown as Json, updated_at: new Date().toISOString() },
       { onConflict: 'chave' },
     );
   if (error) throw error;
