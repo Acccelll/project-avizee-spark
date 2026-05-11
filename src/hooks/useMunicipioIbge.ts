@@ -1,12 +1,9 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { buscarMunicipioIbgeDb, type MunicipioIbge } from "@/services/municipio.service";
 
-export interface MunicipioIbge {
-  codigo_ibge: string;
-  nome: string;
-  uf: string;
-}
+export type { MunicipioIbge };
 
 interface IbgeApiMunicipio {
   id: number;
@@ -31,13 +28,8 @@ export function useMunicipioIbge() {
       setLoading(true);
       try {
         // 1) Cache local
-        const { data, error } = await supabase.rpc("buscar_municipio_ibge", {
-          p_nome: nome.trim(),
-          p_uf: uf.trim().toUpperCase(),
-        });
-        if (!error && data && Array.isArray(data) && data.length > 0) {
-          return data[0] as MunicipioIbge;
-        }
+        const cached = await buscarMunicipioIbgeDb(nome, uf);
+        if (cached) return cached;
 
         // 2) Fallback: API pública do IBGE (uma vez por UF)
         const ufUpper = uf.trim().toUpperCase();
