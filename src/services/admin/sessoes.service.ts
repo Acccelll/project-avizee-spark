@@ -1,7 +1,11 @@
 /**
  * Serviço de sessões de usuário — listagem e revogação de sessões ativas.
  *
- * Utiliza a tabela `user_sessions` do banco de dados.
+ * Delega à Edge Function `admin-sessions` (service_role). A tabela
+ * `user_sessions` referenciada antes não existe no schema do projeto;
+ * a fonte real de sessões é `auth.users.last_sign_in_at`, lida pela
+ * Edge Function. Mantém os tipos `UserSession`/`ListarSessoesOptions`
+ * estáveis para consumidores legados.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -23,10 +27,28 @@ export interface ListarSessoesOptions {
   userId?: string;
 }
 
-// `user_sessions` is managed by the auth layer and is not in the generated
-// Supabase DB types.  Using a targeted cast to avoid widespread `any`.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabaseUntyped = supabase as unknown as { from: (table: string) => any };
+interface EdgeSessao {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  user_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  user_agent: string | null;
+  ip: string | null;
+}
+
+function mapEdgeToUserSession(s: EdgeSessao): UserSession {
+  return {
+    id: s.id,
+    user_id: s.user_id,
+    created_at: s.created_at,
+    last_active_at: s.last_sign_in_at ?? s.created_at,
+    ip_address: s.ip,
+    user_agent: s.user_agent,
+    is_active: true,
+  };
+}
 
 /**
  * Lista sessões de usuários.
@@ -36,32 +58,26 @@ export async function listarSessoes(
 ): Promise<UserSession[]> {
   const { apenasAtivas = true, userId } = options;
 
-  let query = supabaseUntyped
-    .from("user_sessions")
-    .select("*")
-    .order("last_active_at", { ascending: false });
+  const { data, error } = await supabase.functions.invoke<EdgeSessao[]>(
+    "admin-sessions",
+    { body: { action: "list" } },
+  );
+  if (error) throw new Error(error.message ?? "Erro ao listar sessões.");
 
-  if (apenasAtivas) {
-    query = query.eq("is_active", true);
-  }
-  if (userId) {
-    query = query.eq("user_id", userId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  let result = (data ?? []).map(mapEdgeToUserSession);
+  if (userId) result = result.filter((s) => s.user_id === userId);
+  if (apenasAtivas) result = result.filter((s) => s.is_active);
+  result.sort((a, b) => (a.last_active_at < b.last_active_at ? 1 : -1));
+  return result;
 }
 
 /**
- * Revoga (encerra) uma sessão pelo seu ID.
- * Define `is_active = false` no registro correspondente.
+ * Revoga (encerra) a sessão de um usuário via Edge Function `admin-sessions`.
+ * A Edge Function opera por `userId` (não por `sessionId`).
  */
-export async function revogarSessao(sessionId: string): Promise<void> {
-  const { error } = await supabaseUntyped
-    .from("user_sessions")
-    .update({ is_active: false })
-    .eq("id", sessionId);
-
-  if (error) throw error;
+export async function revogarSessao(userId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("admin-sessions", {
+    body: { action: "revoke", userId },
+  });
+  if (error) throw new Error(error.message ?? "Erro ao revogar sessão.");
 }
