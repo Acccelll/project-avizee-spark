@@ -25,6 +25,12 @@ import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  saveNaturezaOperacao,
+  deleteNaturezaOperacao,
+  saveMatrizRegra,
+  deleteMatrizRegra,
+} from "@/services/fiscal/tributacao.service";
 import { useCan } from "@/hooks/useCan";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { UF_OPTIONS } from "@/constants/brasil";
@@ -162,20 +168,8 @@ function NaturezasTab() {
       observacoes: values.observacoes || null,
     };
     try {
-      if (editing) {
-        const { error } = await supabase
-          .from("naturezas_operacao")
-          .update(payload)
-          .eq("id", editing.id);
-        if (error) throw error;
-        toast.success("Natureza atualizada");
-      } else {
-        const { error } = await supabase
-          .from("naturezas_operacao")
-          .insert([payload as never]);
-        if (error) throw error;
-        toast.success("Natureza criada");
-      }
+      await saveNaturezaOperacao(payload as never, editing?.id);
+      toast.success(editing ? "Natureza atualizada" : "Natureza criada");
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["naturezas-operacao"] });
     } catch (err) {
@@ -191,9 +185,10 @@ function NaturezasTab() {
         sideEffects: ["Notas já emitidas não são afetadas"],
       },
       async () => {
-        const { error } = await supabase.from("naturezas_operacao").delete().eq("id", n.id);
-        if (error) {
-          notifyError(error);
+        try {
+          await deleteNaturezaOperacao(n.id);
+        } catch (err) {
+          notifyError(err);
           return;
         }
         toast.success("Natureza excluída");
@@ -527,15 +522,8 @@ function MatrizTab() {
       uf_destino: values.uf_destino.toUpperCase(),
     };
     try {
-      if (editing) {
-        const { error } = await supabase.from("matriz_fiscal").update(payload).eq("id", editing.id);
-        if (error) throw error;
-        toast.success("Regra atualizada");
-      } else {
-        const { error } = await supabase.from("matriz_fiscal").insert([payload as never]);
-        if (error) throw error;
-        toast.success("Regra criada");
-      }
+      await saveMatrizRegra(payload as never, editing?.id);
+      toast.success(editing ? "Regra atualizada" : "Regra criada");
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["matriz-fiscal"] });
     } catch (err) {
@@ -551,9 +539,10 @@ function MatrizTab() {
         sideEffects: ["Notas futuras deixarão de aplicá-la automaticamente"],
       },
       async () => {
-        const { error } = await supabase.from("matriz_fiscal").delete().eq("id", m.id);
-        if (error) {
-          notifyError(error);
+        try {
+          await deleteMatrizRegra(m.id);
+        } catch (err) {
+          notifyError(err);
           return;
         }
         toast.success("Regra excluída");
