@@ -132,15 +132,13 @@ export interface AjusteEstoqueInput {
  * - tipo='ajuste': quantidade representa o saldo absoluto desejado.
  */
 export async function ajustarEstoqueManual(input: AjusteEstoqueInput): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)("ajustar_estoque_manual", {
+  const data = await invokeRpc("ajustar_estoque_manual", {
     p_produto_id: input.produto_id,
     p_tipo: input.tipo,
     p_quantidade: input.quantidade,
-    p_motivo: input.motivo ?? null,
-    p_categoria_ajuste: input.categoria_ajuste ?? null,
-    p_motivo_estruturado: input.motivo_estruturado ?? null,
-  });
-  if (error) throw new Error(error.message);
+    p_motivo: input.motivo ?? undefined,
+    p_categoria_ajuste: input.categoria_ajuste ?? undefined,
+    p_motivo_estruturado: (input.motivo_estruturado ?? undefined) as never,
+  } as never);
   return data as string;
 }
