@@ -1,49 +1,72 @@
 ## Objetivo
 
-Migrar chamadas diretas ao Supabase nos hooks de página de **Financeiro**, **Comercial** e **Admin (sessões)** para a camada de serviços, mantendo o padrão: funções async tipadas, `throw` no erro, sem `toast`/`navigate`/invalidação dentro do service.
+Eliminar `as any` desnecessários em services/hooks onde a tabela/view/RPC já está em `Database['public']`. Usar `invokeRpc` (de `@/types/rpc`) para RPCs e o cliente tipado direto para tabelas/views. Não alterar lógica.
 
-## Serviços — estender / criar
+## Verificação prévia (tipos gerados)
 
-### 1. Financeiro — novo submódulo `src/services/financeiro/listagem.ts`
-
-`financeiro.service.ts` é um facade que re-exporta de `services/financeiro/*`. Em vez de inflar o barrel raiz, adiciono um novo submódulo dedicado e re-exporto via `services/financeiro/index.ts`:
-
-- `FinanceiroListarParams` — `{ dateFrom, dateTo, tipos, status, bancos, origens, formas, cartoes, search, orderBy, ascending, offset, limit }` (todos opcionais/nulos exceto `offset`/`limit`).
-- `FinanceiroPagedResult` — `{ ids: string[]; totalCount: number }`.
-- `listarFinanceiroLancamentosIds(params): Promise<FinanceiroPagedResult>` — wrap de `rpc('listar_financeiro_lancamentos_ids', { p_date_from, p_date_to, p_tipos, p_status, p_bancos, p_origens, p_formas, p_cartoes, p_search, p_order_by, p_ascending, p_offset, p_limit })`. Normaliza `data` (objeto com `ids` / `total_count`) para o shape acima. `throw` no erro.
-- `KpisFinanceiroParams` — mesmos filtros sem paginação/ordem.
-- `KpisFinanceiroResult` — mover `FinanceiroKpisResult` (10 campos numéricos) e a constante `EMPTY` para o service.
-- `fetchKpisFinanceiro(params): Promise<KpisFinanceiroResult>` — wrap de `rpc('kpis_financeiro', { ...mesmos p_* })`. Mescla com `EMPTY` antes de retornar.
-
-Re-exporta tudo em `src/services/financeiro/index.ts` e (opcional) também via `src/services/financeiro.service.ts` para simetria com os demais símbolos. Tipos importam de `@/integrations/supabase/types` quando necessário.
-
-### 2. Comercial — estender `src/services/comercial/pedidosVenda.service.ts`
-
-Adicionar:
-- `PedidoOperacionalPatch` — `{ status?, po_number?, data_po_cliente?, data_prometida_despacho?, prazo_despacho_dias?, observacoes? }` (todos `string | number | null` opcionais; mover do hook).
-- `salvarPedidoOperacional(id: string, patch: PedidoOperacionalPatch): Promise<void>` — wrap de `rpc('salvar_pedido_operacional', { p_id: id, p_patch: patch as never })`. `throw` no erro com a `error.message` original.
-
-### 3. Admin — novo arquivo `src/services/admin/adminSessions.service.ts`
-
-⚠️ `src/services/admin/sessoes.service.ts` já existe mas opera **na tabela `user_sessions`** — semântica diferente do fluxo `admin-sessions` (Edge Function com `service_role`). Para evitar colisão de nomes/significado, criar arquivo separado:
-
-- `SessaoAtiva` — mover a interface (`id, user_id, user_email, user_name, created_at, last_sign_in_at, user_agent, ip`) do hook para o service.
-- `listSessoesAtivas(): Promise<SessaoAtiva[]>` — wrap de `functions.invoke<SessaoAtiva[]>('admin-sessions', { body: { action: 'list' } })`. `throw` com `error.message` ou fallback.
-- `revogarSessaoAtiva(userId: string): Promise<void>` — wrap de `functions.invoke('admin-sessions', { body: { action: 'revoke', userId } })`. Nome com sufixo `Ativa` evita colidir com `revogarSessao` (DB) já exportado por `sessoes.service.ts`.
-
-## Refatorações (somente troca da chamada — query keys, invalidações, toasts e UX intactos)
-
-| Arquivo | Substituições |
+| Símbolo | Em `types.ts`? |
 |---|---|
-| `src/pages/financeiro/hooks/useFinanceiroLancamentosPaged.ts` | bloco `supabase.rpc('listar_financeiro_lancamentos_ids', ...)` → `await listarFinanceiroLancamentosIds({ ...filters, orderBy: 'data_vencimento', ascending: false, offset, limit: pageSize })`. O segundo passo (`from('financeiro_lancamentos').select(...).in('id', ids)`) permanece — está fora do escopo. |
-| `src/pages/financeiro/hooks/useFinanceiroKpisRpc.ts` | queryFn passa a chamar `fetchKpisFinanceiro(filters)`. Tipo `FinanceiroKpisResult` re-exportado pelo service (mantém `export type` no hook por compat). |
-| `src/pages/comercial/hooks/useSalvarPedido.ts` | `mutationFn` chama `salvarPedidoOperacional(id, patch)`. |
-| `src/hooks/useSessoes.ts` | funções locais `fetchSessoes`/`revogarSessao` substituídas por `listSessoesAtivas` e `revogarSessaoAtiva`; `mutationFn: (userId) => revogarSessaoAtiva(userId)`. |
+| `apresentacao_cadencia`, `_templates`, `_geracoes`, `_slide_telemetria` | ✅ Tables |
+| `vw_conciliacao_eventos_financeiros` | ✅ Views |
+| `financeiro_extrato_importacoes` | ✅ Tables |
+| `vw_recebimentos_consolidado`, `vw_entregas_consolidadas` | ✅ Views |
+| `pedidos_compra_itens` | ✅ Tables |
+| `recebimentos_compra`, `recebimentos_compra_itens` | ✅ Tables (o prompt cita "logistica_recebimentos", que **não existe**; o uso real em `recebimentos.service.ts` é `recebimentos_compra` — tratar esse) |
+| `budgets_mensais` | ✅ Tables |
+| `registrar_recebimento_compra`, `ajustar_estoque_manual` | ✅ Functions |
+| `ConsolidacaoRpc` (8 literais) | ✅ Functions (todos são `RpcName`) |
 
-Imports diretos a `@/integrations/supabase/client` removidos dos 4 hooks (nenhum usa supabase fora das chamadas migradas, exceto `useFinanceiroLancamentosPaged` que mantém o import por causa do segundo passo `from(...).in('id', ids)`).
+## Mudanças por arquivo
+
+### 1. `src/services/apresentacaoService.ts`
+Trocar os 9 ocorrências de `(supabase as any).from('apresentacao_*')` (linhas 58, 397, 418, 428, 439, 467, 481, 508, 521) por `supabase.from('apresentacao_*')`. Manter as conversões de retorno existentes (`data as ApresentacaoCadencia`, etc.) onde já existem. Deixar **intactos** os `fromUntyped(...)` de `apresentacao_comentarios`, `apresentacao_preferencias`, `app_configuracoes`, `empresa_config` (escopo deste prompt = só os `as any`).
+
+### 2. `src/services/financeiro/conciliacaoQueries.ts`
+Linha 15: remover `as any` do nome da view.
+
+### 3. `src/services/financeiro/extratoImportacoes.service.ts`
+Linhas 45, 65, 82, 92: remover `as any` do nome da tabela.
+
+### 4. `src/pages/logistica/hooks/useRecebimentos.ts`
+Linha 9: `(supabase as any).from("vw_recebimentos_consolidado")` → `supabase.from("vw_recebimentos_consolidado")`.
+
+### 5. `src/pages/logistica/hooks/useEntregas.ts`
+Linha 9: idem para `vw_entregas_consolidadas`.
+
+### 6. `src/services/logistica/recebimentos.service.ts`
+- L16 (`(supabase.rpc as any)("registrar_recebimento_compra", args)`) → `import { invokeRpc } from "@/types/rpc";` + `const data = await invokeRpc("registrar_recebimento_compra", { ...args });` (mantém `return data as string`).
+- L29 e L41: o nome real da tabela é **`recebimentos_compra`** (não `logistica_recebimentos`). Está em `Tables` → remover `as any`. Idem para o join `recebimentos_compra_itens(*)` (já tipado).
+- O outro caso `pedidos_compra_itens` mencionado no prompt **não aparece neste arquivo** — é uma referência incorreta; nada a fazer aqui.
+
+### 7. `src/services/estoque.service.ts`
+L136: usar `invokeRpc("ajustar_estoque_manual", args)` em vez de `(supabase.rpc as any)(...)`. Manter shape de retorno atual.
+
+### 8. `src/services/importacao.service.ts`
+L253: o `rpc` é dinâmico mas tipado como `ConsolidacaoRpc` (todos são `RpcName`). Trocar `(supabase.rpc as any)(rpc, params)` por `supabase.rpc(rpc, params as never)` (sem `as any`; o `as never` é necessário porque o union de Args difere por RPC). Remover o `eslint-disable` adjacente.
+
+### 9. `src/services/budget.service.ts`
+- L27: `const tbl = () => supabase.from("budgets_mensais");` (sem cast e com literal inline para preservar o tipo).
+- Comentário "ainda não está nos tipos gerados" obsoleto — remover.
+- Onde possível, trocar `(data ?? []) as BudgetMensal[]` por uso de `Tables<"budgets_mensais">` (importar `Tables` de `@/integrations/supabase/types`) **somente onde o shape coincidir 1:1**; caso a coluna `categoria` no banco seja `text` mas no service esteja restringida ao union `BudgetCategoria`, manter o cast atual para preservar a tipagem mais forte do domínio.
+
+### 10. `tsconfig.strict-core.json`
+Acrescentar ao array `include`:
+```
+"src/services/apresentacaoService.ts",
+"src/services/logistica/**/*",
+"src/services/estoque.service.ts",
+"src/services/budget.service.ts",
+"src/pages/logistica/**/*",
+"src/services/financeiro/conciliacaoQueries.ts",
+"src/services/financeiro/extratoImportacoes.service.ts"
+```
+
+## Validação
+
+`npx tsc -p tsconfig.strict-core.json --noEmit` deve passar limpo. Se algum arquivo expor erros estritos pré-existentes (não relacionados aos casts removidos), reportar e — sem alterar lógica — aplicar narrow/cast mínimo apenas para destravar.
 
 ## Fora de escopo
 
-- Mover o `select` relacional + reidratação por `Map<id,row>` em `useFinanceiroLancamentosPaged` para o service (segundo passo continua no hook).
-- Refatorar `sessoes.service.ts` (DB-based) ou unificá-lo com o novo service de Edge Function.
-- Alterar query keys, invalidações, toasts ou nomes de mutações públicas dos hooks.
+- Migrar `fromUntyped(...)` para o cliente tipado (apresentacao_comentarios, app_configuracoes, etc.).
+- Refatorar shape/lógica dos retornos.
+- Tipar `ConsolidacaoRpc` por RPC (Args variam — exigiria overloads).

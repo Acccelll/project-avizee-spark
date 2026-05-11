@@ -249,8 +249,7 @@ export async function consolidarLote(
   rpc: ConsolidacaoRpc,
   params: Record<string, unknown>,
 ): Promise<ConsolidacaoResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)(rpc, params);
+  const { data, error } = await supabase.rpc(rpc, params as never);
   if (error) throw error;
   return (data ?? {}) as ConsolidacaoResult;
 }

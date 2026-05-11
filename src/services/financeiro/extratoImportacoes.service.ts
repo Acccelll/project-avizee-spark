@@ -41,9 +41,8 @@ export async function persistirExtratoOFX(input: {
   }));
 
   const { error, count } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabela nova, types ainda não regenerados
-    .from("financeiro_extrato_importacoes" as any)
-    .upsert(rows, {
+    .from("financeiro_extrato_importacoes")
+    .upsert(rows as never, {
       onConflict: "conta_bancaria_id,fitid",
       ignoreDuplicates: true,
       count: "exact",
@@ -61,8 +60,7 @@ export async function listarExtratoPersistido(input: {
   const { contaBancariaId, dataInicio, dataFim } = input;
   if (!contaBancariaId) return [];
   const { data, error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .from("financeiro_extrato_importacoes" as any)
+    .from("financeiro_extrato_importacoes")
     .select("id, conta_bancaria_id, fitid, data, valor, descricao, status, baixa_id")
     .eq("conta_bancaria_id", contaBancariaId)
     .gte("data", dataInicio)
@@ -78,8 +76,7 @@ export async function marcarExtratoConciliado(input: {
   baixaId: string;
 }): Promise<void> {
   const { error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .from("financeiro_extrato_importacoes" as any)
+    .from("financeiro_extrato_importacoes")
     .update({ status: "conciliado", baixa_id: input.baixaId })
     .eq("id", input.extratoId);
   if (error) throw new Error(error.message);
@@ -88,8 +85,7 @@ export async function marcarExtratoConciliado(input: {
 /** Marca uma transação como ignorada (não conciliar). */
 export async function ignorarExtrato(extratoId: string): Promise<void> {
   const { error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .from("financeiro_extrato_importacoes" as any)
+    .from("financeiro_extrato_importacoes")
     .update({ status: "ignorado", baixa_id: null })
     .eq("id", extratoId);
   if (error) throw new Error(error.message);

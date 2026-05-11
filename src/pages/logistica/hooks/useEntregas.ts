@@ -6,7 +6,7 @@ export type { Entrega, EntregaFilters };
 
 async function fetchEntregas(): Promise<Entrega[]> {
   const [vRes, remessasRes] = await Promise.all([
-    (supabase as any).from("vw_entregas_consolidadas").select("*"),
+    supabase.from("vw_entregas_consolidadas").select("*"),
     supabase
       .from("remessas")
       .select("id,ordem_venda_id,codigo_rastreio")

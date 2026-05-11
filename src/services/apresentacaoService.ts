@@ -54,8 +54,7 @@ export async function incluirTemplateApresentacao(input: {
     if (uploadError) throw uploadError;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_templates')
     .insert({
       nome: input.nome,
@@ -65,7 +64,7 @@ export async function incluirTemplateApresentacao(input: {
       arquivo_path: arquivoPath,
       config_json: input.configJson ?? { origem: 'manual', layout: 'apresentacao_v2' },
       ativo: true,
-    })
+    } as never)
     .select('*')
     .single();
   if (error) throw error;
@@ -393,8 +392,7 @@ export type ApresentacaoCadenciaDraft = Omit<
 >;
 
 export async function listarApresentacaoCadencias(): Promise<ApresentacaoCadencia[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_cadencia')
     .select('*')
     .order('created_at', { ascending: false });
@@ -414,8 +412,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
     observacoes: input.observacoes ?? null,
   };
   if (input.id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('apresentacao_cadencia')
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq('id', input.id)
@@ -424,10 +421,9 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
     if (error) throw error;
     return data as ApresentacaoCadencia;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_cadencia')
-    .insert(payload)
+    .insert(payload as never)
     .select('*')
     .single();
   if (error) throw error;
@@ -435,8 +431,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
 }
 
 export async function removerApresentacaoCadencia(id: string): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).from('apresentacao_cadencia').delete().eq('id', id);
+  const { error } = await supabase.from('apresentacao_cadencia').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -463,8 +458,7 @@ export async function carregarPreferenciasApresentacao(): Promise<ApresentacaoPr
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('apresentacao_preferencias')
     .select('*')
     .eq('user_id', userId)
@@ -477,8 +471,7 @@ export async function salvarPreferenciasApresentacao(prefs: ApresentacaoPreferen
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from('apresentacao_preferencias')
     .upsert(
       { user_id: userId, ...prefs, updated_at: new Date().toISOString() },
@@ -504,8 +497,7 @@ export async function registrarTelemetriaSlides(
     user_id: userId,
     geracao_id: geracaoId ?? null,
   }));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('apresentacao_slide_telemetria').insert(rows);
+  await supabase.from('apresentacao_slide_telemetria').insert(rows);
 }
 
 export interface SlideUsoAggregado {
@@ -517,8 +509,7 @@ export interface SlideUsoAggregado {
 }
 
 export async function listarSlideUsoAgregado(): Promise<SlideUsoAggregado[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('vw_apresentacao_slide_uso')
     .select('*')
     .order('total_gerado', { ascending: false });

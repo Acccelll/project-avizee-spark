@@ -19,12 +19,7 @@ export interface BudgetMensalInput {
   centro_custo_id?: string | null;
 }
 
-const TABLE = "budgets_mensais";
-
-// budgets_mensais ainda não está nos tipos gerados — encapsulamos o cast aqui
-// para que páginas/hooks consumam apenas a API tipada do service.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const tbl = () => (supabase as any).from(TABLE);
+const tbl = () => supabase.from("budgets_mensais");
 
 export async function listBudgetsMensais(): Promise<BudgetMensal[]> {
   const { data, error } = await tbl()
