@@ -153,6 +153,9 @@ const Fornecedores = () => {
   const totalAtivos = kpiQualidade?.total_ativos ?? null;
   const totalSemContato = kpiQualidade?.sem_contato ?? 0;
   const totalIncompleto = kpiQualidade?.incompletos ?? 0;
+  const queryClient = useQueryClient();
+  const invalidateKpiQualidade = () =>
+    queryClient.invalidateQueries({ queryKey: ["fornecedores", "kpi-qualidade"] });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -278,8 +281,9 @@ const Fornecedores = () => {
     setFormErrors({});
     setSaving(true);
     try {
-      if (mode === "create") await create(form);else
-      if (selected) await update(selected.id, form);
+      if (mode === "create") await create(form);
+      else if (selected) await update(selected.id, form);
+      invalidateKpiQualidade();
       setIsDirty(false);
       if (saveAndNewRef.current && mode === "create") {
         saveAndNewRef.current = false;
