@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchKpisFiscal } from "@/services/fiscal/dashboardFiscal.service";
 
 /**
  * Filtros aceitos pela RPC `kpis_fiscal`.
@@ -56,20 +56,7 @@ const EMPTY: FiscalKpisResult = {
 export function useFiscalKpis(filters: FiscalKpisFilters) {
   return useQuery({
     queryKey: ["kpis_fiscal", filters],
-    queryFn: async (): Promise<FiscalKpisResult> => {
-      const { data, error } = await supabase.rpc("kpis_fiscal", {
-        p_date_from: filters.dateFrom ?? null,
-        p_date_to: filters.dateTo ?? null,
-        p_tipos: filters.tipos?.length ? filters.tipos : null,
-        p_status: filters.status?.length ? filters.status : null,
-        p_fornecedores: filters.fornecedores?.length ? filters.fornecedores : null,
-        p_clientes: filters.clientes?.length ? filters.clientes : null,
-        p_modelos: filters.modelos?.length ? filters.modelos : null,
-        p_search: filters.search?.trim() || null,
-      });
-      if (error) throw error;
-      return { ...EMPTY, ...((data as Partial<FiscalKpisResult>) ?? {}) };
-    },
+    queryFn: () => fetchKpisFiscal(filters),
     placeholderData: (prev) => prev,
     staleTime: 15_000,
   });
