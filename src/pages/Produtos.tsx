@@ -15,13 +15,12 @@ import { useServerSort } from "@/hooks/useServerSort";
 import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { listGruposAtivos } from "@/services/produtos.service";
+import { listGruposAtivos, fetchProdutosEstoqueSummary } from "@/services/produtos.service";
 import { Package, Archive, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
-import { supabase } from "@/integrations/supabase/client";
 
 type TipoItem = "produto" | "insumo";
 
@@ -175,16 +174,7 @@ const Produtos = () => {
   // Conta global de itens com problema de estoque (RPC) — substitui o "(página)".
   const { data: estoqueSummary } = useQuery({
     queryKey: ["produtos", "estoque-summary"],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("produtos_estoque_summary");
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return {
-        criticos: Number(row?.criticos ?? 0),
-        zerados: Number(row?.zerados ?? 0),
-        abaixo_minimo: Number(row?.abaixo_minimo ?? 0),
-      };
-    },
+    queryFn: fetchProdutosEstoqueSummary,
     staleTime: 60_000,
   });
   const { pushView } = useRelationalNavigation();
