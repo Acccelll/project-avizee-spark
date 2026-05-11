@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase/fromUntyped";
 
 /**
  * Conta linhas em uma tabela via `head: true` + `count: 'exact'` — não baixa os
@@ -30,8 +31,7 @@ export function useTableCount(
     staleTime: 30_000,
     queryFn: async ({ signal }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let q: any = (supabase as any)
-        .from(table)
+      let q: any = fromUntyped(table)
         .select("id", { count: "exact", head: true });
       for (const [col, val] of Object.entries(filters)) {
         if (Array.isArray(val)) q = q.in(col, val);
