@@ -90,6 +90,10 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const auditoriaList = auditoria ?? [];
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const hojeStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const { pending: actionPending, run: runAction } = useActionLock();
   const { can } = useCan();
@@ -145,11 +149,6 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   })();
 
   const observacoesLegivel = displayObservacoes(selected.observacoes);
-
-  const hojeStr = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
