@@ -22,6 +22,7 @@ import {
   listProdutosDoFornecedor,
   listComprasDoFornecedor,
   deleteProdutoFornecedor,
+  fetchKpiFornecedoresQualidade,
 } from "@/services/fornecedores.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
