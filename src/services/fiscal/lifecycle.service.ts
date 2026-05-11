@@ -134,3 +134,59 @@ export async function desvincularNFPedidoCompra(notaFiscalId: string): Promise<v
     .eq("id", notaFiscalId);
   if (error) throw error;
 }
+
+// ── Geração / atualização de financeiro a partir da NF ────────────────────────
+
+export interface DuplicataNfe {
+  numero: string;
+  vencimento: string;
+  valor: number;
+}
+
+/**
+ * Gera lançamentos no Contas a Pagar a partir das duplicatas da NF-e de entrada.
+ * Wrappa a RPC atômica `gerar_financeiro_nfe_entrada`.
+ */
+export async function gerarFinanceiroNfeEntrada(
+  notaId: string,
+  duplicatas: DuplicataNfe[],
+  formaPagamento: string,
+  cartaoId: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
+    p_nota_id: notaId,
+    p_duplicatas: duplicatas as unknown as Json,
+    p_forma_pagamento: formaPagamento,
+    p_cartao_id: cartaoId,
+  } as never);
+  if (error) throw error;
+}
+
+export interface ParcelaFiscal {
+  numero: number;
+  vencimento: string;
+  valor: number;
+}
+
+export interface AtualizarFinanceiroNotaParams {
+  notaId: string;
+  formaPagamento: string;
+  condicaoPagamento: string;
+  parcelas: ParcelaFiscal[];
+}
+
+/**
+ * Atualiza forma/condição de pagamento da NF e regenera os lançamentos
+ * financeiros vinculados. Wrappa a RPC `atualizar_financeiro_nota`.
+ */
+export async function atualizarFinanceiroNota(
+  params: AtualizarFinanceiroNotaParams,
+): Promise<void> {
+  const { error } = await supabase.rpc("atualizar_financeiro_nota", {
+    p_nota_id: params.notaId,
+    p_forma_pagamento: params.formaPagamento,
+    p_condicao_pagamento: params.condicaoPagamento,
+    p_parcelas: params.parcelas as unknown as Json,
+  } as never);
+  if (error) throw error;
+}
