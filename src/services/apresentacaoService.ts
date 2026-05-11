@@ -423,7 +423,7 @@ export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCade
   }
   const { data, error } = await supabase
     .from('apresentacao_cadencia')
-    .insert(payload)
+    .insert(payload as never)
     .select('*')
     .single();
   if (error) throw error;
