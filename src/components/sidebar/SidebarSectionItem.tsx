@@ -22,7 +22,7 @@ export function SidebarSectionItem({
   const hasBadge = (badge?.count ?? 0) > 0;
   const Icon = item.icon;
   return (
-    <div className="group relative flex items-center">
+    <div className="group relative flex min-w-0 items-center">
       {active && (
         <span
           aria-hidden
@@ -33,7 +33,8 @@ export function SidebarSectionItem({
         type="button"
         onClick={() => onNavigate(item.path)}
         aria-current={active ? 'page' : undefined}
-        className={`flex flex-1 items-center gap-2 rounded-md px-2 py-2 min-h-[36px] text-left text-[13px] transition ${
+        title={item.title}
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 min-h-[36px] text-left text-[13px] transition ${
           active
             ? 'bg-primary/10 font-medium text-primary'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
