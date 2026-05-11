@@ -278,7 +278,7 @@ export function FinanceiroLancamentoForm({
 
       <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
       <div className="flex justify-between items-center gap-2">
-        {form.tipo === "pagar" ? (
+        {showBoleto ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => setBoletoOpen(true)}>
             <Barcode className="w-3.5 h-3.5 mr-1" /> Ler boleto
           </Button>
