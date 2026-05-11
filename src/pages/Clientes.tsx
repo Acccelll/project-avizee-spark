@@ -433,26 +433,9 @@ const Clientes = () => {
         return grupoFilters.includes(groupId);
       });
     }
-    if (cadastroFilters.length > 0) {
-      // Filtros client-side aplicados sobre a página atual.
-      // TODO: migrar para RPC server-side (kpi_clientes_qualidade) numa próxima onda.
-      out = out.filter((c) => {
-        const missing = getMissingFields(c);
-        return cadastroFilters.every((f) => {
-          switch (f) {
-            case "incompleto": return missing.filter((m) => m !== "grupo").length > 0;
-            case "sem_contato": return !(c.celular || c.telefone) && !c.email;
-            case "sem_telefone": return !(c.celular || c.telefone);
-            case "sem_email": return !c.email;
-            case "sem_prazo": return !c.prazo_padrao || c.prazo_padrao <= 0;
-            case "sem_grupo": return !c.grupo_economico_id;
-            default: return true;
-          }
-        });
-      });
-    }
+    // `cadastroFilters` agora é server-side via `orFilters` em useSupabaseCrud.
     return out;
-  }, [data, hasSemGrupoFilter, grupoFilters, cadastroFilters]);
+  }, [data, hasSemGrupoFilter, grupoFilters]);
 
   const columns = [
     {
