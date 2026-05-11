@@ -54,6 +54,7 @@ import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/Financei
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
+import { displayObservacoes } from "@/lib/displayLancamento";
 
 const FORMAS_CARTAO = new Set(["cartao_credito", "cartao_debito"]);
 
