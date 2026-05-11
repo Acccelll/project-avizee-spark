@@ -56,7 +56,7 @@ export default function ApresentacaoGerencial() {
 
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
   const selectedSlides = useMemo<SlideCodigo[]>(
-    () => (selectedGeracao?.slides_json as SlidesJsonAtivos | null)?.ativos ?? [],
+    () => (selectedGeracao?.slides_json as unknown as SlidesJsonAtivos | null)?.ativos ?? [],
     [selectedGeracao],
   );
 
