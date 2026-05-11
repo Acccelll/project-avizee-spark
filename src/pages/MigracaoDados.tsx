@@ -66,16 +66,16 @@ interface IImportacaoHook {
   currentSheet: string;
   headers: string[];
   mapping: Record<string, string>;
-  importType?: string;
+  importType: ImportType;
   previewData: unknown[];
   isProcessing: boolean;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSheetChange: (s: string) => void;
-  setMapping: (m: Record<string, string>) => void;
-  setImportType?: (t: string) => void;
-  generatePreview: () => Promise<void>;
-  processImport: () => Promise<unknown>;
-  finalizeImport: (loteId?: string) => Promise<unknown>;
+  setMapping: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setImportType: React.Dispatch<React.SetStateAction<ImportType>>;
+  generatePreview: () => Promise<void> | void;
+  processImport: () => Promise<string | null | undefined | void>;
+  finalizeImport: (loteId?: string) => Promise<boolean | void>;
 }
 
 export default function MigracaoDados() {
