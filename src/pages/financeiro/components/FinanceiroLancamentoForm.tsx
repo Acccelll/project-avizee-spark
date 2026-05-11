@@ -128,59 +128,88 @@ export function FinanceiroLancamentoForm({
           </Select>
         </div>
         <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => updateField("descricao", e.target.value)} required /></div>
-        <div className="space-y-2"><Label>Valor *</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => updateField("valor", Number(e.target.value))} required /></div>
-        <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
-        <div className="space-y-2"><Label>Data Pagamento</Label><Input type="date" value={form.data_pagamento} onChange={(e) => updateField("data_pagamento", e.target.value)} /></div>
-        <div className="space-y-2"><Label>Conta Bancária</Label>
-          <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => updateField("conta_bancaria_id", v === "nenhum" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nenhum">Selecione...</SelectItem>
-              {contasBancarias.map(c => (<SelectItem key={c.id} value={c.id}>{c.bancos?.nome} - {c.descricao}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
         <div className="space-y-2">
-          <Label>
-            Cartão {form.forma_pagamento === "cartao_credito" ? "*" : ""}
-          </Label>
-          {cartoes.length > 0 ? (
-            <Select
-              value={form.cartao_id || "nenhum"}
-              onValueChange={(v) => {
-                if (v === "nenhum") {
-                  updateField("cartao_id", "");
-                  updateField("cartao", "");
-                  return;
-                }
-                const sel = cartoes.find((c) => c.id === v);
-                updateField("cartao_id", v);
-                updateField("cartao", sel?.nome ?? "");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione cartão..." />
-              </SelectTrigger>
+          <Label>Valor *</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+            <Input
+              type="number"
+              step="0.01"
+              className="pl-9"
+              value={form.valor}
+              onChange={(e) => updateField("valor", Number(e.target.value))}
+              required
+            />
+          </div>
+        </div>
+        <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
+        <div className="space-y-2">
+          <Label>Data Pagamento</Label>
+          <Input
+            type="date"
+            value={form.data_pagamento}
+            onChange={(e) => updateField("data_pagamento", e.target.value)}
+            disabled={!dataPagamentoEditable}
+            placeholder="Preenchida na baixa"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Preenchida automaticamente ao registrar baixa.
+          </p>
+        </div>
+        {showContaBancaria && (
+          <div className="space-y-2"><Label>Conta Bancária</Label>
+            <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => updateField("conta_bancaria_id", v === "nenhum" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="nenhum">Selecione...</SelectItem>
-                {cartoes
-                  .filter((c) => c.ativo)
-                  .map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                      {c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}
-                    </SelectItem>
-                  ))}
+                {contasBancarias.map(c => (<SelectItem key={c.id} value={c.id}>{c.bancos?.nome} - {c.descricao}</SelectItem>))}
               </SelectContent>
             </Select>
-          ) : (
-            <Input
-              value={form.cartao}
-              onChange={(e) => updateField("cartao", e.target.value)}
-              placeholder="Nome do cartão"
-            />
-          )}
-        </div>
+            <p className="text-[11px] text-muted-foreground">Conta prevista para liquidação. Não obrigatório.</p>
+          </div>
+        )}
+        {isCartaoCredito && (
+          <div className="space-y-2">
+            <Label>Cartão *</Label>
+            {cartoes.filter((c) => c.ativo).length > 0 ? (
+              <Select
+                value={form.cartao_id || "nenhum"}
+                onValueChange={(v) => {
+                  if (v === "nenhum") {
+                    updateField("cartao_id", "");
+                    updateField("cartao", "");
+                    return;
+                  }
+                  const sel = cartoes.find((c) => c.id === v);
+                  updateField("cartao_id", v);
+                  updateField("cartao", sel?.nome ?? "");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione cartão..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {cartoes
+                    .filter((c) => c.ativo)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 text-warning shrink-0" />
+                <div>
+                  Nenhum cartão cadastrado.{" "}
+                  <Link to="/financeiro/cartoes" className="underline font-medium">Cadastrar cartão</Link> para usar esta forma de pagamento.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {form.tipo === "receber" && (
           <div className="space-y-2"><Label>Cliente</Label>
             <AutocompleteSearch
