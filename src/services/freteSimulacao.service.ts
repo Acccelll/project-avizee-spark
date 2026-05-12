@@ -238,27 +238,15 @@ export interface FreteCorreiosOpcao {
 export async function consultarCorreios(
   payload: CorreiosPayload
 ): Promise<FreteCorreiosOpcao[]> {
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || '').replace(/\/$/, '');
-  const url = `${supabaseUrl}/functions/v1/correios-api?action=cotacao_multi`;
-  const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(errBody || `Erro ${res.status}`);
+  const { data, error } = await supabase.functions.invoke<FreteCorreiosOpcao[]>(
+    'correios-api?action=cotacao_multi',
+    { body: payload },
+  );
+  if (error) {
+    const msg = (error as { message?: string }).message || 'Erro ao consultar Correios';
+    throw new Error(msg);
   }
-
-  return res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 // ---------------------------------------------------------------
