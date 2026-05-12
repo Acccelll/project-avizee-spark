@@ -384,7 +384,10 @@ const Financeiro = () => {
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           <PeriodFilter
             value={period}
-            onChange={(p) => setPeriod(p, { clearMes: true })}
+            onChange={(p) => {
+              setPeriod(p, { clearMes: true });
+              if (p === "todos") setStatusFilters([]);
+            }}
             options={financialPeriods}
             direction="future"
           />
