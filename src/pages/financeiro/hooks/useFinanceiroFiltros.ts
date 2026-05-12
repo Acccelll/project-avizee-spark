@@ -75,7 +75,11 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const setOrigemFilters = applyArr("origem", origemFilters);
   const setFormaPagamentoFilters = applyArr("forma", formaPagamentoFilters);
   const setCartaoFilters = applyArr("cartao", cartaoFilters);
-  const setPeriod = (v: Period) => setFilters({ period: v === "30d" ? "" : v });
+  const setPeriod = (v: Period, opts?: { clearMes?: boolean }) =>
+    setFilters({
+      period: v === "30d" ? "" : v,
+      ...(opts?.clearMes ? { mes: "" } : {}),
+    });
   const setMes = (v: string | null) => setFilters({ mes: v ?? "" });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
