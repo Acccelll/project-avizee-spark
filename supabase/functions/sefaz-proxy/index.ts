@@ -106,6 +106,7 @@ interface CertificadoInfo {
 import {
   parseCertificado,
   extrairChaveECertificado,
+  pfxToPem,
 } from "../_shared/pfx.ts";
 
 // ── Assinatura Digital XML (xmldsig RSA-SHA1) ────────────────────
@@ -232,33 +233,7 @@ async function enviarSoap(
 
 // ── Envio SOAP com mTLS (sem assinatura) ─────────────────────────
 
-/**
- * Converte PFX (base64) em PEM (cert + chave privada). Usado pelo modo mTLS.
- */
-function pfxToPem(
-  base64: string,
-  senha: string,
-): { certPem: string; keyPem: string } {
-  const derBytes = forge.util.decode64(base64);
-  const asn1 = forge.asn1.fromDer(derBytes);
-  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
-
-  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-  if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
-
-  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const certBag = certBags[forge.pki.oids.certBag]?.[0];
-  if (!certBag?.cert) {
-    throw new Error("Certificado X.509 não encontrado no PFX.");
-  }
-
-  const certPem = forge.pki.certificateToPem(certBag.cert);
-  const keyPem = forge.pki.privateKeyToPem(
-    keyBag.key as forge.pki.rsa.PrivateKey,
-  );
-  return { certPem, keyPem };
-}
+// `pfxToPem` agora vem de _shared/pfx.ts (com leaf-detection + cadeia completa).
 
 /**
  * Envia um envelope SOAP usando mTLS com o A1 do Vault, sem aplicar XMLDSig.
