@@ -385,8 +385,7 @@ const Financeiro = () => {
           <PeriodFilter
             value={period}
             onChange={(p) => {
-              setPeriod(p, { clearMes: true });
-              if (p === "todos") setStatusFilters([]);
+              setPeriod(p, { clearMes: true, clearStatus: p === "todos" });
             }}
             options={financialPeriods}
             direction="future"
