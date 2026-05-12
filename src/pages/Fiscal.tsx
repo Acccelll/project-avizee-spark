@@ -50,6 +50,7 @@ import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
+import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
 import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
@@ -1148,6 +1149,7 @@ const Fiscal = () => {
             onImportClick={() => xmlInputRef.current?.click()}
             onBuscarChaveClick={() => setBuscarChaveOpen(true)}
             onScannerClick={() => setScannerOpen(true)}
+            compact={isMobile}
           />
         }
       >
@@ -1162,6 +1164,9 @@ const Fiscal = () => {
             description="Vinculando NF de entrada deste pedido"
           />
         )}
+        {tipoParam === "entrada" || tipoParam === "saida" ? (
+          <FiscalTipoSwitchMobile current={tipoParam} />
+        ) : null}
         <div data-help-id="fiscal.filtros">
         <AdvancedFilterBar
           searchValue={consultaSearch}
@@ -1186,9 +1191,18 @@ const Fiscal = () => {
         {isMobile && kpis.pendentes > 0 && (
           <button
             type="button"
-            onClick={() => setStatusFilters(["pendente"])}
+            onClick={() =>
+              setStatusFilters(
+                statusFilters.includes("pendente") ? [] : ["pendente"],
+              )
+            }
+            aria-pressed={statusFilters.includes("pendente")}
             className="md:hidden w-full mb-3 min-h-11 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3 active:bg-warning/20 transition-colors"
-            aria-label={`Filtrar ${kpis.pendentes} notas pendentes`}
+            aria-label={
+              statusFilters.includes("pendente")
+                ? "Limpar filtro de notas pendentes"
+                : `Filtrar ${kpis.pendentes} notas pendentes`
+            }
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <Clock className="h-4 w-4 shrink-0 text-warning" />
@@ -1196,7 +1210,9 @@ const Fiscal = () => {
                 {kpis.pendentes} {kpis.pendentes === 1 ? "nota pendente" : "notas pendentes"}
               </span>
             </div>
-            <span className="text-xs text-warning shrink-0">Filtrar →</span>
+            <span className="text-xs text-warning shrink-0">
+              {statusFilters.includes("pendente") ? "Limpar ×" : "Filtrar →"}
+            </span>
           </button>
         )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

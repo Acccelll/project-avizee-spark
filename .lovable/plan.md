@@ -1,69 +1,79 @@
-## Objetivo
+## Contexto
 
-Aproximar visualmente o `MobileMenu` da referência: header enxuto (só "Menu" + X), grid 3×N de atalhos com card vertical (ícone topo, label embaixo), seções em UPPERCASE sem ícone com badge à direita ("N itens" ou colorido por alerta), e rodapé fixo com avatar + tema/configurações/sair. Modo de visão e Favoritos/Recentes ficam preservados funcionalmente, ocultos por padrão.
+A tela de **Notas de Entrada** e **Notas de Saída** é a mesma página (`/fiscal?tipo=entrada` / `?tipo=saida`). No mobile, ela é acessada por duas tabs do bottom nav (`MobileBottomNav.tsx`), mas hoje as duas tabs aparecem **destacadas como ativas ao mesmo tempo** porque a comparação de rota descarta a query string. Além disso, o cabeçalho mobile herda o layout desktop, o que polui a tela em viewports pequenos.
 
-## Escopo
+## Bug do toggle (raiz)
 
-Apenas o menu mobile (`MobileMenu.tsx` + componentes em `src/components/navigation/mobile/`). Sem alterar permissões, hooks de dados ou outros módulos.
+`MobileBottomNav.tsx` calcula:
 
-## Mudanças
+```
+const tabBase = basePath(tab.path)        // basePath() remove "?...""
+const currentBase = basePath(currentRoute)
+active = currentBase === tabBase
+```
 
-### 1. `MobileMenuHeader` → simplificar
-- Remove avatar, nome, role e chip "Modo: …" do topo.
-- Vira só **título "Menu"** à esquerda + botão **X** à direita (usa o close nativo do `Sheet` ou um `SheetClose` explícito alinhado).
-- Sem notificações no header (já existem no `AppHeader`).
+Para as tabs contextuais do Fiscal:
 
-### 2. `MobileQuickActionsGrid` → grid 3 colunas, card vertical
-- `grid-cols-3 gap-2`.
-- Cada card: `flex-col items-center justify-center`, altura ~76px, ícone grande no topo (`h-5 w-5`) dentro de um quadrado `bg-primary/10 rounded-md`, label `text-[11px] text-center mt-1.5`.
-- Usa o **ícone real** do `quickAction` (hoje todos usam `Plus` placeholder). Adicionar campo `icon?: LucideIcon` em `quickActions` (`src/lib/navigation.ts`) ou mapear por `id` localmente — preferir mapear para evitar tocar fora.
-- Botão "Editar" continua, mas como link discreto (`text-[10px]`) acima do grid à direita.
-- Limite visual de 6 mantém compatível com referência (2 linhas × 3).
+- `nf-entrada` → path `/fiscal?tipo=entrada` → `tabBase = '/fiscal'`
+- `nf-saida`   → path `/fiscal?tipo=saida`   → `tabBase = '/fiscal'`
+- `currentBase` em `/fiscal?tipo=entrada` = `/fiscal`
 
-### 3. `MobileMenuSection` → uppercase, sem ícone, contador
-- Trigger: remove ícone do módulo. Texto `text-xs font-semibold uppercase tracking-wider`.
-- Lado direito: 
-  - se houver `BadgeInfo` com `count>0` → pill colorido (mantém `BADGE_TONE_CLASS`) com texto `"N pendentes"` (warning/danger) ou `"N alertas"` (info).
-  - senão → contador neutro `"N itens"` em `text-[11px] text-muted-foreground`.
-- Chevron menor (`h-3 w-3`).
-- Itens internos: mantém atual (com favoritar via star).
-- Direct-link sections (sem itens): mesmo trigger uppercase, mas sem accordion — clicável direto.
+Resultado: **ambas casam** e ficam com pílula primary. O mesmo padrão pode afetar qualquer tab contextual futura que use querystring.
 
-### 4. `MobileMenu` (rewrite parcial)
-- Layout em 3 zonas: **header sticky** / **scroll content** / **footer sticky**.
-- **Header** (top, `border-b`): "Menu" + X.
-- **Scroll content**:
-  - Busca compacta (mantém).
-  - "ATALHOS RÁPIDOS" label + grid 3-col.
-  - Favoritos e Recentes: **renderizados apenas dentro de um `Collapsible` "Mais" colapsado por padrão** (preserva Wave 2 sem poluir). Se ambos vazios, omite o Collapsible.
-  - Accordion de módulos (mantém lógica de partition por perfil; agora com novo header). "Outros módulos" colapsado mantém-se quando perfil ≠ completo.
-  - Toggle "Mostrar opções avançadas" continua.
-- **Footer sticky** (`border-t bg-background`): linha única com:
-  - Avatar redondo (iniciais) + `nome` + `cargo` à esquerda (truncado).
-  - Botões icon-only à direita: Modo de visão (ícone `LayoutGrid`/`Compass`), Tema (`Sun`/`Moon`), Configurações (`Settings`), Sair (`LogOut` em `text-destructive`).
-- Modo de visão acionado pelo ícone do footer abre o `MobileNavProfilePicker` existente.
-- "Minha conta" e "Aparência" deixam de ter linhas próprias — substituídos pelos ícones do footer (Configurações cobre ambos via `/configuracoes`).
+## Correção do toggle
 
-### 5. `quickActions` ícones
-- Mapeamento local em `MobileQuickActionsGrid` (não tocar em `lib/navigation.ts`):
-  - `nova-cotacao` → `FileText`
-  - `novo-cliente` → `UserPlus`
-  - `novo-produto` → `Package`
-  - `novo-pedido-compra` → `ClipboardList`
-  - `nova-nota-saida` → `Receipt`
-  - `baixa-financeira` → `Wallet`
-- Fallback `Plus` quando `id` desconhecido.
+Em `MobileBottomNav.tsx`, mudar a regra de `active` para tabs contextuais:
+
+1. Se `tab.path` contém `?`, comparar `tab.path` **literal** (path + search) com `currentRoute` literal (sem `basePath`). Usar `URLSearchParams` para tolerar ordem diferente de params.
+2. Se não contém query, manter o comportamento atual (`currentBase === tabBase || startsWith(tabBase + '/')`).
+
+Isso garante:
+
+- Em `/fiscal?tipo=entrada` → só **Entrada** ativa.
+- Em `/fiscal?tipo=saida`   → só **Saída** ativa.
+- Em `/fiscal` puro (sem `?tipo=`) → nenhuma das duas ativa (Dashboard fiscal continua se tornando ativa pela `activeKey` da seção; já é o comportamento esperado).
+- Em `/fiscal/dashboard` → `dashboard-fiscal` ativa, demais inativas (já é exato hoje, segue funcionando).
+
+## UX mobile da página de Notas (Entrada/Saída)
+
+Mudanças escopadas a `src/pages/Fiscal.tsx` + um pequeno componente novo (`FiscalTipoSwitchMobile`). **Sem mudanças funcionais** — apenas apresentação mobile.
+
+1. **Switch Entrada/Saída sticky no topo (mobile)**
+   - Quando `tipoParam` está setado e `isMobile`, renderizar logo abaixo do header da `ModulePage` um segmented control 2-up (Entrada | Saída) `min-h-11`, full-width, com a opção atual destacada em `bg-primary/10 text-primary`.
+   - Tocar troca a URL (`navigate('/fiscal?tipo=entrada'|'saida')`) preservando demais filtros via `searchParams`.
+   - Reforça a leitura "estou em Entrada" e dá troca em 1 toque, eliminando o ruído do bug do bottom nav e a necessidade de voltar ao menu.
+
+2. **Header / ações mobile**
+   - `FiscalToolbarActions` (Importar XML, Buscar por Chave, Scanner) hoje renderiza 3 botões inline. Em mobile, agrupar **Importar XML + Buscar por Chave** em um menu "⋯" (`DropdownMenu`) `min-h-11 min-w-11` ao lado do "Nova NF". Scanner permanece como ícone solto (ação rápida típica em mobile).
+   - Conforme `mem://produto/fiscal-mobile`: Editar continua navegando para `/fiscal/:id/editar`.
+
+3. **KPIs em mobile**
+   - Hoje: `grid-cols-2` mostrando **Valor Total / Pendentes / Confirmadas** (Total já está oculto). Manter.
+   - Adicionar `aria-live="polite"` no card Pendentes para feedback quando filtro de status aplica.
+
+4. **Banner pendentes**
+   - Já existe e funciona. Adicionar `aria-pressed` refletindo se `statusFilters` já contém `"pendente"` e, nesse caso, ao tocar **limpar** o filtro (toggle), em vez de re-aplicar.
+
+5. **Filtros avançados em mobile**
+   - `AdvancedFilterBar` já colapsa filtros em sheet. Apenas garantir que, quando `tipoParam` ativo, a opção "Tipo" não apareça (já comportada pelo `!tipoParam &&`).
+
+## Arquivos afetados
+
+- `src/components/navigation/MobileBottomNav.tsx` — corrigir cálculo `active` para tabs com querystring.
+- `src/pages/Fiscal.tsx` — montar `FiscalTipoSwitchMobile` quando `tipoParam && isMobile`; agrupar ações secundárias em `DropdownMenu` em mobile; ajustes de a11y do banner.
+- `src/components/fiscal/FiscalTipoSwitchMobile.tsx` (novo, ~40 LOC) — segmented control acessível.
+- `src/components/fiscal/FiscalToolbarActions.tsx` — variant mobile que esconde botões secundários (renderizados via menu pelo Fiscal.tsx) sem quebrar desktop.
 
 ## Fora de escopo
 
-- Sidebar desktop, `MobileBottomNav`, `GlobalSearch`.
-- Mudanças em `useFavoritos`, `useRecentRoutes`, `useNavProfile`, `useMobileQuickActions`, `useSidebarBadges` — só consumidos.
-- Personalização do footer (ordem de ícones).
+- Não mexer em `MobileMenu.tsx` nem na navegação de outras seções.
+- Sem mudanças em filtros server-side, RPC, `useFiscalFilters` ou drawer de NF.
+- Sem alteração de permissões ou de rotas.
 
 ## Critérios de aceitação
 
-- Em 530×620 (viewport atual), o menu reproduz: header "Menu" + X / busca / "ATALHOS RÁPIDOS" + grid 3×2 / seções uppercase com contadores / footer com avatar + 4 ícones.
-- Favoritos e Recentes acessíveis via "Mais" (oculto por padrão, sem regressão funcional).
-- Modo de visão acessível via ícone no footer.
-- Badges coloridos aparecem nas seções com alerta (ex.: COMERCIAL "N pendentes").
-- Nenhum hook ou tipo novo; só ajustes em componentes mobile existentes.
+- Em `/fiscal?tipo=entrada` (mobile), apenas a tab "Entrada" do bottom nav fica destacada; idem para Saída.
+- No topo da listagem em mobile, segmented control "Entrada | Saída" com a opção atual marcada; toque alterna sem perder filtros adicionais (mês, status etc.).
+- Botões "Importar XML" e "Buscar por chave" não ocupam mais a barra do header em mobile — vivem em um menu "⋯".
+- Banner de pendentes vira toggle (aplica/limpa) e expõe `aria-pressed`.
+- Desktop permanece visualmente idêntico ao atual.

@@ -162,9 +162,26 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
           // Tab "Início" só fica ativa em /. Tabs contextuais ficam ativas no path exato.
           // Tabs globais (cadastros/comercial/...) ficam ativas pela seção (activeKey).
           const isContextualTab = tab.key !== DASHBOARD_KEY && !mobileBottomTabs.some((t) => t.key === tab.key);
-          const active = isContextualTab
-            ? currentBase === tabBase || currentBase.startsWith(`${tabBase}/`)
-            : activeKey === tab.key;
+          const tabHasQuery = tab.path.includes('?');
+          let active: boolean;
+          if (isContextualTab) {
+            if (tabHasQuery) {
+              // Tab contextual com querystring (ex.: /fiscal?tipo=entrada):
+              // exige match exato de path + params para evitar que duas tabs
+              // do mesmo path apareçam ativas ao mesmo tempo.
+              const [tabPath, tabSearch = ''] = tab.path.split('?');
+              const tabParams = new URLSearchParams(tabSearch);
+              const currentParams = new URLSearchParams(location.search);
+              const paramsMatch = Array.from(tabParams.entries()).every(
+                ([k, v]) => currentParams.get(k) === v,
+              );
+              active = currentBase === tabPath && paramsMatch;
+            } else {
+              active = currentBase === tabBase || currentBase.startsWith(`${tabBase}/`);
+            }
+          } else {
+            active = activeKey === tab.key;
+          }
           return (
             <button
               key={tab.key}
