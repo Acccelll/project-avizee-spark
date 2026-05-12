@@ -162,7 +162,6 @@ export function useDashboardData() {
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     retry: 1,
-    refetchOnWindowFocus: false,
   });
 
   const state = query.data ?? INITIAL_STATE;

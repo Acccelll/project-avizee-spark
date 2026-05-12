@@ -64,7 +64,6 @@ export function useRelatorio<TSelected = RelatorioResultado>(
     queryFn: () => carregarRelatorio(tipo as TipoRelatorio, filtros),
     staleTime: staleTimeFor(tipo),
     placeholderData: keepPreviousData,
-    refetchOnWindowFocus: false,
     retry: 1,
     enabled: enabled && !!tipo,
     select,
