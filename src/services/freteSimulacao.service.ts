@@ -426,8 +426,7 @@ export async function selecionarOpcaoFrete(
       altura_cm: dimensoes.altura_cm,
       largura_cm: dimensoes.largura_cm,
       comprimento_cm: dimensoes.comprimento_cm,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)
+    })
     .eq('id', orcamentoId);
 }
 
