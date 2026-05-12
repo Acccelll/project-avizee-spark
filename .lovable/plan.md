@@ -1,145 +1,112 @@
-## Escopo
+# Reformulação do Menu Mobile — Pacote completo
 
-Plano dividido por tier conforme a auditoria. Vou implementar **TIER 1 inteiro** + os itens de **TIER 2** que são correções de segurança/consistência rápidas (I-01, I-02). TIER 2 maiores (I-03 C14N, I-04 services, I-05 `as any`) e TIER 3/4 ficam como ondas separadas — sinalizo recomendação ao final.
+Objetivo: transformar o `MobileMenu` de "lista infinita" em um hub navegável, contextual por perfil, com hierarquia visual forte e atalhos personalizáveis. Mantém o `MobileBottomNav` e o sidebar desktop intactos.
 
-### Achados após verificação no banco (importante)
+## Wave 1 — Estrutura e densidade (impacto alto, baixo risco)
 
-Inspecionei `pg_policies` e `pg_proc` antes de planejar:
+**Accordion real (1 grupo aberto por vez)**
+- Substituir o render flat por `Accordion` (shadcn) com `type="single" collapsible`. Estado controlado e persistido em `localStorage` (`erp:mobile-menu:open-section`) para reabrir o último grupo do usuário.
+- Ícone do grupo + título + chevron + badge agregado (vem de `useSidebarBadges.moduleBadges`).
 
-- **C-01 (parcialmente diferente do reportado).** Não há políticas órfãs `allow_all_authenticated` nessas tabelas. O que existe são policies finais com `USING (true)` / `WITH CHECK (true)` no próprio policy "definitivo":
-  - `fechamentos_mensais.fm_select` → `USING (true)` ❌
-  - `workbook_templates.wt_select` → `USING (true)` ❌
-  - `workbook_geracoes.wg_select / wg_insert / wg_update` → todas `true` ❌
-  - `fechamento_caixa_saldos`, `fechamento_estoque_saldos`, `fechamento_financeiro_saldos`, `fechamento_fopag_resumo`: já têm policies de SELECT/INSERT/UPDATE com `has_role(...)` corretas — **não precisam de mudança**.
-  - `mapeamento_gerencial_contas`: não existe no schema atual (sem ação).
-- **C-02 já está corrigido.** As 4 funções pgmq (`enqueue_email`, `read_email_batch`, `delete_email`, `move_to_dlq`) já têm `proconfig = {search_path=public}`. Sem ação.
+**Densidade −12% e drawer 86%**
+- Reduzir altura de itens de `py-2.5` → `py-2`, gap `gap-3` → `gap-2.5`, tipografia `text-sm` para itens, `text-[11px] uppercase` para labels.
+- Drawer: `max-h-[88vh]` + largura efetiva `w-[86vw]` (deixa overlay visível à direita, percepção de painel lateral, não modal).
 
-## TIER 1 — Críticos
+**Destaque do módulo/item ativo**
+- Item ativo: barra lateral 3px `bg-primary` + fundo `bg-primary/8` + ícone preenchido + texto `font-semibold`.
+- Grupo que contém a rota ativa: aberto por padrão, label em `text-foreground` (não `muted`).
 
-### C-01. Tightening de RLS (apenas tabelas realmente abertas)
+**Remover duplicidade com bottom-nav**
+- Hoje seções `comercial/cadastros/financeiro` aparecem no menu com aviso "também na barra inferior". Mover para um bloco recolhido único `Atalhos da barra inferior >` (collapsed por default), eliminando ruído visual.
 
-Migration única que dropa e recria as policies frouxas, alinhando com o padrão `admin OR financeiro` já usado nas tabelas-irmãs:
+**Atalhos rápidos em grid 2×N**
+- Atual: lista vertical com descrição. Novo: grid 2 colunas, card compacto (ícone + título), sem descrição (descrição vai pro `aria-label`).
 
-- `fechamentos_mensais.fm_select` → `USING (has_role(admin) OR has_role(financeiro))`.
-- `workbook_templates.wt_select` → `USING (has_role(admin) OR has_role(financeiro))` (templates são insumo do módulo gerencial).
-- `workbook_geracoes.wg_select / wg_insert / wg_update` → restringir a `admin OR financeiro`. INSERT/UPDATE adicionalmente `WITH CHECK (created_by = auth.uid() OR has_role(admin))` se a coluna existir (verifico no migration antes de aplicar).
-- Adicionar `COMMENT ON POLICY` documentando o motivo (single-tenant + role gate), aderente à memória `RLS Single-Tenant`.
+## Wave 2 — Personalização e hub inteligente
 
-### C-02. SECURITY DEFINER sem search_path
+**Atalhos personalizáveis por usuário**
+- Nova `user_preference` `mobile_quick_actions` (array de `quickAction.id`).
+- Botão "Editar atalhos" abre sheet com todos os `quickActions` permitidos + drag-to-reorder + toggle visível/oculto. Limite 6.
+- Fallback: lista atual quando preferência ausente.
 
-**Sem ação** — verificação direta em `pg_proc` mostra que as 4 funções já têm `SET search_path = public`. Atualizar a memória se necessário para não reabrir.
+**Recentes (últimas 5 rotas visitadas)**
+- Hook `useRecentRoutes` que escuta `useLocation` e mantém ring buffer de 5 em `localStorage` (`erp:recent-routes`), de-duplicado por path.
+- Renderiza acima de "Favoritos" no menu. Cada item: ícone do `flatNavItems` + título.
 
-### C-03. Remover `exportar-certificado-pem`
+**Favoritos no mobile**
+- Reaproveitar `useFavoritos` (já existe, sincronizado via `user_preferences`). Estrela tappable em cada item leaf do menu para alternar.
+- Render de "Favoritos" abaixo dos atalhos (acima dos Recentes).
 
-- Confirmar com o usuário no fim do plano que os PEMs já estão no Cloudflare (a função foi marcada como temporária).
-- Após confirmação: deletar o diretório `supabase/functions/exportar-certificado-pem/` e undeploy via `supabase--delete_edge_functions`.
+**Badges operacionais nos grupos**
+- Já temos `useSidebarBadges.moduleBadges`. Renderizar count colorido (`tone: danger|warning|info`) ao lado do título do grupo no accordion.
+- Tooltip/aria-label com detalhamento ("12 vencendo hoje").
 
-## TIER 2 — Correções rápidas a embarcar agora
+**Cabeçalho do menu como hub**
+- Substituir "Menu" simples por bloco com: avatar, nome do usuário, cargo, empresa, indicador online (verde) e contador de notificações (link para `NotificationsPanel`).
 
-### I-01. CORS uniforme
+## Wave 3 — Busca global e perfis operacionais
 
-Migrar todas as edge functions **browser-callable** para `_shared/cors.ts` (`buildCorsHeaders(origin)`):
+**Busca integrada ao menu**
+- O botão "Buscar" no topo do `MobileMenu` já abre `GlobalSearch` (cmdk com fuzzy + entidades). Adicionar:
+  - Atalhos de comando (`/orc novo` → ação criar orçamento) via prefix matching nos `quickActions`.
+  - Recentes da busca já existem (`erp:global-search:recent`); expor no card vazio.
+- Ajustes mobile: input maior (h-12), keyboard auto-focus opcional via prop.
 
-- `sefaz-proxy`, `sefaz-distdfe`, `correios-api`, `validate-invite`, `consultadanfe-proxy`, `instagram-oauth`, `notify-orcamento-resposta`, `preview-transactional-email`, `handle-email-unsubscribe`, `handle-email-suppression`, `test-smtp`, `send-transactional-email`, `apresentacao-cadencia-runner`, `social-sync`, `admin-users`, `admin-sessions` (estas duas já usam o helper — confirmar).
-- Server-to-server / cron / webhooks ficam como estão (`webhooks-dispatcher`, `process-*-cron`, `auth-email-hook`, `process-email-queue`, `notify-admin-new-signup`).
-- Substituir o bloco `const corsHeaders = { … "*" }` por `const corsHeaders = buildCorsHeaders(req.headers.get("origin"))` dentro do handler. Manter shape do export para não impactar callers.
+**Perfis operacionais (modo de visão)**
+- Nova `user_preference` `nav_profile`: `'completo' | 'comercial' | 'financeiro' | 'fiscal' | 'logistica' | 'diretoria'`.
+- Tabela de mapeamento `PROFILE_SECTION_KEYS` em `src/lib/navigation/profiles.ts` (quais seções cada modo prioriza).
+- `useVisibleNavSections` ganha filtro adicional: se `nav_profile !== 'completo'`, prioriza as seções do perfil e move o restante para um grupo recolhido `Outros módulos >`.
+- Permissão (`useCan`) sempre prevalece — perfil só esconde, nunca expõe.
+- Seletor no cabeçalho do menu (chip clicável → bottom sheet com radio).
 
-### I-02. `notas_fiscais` exigir role além de tenant
+**Ocultar admin avançado no mobile**
+- Itens `Migração de Dados`, `Auditoria de Duplicidades`, `Auditoria` — só aparecem no mobile se `nav_profile === 'completo'` OU usuário expandiu "Mais opções >".
 
-Migration que recria `nf_select` e `nf_insert` para o padrão de `financeiro_lancamentos`:
+## Arquitetura técnica
 
-```
-USING (
-  empresa_id = current_empresa_id()
-  AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro') OR has_role(auth.uid(),'fiscal'))
-)
-```
-
-(Confirmar enum: hoje há `admin`, `financeiro`, `vendedor`, `estoquista`. Se `fiscal` ainda não existe, manter `admin OR financeiro` — alinhado ao padrão atual de financeiro_lancamentos.) UPDATE/DELETE não mudam.
-
-## Itens NÃO incluídos nesta onda (recomendação)
-
-- **I-03** C14N real em `sefaz-proxy`: requer porte/integração de lib específica + fixtures — onda própria com testes de integração.
-- **I-04** Pages com `supabase.from(...)` direto: refactor para `services/` — onda de organização.
-- **I-05** Limpeza de `as any`: aproveitar `src/types/rpc.ts` — onda de typing.
-- **TIER 3** (squash de migrations, `USING(true)` legado, `ADMIN_EMAIL` hardcode, `refetchOnWindowFocus`, PWA, `carga_inicial_conciliacao`, TODOs) e **TIER 4** (helpers, RPC consolidada, vault, testes): cada item merece sua ondinha.
-
-## Detalhes técnicos
-
-### Migration RLS (C-01) — esqueleto
-
-```sql
--- fechamentos_mensais
-DROP POLICY IF EXISTS fm_select ON public.fechamentos_mensais;
-CREATE POLICY fm_select ON public.fechamentos_mensais
-  FOR SELECT TO authenticated
-  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
-
--- workbook_templates
-DROP POLICY IF EXISTS wt_select ON public.workbook_templates;
-CREATE POLICY wt_select ON public.workbook_templates
-  FOR SELECT TO authenticated
-  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
-
--- workbook_geracoes
-DROP POLICY IF EXISTS wg_select ON public.workbook_geracoes;
-DROP POLICY IF EXISTS wg_insert ON public.workbook_geracoes;
-DROP POLICY IF EXISTS wg_update ON public.workbook_geracoes;
-CREATE POLICY wg_select ON public.workbook_geracoes
-  FOR SELECT TO authenticated
-  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
-CREATE POLICY wg_insert ON public.workbook_geracoes
-  FOR INSERT TO authenticated
-  WITH CHECK (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
-CREATE POLICY wg_update ON public.workbook_geracoes
-  FOR UPDATE TO authenticated
-  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
+```text
+src/
+  lib/navigation/
+    index.ts                  # re-export do navigation.ts atual
+    profiles.ts               # PROFILE_SECTION_KEYS + tipos
+  hooks/
+    useRecentRoutes.ts        # NOVO — ring buffer 5 itens
+    useNavProfile.ts          # NOVO — wrap useUserPreference('nav_profile')
+    useMobileQuickActions.ts  # NOVO — wrap useUserPreference('mobile_quick_actions')
+    useFavoritos.ts           # já existe
+    useSidebarBadges.ts       # já existe — reuso direto
+  components/navigation/
+    MobileMenu.tsx            # refactor para usar Accordion + sub-componentes
+    mobile/
+      MobileMenuHeader.tsx    # NOVO — hub com avatar/notif/perfil
+      MobileQuickActionsGrid.tsx  # NOVO — grid 2×N + botão editar
+      MobileQuickActionsEditor.tsx # NOVO — sheet de personalização
+      MobileMenuFavorites.tsx # NOVO — reuso do useFavoritos
+      MobileMenuRecents.tsx   # NOVO
+      MobileMenuSection.tsx   # NOVO — AccordionItem por seção
+      MobileNavProfileChip.tsx # NOVO — chip + bottom sheet de troca
 ```
 
-### Migration `notas_fiscais` (I-02)
+`MobileMenu.tsx` final fica < 120 linhas (orquestrador). Sub-componentes ≤ 80 linhas cada.
 
-```sql
-DROP POLICY IF EXISTS nf_select ON public.notas_fiscais;
-DROP POLICY IF EXISTS nf_insert ON public.notas_fiscais;
-CREATE POLICY nf_select ON public.notas_fiscais
-  FOR SELECT TO authenticated
-  USING (
-    empresa_id = current_empresa_id()
-    AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'))
-  );
-CREATE POLICY nf_insert ON public.notas_fiscais
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    empresa_id = current_empresa_id()
-    AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'))
-  );
-```
+## Migração de banco
 
-### CORS (I-01) — patch padrão por função
+Nenhuma — `user_preferences` já existe e suporta JSON livre por `(user_id, module_key)`. Novas chaves: `mobile_quick_actions`, `nav_profile`. Sem alteração de schema.
 
-```ts
-import { buildCorsHeaders } from "../_shared/cors.ts";
-Deno.serve(async (req) => {
-  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  // …respostas existentes mantêm `...corsHeaders`
-});
-```
+## Critérios de aceite
 
-### C-03 — execução
+- Mobile (375px): menu abre em < 200ms, scroll vertical reduzido em ≥ 40% no usuário admin (todos os módulos visíveis).
+- Apenas 1 accordion aberto por vez; estado persiste entre sessões.
+- Trocar `nav_profile` para "Financeiro" reduz seções renderizadas no menu (admin geral mantém acesso completo via "Outros módulos").
+- Atalhos personalizados persistem entre dispositivos do mesmo usuário.
+- Favoritos e recentes funcionam offline (localStorage para recents, fallback de favoritos para guest).
+- Permissões continuam fonte de verdade — perfil nunca abre acesso, só oculta.
+- `useSidebarBadges` mostra contadores nos grupos (financeiro, fiscal, comercial, estoque, administracao).
+- Lighthouse mobile do `/` permanece ≥ score atual (sem regressão de TTI).
 
-1. `supabase--delete_edge_functions(["exportar-certificado-pem"])`.
-2. `rm -rf supabase/functions/exportar-certificado-pem`.
+## Fora do escopo
 
-## Validação pós-implementação
-
-- `supabase--linter` para checar warnings novos.
-- `psql` para confirmar que as policies recriadas batem com o esperado.
-- Smoke test rápido: chamar `correios-api` do preview (origin Lovable) deve continuar funcionando; chamar de `curl` sem origin → fallback `*`; chamar com origin não-allowlisted → não receber `Access-Control-Allow-Origin` correspondente.
-
-## Pergunta antes de implementar
-
-Confirmar dois pontos antes de aplicar:
-
-1. **C-03**: Os PEMs já foram subidos no Cloudflare e a `exportar-certificado-pem` pode ser deletada agora? (Se ainda não, mantemos a função e abro warning na memória.)
-2. **I-02**: Para `notas_fiscais`, basta `admin OR financeiro` (padrão de `financeiro_lancamentos`) ou também queremos liberar `vendedor` para SELECT? Hoje `vendedor` lê via `orcamentos`/`ordens_venda`, não NF — meu default é **não incluir vendedor**.
+- Sidebar desktop (mantido como está).
+- Refator do `MobileBottomNav` (já tem tabs contextuais).
+- Mudanças no `GlobalSearch` além de polimento mobile (input maior, atalhos de comando como item futuro).
+- "Hub KPI" embutido no menu além das badges agregadas (KPIs detalhados ficam no Dashboard).
