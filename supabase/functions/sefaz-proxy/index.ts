@@ -102,69 +102,14 @@ interface CertificadoInfo {
   diasRestantes: number;
 }
 
-function parseCertificado(
-  base64: string,
-  senha: string,
-): CertificadoInfo {
-  const derBytes = forge.util.decode64(base64);
-  const asn1 = forge.asn1.fromDer(derBytes);
-  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
-
-  // Extrair certificado X.509
-  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const certBag = certBags[forge.pki.oids.certBag]?.[0];
-  if (!certBag?.cert) throw new Error("Certificado X.509 não encontrado no PFX.");
-
-  const cert = certBag.cert;
-  const subject = cert.subject;
-
-  // Extrair CNPJ do serialNumber (OID 2.5.4.5) ou do CN
-  let cnpj = "";
-  const serialNumberAttr = subject.getField({ shortName: "serialNumber" });
-  if (serialNumberAttr) {
-    cnpj = String(serialNumberAttr.value).replace(/\D/g, "");
-  }
-  // Fallback: extrair do CN
-  if (!cnpj || cnpj.length < 11) {
-    const cn = subject.getField("CN");
-    if (cn) {
-      const match = String(cn.value).match(/(\d{11,14})/);
-      if (match) cnpj = match[1];
-    }
-  }
-
-  // Razão social do CN
-  const cnField = subject.getField("CN");
-  let razaoSocial = cnField ? String(cnField.value) : "";
-  // Limpar CNPJ do nome se presente
-  razaoSocial = razaoSocial.replace(/:\d{11,14}/, "").trim();
-
-  const validadeInicio = cert.validity.notBefore.toISOString().split("T")[0];
-  const validadeFim = cert.validity.notAfter.toISOString().split("T")[0];
-  const diasRestantes = Math.floor(
-    (cert.validity.notAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-
-  return { cnpj, razaoSocial, validadeInicio, validadeFim, diasRestantes };
-}
+// ── Helpers PFX (centralizados em _shared/pfx.ts) ────────────────
+import {
+  parseCertificado,
+  extrairChaveECertificado,
+  pfxToPem,
+} from "../_shared/pfx.ts";
 
 // ── Assinatura Digital XML (xmldsig RSA-SHA1) ────────────────────
-
-function extrairChaveECertificado(base64: string, senha: string) {
-  const derBytes = forge.util.decode64(base64);
-  const asn1 = forge.asn1.fromDer(derBytes);
-  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
-
-  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-  if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
-
-  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const certBag = certBags[forge.pki.oids.certBag]?.[0];
-  if (!certBag?.cert) throw new Error("Certificado X.509 não encontrado no PFX.");
-
-  return { privateKey: keyBag.key, cert: certBag.cert };
-}
 
 import { canonicalizeExclusive } from "../_shared/xml-c14n.ts";
 
@@ -288,33 +233,7 @@ async function enviarSoap(
 
 // ── Envio SOAP com mTLS (sem assinatura) ─────────────────────────
 
-/**
- * Converte PFX (base64) em PEM (cert + chave privada). Usado pelo modo mTLS.
- */
-function pfxToPem(
-  base64: string,
-  senha: string,
-): { certPem: string; keyPem: string } {
-  const derBytes = forge.util.decode64(base64);
-  const asn1 = forge.asn1.fromDer(derBytes);
-  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
-
-  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-  if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
-
-  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const certBag = certBags[forge.pki.oids.certBag]?.[0];
-  if (!certBag?.cert) {
-    throw new Error("Certificado X.509 não encontrado no PFX.");
-  }
-
-  const certPem = forge.pki.certificateToPem(certBag.cert);
-  const keyPem = forge.pki.privateKeyToPem(
-    keyBag.key as forge.pki.rsa.PrivateKey,
-  );
-  return { certPem, keyPem };
-}
+// `pfxToPem` agora vem de _shared/pfx.ts (com leaf-detection + cadeia completa).
 
 /**
  * Envia um envelope SOAP usando mTLS com o A1 do Vault, sem aplicar XMLDSig.
