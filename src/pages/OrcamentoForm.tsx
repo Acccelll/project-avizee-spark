@@ -788,6 +788,21 @@ export default function OrcamentoForm() {
           await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
+      // Após criar, busca o número definitivo (gerado server-side pelo RPC) para
+      // refletir no campo do form e no toast — pode diferir do peek se outro
+      // usuário criou um orçamento em paralelo entre o open e o save.
+      let numeroSalvo = payload.numero;
+      if (!isEdit && orcId) {
+        const { data: row } = await supabase
+          .from("orcamentos")
+          .select("numero")
+          .eq("id", orcId)
+          .maybeSingle();
+        if (row?.numero) {
+          numeroSalvo = row.numero;
+          setValue("numero", row.numero);
+        }
+      }
       // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
       // a inclusão/edição sem F5. Inclui também filtros server-side.
       await Promise.all([
@@ -795,7 +810,7 @@ export default function OrcamentoForm() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       ]);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${payload.numero} salvo.`,
+        description: `Registro ${numeroSalvo} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
