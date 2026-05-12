@@ -15,7 +15,7 @@
  * herança complexa de namespaces — escreva fixtures para o caso novo.
  */
 
-import { DOMParser } from "npm:@xmldom/xmldom@0.8.10";
+import { DOMParser } from "npm:@xmldom/xmldom@0.9.4";
 
 type AnyNode = {
   nodeType: number;
