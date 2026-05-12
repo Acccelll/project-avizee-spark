@@ -513,14 +513,15 @@ export default function OrcamentoForm() {
           }
         } else {
           try {
-            const novoNumero = await proximoNumeroOrcamento();
+            // Peek: apenas previsão. Número definitivo é gerado no save (RPC salvar_orcamento).
+            const novoNumero = await peekProximoNumeroOrcamento();
             if (!novoNumero) {
               toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
               return;
             }
             setValue('numero', novoNumero);
           } catch (numErr) {
-            logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
+            logger.error('[OrcamentoForm] peek_proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
             return;
           }
