@@ -384,9 +384,7 @@ const Financeiro = () => {
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           <PeriodFilter
             value={period}
-            onChange={(p) => {
-              setPeriod(p, { clearMes: true, clearStatus: p === "todos" });
-            }}
+            onChange={(p) => setPeriod(p, { clearMes: true })}
             options={financialPeriods}
             direction="future"
           />
@@ -498,8 +496,11 @@ const Financeiro = () => {
             setOrigemFilters([]);
             setFormaPagamentoFilters([]);
             setCartaoFilters([]);
+            // Limpar também o recorte temporal — sem isso, a contagem
+            // continuaria limitada a um período "escondido" (ex.: vencidos).
+            setPeriod("todos", { clearMes: true });
           }}
-          count={data.length}
+          count={totalCount}
           extra={selectedIds.length > 0 ? (
             <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" variant="default" className="gap-2" onClick={() => setBaixaLoteOpen(true)}>
