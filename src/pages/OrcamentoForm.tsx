@@ -838,17 +838,10 @@ export default function OrcamentoForm() {
       return;
     }
     try {
-      const newNumero = await proximoNumeroOrcamento().catch((numErr) => {
-        logger.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
-        return null;
-      });
-      if (!newNumero) {
-        toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
-        return;
-      }
       // Compartilha a forma do payload com `handleSave` via override.
+      // numero vazio => `salvar_orcamento` gera atomicamente via `proximo_numero_orcamento()`.
       const payload = buildOrcamentoPayload({
-        numero: newNumero,
+        numero: "",
         status: "rascunho",
         validade: null,
       });
@@ -867,7 +860,16 @@ export default function OrcamentoForm() {
       });
 
       await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      toast.success(`Duplicado: ${payload.numero}`);
+      let numeroDup = payload.numero;
+      if (orcId) {
+        const { data: row } = await supabase
+          .from("orcamentos")
+          .select("numero")
+          .eq("id", orcId)
+          .maybeSingle();
+        if (row?.numero) numeroDup = row.numero;
+      }
+      toast.success(`Duplicado: ${numeroDup}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
       logger.error('[orcamento] duplicar:', err);
