@@ -1,3 +1,4 @@
+import { buildCorsHeaders } from "../_shared/cors.ts";
 /**
  * `apresentacao-cadencia-runner` — executa a cadência mensal automática
  * de Apresentação Gerencial.
@@ -20,12 +21,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Content-Type": "application/json",
-};
-
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 function competenciaAlvo(): { inicial: string; final: string; label: string } {
   // Mês anterior em horário do Brasil (mesma fonte usada para `today`).
   const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -36,6 +32,7 @@ function competenciaAlvo(): { inicial: string; final: string; label: string } {
 }
 
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

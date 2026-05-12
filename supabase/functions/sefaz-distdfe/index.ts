@@ -1,3 +1,4 @@
+import { buildCorsHeaders } from "../_shared/cors.ts";
 // deno-lint-ignore-file no-explicit-any
 /**
  * Edge Function: sefaz-distdfe
@@ -29,12 +30,7 @@ import { createLogger } from "../_shared/logger.ts";
 import { requireAnyPermission, type PermissionRequirement } from "../_shared/permissions.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin ?? "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -370,6 +366,7 @@ function parseRetDistDFeInt(xmlSoap: string): {
 // ── Handler ──────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

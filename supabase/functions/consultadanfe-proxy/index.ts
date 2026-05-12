@@ -1,11 +1,7 @@
 import { sanitizeForLog } from "../_shared/sanitize.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
+import { buildCorsHeaders } from "../_shared/cors.ts";
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 const API_BASE = "https://consultadanfe.com/api/v1";
 
 interface ReqBody {
@@ -14,6 +10,7 @@ interface ReqBody {
 }
 
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

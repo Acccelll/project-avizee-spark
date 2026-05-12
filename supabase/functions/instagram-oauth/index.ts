@@ -12,6 +12,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const META_APP_ID = Deno.env.get("META_APP_ID") ?? "";
@@ -27,11 +28,7 @@ const SCOPES = [
   "business_management",
 ].join(",");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 // ── HMAC state helpers ─────────────────────────────────────────
 async function signState(payload: Record<string, unknown>): Promise<string> {
   const body = btoa(JSON.stringify(payload));
@@ -73,6 +70,7 @@ async function verifyState(state: string): Promise<Record<string, unknown> | nul
 
 // ── HTTP handler ───────────────────────────────────────────────
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const url = new URL(req.url);

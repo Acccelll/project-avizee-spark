@@ -3,6 +3,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
+import { buildCorsHeaders } from "../_shared/cors.ts";
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
 const SITE_NAME = "Sistema ERP AviZee"
@@ -15,12 +16,7 @@ const SENDER_DOMAIN = "notify.avizee.com.br"
 // even though actual sending uses the subdomain above.
 const FROM_DOMAIN = "avizee.com.br"
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
-
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 // Generate a cryptographically random 32-byte hex token
 function generateToken(): string {
   const bytes = new Uint8Array(32)
@@ -35,6 +31,7 @@ function generateToken(): string {
 // reaches this code. No in-function auth check is needed.
 
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
