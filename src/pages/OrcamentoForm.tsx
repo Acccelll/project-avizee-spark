@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,7 @@ import {
   getOrcamentoDraftPayload,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
-import { proximoNumeroOrcamento } from "@/types/rpc";
+import { peekProximoNumeroOrcamento } from "@/types/rpc";
 import {
   aplicarPrecosEspeciaisEmLote,
   type RegraPrecoEspecial,
@@ -513,14 +514,15 @@ export default function OrcamentoForm() {
           }
         } else {
           try {
-            const novoNumero = await proximoNumeroOrcamento();
+            // Peek: apenas previsão. Número definitivo é gerado no save (RPC salvar_orcamento).
+            const novoNumero = await peekProximoNumeroOrcamento();
             if (!novoNumero) {
               toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
               return;
             }
             setValue('numero', novoNumero);
           } catch (numErr) {
-            logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
+            logger.error('[OrcamentoForm] peek_proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
             return;
           }
@@ -688,8 +690,12 @@ export default function OrcamentoForm() {
 
   const buildOrcamentoPayload = (override?: Partial<{ numero: string; status: string; validade: string | null }>) => {
     const formValues = getValues();
+    // Em "novo" (não isEdit) deixamos `numero` em branco para que `salvar_orcamento`
+    // gere o número definitivo de forma atômica via `proximo_numero_orcamento()`.
+    // Isso evita gaps quando o usuário fecha o form sem salvar (o peek apenas prevê).
+    const numeroFinal = override?.numero ?? (isEdit ? formValues.numero : "");
     return {
-      numero: override?.numero ?? formValues.numero,
+      numero: numeroFinal,
       data_orcamento: formValues.dataOrcamento,
       status: override?.status ?? formValues.status,
       cliente_id: formValues.clienteId || null,
@@ -783,6 +789,21 @@ export default function OrcamentoForm() {
           await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
+      // Após criar, busca o número definitivo (gerado server-side pelo RPC) para
+      // refletir no campo do form e no toast — pode diferir do peek se outro
+      // usuário criou um orçamento em paralelo entre o open e o save.
+      let numeroSalvo = payload.numero;
+      if (!isEdit && orcId) {
+        const { data: row } = await supabase
+          .from("orcamentos")
+          .select("numero")
+          .eq("id", orcId)
+          .maybeSingle();
+        if (row?.numero) {
+          numeroSalvo = row.numero;
+          setValue("numero", row.numero);
+        }
+      }
       // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
       // a inclusão/edição sem F5. Inclui também filtros server-side.
       await Promise.all([
@@ -790,7 +811,7 @@ export default function OrcamentoForm() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       ]);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${payload.numero} salvo.`,
+        description: `Registro ${numeroSalvo} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
@@ -817,17 +838,10 @@ export default function OrcamentoForm() {
       return;
     }
     try {
-      const newNumero = await proximoNumeroOrcamento().catch((numErr) => {
-        logger.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
-        return null;
-      });
-      if (!newNumero) {
-        toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
-        return;
-      }
       // Compartilha a forma do payload com `handleSave` via override.
+      // numero vazio => `salvar_orcamento` gera atomicamente via `proximo_numero_orcamento()`.
       const payload = buildOrcamentoPayload({
-        numero: newNumero,
+        numero: "",
         status: "rascunho",
         validade: null,
       });
@@ -846,7 +860,16 @@ export default function OrcamentoForm() {
       });
 
       await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      toast.success(`Duplicado: ${payload.numero}`);
+      let numeroDup = payload.numero;
+      if (orcId) {
+        const { data: row } = await supabase
+          .from("orcamentos")
+          .select("numero")
+          .eq("id", orcId)
+          .maybeSingle();
+        if (row?.numero) numeroDup = row.numero;
+      }
+      toast.success(`Duplicado: ${numeroDup}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
       logger.error('[orcamento] duplicar:', err);

@@ -9660,6 +9660,7 @@ export type Database = {
       }
       normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
+      peek_proximo_numero_orcamento: { Args: never; Returns: string }
       processar_nfe_distribuicao: {
         Args: {
           p_data_vencimento: string

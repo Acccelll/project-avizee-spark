@@ -52,6 +52,14 @@ export async function invokeRpc<N extends RpcName>(
 export const proximoNumeroOrcamento = () =>
   invokeRpc("proximo_numero_orcamento", {} as RpcArgs<"proximo_numero_orcamento">);
 
+/**
+ * Apenas leitura: prevê o próximo número de orçamento sem consumir a sequência.
+ * Use para pré-preencher o campo no formulário; o número definitivo é gerado
+ * server-side por `salvar_orcamento` no INSERT.
+ */
+export const peekProximoNumeroOrcamento = () =>
+  invokeRpc("peek_proximo_numero_orcamento", {} as RpcArgs<"peek_proximo_numero_orcamento">);
+
 export const proximoNumeroPedidoCompra = () =>
   invokeRpc("proximo_numero_pedido_compra", {} as RpcArgs<"proximo_numero_pedido_compra">);
 

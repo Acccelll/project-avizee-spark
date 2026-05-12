@@ -14,10 +14,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 60 4% 8%;
 
-    --primary: 2 100% 21%;
+    /* Cor primária institucional: #b2592c (≈ hsl 20 60% 44%) */
+    --primary: 20 60% 44%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 21 63% 44%;
+    /* Cor secundária institucional: #690500 (≈ hsl 3 100% 21%) */
+    --secondary: 3 100% 21%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 40 33% 92%;
@@ -42,18 +44,18 @@
 
     --border: 40 33% 90%;
     --input: 40 33% 90%;
-    --ring: 2 100% 21%;
+    --ring: 20 60% 44%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 60 4% 8%;
-    --sidebar-primary: 2 100% 21%;
+    --sidebar-primary: 20 60% 44%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 40% 90%;
     --sidebar-accent-foreground: 60 4% 8%;
     --sidebar-border: 40 33% 92%;
-    --sidebar-ring: 2 100% 21%;
+    --sidebar-ring: 20 60% 44%;
     --sidebar-muted: 220 9% 46%;
 
     /* Larguras canônicas da sidebar — usadas por AppLayout e AppSidebar para evitar drift. */
@@ -68,9 +70,10 @@
     --card-foreground: 40 33% 92%;
     --popover: 60 3% 12%;
     --popover-foreground: 40 33% 92%;
-    --primary: 2 100% 30%;
+    /* Cor primária institucional (#b2592c) com leve elevação de luminância para AA no dark. */
+    --primary: 20 60% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 21 63% 44%;
+    --secondary: 3 100% 30%;
     --secondary-foreground: 0 0% 100%;
     --muted: 60 3% 16%;
     --muted-foreground: 220 9% 72%;
@@ -94,15 +97,15 @@
 
     --border: 60 3% 20%;
     --input: 60 3% 20%;
-    --ring: 2 100% 30%;
+    --ring: 20 60% 52%;
     --sidebar-background: 60 4% 6%;
     --sidebar-foreground: 40 33% 80%;
-    --sidebar-primary: 2 100% 30%;
+    --sidebar-primary: 20 60% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 60 3% 14%;
     --sidebar-accent-foreground: 40 33% 92%;
     --sidebar-border: 60 3% 15%;
-    --sidebar-ring: 2 100% 30%;
+    --sidebar-ring: 20 60% 52%;
     --sidebar-muted: 220 9% 40%;
   }
 }
