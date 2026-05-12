@@ -14,10 +14,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 60 4% 8%;
 
-    --primary: 2 100% 21%;
+    /* Cor primária institucional: #b2592c (≈ hsl 20 60% 44%) */
+    --primary: 20 60% 44%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 21 63% 44%;
+    /* Cor secundária institucional: #690500 (≈ hsl 3 100% 21%) */
+    --secondary: 3 100% 21%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 40 33% 92%;
@@ -42,18 +44,18 @@
 
     --border: 40 33% 90%;
     --input: 40 33% 90%;
-    --ring: 2 100% 21%;
+    --ring: 20 60% 44%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 60 4% 8%;
-    --sidebar-primary: 2 100% 21%;
+    --sidebar-primary: 20 60% 44%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 40% 90%;
     --sidebar-accent-foreground: 60 4% 8%;
     --sidebar-border: 40 33% 92%;
-    --sidebar-ring: 2 100% 21%;
+    --sidebar-ring: 20 60% 44%;
     --sidebar-muted: 220 9% 46%;
 
     /* Larguras canônicas da sidebar — usadas por AppLayout e AppSidebar para evitar drift. */
