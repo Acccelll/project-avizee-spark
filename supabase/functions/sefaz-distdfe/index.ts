@@ -125,55 +125,8 @@ async function requireAuth(req: Request) {
 }
 
 // ── PFX → PEM (cert + chave privada) ─────────────────────────────
-
-function pfxToPem(base64: string, senha: string): { certPem: string; keyPem: string; cnpj: string } {
-  const derBytes = forge.util.decode64(base64);
-  const asn1 = forge.asn1.fromDer(derBytes);
-  const pfx = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
-
-  const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-  if (!keyBag?.key) throw new Error("Chave privada não encontrada no PFX.");
-
-  const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
-  const allCerts = (certBags[forge.pki.oids.certBag] ?? [])
-    .map((b) => b?.cert)
-    .filter((c): c is forge.pki.Certificate => !!c);
-  if (allCerts.length === 0) throw new Error("Certificado X.509 não encontrado no PFX.");
-
-  // Identifica o certificado folha (cliente A1): aquele cujo Subject NÃO é
-  // Issuer de nenhum outro certificado do bundle. Os demais (intermediários)
-  // entram no PEM em ordem para o servidor validar a cadeia ICP-Brasil sem
-  // depender do truststore do runtime.
-  const subjectHash = (c: forge.pki.Certificate) =>
-    c.subject.attributes.map((a) => `${a.shortName}=${a.value}`).join(",");
-  const issuerHash = (c: forge.pki.Certificate) =>
-    c.issuer.attributes.map((a) => `${a.shortName}=${a.value}`).join(",");
-  const subjectsThatAreIssuers = new Set(allCerts.map((c) => issuerHash(c)));
-  const leaf =
-    allCerts.find((c) => !subjectsThatAreIssuers.has(subjectHash(c))) ?? allCerts[0];
-  const intermediates = allCerts.filter((c) => c !== leaf);
-
-  // Concatena leaf + intermediários em PEM. Deno usa rustls, que aceita
-  // múltiplos certificados no mesmo arquivo PEM como cadeia do cliente.
-  const certPem = [leaf, ...intermediates]
-    .map((c) => forge.pki.certificateToPem(c))
-    .join("\n");
-  const keyPem = forge.pki.privateKeyToPem(keyBag.key as forge.pki.rsa.PrivateKey);
-
-  // CNPJ — do serialNumber (OID 2.5.4.5) do certificado folha.
-  let cnpj = "";
-  const sn = leaf.subject.getField({ shortName: "serialNumber" });
-  if (sn) cnpj = String(sn.value).replace(/\D/g, "");
-  if (!cnpj || cnpj.length < 14) {
-    const cn = leaf.subject.getField("CN");
-    if (cn) {
-      const m = String(cn.value).match(/(\d{14})/);
-      if (m) cnpj = m[1];
-    }
-  }
-  return { certPem, keyPem, cnpj };
-}
+// Movido para `_shared/pfx.ts` para reuso entre edge functions.
+import { pfxToPem } from "../_shared/pfx.ts";
 
 // ── XML distDFeInt ───────────────────────────────────────────────
 
