@@ -11,8 +11,13 @@ interface MobileMenuSectionProps {
   isFavorite: (path: string) => boolean;
   onNavigate: (path: string) => void;
   onToggleFavorite: (path: string) => void;
-  /** When section is direct-link (no items), render a plain button instead. */
   onDirectNavigate?: (path: string) => void;
+}
+
+function badgeLabel(b: BadgeInfo): string {
+  if (b.tone === 'danger') return `${b.count} alertas`;
+  if (b.tone === 'warning') return `${b.count} pendentes`;
+  return `${b.count}`;
 }
 
 export function MobileMenuSection({
@@ -24,10 +29,11 @@ export function MobileMenuSection({
   onToggleFavorite,
   onDirectNavigate,
 }: MobileMenuSectionProps) {
-  const Icon = section.icon;
+  const allItems: NavLeafItem[] = section.items.flatMap((g) => g.items);
+  const itemCount = allItems.length;
   const hasBadge = (badge?.count ?? 0) > 0;
 
-  // Direct-link section: no accordion
+  // Direct-link section
   if (section.directPath && onDirectNavigate) {
     const active = isItemActive(section.directPath);
     return (
@@ -36,51 +42,63 @@ export function MobileMenuSection({
         onClick={() => onDirectNavigate(section.directPath!)}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition',
-          active
-            ? 'bg-primary/10 font-semibold text-primary'
-            : 'text-foreground hover:bg-accent',
+          'relative flex w-full items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider transition',
+          active ? 'bg-primary/10 text-primary' : 'text-foreground/80 hover:bg-accent',
         )}
       >
         {active && (
-          <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+          <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
         )}
-        <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
         <span className="flex-1 truncate">{section.title}</span>
-        {section.badge && (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-            {section.badge}
+        {hasBadge && badge ? (
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal',
+              BADGE_TONE_CLASS[badge.tone],
+            )}
+          >
+            {badgeLabel(badge)}
           </span>
+        ) : (
+          section.badge && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-muted-foreground">
+              {section.badge}
+            </span>
+          )
         )}
       </button>
     );
   }
 
-  const allItems: NavLeafItem[] = section.items.flatMap((g) => g.items);
   const hasActiveLeaf = allItems.some((i) => isItemActive(i.path));
 
   return (
     <AccordionItem value={section.key} className="border-0">
       <AccordionTrigger
         className={cn(
-          'group flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition hover:bg-accent hover:no-underline data-[state=open]:bg-muted/40',
-          hasActiveLeaf ? 'text-foreground' : 'text-foreground/90',
+          'group flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider transition hover:bg-accent hover:no-underline data-[state=open]:bg-muted/40',
+          hasActiveLeaf ? 'text-foreground' : 'text-foreground/80',
         )}
       >
-        <Icon className={cn('h-4 w-4 shrink-0', hasActiveLeaf ? 'text-primary' : 'text-muted-foreground')} />
         <span className="flex-1 truncate">{section.title}</span>
-        {hasBadge && badge && (
+        {hasBadge && badge ? (
           <span
             className={cn(
-              'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold',
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal',
               BADGE_TONE_CLASS[badge.tone],
             )}
-            aria-label={`${badge.count} alertas`}
+            aria-label={badgeLabel(badge)}
           >
-            {badge.count > 99 ? '99+' : badge.count}
+            {badgeLabel(badge)}
           </span>
+        ) : (
+          itemCount > 0 && (
+            <span className="text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
+              {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+            </span>
+          )
         )}
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
       </AccordionTrigger>
       <AccordionContent className="pb-1 pt-0.5">
         <div className="space-y-0.5 pl-2">
