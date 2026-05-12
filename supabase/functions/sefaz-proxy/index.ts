@@ -1,3 +1,4 @@
+import { buildCorsHeaders } from "../_shared/cors.ts";
 // deno-lint-ignore-file no-explicit-any
 /**
  * Edge Function: sefaz-proxy
@@ -24,12 +25,7 @@ const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 // Em produção, ALLOWED_ORIGIN deve apontar para o domínio do app (ex.: https://sistema.avizee.com.br).
 // Em desenvolvimento ou quando a variável não está definida, fazemos fallback para "*"
 // para evitar bloqueio total de CORS — porém a Edge Function continua exigindo JWT válido.
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin ?? "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
+let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -390,6 +386,7 @@ async function enviarSoapMtls(
 // ── Handler principal ────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
