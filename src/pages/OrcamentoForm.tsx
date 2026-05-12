@@ -54,7 +54,7 @@ import {
   getOrcamentoDraftPayload,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
-import { proximoNumeroOrcamento, peekProximoNumeroOrcamento } from "@/types/rpc";
+import { peekProximoNumeroOrcamento } from "@/types/rpc";
 import {
   aplicarPrecosEspeciaisEmLote,
   type RegraPrecoEspecial,
