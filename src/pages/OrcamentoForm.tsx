@@ -689,8 +689,12 @@ export default function OrcamentoForm() {
 
   const buildOrcamentoPayload = (override?: Partial<{ numero: string; status: string; validade: string | null }>) => {
     const formValues = getValues();
+    // Em "novo" (não isEdit) deixamos `numero` em branco para que `salvar_orcamento`
+    // gere o número definitivo de forma atômica via `proximo_numero_orcamento()`.
+    // Isso evita gaps quando o usuário fecha o form sem salvar (o peek apenas prevê).
+    const numeroFinal = override?.numero ?? (isEdit ? formValues.numero : "");
     return {
-      numero: override?.numero ?? formValues.numero,
+      numero: numeroFinal,
       data_orcamento: formValues.dataOrcamento,
       status: override?.status ?? formValues.status,
       cliente_id: formValues.clienteId || null,
