@@ -54,18 +54,16 @@ const MESSAGE_PATTERN_MAP: Array<[RegExp, string]> = [
 export function getUserFriendlyError(error: any): string {
   if (!error) return "Ocorreu um erro inesperado.";
 
-  const err = error as SupabaseError & { message?: string };
+  const err = error as SupabaseError & { message?: string; name?: string };
 
   // AbortError: requisição cancelada intencionalmente (ex.: drawer fechou
   // durante fetch, navegação, troca rápida de registro). NÃO é um erro real
   // do ponto de vista do usuário — retornamos string vazia para que
   // `notifyError` não exiba toast.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const anyErr = error as any;
   if (
-    anyErr?.name === "AbortError" ||
+    err?.name === "AbortError" ||
     /signal is aborted|aborted without reason|the operation was aborted/i.test(
-      String(anyErr?.message ?? ""),
+      String(err?.message ?? ""),
     )
   ) {
     return "";

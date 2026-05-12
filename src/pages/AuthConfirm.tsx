@@ -92,17 +92,10 @@ export default function AuthConfirm() {
     setSubmitting(true);
     setError(null);
     try {
-      const verifyArgs = tokenHash
-        ? {
-            token_hash: tokenHash,
-            type: type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email",
-          }
-        : {
-            token: rawToken!,
-            email: emailParam!,
-            type: type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email",
-          };
-      const { error: verifyError } = await supabase.auth.verifyOtp(verifyArgs as any);
+      const otpType = type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email";
+      const { error: verifyError } = tokenHash
+        ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType })
+        : await supabase.auth.verifyOtp({ token: rawToken!, email: emailParam!, type: otpType });
       if (verifyError) {
         const raw = (verifyError.message || "").toLowerCase();
         if (raw.includes("expired") || raw.includes("invalid") || raw.includes("not found")) {

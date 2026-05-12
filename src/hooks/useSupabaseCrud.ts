@@ -366,8 +366,7 @@ export function useSupabaseCrud<R = any>({
   const remove = (id: string, soft = true) => removeMutation.mutateAsync({ id, soft });
 
   const duplicate = async (item: R) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const copy = { ...(item as any) } as Record<string, unknown>;
+    const copy = { ...(item as unknown as Record<string, unknown>) };
     delete copy.id;
     delete copy.created_at;
     delete copy.updated_at;

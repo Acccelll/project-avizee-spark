@@ -1,13 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success";
+
 interface ImportacaoStatusBadgeProps {
   status: string;
   className?: string;
 }
 
 export function ImportacaoStatusBadge({ status, className }: ImportacaoStatusBadgeProps) {
-  const configs: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" }> = {
+  const configs: Record<string, { label: string; variant: BadgeVariant }> = {
     rascunho: { label: "Rascunho", variant: "secondary" },
     processando: { label: "Processando", variant: "outline" },
     validado: { label: "Validado", variant: "default" },
@@ -16,11 +18,11 @@ export function ImportacaoStatusBadge({ status, className }: ImportacaoStatusBad
     cancelado: { label: "Cancelado", variant: "destructive" },
   };
 
-  const config = configs[status.toLowerCase()] || { label: status, variant: "outline" };
+  const config = configs[status.toLowerCase()] || { label: status, variant: "outline" as BadgeVariant };
 
   return (
     <Badge
-      variant={config.variant as any}
+      variant={config.variant}
       className={cn(
         status.toLowerCase() === 'concluido' && "bg-success/15 text-success hover:bg-success/25 border-success/30",
         status.toLowerCase() === 'processando' && "animate-pulse",
