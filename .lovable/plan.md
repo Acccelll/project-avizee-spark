@@ -1,71 +1,66 @@
-## Escopo
+## Objetivo
+Corrigir o comportamento do filtro **Todos** e revisar todo o fluxo de filtros do Financeiro para garantir que interface, URL, KPIs e listagem paginada permaneçam consistentes.
 
-Melhorias visuais e de organização do menu lateral (`AppSidebar` + componentes em `src/components/sidebar/` + `src/lib/navigation.ts`). Sem mudar lógica de permissão, badges (origem dos números) ou rotas.
+## O que vou corrigir
+1. **Fonte única de verdade dos filtros temporais**
+   - Revisar a interação entre `PeriodFilter`, `MonthFilter`, `useFinanceiroFiltros` e `serverFilters`.
+   - Garantir que **Todos** realmente remova qualquer recorte temporal e não herde status/período residual.
+   - Garantir que `Mês` e presets de período se limpem de forma previsível.
 
-Atendo as 5 prioridades **altas** do feedback + 2 médias de baixo risco. As baixas e estruturais maiores (subgrupos terceiro nível, redesenho de Cadastros) ficam fora — listadas em "Não inclui" para futuro.
+2. **Consistência entre URL, UI e query server-side**
+   - Auditar o mapeamento `useUrlListState` → `serverFilters` → RPCs.
+   - Corrigir casos em que a URL mostra um estado, mas a consulta usa outro.
+   - Revisar `onClearAll` para que limpar filtros também trate período/mês quando necessário, evitando filtros “escondidos”.
 
----
+3. **Coerência entre listagem e KPIs**
+   - Validar se `listar_financeiro_lancamentos_ids` e `kpis_financeiro` aplicam exatamente a mesma semântica de filtros.
+   - Corrigir divergências de busca/status/período, especialmente para `todos`, `hoje`, `vencidos`, `aberto`, `parcial` e `pago`.
 
-## Mudanças
+4. **Status efetivo e bugs de data**
+   - Revisar a diferença entre a lógica client-side (`getEffectiveStatus`) e a lógica SQL (`CURRENT_DATE`).
+   - Corrigir possíveis inconsistências de “vence hoje” vs “vencido” causadas por horário/local timezone.
 
-### 1. Renomear "Suprimentos e Logística" → "Estoque e Logística"
-`src/lib/navigation.ts`, `navSections[key='estoque'].title`. Resolve a quebra de linha no print e fica mais coerente com os subitens (Posição Atual / Logística). Sem impacto em rotas, keys ou permissões.
+5. **Interações quebradas ou frágeis dos componentes de filtro**
+   - Corrigir problemas estruturais nos componentes de filtro que podem afetar clique/remoção de seleção.
+   - Em especial, revisar `MultiSelect` e `AdvancedFilterBar`, onde já existem sinais de HTML inválido (`button` aninhado e badge interativa), que podem causar comportamento imprevisível.
 
-### 2. Corrigir overflow horizontal do sidebar
-`src/components/sidebar/SidebarSectionItem.tsx` e `SidebarSection.tsx`:
-- Garantir `min-w-0` no flex container do botão e `truncate` (já existe em alguns lugares — auditar).
-- No `<aside>` do `AppSidebar`, manter `overflow-hidden` lateral (já tem) e no `<nav>` trocar `overflow-y-auto` por `overflow-y-auto overflow-x-hidden` explícito.
-- Adicionar `title={item.title}` no botão do item (tooltip nativo) para nomes longos truncados (ex.: "Auditoria de Duplicidades", "Backlog faturamento").
+6. **Cobertura de regressão**
+   - Adicionar testes focados para garantir que:
+     - `Todos` não aplique filtro temporal nem status residual.
+     - `Hoje`, `7d`, `15d`, `30d`, `90d` e `Mês` gerem os parâmetros corretos.
+     - KPIs e listagem usem a mesma interpretação de filtros.
+     - filtros não fiquem “clicáveis visualmente, mas sem efeito”.
 
-### 3. Eliminar duplicação de badge "Financeiro 86 / Lançamentos 86"
-`src/hooks/useSidebarBadges.ts`:
-- Manter o badge consolidado no **grupo** Financeiro (somatório vencidos+a vencer).
-- Remover a entrada `'/financeiro'` de `itemBadges` para que o subitem "Lançamentos" não exiba o mesmo número. O usuário entende pela hierarquia que o total do módulo vem de lançamentos.
-- Mesmo tratamento para Fiscal (`/fiscal` e `/faturamento`): manter no grupo, remover do leaf duplicado quando o número é idêntico ao do grupo. Decisão: preservar `/faturamento` (NF-e entrada) porque mede dimensão diferente de `/fiscal` (rejeitadas saída) — apenas remover `/financeiro` e `/estoque` (são iguais ao grupo).
-- `/orcamentos` e `/administracao` permanecem (são informações específicas, não duplicam o módulo de forma ambígua porque o módulo Comercial tem outros itens; admin idem).
+## Principais problemas já identificados
+- O filtro **Todos** pode continuar limitado por **status residual** vindo da URL/estado anterior.
+- Há forte chance de **desalinhamento entre o que o chip mostra e o que a RPC realmente recebe**.
+- `onClearAll` hoje limpa só filtros do `AdvancedFilterBar`, mas não trata o recorte temporal principal (`period`/`mes`).
+- Existe inconsistência potencial entre o cálculo client-side de status efetivo e a derivação no SQL.
+- Há warnings de estrutura inválida em componentes de filtro (`button` dentro de `button`), que podem interferir com cliques e foco.
 
-### 4. Reforçar diferenciação visual ativo / hover / favorito
-`src/components/sidebar/SidebarSectionItem.tsx`:
-- Item ativo: já tem fundo `bg-primary/10` + texto primary; **adicionar barra lateral esquerda de 2px** (já existe na Section pai, replicar no leaf — hoje só está em `SidebarFavorites`).
-- Hover inativo: manter `hover:bg-accent` (sutil).
-- Estrela: comportamento atual está correto (vazia em hover, preenchida quando favoritado) — apenas garantir contraste do ícone vazio (`text-muted-foreground` → ok).
-- Documentar no `mem://` o contrato visual.
+## Entregáveis
+- Correção do comportamento do filtro **Todos**.
+- Revisão e ajuste dos filtros temporais, de status e limpeza total.
+- Ajustes estruturais nos componentes de filtro que estiverem causando interação quebrada.
+- Testes de regressão cobrindo os cenários críticos.
 
-### 5. Reordenar Fiscal por uso operacional
-`src/lib/navigation.ts`, ordem dos itens em `fiscal.items[0].items`:
-```
-Emitir NF-e
-Notas de Saída
-Notas de Entrada
-Consulta documentos
-Faturamento
-Backlog faturamento
-Dashboard Fiscal
-Histórico DistDF-e
-Cadastros fiscais
-```
-Sem criar terceiro nível (subgrupo Operação/Gestão/Configuração) — adiar até validar com usuários.
-
-### 6. (Médio) Placeholder de busca melhor
-`AppSidebar.tsx` linha 125: "Buscar..." → "Buscar módulos, telas..." (mais descritivo).
-
-### 7. (Médio) Estado dos grupos já persiste por usuário
-Verificado em `useNavigationState` — usa `useUserPreference` com chave `sidebar_sections_state_v2`. **Já atendido**, apenas mencionar na nota.
-
----
-
-## Não inclui (defer)
-
-- Reorganizar Cadastros em subgrupos (Pessoas/Comercial/Interno) — está compreensível.
-- Separar Configurações de Administração como módulo próprio — exigiria decisão de produto e mexer em permissões.
-- Subgrupos de 3º nível em Fiscal — só reordenar agora.
-- Modo compacto, tooltip popover em módulos colapsados (já tem flyout), badges clicáveis com filtro, "colapsar todos os grupos rapidamente".
-- Seção Favoritos: **já existe** (`SidebarFavorites` no topo, `useFavoritos` persistido em `user_preferences`), apenas validar que a estrela atual de fato popula a seção — nenhuma mudança de código necessária.
-
----
+## Detalhes técnicos
+- Arquivos mais prováveis de ajuste:
+  - `src/pages/Financeiro.tsx`
+  - `src/pages/financeiro/hooks/useFinanceiroFiltros.ts`
+  - `src/pages/financeiro/hooks/useFinanceiroLancamentosPaged.ts`
+  - `src/pages/financeiro/hooks/useFinanceiroKpisRpc.ts`
+  - `src/services/financeiro/listagem.ts`
+  - `src/components/filters/PeriodFilter.tsx`
+  - `src/components/filters/MonthFilter.tsx`
+  - `src/components/ui/MultiSelect.tsx`
+  - `src/components/AdvancedFilterBar.tsx`
+  - testes unitários/integrados relacionados ao Financeiro
+- Se eu encontrar divergência de semântica nas RPCs, incluo uma migração para alinhar backend e frontend.
 
 ## Validação
-
-- Build TS passa.
-- Visual: abrir `/`, expandir Financeiro → confirmar badge só no grupo; abrir Fiscal → confirmar nova ordem; ver "Estoque e Logística" em uma linha; sidebar sem barra horizontal.
-- Sem alteração em testes existentes (smoke tests não dependem de rótulos de menu).
+Vou validar o resultado conferindo:
+- URL final gerada por cada filtro.
+- requests enviados para listagem e KPIs.
+- contagem total vs registros exibidos.
+- interação dos chips e multiselects sem warnings estruturais nos pontos corrigidos.
