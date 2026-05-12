@@ -68,26 +68,21 @@ export function MultiSelect({
                   }}
                 >
                   {options.find((o) => o.value === item)?.label || item}
-                  <button
-                    type="button"
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleUnselect(item);
-                      }
-                    }}
+                  {/* O Badge inteiro já dispara `handleUnselect`. Evita
+                      `<button>` aninhado (DOM inválido) que estava causando
+                      cliques imprevisíveis no trigger do Popover. */}
+                  <span
+                    role="img"
+                    aria-label="Remover"
+                    className="ml-1 inline-flex"
                     onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       handleUnselect(item);
                     }}
                   >
                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
+                  </span>
                 </Badge>
               ))
             ) : (
