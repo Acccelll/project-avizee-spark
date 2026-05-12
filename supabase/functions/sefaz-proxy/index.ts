@@ -166,11 +166,29 @@ function extrairChaveECertificado(base64: string, senha: string) {
   return { privateKey: keyBag.key, cert: certBag.cert };
 }
 
+import { canonicalizeExclusive } from "../_shared/xml-c14n.ts";
+
 /**
- * Canonicalização simplificada (C14N exclusivo).
- * Remove declaração XML, normaliza whitespace em tags.
+ * Canonicalização XML.
+ *
+ * Default: implementação naïve legada (apenas remove declaração XML e
+ * normaliza CRLF). Mantida como fallback enquanto o C14N real não é
+ * validado em homologação SEFAZ.
+ *
+ * Quando `SEFAZ_C14N_REAL=true` no env, usa exclusive C14N real
+ * (parsing DOM, ordenação de atributos, escapes corretos).
+ * Veja supabase/functions/_shared/xml-c14n.ts.
  */
+const USE_C14N_REAL = Deno.env.get("SEFAZ_C14N_REAL") === "true";
+
 function canonicalize(xml: string): string {
+  if (USE_C14N_REAL) {
+    try {
+      return canonicalizeExclusive(xml);
+    } catch (e) {
+      console.warn("[sefaz-proxy] C14N real falhou, usando fallback legado:", (e as Error).message);
+    }
+  }
   return xml
     .replace(/<\?xml[^?]*\?>\s*/g, "")
     .replace(/\r\n/g, "\n")
