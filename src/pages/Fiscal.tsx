@@ -50,6 +50,7 @@ import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
+import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
 import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
@@ -1148,6 +1149,7 @@ const Fiscal = () => {
             onImportClick={() => xmlInputRef.current?.click()}
             onBuscarChaveClick={() => setBuscarChaveOpen(true)}
             onScannerClick={() => setScannerOpen(true)}
+            compact={isMobile}
           />
         }
       >
@@ -1162,6 +1164,9 @@ const Fiscal = () => {
             description="Vinculando NF de entrada deste pedido"
           />
         )}
+        {tipoParam === "entrada" || tipoParam === "saida" ? (
+          <FiscalTipoSwitchMobile current={tipoParam} />
+        ) : null}
         <div data-help-id="fiscal.filtros">
         <AdvancedFilterBar
           searchValue={consultaSearch}
