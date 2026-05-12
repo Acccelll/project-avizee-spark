@@ -18,6 +18,7 @@ import { HelpDrawer } from './help/HelpDrawer';
 import { CoachTour } from './help/CoachTour';
 import { FirstVisitToast } from './help/FirstVisitToast';
 import { CertificadoValidadeAlert } from './fiscal/CertificadoValidadeAlert';
+import { useTrackRecentRoutes } from '@/hooks/useRecentRoutes';
 
 /**
  * AppLayout
@@ -29,6 +30,7 @@ import { CertificadoValidadeAlert } from './fiscal/CertificadoValidadeAlert';
  */
 export function AppLayout() {
   const isMobile = useIsMobile();
+  useTrackRecentRoutes();
   const { sidebarCollapsed, saveSidebarCollapsed, sidebarMode } = useAppConfigContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);

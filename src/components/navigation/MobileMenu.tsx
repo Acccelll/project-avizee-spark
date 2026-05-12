@@ -1,15 +1,29 @@
-import { ChevronRight, Moon, Search, Settings, Sun, User, X } from 'lucide-react';
-import { Fragment, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Moon, Search, Settings, Sun, User, ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Accordion } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { quickActions } from '@/lib/navigation';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
-import { useCan } from '@/hooks/useCan';
-import type { Permission } from '@/utils/permissions';
+import { useSidebarBadges } from '@/hooks/useSidebarBadges';
+import { useFavoritos } from '@/hooks/useFavoritos';
+import { useNavProfile } from '@/hooks/useNavProfile';
+import { useRecentRoutes } from '@/hooks/useRecentRoutes';
+import { useMobileQuickActions } from '@/hooks/useMobileQuickActions';
+import { PROFILE_SECTION_KEYS, isPriorityProfile } from '@/lib/navigation/profiles';
+import type { NavSection, NavSectionKey } from '@/lib/navigation';
+import { MobileMenuHeader } from './mobile/MobileMenuHeader';
+import { MobileMenuSection } from './mobile/MobileMenuSection';
+import { MobileMenuRecents } from './mobile/MobileMenuRecents';
+import { MobileMenuFavorites } from './mobile/MobileMenuFavorites';
+import { MobileQuickActionsGrid } from './mobile/MobileQuickActionsGrid';
+import { MobileQuickActionsEditor } from './mobile/MobileQuickActionsEditor';
+import { MobileNavProfilePicker } from './mobile/MobileNavProfilePicker';
+import { cn } from '@/lib/utils';
 
 interface MobileMenuProps {
   open: boolean;
@@ -17,180 +31,271 @@ interface MobileMenuProps {
   onOpenSearch: () => void;
 }
 
-const BOTTOM_TAB_KEYS = new Set(['comercial', 'cadastros', 'financeiro']);
+const OPEN_SECTION_STORAGE_KEY = 'erp:mobile-menu:open-section';
+/** Itens admin "avançados" — só aparecem em "Mais opções" (mobile). */
+const ADMIN_ADVANCED_PATHS = new Set([
+  '/admin/migracao',
+  '/admin/auditoria',
+  '/admin/audit-duplicidades',
+]);
+
+function partitionSections(
+  sections: NavSection[],
+  priorityKeys: NavSectionKey[],
+): { primary: NavSection[]; others: NavSection[] } {
+  if (priorityKeys.length === 0) return { primary: sections, others: [] };
+  const set = new Set<NavSectionKey>(priorityKeys);
+  const order = new Map(priorityKeys.map((k, i) => [k, i] as const));
+  const primary = sections
+    .filter((s) => set.has(s.key))
+    .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+  const others = sections.filter((s) => !set.has(s.key));
+  return { primary, others };
+}
+
+/** Filtra leafs admin avançados em mobile. */
+function withoutAdvancedAdmin(sections: NavSection[]): NavSection[] {
+  return sections.map((s) => {
+    if (s.key !== 'administracao') return s;
+    return {
+      ...s,
+      items: s.items
+        .map((g) => ({ ...g, items: g.items.filter((i) => !ADMIN_ADVANCED_PATHS.has(i.path)) }))
+        .filter((g) => g.items.length > 0),
+    };
+  });
+}
 
 export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const { profile, signOut } = useAuth();
+  const { signOut } = useAuth();
   const visibleSections = useVisibleNavSections();
-  const { can } = useCan();
+  const { moduleBadges } = useSidebarBadges();
+  const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
+  const { profile, setProfile } = useNavProfile();
+  const { recents } = useRecentRoutes();
+  const { visible: visibleQuickActions, allowed: allowedQuickActions, saveSelection, max } = useMobileQuickActions();
 
-  const allowedQuickActions = useMemo(
-    () => quickActions.filter((a) => !a.requires || can(a.requires as Permission)),
-    [can],
+  const [profilePickerOpen, setProfilePickerOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem(OPEN_SECTION_STORAGE_KEY) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const [showAdvancedAdmin, setShowAdvancedAdmin] = useState(false);
+
+  // Persiste seção aberta
+  useEffect(() => {
+    try {
+      if (openSection) localStorage.setItem(OPEN_SECTION_STORAGE_KEY, openSection);
+      else localStorage.removeItem(OPEN_SECTION_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [openSection]);
+
+  const sectionsForMobile = useMemo(
+    () => (showAdvancedAdmin ? visibleSections : withoutAdvancedAdmin(visibleSections)),
+    [visibleSections, showAdvancedAdmin],
   );
+
+  const { primary, others } = useMemo(
+    () => partitionSections(sectionsForMobile, PROFILE_SECTION_KEYS[profile]),
+    [sectionsForMobile, profile],
+  );
+
+  const isItemActive = (path: string) => {
+    const clean = path.split('?')[0];
+    return location.pathname === clean;
+  };
 
   const handleNavigate = (path: string) => {
     onOpenChange(false);
     navigate(path);
   };
 
+  const renderSection = (section: NavSection) => (
+    <MobileMenuSection
+      key={section.key}
+      section={section}
+      badge={moduleBadges[section.key]}
+      isItemActive={isItemActive}
+      isFavorite={isFavorito}
+      onNavigate={handleNavigate}
+      onToggleFavorite={toggleFavorito}
+      onDirectNavigate={section.directPath ? handleNavigate : undefined}
+    />
+  );
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[88vh] rounded-t-[20px] px-0 md:hidden">
-        <DrawerHeader className="px-4 pb-2 text-left">
-          <div className="flex items-center justify-between gap-2">
-            <DrawerTitle>Menu</DrawerTitle>
-            <DrawerClose asChild>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="left"
+          className="flex w-[86vw] max-w-[380px] flex-col p-0 md:hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu</SheetTitle>
+            <SheetDescription>Navegue pelos módulos e atalhos do ERP AviZee.</SheetDescription>
+          </SheetHeader>
+
+          <MobileMenuHeader
+            profile={profile}
+            onOpenProfilePicker={() => setProfilePickerOpen(true)}
+            onOpenNotifications={() => onOpenChange(false)}
+          />
+
+          <div className="flex-1 overflow-y-auto pb-4">
+            {/* Busca */}
+            <div className="px-3 pt-3">
               <button
                 type="button"
-                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Fechar menu"
+                onClick={() => {
+                  onOpenChange(false);
+                  onOpenSearch();
+                }}
+                className="flex h-10 w-full items-center gap-2 rounded-lg bg-muted/50 px-3 text-xs text-muted-foreground transition hover:bg-muted"
               >
-                <X className="h-4 w-4" />
+                <Search className="h-3.5 w-3.5" />
+                <span>Buscar módulos, cadastros e páginas…</span>
               </button>
-            </DrawerClose>
-          </div>
-          <DrawerDescription>Navegue pelos módulos e atalhos do ERP AviZee.</DrawerDescription>
-        </DrawerHeader>
+            </div>
 
-        <div className="overflow-y-auto px-3 pb-28">
-          <button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-              onOpenSearch();
-            }}
-            className="mb-4 flex h-11 w-full items-center gap-2 rounded-lg bg-muted/50 px-3 text-sm text-muted-foreground transition hover:bg-muted"
-          >
-            <Search className="h-4 w-4" />
-            <span>Buscar módulos, cadastros e páginas</span>
-          </button>
+            {/* Atalhos rápidos */}
+            <MobileQuickActionsGrid
+              actions={visibleQuickActions}
+              onAction={handleNavigate}
+              onEdit={() => setEditorOpen(true)}
+            />
 
-          {/* Atalhos rápidos — lista compacta */}
-          <p className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Atalhos rápidos
-          </p>
-          <div className="mb-4 space-y-0.5">
-            {allowedQuickActions.length === 0 && (
-              <p className="px-3 py-2 text-xs text-muted-foreground">Nenhum atalho disponível para o seu perfil.</p>
-            )}
-            {allowedQuickActions.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                onClick={() => handleNavigate(action.path)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition hover:bg-accent"
+            {/* Favoritos */}
+            <MobileMenuFavorites paths={favoritos} onNavigate={handleNavigate} />
+
+            {/* Recentes */}
+            <MobileMenuRecents items={recents} onNavigate={handleNavigate} />
+
+            {/* Módulos */}
+            <section className="px-3 pt-3">
+              <h3 className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/70">
+                {isPriorityProfile(profile) ? 'Módulos prioritários' : 'Módulos'}
+              </h3>
+              <Accordion
+                type="single"
+                collapsible
+                value={openSection}
+                onValueChange={(v) => setOpenSection(v || undefined)}
+                className="space-y-0.5"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">{action.title}</p>
-                  <p className="truncate text-xs text-muted-foreground">{action.description}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-              </button>
-            ))}
-          </div>
+                {primary.map(renderSection)}
+              </Accordion>
+            </section>
 
-          {/* Módulos — lista única.
-              Seções já presentes na barra inferior (Comercial/Cadastros/Financeiro)
-              só aparecem aqui se tiverem sub-itens — evita duplicar o link raiz. */}
-          {visibleSections
-            .filter((section) => {
-              if (!BOTTOM_TAB_KEYS.has(section.key)) return true;
-              // Se a seção é só um link direto (sem sub-itens), o bottom-nav já cobre.
-              if (section.directPath) return false;
-              const hasItems = section.items.some((g) => g.items.length > 0);
-              return hasItems;
-            })
-            .map((section) => (
-            <Fragment key={section.key}>
-              <div className="flex items-baseline gap-2 px-2 pb-1 pt-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {section.title}
-                </p>
-                {BOTTOM_TAB_KEYS.has(section.key) && (
-                  <span className="text-[10px] text-muted-foreground/70">• também na barra inferior</span>
-                )}
-              </div>
-              <div className="mb-1 space-y-0.5">
-                {section.directPath ? (
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate(section.directPath!)}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
+            {/* Outros módulos (perfis não-completo) */}
+            {others.length > 0 && (
+              <section className="px-3 pt-3">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-muted-foreground transition hover:bg-accent',
+                      'group',
+                    )}
                   >
-                    <section.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="flex-1">Abrir {section.title}</span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
-                  </button>
-                ) : (
-                  section.items.flatMap((group) =>
-                    group.items.map((item) => {
-                      const Icon = item.icon ?? section.icon;
-                      return (
-                        <button
-                          key={item.path}
-                          type="button"
-                          onClick={() => handleNavigate(item.path)}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
-                        >
-                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 truncate">{item.title}</span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
-                        </button>
-                      );
-                    }),
-                  )
-                )}
+                    <span>Outros módulos ({others.length})</span>
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <Accordion
+                      type="single"
+                      collapsible
+                      className="mt-1 space-y-0.5"
+                    >
+                      {others.map(renderSection)}
+                    </Accordion>
+                  </CollapsibleContent>
+                </Collapsible>
+              </section>
+            )}
+
+            {/* Mais opções (admin avançado) */}
+            {visibleSections.some((s) => s.key === 'administracao') && (
+              <div className="px-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedAdmin((v) => !v)}
+                  className="rounded px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
+                >
+                  {showAdvancedAdmin ? 'Ocultar opções avançadas' : 'Mostrar opções avançadas'}
+                </button>
               </div>
-            </Fragment>
-          ))}
+            )}
 
-          <Separator className="my-4" />
+            <Separator className="my-3" />
 
-          {/* Perfil */}
-          <div className="rounded-lg bg-muted/40 px-3 py-3">
-            <p className="text-sm font-semibold">{profile?.nome || 'Admin'}</p>
-            <p className="text-xs text-muted-foreground">{profile?.cargo || 'Administrador'}</p>
+            {/* Conta + tema + sair */}
+            <div className="space-y-0.5 px-3">
+              <button
+                type="button"
+                onClick={() => handleNavigate('/configuracoes')}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
+              >
+                <User className="h-3.5 w-3.5 text-muted-foreground" /> Minha conta
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate('/configuracoes?tab=aparencia')}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
+              >
+                <Settings className="h-3.5 w-3.5 text-muted-foreground" /> Aparência
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <Moon className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                Tema {theme === 'dark' ? 'claro' : 'escuro'}
+              </button>
+              <Separator className="my-2" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-full justify-start rounded-lg text-destructive hover:text-destructive"
+                onClick={async () => {
+                  onOpenChange(false);
+                  await signOut();
+                }}
+              >
+                Sair
+              </Button>
+            </div>
           </div>
-          <div className="mt-2 space-y-0.5">
-            <button
-              type="button"
-              onClick={() => handleNavigate('/configuracoes')}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
-            >
-              <User className="h-4 w-4 text-muted-foreground" /> Minha conta
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate('/configuracoes?tab=aparencia')}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
-            >
-              <Settings className="h-4 w-4 text-muted-foreground" /> Aparência
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-muted-foreground" /> : <Moon className="h-4 w-4 text-muted-foreground" />}
-              Tema {theme === 'dark' ? 'claro' : 'escuro'}
-            </button>
-            <Separator className="my-2" />
-            <Button
-              variant="ghost"
-              className="h-11 w-full justify-start rounded-lg text-destructive hover:text-destructive"
-              onClick={async () => {
-                onOpenChange(false);
-                await signOut();
-              }}
-            >
-              Sair
-            </Button>
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
+        </SheetContent>
+      </Sheet>
+
+      <MobileNavProfilePicker
+        open={profilePickerOpen}
+        onOpenChange={setProfilePickerOpen}
+        value={profile}
+        onChange={setProfile}
+      />
+
+      <MobileQuickActionsEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        allowed={allowedQuickActions}
+        selectedIds={visibleQuickActions.map((a) => a.id)}
+        max={max}
+        onSave={saveSelection}
+      />
+    </>
   );
 }
