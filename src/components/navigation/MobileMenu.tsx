@@ -1,11 +1,9 @@
-import { Moon, Search, Settings, Sun, User, ChevronDown } from 'lucide-react';
+import { LogOut, Moon, Search, Settings, Sun, Compass, ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Accordion } from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
@@ -32,7 +30,6 @@ interface MobileMenuProps {
 }
 
 const OPEN_SECTION_STORAGE_KEY = 'erp:mobile-menu:open-section';
-/** Itens admin "avançados" — só aparecem em "Mais opções" (mobile). */
 const ADMIN_ADVANCED_PATHS = new Set([
   '/admin/migracao',
   '/admin/auditoria',
@@ -53,7 +50,6 @@ function partitionSections(
   return { primary, others };
 }
 
-/** Filtra leafs admin avançados em mobile. */
 function withoutAdvancedAdmin(sections: NavSection[]): NavSection[] {
   return sections.map((s) => {
     if (s.key !== 'administracao') return s;
@@ -70,7 +66,7 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const { signOut } = useAuth();
+  const { profile: userProfile, signOut } = useAuth();
   const visibleSections = useVisibleNavSections();
   const { moduleBadges } = useSidebarBadges();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
@@ -89,7 +85,6 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
   });
   const [showAdvancedAdmin, setShowAdvancedAdmin] = useState(false);
 
-  // Persiste seção aberta
   useEffect(() => {
     try {
       if (openSection) localStorage.setItem(OPEN_SECTION_STORAGE_KEY, openSection);
@@ -109,10 +104,7 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     [sectionsForMobile, profile],
   );
 
-  const isItemActive = (path: string) => {
-    const clean = path.split('?')[0];
-    return location.pathname === clean;
-  };
+  const isItemActive = (path: string) => location.pathname === path.split('?')[0];
 
   const handleNavigate = (path: string) => {
     onOpenChange(false);
@@ -132,25 +124,30 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     />
   );
 
+  const initials = (userProfile?.nome ?? 'AD')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const hasMaisContent = favoritos.length > 0 || recents.length > 0;
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="flex w-[86vw] max-w-[380px] flex-col p-0 md:hidden"
+          className="flex w-[86vw] max-w-[380px] flex-col p-0 md:hidden [&>button]:hidden"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Menu</SheetTitle>
             <SheetDescription>Navegue pelos módulos e atalhos do ERP AviZee.</SheetDescription>
           </SheetHeader>
 
-          <MobileMenuHeader
-            profile={profile}
-            onOpenProfilePicker={() => setProfilePickerOpen(true)}
-            onOpenNotifications={() => onOpenChange(false)}
-          />
+          <MobileMenuHeader />
 
-          <div className="flex-1 overflow-y-auto pb-4">
+          <div className="flex-1 overflow-y-auto pb-3">
             {/* Busca */}
             <div className="px-3 pt-3">
               <button
@@ -162,28 +159,18 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
                 className="flex h-10 w-full items-center gap-2 rounded-lg bg-muted/50 px-3 text-xs text-muted-foreground transition hover:bg-muted"
               >
                 <Search className="h-3.5 w-3.5" />
-                <span>Buscar módulos, cadastros e páginas…</span>
+                <span>Buscar módulos…</span>
               </button>
             </div>
 
-            {/* Atalhos rápidos */}
             <MobileQuickActionsGrid
               actions={visibleQuickActions}
               onAction={handleNavigate}
               onEdit={() => setEditorOpen(true)}
             />
 
-            {/* Favoritos */}
-            <MobileMenuFavorites paths={favoritos} onNavigate={handleNavigate} />
-
-            {/* Recentes */}
-            <MobileMenuRecents items={recents} onNavigate={handleNavigate} />
-
-            {/* Módulos */}
-            <section className="px-3 pt-3">
-              <h3 className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/70">
-                {isPriorityProfile(profile) ? 'Módulos prioritários' : 'Módulos'}
-              </h3>
+            {/* Módulos prioritários */}
+            <section className="px-3 pt-4">
               <Accordion
                 type="single"
                 collapsible
@@ -195,25 +182,16 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
               </Accordion>
             </section>
 
-            {/* Outros módulos (perfis não-completo) */}
+            {/* Outros módulos (perfil ≠ completo) */}
             {others.length > 0 && (
-              <section className="px-3 pt-3">
+              <section className="px-3 pt-2">
                 <Collapsible>
-                  <CollapsibleTrigger
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-muted-foreground transition hover:bg-accent',
-                      'group',
-                    )}
-                  >
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition hover:bg-accent">
                     <span>Outros módulos ({others.length})</span>
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <Accordion
-                      type="single"
-                      collapsible
-                      className="mt-1 space-y-0.5"
-                    >
+                    <Accordion type="single" collapsible className="mt-1 space-y-0.5">
                       {others.map(renderSection)}
                     </Accordion>
                   </CollapsibleContent>
@@ -221,61 +199,76 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
               </section>
             )}
 
-            {/* Mais opções (admin avançado) */}
+            {/* Mais: Favoritos + Recentes (oculto por padrão) */}
+            {hasMaisContent && (
+              <section className="px-3 pt-2">
+                <Collapsible>
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition hover:bg-accent">
+                    <span>Mais</span>
+                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="-mx-3">
+                      <MobileMenuFavorites paths={favoritos} onNavigate={handleNavigate} />
+                      <MobileMenuRecents items={recents} onNavigate={handleNavigate} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </section>
+            )}
+
+            {/* Mostrar opções avançadas (admin) */}
             {visibleSections.some((s) => s.key === 'administracao') && (
-              <div className="px-3 pt-2">
+              <div className="px-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAdvancedAdmin((v) => !v)}
-                  className="rounded px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
+                  className="rounded px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
                 >
                   {showAdvancedAdmin ? 'Ocultar opções avançadas' : 'Mostrar opções avançadas'}
                 </button>
               </div>
             )}
+          </div>
 
-            <Separator className="my-3" />
-
-            {/* Conta + tema + sair */}
-            <div className="space-y-0.5 px-3">
-              <button
-                type="button"
-                onClick={() => handleNavigate('/configuracoes')}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
+          {/* Footer sticky */}
+          <div className="flex items-center gap-2 border-t border-border bg-background px-3 py-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{userProfile?.nome ?? 'Administrador'}</p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {userProfile?.cargo ?? 'Admin'}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <FooterIconButton
+                label={`Modo: ${profile}`}
+                onClick={() => setProfilePickerOpen(true)}
+                active={isPriorityProfile(profile)}
               >
-                <User className="h-3.5 w-3.5 text-muted-foreground" /> Minha conta
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate('/configuracoes?tab=aparencia')}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
-              >
-                <Settings className="h-3.5 w-3.5 text-muted-foreground" /> Aparência
-              </button>
-              <button
-                type="button"
+                <Compass className="h-4 w-4" />
+              </FooterIconButton>
+              <FooterIconButton
+                label={`Tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
               >
-                {theme === 'dark' ? (
-                  <Sun className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <Moon className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-                Tema {theme === 'dark' ? 'claro' : 'escuro'}
-              </button>
-              <Separator className="my-2" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 w-full justify-start rounded-lg text-destructive hover:text-destructive"
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </FooterIconButton>
+              <FooterIconButton label="Configurações" onClick={() => handleNavigate('/configuracoes')}>
+                <Settings className="h-4 w-4" />
+              </FooterIconButton>
+              <FooterIconButton
+                label="Sair"
                 onClick={async () => {
                   onOpenChange(false);
                   await signOut();
                 }}
+                tone="destructive"
               >
-                Sair
-              </Button>
+                <LogOut className="h-4 w-4" />
+              </FooterIconButton>
             </div>
           </div>
         </SheetContent>
@@ -297,5 +290,34 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
         onSave={saveSelection}
       />
     </>
+  );
+}
+
+interface FooterIconButtonProps {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  tone?: 'default' | 'destructive';
+  active?: boolean;
+}
+
+function FooterIconButton({ label, onClick, children, tone = 'default', active }: FooterIconButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'flex h-9 w-9 items-center justify-center rounded-md transition',
+        tone === 'destructive'
+          ? 'text-destructive hover:bg-destructive/10'
+          : active
+            ? 'bg-primary/10 text-primary hover:bg-primary/15'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      )}
+    >
+      {children}
+    </button>
   );
 }
