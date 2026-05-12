@@ -1,6 +1,4 @@
 import { Bell, ChevronDown } from 'lucide-react';
-import { SheetClose } from '@/components/ui/sheet';
-import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NAV_PROFILE_LABELS, type NavProfile } from '@/lib/navigation/profiles';
 import { cn } from '@/lib/utils';
@@ -48,7 +46,7 @@ export function MobileMenuHeader({
           <button
             type="button"
             onClick={onOpenNotifications}
-            className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="relative mr-8 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label={`Notificações${notificationsCount > 0 ? ` (${notificationsCount})` : ''}`}
           >
             <Bell className="h-4 w-4" />
@@ -60,15 +58,6 @@ export function MobileMenuHeader({
               </span>
             )}
           </button>
-          <SheetClose asChild>
-            <button
-              type="button"
-              className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Fechar menu"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </SheetClose>
         </div>
       </div>
 
