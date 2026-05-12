@@ -11,3 +11,4 @@
 - [Storage dbavizee Prefixos](mem://security/storage-dbavizee-prefixos) — Policies por prefixo canônico (templates/apresentacoes/workbooks/fiscal/users)
 - [Admin Estrito vs Visualizar](mem://security/admin-vs-view-admin) — useIsAdmin (estrito) para ações sensíveis; useCanViewAdmin para navegação/rota
 - [Edge Functions CORS Helper](mem://tech/infraestrutura-cors) — supabase/functions/_shared/cors.ts compartilhado; ALLOWED_ORIGIN adiciona origens; padrão lovable.app/lovableproject.com/sistema.avizee.com.br
+- [C14N SEFAZ](mem://features/c14n-sefaz) — Exclusive C14N real em _shared/xml-c14n.ts (npm:@xmldom/xmldom); plugado no sefaz-proxy atrás de SEFAZ_C14N_REAL=true
