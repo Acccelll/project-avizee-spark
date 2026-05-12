@@ -70,6 +70,5 @@ export function useNotificationDetails(open: boolean) {
     queryFn: fetchNotificationDetails,
     enabled: open,
     staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
   });
 }

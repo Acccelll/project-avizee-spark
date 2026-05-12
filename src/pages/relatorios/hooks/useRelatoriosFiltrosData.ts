@@ -49,7 +49,6 @@ function useGruposRef() {
       return data ?? [];
     },
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -66,7 +65,6 @@ function useEmpresaConfig() {
       return (data as EmpresaConfigRef) ?? null;
     },
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -108,7 +106,6 @@ export function useSelectedRefLabels(clienteIds: string[], fornecedorIds: string
       return data ?? [];
     },
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 
   const fornecedores = useQuery<FornecedorRef[]>({
@@ -123,7 +120,6 @@ export function useSelectedRefLabels(clienteIds: string[], fornecedorIds: string
       return data ?? [];
     },
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 
   return {

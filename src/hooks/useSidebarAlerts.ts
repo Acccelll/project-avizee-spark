@@ -31,7 +31,6 @@ export function useSidebarAlerts(): SidebarAlerts {
     },
     staleTime: 60 * 1000,
     refetchInterval: 90 * 1000,
-    refetchOnWindowFocus: false,
   });
 
   // Realtime invalidation via shared singleton channel

@@ -52,7 +52,6 @@ export function useClientesRef(opts?: { ativosOnly?: boolean; limit?: number }) 
     queryKey: ["ref", "clientes", { ativosOnly, limit }],
     queryFn: () => fetchClientesRef({ ativosOnly, limit }),
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -63,7 +62,6 @@ export function useFornecedoresRef(opts?: { ativosOnly?: boolean; limit?: number
     queryKey: ["ref", "fornecedores", { ativosOnly, limit }],
     queryFn: () => fetchFornecedoresRef({ ativosOnly, limit }),
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -73,7 +71,6 @@ export function useContasBancariasRef(opts?: { ativasOnly?: boolean }) {
     queryKey: ["ref", "contas_bancarias", { ativasOnly }],
     queryFn: () => fetchContasBancariasRef({ ativasOnly }),
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -83,7 +80,6 @@ export function useGruposProdutoRef(opts?: { ativosOnly?: boolean }) {
     queryKey: ["ref", "grupos_produto", { ativosOnly }],
     queryFn: () => fetchGruposProdutoRef({ ativosOnly }),
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
 
@@ -93,6 +89,5 @@ export function useFormasPagamentoRef(opts?: { ativasOnly?: boolean }) {
     queryKey: ["ref", "formas_pagamento", { ativasOnly }],
     queryFn: () => fetchFormasPagamentoRef({ ativasOnly }),
     staleTime: STALE,
-    refetchOnWindowFocus: false,
   });
 }
