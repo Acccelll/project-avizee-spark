@@ -105,30 +105,43 @@ export function useUrlListState<S extends Schema>(opts: { schema: S }) {
 
   const set = useCallback(
     (patch: Partial<SchemaValues<S>>) => {
-      const next = new URLSearchParams(searchParams);
-      for (const [key, val] of Object.entries(patch)) {
-        const field = schema[key];
-        if (!field) continue;
-        writeField(next, key, field, val);
-      }
-      setSearchParams(next, { replace: true });
+      // Use functional updater para que múltiplas chamadas em sequência
+      // (ex.: setPeriod(p); setMes(null);) leiam sempre o snapshot mais
+      // recente — caso contrário a 2ª chamada descartaria a 1ª.
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, val] of Object.entries(patch)) {
+            const field = schema[key];
+            if (!field) continue;
+            writeField(next, key, field, val);
+          }
+          return next;
+        },
+        { replace: true },
+      );
     },
-    [searchParams, setSearchParams, schema],
+    [setSearchParams, schema],
   );
 
   const clear = useCallback(
     (keys?: Array<keyof S>) => {
-      const next = new URLSearchParams(searchParams);
-      const target = keys ?? (Object.keys(schema) as Array<keyof S>);
-      for (const key of target) {
-        const field = schema[key as string];
-        if (!field) continue;
-        next.delete(key as string);
-        for (const alias of field.aliases ?? []) next.delete(alias);
-      }
-      setSearchParams(next, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          const target = keys ?? (Object.keys(schema) as Array<keyof S>);
+          for (const key of target) {
+            const field = schema[key as string];
+            if (!field) continue;
+            next.delete(key as string);
+            for (const alias of field.aliases ?? []) next.delete(alias);
+          }
+          return next;
+        },
+        { replace: true },
+      );
     },
-    [searchParams, setSearchParams, schema],
+    [setSearchParams, schema],
   );
 
   return { value, set, clear };
