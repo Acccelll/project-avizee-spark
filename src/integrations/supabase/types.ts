@@ -9170,33 +9170,21 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
-      acao_cliente_orcamento:
-        | { Args: { p_acao: string; p_token: string }; Returns: Json }
-        | {
-            Args: { p_acao: string; p_comentario?: string; p_token: string }
-            Returns: Json
-          }
-      ajustar_estoque_manual:
-        | {
-            Args: {
-              p_motivo?: string
-              p_produto_id: string
-              p_quantidade: number
-              p_tipo: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_categoria_ajuste?: string
-              p_motivo?: string
-              p_motivo_estruturado?: string
-              p_produto_id: string
-              p_quantidade: number
-              p_tipo: string
-            }
-            Returns: string
-          }
+      acao_cliente_orcamento: {
+        Args: { p_acao: string; p_comentario?: string; p_token: string }
+        Returns: Json
+      }
+      ajustar_estoque_manual: {
+        Args: {
+          p_categoria_ajuste?: string
+          p_motivo?: string
+          p_motivo_estruturado?: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tipo: string
+        }
+        Returns: string
+      }
       aplicar_matriz_fiscal: {
         Args: {
           p_produto_id: string
@@ -9610,12 +9598,10 @@ export type Database = {
         Args: { p_remessa_id: string }
         Returns: undefined
       }
-      marcar_remessa_entregue:
-        | { Args: { p_remessa_id: string }; Returns: undefined }
-        | {
-            Args: { p_data_entrega?: string; p_remessa_id: string }
-            Returns: undefined
-          }
+      marcar_remessa_entregue: {
+        Args: { p_remessa_id: string }
+        Returns: undefined
+      }
       merge_lote_conciliacao: { Args: { p_lote_id: string }; Returns: Json }
       move_to_dlq: {
         Args: {
