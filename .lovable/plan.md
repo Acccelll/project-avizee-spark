@@ -1,82 +1,145 @@
-## Objetivo
+## Escopo
 
-Resolver dois ajustes:
+Plano dividido por tier conforme a auditoria. Vou implementar **TIER 1 inteiro** + os itens de **TIER 2** que são correções de segurança/consistência rápidas (I-01, I-02). TIER 2 maiores (I-03 C14N, I-04 services, I-05 `as any`) e TIER 3/4 ficam como ondas separadas — sinalizo recomendação ao final.
 
-1. **Pré-preencher o nº do orçamento sem consumir a sequência** — exibir o "próximo número que de fato será salvo" (ex.: ORC100279), avançando só após o save real.
-2. **Definir #b2592c (primária) e #690500 (secundária) como cores default** — incluindo a tela de login, sem depender de configuração no banco.
+### Achados após verificação no banco (importante)
 
----
+Inspecionei `pg_policies` e `pg_proc` antes de planejar:
 
-## 1) Numeração de orçamento — peek vs consume
+- **C-01 (parcialmente diferente do reportado).** Não há políticas órfãs `allow_all_authenticated` nessas tabelas. O que existe são policies finais com `USING (true)` / `WITH CHECK (true)` no próprio policy "definitivo":
+  - `fechamentos_mensais.fm_select` → `USING (true)` ❌
+  - `workbook_templates.wt_select` → `USING (true)` ❌
+  - `workbook_geracoes.wg_select / wg_insert / wg_update` → todas `true` ❌
+  - `fechamento_caixa_saldos`, `fechamento_estoque_saldos`, `fechamento_financeiro_saldos`, `fechamento_fopag_resumo`: já têm policies de SELECT/INSERT/UPDATE com `has_role(...)` corretas — **não precisam de mudança**.
+  - `mapeamento_gerencial_contas`: não existe no schema atual (sem ação).
+- **C-02 já está corrigido.** As 4 funções pgmq (`enqueue_email`, `read_email_batch`, `delete_email`, `move_to_dlq`) já têm `proconfig = {search_path=public}`. Sem ação.
 
-### Problema
+## TIER 1 — Críticos
 
-Hoje, ao abrir o formulário de novo orçamento, o front chama `proximo_numero_orcamento()` (RPC), que executa `nextval(seq_orcamento)` e **consome** a sequência. Se o usuário fechar sem salvar, o número fica "queimado" — daí o gap entre o que aparece pré-preenchido e o que aparece no Grid.
+### C-01. Tightening de RLS (apenas tabelas realmente abertas)
 
-### Solução
+Migration única que dropa e recria as policies frouxas, alinhando com o padrão `admin OR financeiro` já usado nas tabelas-irmãs:
 
-**a) Nova RPC `peek_proximo_numero_orcamento()`** (apenas leitura, não consome a sequência):
+- `fechamentos_mensais.fm_select` → `USING (has_role(admin) OR has_role(financeiro))`.
+- `workbook_templates.wt_select` → `USING (has_role(admin) OR has_role(financeiro))` (templates são insumo do módulo gerencial).
+- `workbook_geracoes.wg_select / wg_insert / wg_update` → restringir a `admin OR financeiro`. INSERT/UPDATE adicionalmente `WITH CHECK (created_by = auth.uid() OR has_role(admin))` se a coluna existir (verifico no migration antes de aplicar).
+- Adicionar `COMMENT ON POLICY` documentando o motivo (single-tenant + role gate), aderente à memória `RLS Single-Tenant`.
 
-```text
-SELECT 'ORC' || LPAD( (GREATEST(
-   (SELECT COALESCE(MAX(SUBSTRING(numero FROM 4)::int), 0) FROM orcamentos
-      WHERE numero ~ '^ORC[0-9]+$'),
-   (SELECT last_value FROM seq_orcamento)
-) + 1)::text, 6, '0')
+### C-02. SECURITY DEFINER sem search_path
+
+**Sem ação** — verificação direta em `pg_proc` mostra que as 4 funções já têm `SET search_path = public`. Atualizar a memória se necessário para não reabrir.
+
+### C-03. Remover `exportar-certificado-pem`
+
+- Confirmar com o usuário no fim do plano que os PEMs já estão no Cloudflare (a função foi marcada como temporária).
+- Após confirmação: deletar o diretório `supabase/functions/exportar-certificado-pem/` e undeploy via `supabase--delete_edge_functions`.
+
+## TIER 2 — Correções rápidas a embarcar agora
+
+### I-01. CORS uniforme
+
+Migrar todas as edge functions **browser-callable** para `_shared/cors.ts` (`buildCorsHeaders(origin)`):
+
+- `sefaz-proxy`, `sefaz-distdfe`, `correios-api`, `validate-invite`, `consultadanfe-proxy`, `instagram-oauth`, `notify-orcamento-resposta`, `preview-transactional-email`, `handle-email-unsubscribe`, `handle-email-suppression`, `test-smtp`, `send-transactional-email`, `apresentacao-cadencia-runner`, `social-sync`, `admin-users`, `admin-sessions` (estas duas já usam o helper — confirmar).
+- Server-to-server / cron / webhooks ficam como estão (`webhooks-dispatcher`, `process-*-cron`, `auth-email-hook`, `process-email-queue`, `notify-admin-new-signup`).
+- Substituir o bloco `const corsHeaders = { … "*" }` por `const corsHeaders = buildCorsHeaders(req.headers.get("origin"))` dentro do handler. Manter shape do export para não impactar callers.
+
+### I-02. `notas_fiscais` exigir role além de tenant
+
+Migration que recria `nf_select` e `nf_insert` para o padrão de `financeiro_lancamentos`:
+
+```
+USING (
+  empresa_id = current_empresa_id()
+  AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro') OR has_role(auth.uid(),'fiscal'))
+)
 ```
 
-`SECURITY DEFINER`, `search_path = public`, `STABLE`. Retorna `text`.
+(Confirmar enum: hoje há `admin`, `financeiro`, `vendedor`, `estoquista`. Se `fiscal` ainda não existe, manter `admin OR financeiro` — alinhado ao padrão atual de financeiro_lancamentos.) UPDATE/DELETE não mudam.
 
-**b) Frontend — `OrcamentoForm.tsx`**
+## Itens NÃO incluídos nesta onda (recomendação)
 
-- Ao abrir em modo "novo": chamar `peek_proximo_numero_orcamento()` em vez de `proximo_numero_orcamento()` para pré-preencher o campo (display).
-- No `handleSave` (novo orçamento): **não enviar** `numero` no payload (passar `null`/string vazia) — o RPC `salvar_orcamento` já faz `COALESCE(p_payload->>'numero', proximo_numero_orcamento())` e gera o número definitivo de forma atômica no momento do INSERT.
-- Após save bem-sucedido, atualizar o campo do form com o `numero` real retornado pelo RPC (`setValue('numero', orcamentoSalvo.numero)`).
-- **Duplicação** (`handleDuplicate`): mesmo padrão — passar `numero: null` para o RPC; o número só sai depois do save.
+- **I-03** C14N real em `sefaz-proxy`: requer porte/integração de lib específica + fixtures — onda própria com testes de integração.
+- **I-04** Pages com `supabase.from(...)` direto: refactor para `services/` — onda de organização.
+- **I-05** Limpeza de `as any`: aproveitar `src/types/rpc.ts` — onda de typing.
+- **TIER 3** (squash de migrations, `USING(true)` legado, `ADMIN_EMAIL` hardcode, `refetchOnWindowFocus`, PWA, `carga_inicial_conciliacao`, TODOs) e **TIER 4** (helpers, RPC consolidada, vault, testes): cada item merece sua ondinha.
 
-Resultado: o número exibido é uma **previsão** baseada em `MAX(numero) + 1`, e a sequência só avança quando o INSERT acontece de verdade. Sem gaps por formulários abandonados.
+## Detalhes técnicos
 
-### Atenção
+### Migration RLS (C-01) — esqueleto
 
-- Como há janela entre "peek" e "save", dois usuários simultâneos podem ver o mesmo número de previsão — mas só **um** vai vencer no INSERT (a sequência é atômica). O perdedor recebe o próximo número definitivo no retorno do save (e o front atualiza o campo). Toast informativo: *"Número atualizado para ORC100280 (já havia outro orçamento criado em paralelo)."*
+```sql
+-- fechamentos_mensais
+DROP POLICY IF EXISTS fm_select ON public.fechamentos_mensais;
+CREATE POLICY fm_select ON public.fechamentos_mensais
+  FOR SELECT TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
 
----
+-- workbook_templates
+DROP POLICY IF EXISTS wt_select ON public.workbook_templates;
+CREATE POLICY wt_select ON public.workbook_templates
+  FOR SELECT TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
 
-## 2) Cores default da empresa
+-- workbook_geracoes
+DROP POLICY IF EXISTS wg_select ON public.workbook_geracoes;
+DROP POLICY IF EXISTS wg_insert ON public.workbook_geracoes;
+DROP POLICY IF EXISTS wg_update ON public.workbook_geracoes;
+CREATE POLICY wg_select ON public.workbook_geracoes
+  FOR SELECT TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
+CREATE POLICY wg_insert ON public.workbook_geracoes
+  FOR INSERT TO authenticated
+  WITH CHECK (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
+CREATE POLICY wg_update ON public.workbook_geracoes
+  FOR UPDATE TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
+```
 
-Hoje `src/index.css` tem invertido:
-- `--primary: 2 100% 21%` ≈ **#690500** (deveria ser secundária)
-- `--secondary: 21 63% 44%` ≈ **#b76029** (deveria ser primária)
+### Migration `notas_fiscais` (I-02)
 
-### Mudança em `src/index.css`
+```sql
+DROP POLICY IF EXISTS nf_select ON public.notas_fiscais;
+DROP POLICY IF EXISTS nf_insert ON public.notas_fiscais;
+CREATE POLICY nf_select ON public.notas_fiscais
+  FOR SELECT TO authenticated
+  USING (
+    empresa_id = current_empresa_id()
+    AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'))
+  );
+CREATE POLICY nf_insert ON public.notas_fiscais
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    empresa_id = current_empresa_id()
+    AND (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'))
+  );
+```
 
-**`:root`:**
-- `--primary: 20 60% 44%`  (#b2592c)
-- `--ring: 20 60% 44%`
-- `--sidebar-primary: 20 60% 44%`
-- `--sidebar-ring: 20 60% 44%`
-- `--secondary: 3 100% 21%`  (#690500)
+### CORS (I-01) — patch padrão por função
 
-**`.dark`:** mesmo swap, com leve elevação de luminância no primary (`20 60% 52%`) para contraste AA.
+```ts
+import { buildCorsHeaders } from "../_shared/cors.ts";
+Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // …respostas existentes mantêm `...corsHeaders`
+});
+```
 
-Tokens de gradient (`--gradient-primary`, hero-gradient etc.) já usam `var(--primary)`/`var(--secondary)` — herdam automaticamente.
+### C-03 — execução
 
-### Tela de login
+1. `supabase--delete_edge_functions(["exportar-certificado-pem"])`.
+2. `rm -rf supabase/functions/exportar-certificado-pem`.
 
-`Login.tsx` usa exclusivamente `bg-primary`, `text-primary-foreground` etc. e `useBranding` só para logo/textos — **não** sobrescreve cores. Como `ThemeProvider` aplica `applyCorporateTheme(branding.corPrimaria, branding.corSecundaria)` **só quando há valores não-nulos** no `empresa_config`, os defaults do CSS valem para login e para qualquer tenant que não tenha configurado cores. Não precisa tocar no Login.
+## Validação pós-implementação
 
----
+- `supabase--linter` para checar warnings novos.
+- `psql` para confirmar que as policies recriadas batem com o esperado.
+- Smoke test rápido: chamar `correios-api` do preview (origin Lovable) deve continuar funcionando; chamar de `curl` sem origin → fallback `*`; chamar com origin não-allowlisted → não receber `Access-Control-Allow-Origin` correspondente.
 
-## Arquivos a alterar
+## Pergunta antes de implementar
 
-- **Nova migration**: `peek_proximo_numero_orcamento` (SQL function read-only).
-- `src/types/rpc.ts` — exportar wrapper `peekProximoNumeroOrcamento()`.
-- `src/pages/OrcamentoForm.tsx` — usar peek no load, omitir `numero` no payload do save/duplicate, atualizar campo com retorno do RPC.
-- `src/index.css` — swap de `--primary` / `--secondary` em `:root` e `.dark`, mais `--ring` e tokens de sidebar.
+Confirmar dois pontos antes de aplicar:
 
-## O que NÃO muda
-
-- Lógica de RLS, permissões, validação do form, contrato de status.
-- `proximo_numero_orcamento()` permanece igual (continua sendo a função autoritativa no INSERT).
-- `useBranding` / `ThemeProvider` — overrides de tenant continuam funcionando.
-- Login.tsx — nenhuma mudança.
+1. **C-03**: Os PEMs já foram subidos no Cloudflare e a `exportar-certificado-pem` pode ser deletada agora? (Se ainda não, mantemos a função e abro warning na memória.)
+2. **I-02**: Para `notas_fiscais`, basta `admin OR financeiro` (padrão de `financeiro_lancamentos`) ou também queremos liberar `vendedor` para SELECT? Hoje `vendedor` lê via `orcamentos`/`ordens_venda`, não NF — meu default é **não incluir vendedor**.
