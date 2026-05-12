@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Search, Sparkles } from 'lucide-react';
+import { History, Search, Sparkles, Terminal } from 'lucide-react';
 import {
   CommandDialog,
   CommandEmpty,
@@ -48,6 +48,47 @@ const CATEGORY_PERMISSION: Record<string, string> = {
 };
 
 const RECENT_KEY = 'erp:global-search:recent';
+
+/**
+ * Comandos por prefixo. Acionados quando o input começa com `/`.
+ * Ex.: `/orc novo` → Novo Orçamento; `/cli` → Clientes.
+ */
+interface SearchCommand {
+  /** Prefixos aceitos (sem barra). O primeiro é o canônico exibido. */
+  keywords: string[];
+  /** Sub-token opcional (ex.: "novo"). */
+  arg?: 'novo';
+  title: string;
+  description: string;
+  path: string;
+  requires?: string;
+}
+
+const SEARCH_COMMANDS: SearchCommand[] = [
+  { keywords: ['orc', 'orcamento'], arg: 'novo', title: 'Novo orçamento', description: '/orc novo', path: '/orcamentos/novo', requires: 'orcamentos:editar' },
+  { keywords: ['orc', 'orcamento'], title: 'Abrir orçamentos', description: '/orc', path: '/orcamentos', requires: 'orcamentos:visualizar' },
+  { keywords: ['cli', 'cliente'], arg: 'novo', title: 'Novo cliente', description: '/cli novo', path: '/clientes?new=1', requires: 'clientes:editar' },
+  { keywords: ['cli', 'cliente'], title: 'Abrir clientes', description: '/cli', path: '/clientes', requires: 'clientes:visualizar' },
+  { keywords: ['prod', 'produto'], arg: 'novo', title: 'Novo produto', description: '/prod novo', path: '/produtos?new=1', requires: 'produtos:editar' },
+  { keywords: ['prod', 'produto'], title: 'Abrir produtos', description: '/prod', path: '/produtos', requires: 'produtos:visualizar' },
+  { keywords: ['nf', 'nota'], arg: 'novo', title: 'Nova nota fiscal de saída', description: '/nf novo', path: '/fiscal?tipo=saida&new=1', requires: 'faturamento_fiscal:editar' },
+  { keywords: ['nf', 'nota', 'fiscal'], title: 'Abrir Fiscal', description: '/nf', path: '/fiscal', requires: 'faturamento_fiscal:visualizar' },
+  { keywords: ['ped', 'pedido'], title: 'Abrir pedidos', description: '/ped', path: '/pedidos', requires: 'pedidos:visualizar' },
+  { keywords: ['fin', 'financeiro'], title: 'Abrir financeiro', description: '/fin', path: '/financeiro', requires: 'financeiro:visualizar' },
+  { keywords: ['baixa', 'pag'], title: 'Baixa financeira em lote', description: '/baixa', path: '/financeiro?baixa=lote', requires: 'financeiro:baixar' },
+  { keywords: ['est', 'estoque'], title: 'Abrir estoque', description: '/est', path: '/estoque', requires: 'estoque:visualizar' },
+  { keywords: ['log', 'logistica'], title: 'Abrir logística', description: '/log', path: '/logistica', requires: 'logistica:visualizar' },
+  { keywords: ['rel', 'relatorio'], title: 'Abrir relatórios', description: '/rel', path: '/relatorios', requires: 'relatorios:visualizar' },
+  { keywords: ['cfg', 'config'], title: 'Configurações', description: '/cfg', path: '/configuracoes' },
+];
+
+function parseCommand(input: string): { keyword: string; arg?: string } | null {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith('/')) return null;
+  const [head, ...rest] = trimmed.slice(1).split(/\s+/);
+  if (!head) return null;
+  return { keyword: head.toLowerCase(), arg: rest.join(' ').toLowerCase() || undefined };
+}
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -209,6 +250,23 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     return groups;
   }, [entityResults]);
 
+  const matchedCommands = useMemo(() => {
+    const parsed = parseCommand(search);
+    if (!parsed) return [] as SearchCommand[];
+    return SEARCH_COMMANDS.filter((cmd) => {
+      const matchesKeyword = cmd.keywords.some((k) => k.startsWith(parsed.keyword));
+      if (!matchesKeyword) return false;
+      // Se o comando exige `arg`, o input precisa conter um sub-token compatível.
+      if (cmd.arg && !(parsed.arg ?? '').startsWith(cmd.arg)) return false;
+      // Comandos sem `arg`: só mostra quando o usuário não digitou um arg
+      // OU quando o arg digitado não bate com o de "novo" (para não duplicar).
+      if (!cmd.arg && parsed.arg && parsed.arg.startsWith('novo')) return false;
+      if (cmd.requires && !can(cmd.requires as never)) return false;
+      if (isPathDisabled(cmd.path)) return false;
+      return true;
+    }).slice(0, 6);
+  }, [search, can, disabledPaths]);
+
   const persistRecent = (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) return;
@@ -251,6 +309,23 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               <CommandItem key={term} onSelect={() => setSearch(term)}>
                 <History className="mr-2 h-4 w-4" />
                 {term}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {matchedCommands.length > 0 && (
+          <CommandGroup heading="Comandos">
+            {matchedCommands.map((cmd) => (
+              <CommandItem
+                key={`${cmd.keywords[0]}-${cmd.arg ?? 'open'}-${cmd.path}`}
+                onSelect={() => handleSelect(cmd.path)}
+              >
+                <Terminal className="mr-2 h-4 w-4 text-primary" />
+                <div className="flex flex-col">
+                  <span>{cmd.title}</span>
+                  <span className="text-xs text-muted-foreground">{cmd.description}</span>
+                </div>
               </CommandItem>
             ))}
           </CommandGroup>
