@@ -134,7 +134,14 @@ export function NfeFormBody(props: NfeFormBodyProps) {
             {items.map((item, idx) => (
               <div key={idx} className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground min-w-[120px] truncate">{item.descricao || `Item ${idx + 1}`}</span>
-                <Select value={itemContaContabil[idx] || "none"} onValueChange={(v) => setItemContaContabil(prev => ({ ...prev, [idx]: v === "none" ? "" : v }))}><SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
+                <div className="flex-1">
+                  <AutocompleteSearch
+                    options={contasContabeisOptions}
+                    value={itemContaContabil[idx] || ""}
+                    onChange={(v) => setItemContaContabil((prev) => ({ ...prev, [idx]: v }))}
+                    placeholder="Buscar conta contábil por código ou descrição..."
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -204,7 +211,12 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       })()}
       {contasContabeis.length > 0 && (
         <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
-          <Select value={String(form.conta_contabil_id || "none")} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
+          <AutocompleteSearch
+            options={contasContabeisOptions}
+            value={String(form.conta_contabil_id || "")}
+            onChange={(v) => setForm({ ...form, conta_contabil_id: v })}
+            placeholder="Buscar conta contábil por código ou descrição..."
+          />
         </div>
       )}
       <div className="bg-accent/50 rounded-lg p-4 space-y-2">
