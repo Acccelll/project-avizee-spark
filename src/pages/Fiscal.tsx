@@ -223,6 +223,9 @@ const Fiscal = () => {
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
     fornecedorId: string;
     fornecedorNome: string;
+    clienteId?: string;
+    clienteNome?: string;
+    tipo?: "entrada" | "saida";
     cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
   } | null>(null);
   // Quick-add disparado a partir do drawer de tradução XML
@@ -236,6 +239,36 @@ const Fiscal = () => {
     email?: string;
     telefone?: string;
   }>({});
+  // Quick-add de cliente a partir do XML (destinatário não cadastrado em NF de saída)
+  const [quickClienteOpen, setQuickClienteOpen] = useState(false);
+  const [quickClienteDefaults, setQuickClienteDefaults] = useState<{
+    nome_razao_social?: string;
+    cpf_cnpj?: string;
+    tipo_pessoa?: "F" | "J";
+    inscricao_estadual?: string;
+    email?: string;
+    telefone?: string;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+  }>({});
+  // CNPJ da empresa (carregado uma vez) — usado para detectar NF de saída no XML.
+  const [cnpjEmpresa, setCnpjEmpresa] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await getEmpresaConfig();
+        if (!cancelled) setCnpjEmpresa((cfg as { cnpj?: string | null } | null)?.cnpj ?? null);
+      } catch {
+        // empresa_config ausente: import seguirá como entrada por default.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
   // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
   // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
@@ -275,6 +308,8 @@ const Fiscal = () => {
   const { importXml } = useNFeXmlImport({
     fornecedores: fornecedoresCrud.data,
     produtos: produtosCrud.data,
+    clientes: clientesCrud.data,
+    cnpjEmpresa,
   });
 
   // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
