@@ -1282,12 +1282,36 @@ const Fiscal = () => {
             </span>
           </button>
         )}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
           {/* Total de NFs oculto em mobile (redundante com count da lista) */}
           <SummaryCard className="hidden md:block" title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.valorTotal)} icon={DollarSign} variationType="neutral" variation="acumulado" />
-          <SummaryCard title="Pendentes" value={String(kpis.pendentes)} icon={Clock} variationType={kpis.pendentes > 0 ? "negative" : "neutral"} variation="aguardando confirmação" />
-          <SummaryCard title="Confirmadas" value={String(kpis.confirmadas)} icon={CheckCircle} variationType="positive" variation="processadas" />
+          <SummaryCard
+            title="Valor Total"
+            shortTitle="Valor"
+            value={isMobile ? formatCurrencyCompact(kpis.valorTotal) : formatCurrency(kpis.valorTotal)}
+            icon={DollarSign}
+            variationType="neutral"
+            variation="acumulado"
+            density={isMobile ? 'compact' : 'default'}
+          />
+          <SummaryCard
+            title="Pendentes"
+            value={String(kpis.pendentes)}
+            icon={Clock}
+            variant={kpis.pendentes > 0 ? 'warning' : 'default'}
+            variationType={kpis.pendentes > 0 ? 'negative' : 'neutral'}
+            variation="aguardando"
+            density={isMobile ? 'compact' : 'default'}
+          />
+          <SummaryCard
+            title="Confirmadas"
+            value={String(kpis.confirmadas)}
+            icon={CheckCircle}
+            variant="success"
+            variationType="positive"
+            variation="processadas"
+            density={isMobile ? 'compact' : 'default'}
+          />
         </div>
 
         <div data-help-id="fiscal.tabela">
