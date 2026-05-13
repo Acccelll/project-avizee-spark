@@ -751,6 +751,47 @@ const Fiscal = () => {
       toast.error("Selecione o cartão de crédito.");
       return;
     }
+    // NF estruturalmente travada (confirmada/importada): só pagamento é editável.
+    // Regenera lançamentos via RPC dedicada e encerra.
+    if (
+      mode === "edit" &&
+      selected &&
+      isFiscalStructurallyLocked(selected.status, (selected as { status_sefaz?: string }).status_sefaz)
+    ) {
+      setSaving(true);
+      try {
+        const total = totalNF || form.valor_total || Number(selected.valor_total || 0);
+        const planoFinal =
+          form.condicao_pagamento === "a_prazo" && parcelas > 1
+            ? (parcelasPlano.length === parcelas ? parcelasPlano : [])
+            : [{
+                numero: 1,
+                vencimento: form.condicao_pagamento === "a_prazo"
+                  ? (form.data_vencimento || selected.data_emissao || new Date().toISOString().split("T")[0])
+                  : (selected.data_emissao || new Date().toISOString().split("T")[0]),
+                valor: total,
+              }];
+        if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
+          toast.error("Defina o plano de parcelas antes de salvar.");
+          setSaving(false);
+          return;
+        }
+        await atualizarFinanceiroNota({
+          notaId: selected.id,
+          formaPagamento: form.forma_pagamento,
+          condicaoPagamento: form.condicao_pagamento,
+          parcelas: planoFinal as never,
+        });
+        toast.success("Pagamento atualizado e lançamentos regenerados.");
+        setModalOpen(false);
+        await invalidateAfterMutation(INVALIDATION_KEYS.fiscal);
+      } catch (err) {
+        notifyError(err);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const unlinkedCount = items.filter(i => !i.produto_id).length;
     if (unlinkedCount > 0) {
       toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens ou remova-os antes de salvar.`);
