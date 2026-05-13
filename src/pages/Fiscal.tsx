@@ -1436,6 +1436,8 @@ const Fiscal = () => {
           setItemContaContabil={setItemContaContabil}
           parcelas={parcelas}
           setParcelas={setParcelas}
+          parcelasPlano={parcelasPlano}
+          setParcelasPlano={setParcelasPlano}
           saving={saving}
           onSubmit={handleSubmit}
           onSaveAndConfirm={selected.status === "pendente" ? handleSaveAndConfirm : undefined}
