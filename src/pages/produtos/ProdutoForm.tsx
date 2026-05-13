@@ -56,6 +56,7 @@ import {
   createUnidadeMedida,
   proximoSkuDoGrupo,
   updateGrupoSigla,
+  createGrupoProduto,
 } from "@/services/produtos.service";
 
 type TipoItem = "produto" | "insumo" | "servico";
@@ -162,6 +163,10 @@ export default function ProdutoForm({
   const [siglaDialogOpen, setSiglaDialogOpen] = useState(false);
   const [siglaInput, setSiglaInput] = useState("");
   const [savingSigla, setSavingSigla] = useState(false);
+  // Dialog: Novo Grupo
+  const [novoGrupoDialogOpen, setNovoGrupoDialogOpen] = useState(false);
+  const [novoGrupoForm, setNovoGrupoForm] = useState({ nome: "", sigla: "" });
+  const [savingNovoGrupo, setSavingNovoGrupo] = useState(false);
 
   // Lookups com cache compartilhado.
   const { data: grupoLookup } = useQuery({ queryKey: ["produtos", "lookup", "grupos-ativos"], queryFn: listGruposAtivos, staleTime: 5 * 60 * 1000 });
