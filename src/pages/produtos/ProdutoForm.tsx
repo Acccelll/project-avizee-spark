@@ -211,6 +211,11 @@ export default function ProdutoForm({
           tipo_item: prod.tipo_item || "produto",
           variacoes_texto: variacoesTexto,
           ativo: prod.ativo !== false,
+          codigo_servico_lc116: prod.codigo_servico_lc116 ?? "",
+          codigo_tributacao_municipio: prod.codigo_tributacao_municipio ?? "",
+          aliquota_iss: prod.aliquota_iss ?? null,
+          retencao_iss: prod.retencao_iss ?? false,
+          tipo_tributacao_iss: prod.tipo_tributacao_iss ?? 1,
         });
         const [compData, fornData] = await Promise.all([
           prod.eh_composto ? listProdutoComposicao(prod.id) : Promise.resolve([]),
