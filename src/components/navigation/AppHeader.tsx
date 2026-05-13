@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ArrowLeft, Keyboard, Moon, Plus, Search, Settings, Sun, User } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -22,7 +22,6 @@ import type { Permission } from '@/utils/permissions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
-import { GlobalPeriodChip } from './GlobalPeriodChip';
 import { HelpMenu } from '@/components/help/HelpMenu';
 
 const ROLE_DOT_COLORS: Record<AppRole, string> = {
