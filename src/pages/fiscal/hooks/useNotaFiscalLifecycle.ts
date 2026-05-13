@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
-  confirmarNotaFiscal,
+  confirmarDocumentoFiscal,
   estornarNotaFiscal,
   gerarDevolucaoNotaFiscal,
   type ItemDevolucao,
@@ -15,10 +15,18 @@ export type { ItemDevolucao };
  * Wrappers React Query sobre `services/fiscal.service.ts`.
  */
 
+export type ConfirmarNFInput = {
+  nfId: string;
+  tipoDocumento?: "nfe" | "nfse" | "cte" | null;
+};
+
 export function useConfirmarNotaFiscal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (nfId: string) => confirmarNotaFiscal(nfId),
+    mutationFn: (input: string | ConfirmarNFInput) => {
+      if (typeof input === "string") return confirmarDocumentoFiscal(input, "nfe");
+      return confirmarDocumentoFiscal(input.nfId, input.tipoDocumento ?? "nfe");
+    },
     onSuccess: () => {
       toast.success("Nota fiscal confirmada com impacto em estoque/financeiro.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
