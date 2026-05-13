@@ -1238,7 +1238,7 @@ const Fiscal = () => {
         <AdvancedFilterBar
           searchValue={consultaSearch}
           onSearchChange={setConsultaSearch}
-          searchPlaceholder="Buscar por número, chave ou parceiro..."
+          searchPlaceholder="Número, chave de acesso…"
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
           onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
