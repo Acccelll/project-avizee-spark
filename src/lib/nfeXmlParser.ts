@@ -11,6 +11,25 @@ export interface NFeEmitente {
   uf: string;
 }
 
+export interface NFeDestinatario {
+  /** CNPJ ou CPF do destinatário (apenas dígitos). */
+  cpfCnpj: string;
+  /** "J" se CNPJ (14), "F" se CPF (11). */
+  tipoPessoa: "F" | "J";
+  razaoSocial: string;
+  inscricaoEstadual: string;
+  /** indIEDest do XML: "1" contribuinte, "2" isento, "9" não contribuinte. */
+  indIEDest: string;
+  uf: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  municipio: string;
+  email: string;
+  telefone: string;
+}
+
 export interface NFeItem {
   numero: number;
   codigo: string;
@@ -33,6 +52,12 @@ export interface NFeData {
   chaveAcesso: string;
   dataEmissao: string;
   emitente: NFeEmitente;
+  /** Destinatário (dest) — usado para identificar cliente em NF de saída. */
+  destinatario?: NFeDestinatario;
+  /** tpNF do XML: "0" entrada, "1" saída. */
+  tpNF: "0" | "1" | null;
+  /** Modelo do documento (mod): "55" NF-e, "65" NFC-e. */
+  modelo: string | null;
   valorProdutos: number;
   valorFrete: number;
   valorDesconto: number;
