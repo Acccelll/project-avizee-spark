@@ -119,6 +119,7 @@ export const navSections: NavSection[] = [
         title: 'Base cadastral',
         items: [
           { title: 'Produtos', path: '/produtos', icon: Package, keywords: ['sku', 'catalogo'] },
+          { title: 'Serviços', path: '/servicos', icon: Receipt, keywords: ['nfse', 'iss', 'lc 116', 'servico'] },
           { title: 'Clientes', path: '/clientes', icon: Users },
           { title: 'Fornecedores', path: '/fornecedores', icon: Store },
           { title: 'Transportadoras', path: '/transportadoras', icon: Truck, keywords: ['frete', 'logistica'] },
