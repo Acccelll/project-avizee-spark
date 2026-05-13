@@ -224,15 +224,15 @@ export const navSections: NavSection[] = [
     ],
   },
 
-  {
-    key: 'social' as NavSectionKey,
-    title: 'Social',
-    icon: Share2,
-    directPath: '/social',
-    items: [] as NavSubgroup[],
-    badge: import.meta.env.VITE_FEATURE_SOCIAL !== 'true' ? 'Em breve' : undefined,
-    disabled: import.meta.env.VITE_FEATURE_SOCIAL !== 'true',
-  },
+  ...(import.meta.env.VITE_FEATURE_SOCIAL === 'true'
+    ? ([{
+        key: 'social' as NavSectionKey,
+        title: 'Social',
+        icon: Share2,
+        directPath: '/social',
+        items: [] as NavSubgroup[],
+      }] satisfies NavSection[])
+    : []),
 
   {
     key: 'relatorios',
