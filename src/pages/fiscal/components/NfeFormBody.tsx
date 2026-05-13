@@ -74,6 +74,16 @@ export function NfeFormBody(props: NfeFormBodyProps) {
     onCriarFornecedorQuick,
   } = props;
 
+  const contasContabeisOptions = useMemo(
+    () => contasContabeis.map((c) => ({
+      id: c.id,
+      label: `${c.codigo} - ${c.descricao}`,
+      sublabel: c.codigo,
+      searchTerms: [c.codigo, c.descricao],
+    })),
+    [contasContabeis],
+  );
+
   return (
     <div className="space-y-5">
       {xmlOriginInfo && traducaoLinhasCount > 0 && (
