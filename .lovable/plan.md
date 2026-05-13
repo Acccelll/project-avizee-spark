@@ -1,62 +1,43 @@
-## Objetivo
+## Problema 1 — Erro "invalid input syntax for type uuid: \"\""
 
-Reverter a abordagem do cadastro separado de **Serviços** e tratar **Serviço** como mais uma classificação de item dentro de **Produtos**, ao lado de **Produto** e **Insumo** (`tipo_item`). Toda seleção de serviço para NFS-e/CT-e passa a vir da própria tabela `produtos`.
+**Causa:** `ProdutoForm` envia `grupo_id: ""` (string vazia) no payload de insert/update. Postgres rejeita ao tentar converter "" para `uuid` (coluna `produtos.grupo_id`). Acontece em qualquer produto criado sem grupo selecionado — só apareceu agora ao testar o fluxo de Serviço, mas afeta todos os tipos.
 
-## Banco (migração nova, idempotente)
+**Fix (frontend, 1 ponto):**
+Em `src/pages/produtos/ProdutoForm.tsx`, no `handleSubmit`, normalizar o payload antes de enviar:
+- `grupo_id: form.grupo_id || null`
+- (defensivo) garantir que qualquer outro UUID opcional seja `null` quando vazio.
 
-1. **`produtos.tipo_item`** — substituir o CHECK para aceitar `('produto','insumo','servico')`. Atualizar a função `proximo_codigo_interno` para gerar prefixo **`SRV`** com nova sequence `seq_codigo_interno_servico`. Atualizar `RAISE EXCEPTION` da função para aceitar o novo tipo.
-2. **`produtos`** — adicionar colunas opcionais usadas só quando `tipo_item='servico'`:
-   - `codigo_servico_lc116 text`
-   - `codigo_tributacao_municipio text`
-   - `aliquota_iss numeric(5,4)`
-   - `retencao_iss boolean default false`
-   - `tipo_tributacao_iss integer` (1–6, com check)
-3. **`notas_fiscais_itens`** — remover FK e coluna `servico_id` (passa a usar `produto_id`). Manter `categoria`, `codigo_servico_lc116`, `aliquota_iss`, `valor_iss` (já existem) — agora populados a partir do `produto` quando `tipo_documento='nfse'`.
-4. **`public.servicos`** — `DROP TABLE IF EXISTS public.servicos CASCADE` (remove índices, policies, triggers e a FK de `servico_id`).
+Sem mudanças de schema/RPC.
 
-RPCs `confirmar_nfse` e `confirmar_cte` permanecem (operam em colunas de `notas_fiscais`, não dependem da tabela removida).
+## Problema 2 — Cadastro de Grupos de Produto inline
 
-## Frontend — remoções
+Hoje a tela só permite **selecionar** um grupo existente e editar a sigla via popover (`updateGrupoSigla`). O usuário quer **criar grupo novo** direto da tela de Produtos, informando **Nome + Sigla** (sigla usada no SKU sequencial).
 
-- Apagar `src/pages/Servicos.tsx`.
-- Apagar `src/services/servicos.service.ts`.
-- Remover rota `/servicos` em `src/routes/cadastros.routes.tsx`.
-- Remover item “Serviços” em `src/lib/navigation.ts`.
-- Remover entrada `"servicos"` em `src/services/genericLookup.service.ts` e em `src/hooks/useEditDeepLink.ts`.
-- Remover `Servico` e tipos correlatos de `src/types/domain.ts` (manter apenas `TipoDocumentoFiscal` e `ModalTransporteCte`).
+**Plano de UI (escopo: ProdutoForm, aba Dados Gerais):**
+1. Ao lado do `Select` de "Grupo de Produto", adicionar botão `+` (ícone Plus) — mesmo padrão do botão `+` da Unidade de Medida logo abaixo.
+2. Botão abre `Dialog` "Novo grupo de produto" com:
+   - Campo **Nome** (obrigatório, max 80).
+   - Campo **Sigla** (obrigatório, 2–6 letras maiúsculas, regex `^[A-Z0-9]{2,6}$`, usada como prefixo do SKU sequencial via `proximo_sku_grupo`).
+   - Botões "Cancelar" / "Criar grupo".
+3. Ao confirmar:
+   - Insert em `grupos_produto` `{ nome, sigla, ativo: true }`.
+   - Atualizar lista local `grupos` (estado já existente).
+   - Selecionar automaticamente o grupo recém-criado em `form.grupo_id`.
+   - Toast de sucesso.
+4. Tratar conflito de sigla duplicada (já existe UNIQUE em `grupos_produto.sigla` — mostrar mensagem amigável).
 
-## Frontend — Produtos como cadastro único
+**Camada de serviço:** adicionar `createGrupoProduto({ nome, sigla })` em `src/services/produtos.service.ts` (segue padrão dos demais helpers do arquivo) e exportar.
 
-`src/pages/Produtos.tsx`:
-- `TipoItem = "produto" | "insumo" | "servico"`.
-- Adicionar opção **Serviço** ao MultiSelect de classificação e ao `StatusBadge`.
-- Adicionar **SummaryCard “Serviços”** com `useTableCount("produtos", { tipo_item: "servico" })` e atalho de filtro.
-- No formulário de produto, quando `tipo_item='servico'`:
-  - Esconder seções de estoque, peso, NCM, GTIN, variações, eh_composto.
-  - Mostrar nova seção **Tributação ISS** com: Item LC 116, Código tributação municipal, Alíquota ISS, ISS retido (switch), Tipo de tributação (select 1–6).
-- Código interno passa a usar prefixo `SRV` automaticamente via trigger existente.
+**RLS:** `grupos_produto` já tem políticas de insert para usuários autenticados (mesmo padrão usado pelo `updateGrupoSigla` atual). Sem migration.
 
-## Frontend — Fiscal
+## Arquivos afetados
 
-`src/components/fiscal/NfseFieldsSection.tsx`:
-- Trocar o seletor de “serviço (tabela `servicos`)” por **busca em `produtos` filtrada por `tipo_item='servico'`** (reutilizar `GenericLookupCombobox` apontando para `produtos`). Ao selecionar, copiar `codigo_servico_lc116`, `aliquota_iss`, `retencao_iss` para os campos `nfse_*` da nota.
-
-`src/components/fiscal/CteFieldsSection.tsx`:
-- Sem mudanças funcionais (CT-e já usa colunas `cte_*` em `notas_fiscais`; itens com `categoria='frete'` continuam vinculados a um produto comum representando o frete, ou opcionalmente a um produto `tipo_item='servico'`).
-
-`src/pages/Fiscal.tsx` / `buildNfItemsPayload`:
-- Manter `categoria` derivada de `tipo_documento` (já implementado).
-- Quando `tipo_documento='nfse'` e o item for um produto `tipo_item='servico'`, copiar `codigo_servico_lc116` e `aliquota_iss` do produto para o item.
-
-## Tipos gerados
-
-Após aprovar a migração, `src/integrations/supabase/types.ts` é regenerado automaticamente — vai remover `servicos` e `servico_id` e adicionar as novas colunas em `produtos`. Ajustar `src/types/domain.ts` em sequência.
+- `src/pages/produtos/ProdutoForm.tsx` — normalização do payload + botão/Dialog "Novo grupo".
+- `src/services/produtos.service.ts` — função `createGrupoProduto`.
 
 ## Critérios de aceite
 
-- `/servicos` não existe mais (rota, sidebar, lookup, deep-link).
-- Em **Produtos**, é possível criar/editar/excluir um item com `tipo_item='servico'`, com formulário enxuto + campos de ISS.
-- KPI e filtro **Serviço** funcionam em Produtos.
-- No formulário de NFS-e, a busca de serviço retorna produtos cuja classificação é **Serviço** e auto-preenche LC 116 / alíquota ISS.
-- Confirmar NFS-e/CT-e continua gerando os lançamentos financeiros corretamente.
-- `bunx tsc --noEmit` sem erros.
+- Salvar Serviço (ou Produto/Insumo) **sem grupo** selecionado funciona sem erro de UUID.
+- Botão `+` ao lado do select de grupo abre Dialog; criar grupo o adiciona à lista e seleciona.
+- Sigla criada já é utilizada pelo botão "Gerar SKU" (que chama `proximo_sku_grupo`).
+- `tsc --noEmit` limpo.

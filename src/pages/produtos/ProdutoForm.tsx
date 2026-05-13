@@ -56,6 +56,7 @@ import {
   createUnidadeMedida,
   proximoSkuDoGrupo,
   updateGrupoSigla,
+  createGrupoProduto,
 } from "@/services/produtos.service";
 
 type TipoItem = "produto" | "insumo" | "servico";
@@ -162,6 +163,10 @@ export default function ProdutoForm({
   const [siglaDialogOpen, setSiglaDialogOpen] = useState(false);
   const [siglaInput, setSiglaInput] = useState("");
   const [savingSigla, setSavingSigla] = useState(false);
+  // Dialog: Novo Grupo
+  const [novoGrupoDialogOpen, setNovoGrupoDialogOpen] = useState(false);
+  const [novoGrupoForm, setNovoGrupoForm] = useState({ nome: "", sigla: "" });
+  const [savingNovoGrupo, setSavingNovoGrupo] = useState(false);
 
   // Lookups com cache compartilhado.
   const { data: grupoLookup } = useQuery({ queryKey: ["produtos", "lookup", "grupos-ativos"], queryFn: listGruposAtivos, staleTime: 5 * 60 * 1000 });
@@ -342,6 +347,8 @@ export default function ProdutoForm({
         variacoes: variacoesArr.length > 0 ? variacoesArr : null,
         preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
       };
+      // Normaliza UUIDs opcionais — Postgres rejeita string vazia em coluna uuid.
+      if (!payload.grupo_id) payload.grupo_id = null;
       if (mode === "create") {
         payload.codigo_interno = "";
       } else {
@@ -615,6 +622,11 @@ export default function ProdutoForm({
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                        title="Criar novo grupo de produto" aria-label="Criar novo grupo de produto"
+                        onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -1163,9 +1175,80 @@ export default function ProdutoForm({
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Novo Grupo de Produto */}
+      <Dialog open={novoGrupoDialogOpen} onOpenChange={(v) => { if (!v) setNovoGrupoDialogOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Novo grupo de produto</DialogTitle></DialogHeader>
+          <form
+            className="space-y-3 pt-1"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingNovoGrupo(true);
+              try {
+                const novo = await createGrupoProduto(novoGrupoForm);
+                setGrupos((prev) => [...prev, { id: novo.id, nome: novo.nome, sigla: novo.sigla }]
+                  .sort((a, b) => a.nome.localeCompare(b.nome)));
+                setForm({ ...form, grupo_id: novo.id });
+                toast.success(`Grupo "${novo.nome}" criado.`);
+                setNovoGrupoDialogOpen(false);
+              } catch (err) {
+                toast.error((err as Error).message);
+              } finally {
+                setSavingNovoGrupo(false);
+              }
+            }}
+          >
+            <p className="text-xs text-muted-foreground">
+              A sigla é usada como prefixo do SKU sequencial dos produtos deste grupo.
+              Ex.: sigla <strong>AG</strong> gera <code className="font-mono">AG001, AG002…</code>
+            </p>
+            <div className="space-y-1.5">
+              <Label>Nome <span className="text-destructive">*</span></Label>
+              <Input
+                value={novoGrupoForm.nome}
+                onChange={(e) => setNovoGrupoForm((f) => ({ ...f, nome: e.target.value }))}
+                placeholder="Ex: Equipamentos de aviário"
+                maxLength={80}
+                autoFocus
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Sigla <span className="text-destructive">*</span></Label>
+              <Input
+                value={novoGrupoForm.sigla}
+                onChange={(e) =>
+                  setNovoGrupoForm((f) => ({
+                    ...f,
+                    sigla: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6),
+                  }))
+                }
+                placeholder="Ex: AG"
+                maxLength={6}
+                className="font-mono"
+                required
+              />
+              <p className="text-[11px] text-muted-foreground">2 a 6 caracteres (letras/números). Maiúsculas.</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setNovoGrupoDialogOpen(false)}>Cancelar</Button>
+              <Button
+                type="submit"
+                disabled={savingNovoGrupo || !novoGrupoForm.nome.trim() || novoGrupoForm.sigla.length < 2}
+                className="gap-1.5"
+              >
+                {savingNovoGrupo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Criar grupo
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {confirmActionDialog}
     </>
   );
+
 
   if (embedded) {
     return (
