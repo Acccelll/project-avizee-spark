@@ -18,6 +18,36 @@ export async function listGruposAtivos() {
 }
 
 /**
+ * Cria um novo grupo de produto inline (a partir do form de Produto).
+ * Sigla é normalizada para maiúsculas. Após inserir, inicializa a sequence
+ * de SKU correspondente para que `proximo_sku_grupo` funcione já no 1º produto.
+ */
+export async function createGrupoProduto(input: {
+  nome: string;
+  sigla: string;
+}): Promise<{ id: string; nome: string; sigla: string | null }> {
+  const nome = input.nome.trim();
+  const sigla = input.sigla.trim().toUpperCase() || null;
+  if (!nome) throw new Error("Informe o nome do grupo.");
+  if (!sigla || !/^[A-Z0-9]{2,6}$/.test(sigla)) {
+    throw new Error("Sigla deve ter 2 a 6 caracteres (letras/números maiúsculos).");
+  }
+  const { data, error } = await supabase
+    .from("grupos_produto")
+    .insert({ nome, sigla, ativo: true })
+    .select("id, nome, sigla")
+    .single();
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new Error("Já existe um grupo com este nome ou sigla.");
+    }
+    throw new Error(error.message || "Não foi possível criar o grupo.");
+  }
+  await supabase.rpc("inicializar_seq_sku_grupo", { _grupo_id: data.id });
+  return data;
+}
+
+/**
  * Próximo SKU disponível para o grupo informado.
  * Usa RPC atômica `proximo_sku_grupo` (mem://tech/numeracao-atomica-documentos).
  * Lança erro se o grupo não tiver `sigla` configurada.
