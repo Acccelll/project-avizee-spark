@@ -43,7 +43,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useFieldUnique } from "@/hooks/useFieldUnique";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
-import { produtoSchema, produtoInsumoSchema, validateForm } from "@/lib/validationSchemas";
+import { produtoSchema, produtoInsumoSchema, produtoServicoSchema, validateForm } from "@/lib/validationSchemas";
 import { notifyError } from "@/utils/errorMessages";
 import {
   listGruposAtivos,
@@ -58,7 +58,7 @@ import {
   updateGrupoSigla,
 } from "@/services/produtos.service";
 
-type TipoItem = "produto" | "insumo";
+type TipoItem = "produto" | "insumo" | "servico";
 
 interface Produto {
   id: string; sku: string; codigo_interno: string; nome: string; descricao: string;
@@ -66,6 +66,12 @@ interface Produto {
   estoque_atual: number; estoque_minimo: number; ncm: string; cst: string; cfop_padrao: string;
   peso: number; eh_composto: boolean; ativo: boolean; created_at: string; updated_at?: string; tipo_item: TipoItem;
   variacoes?: string[] | null;
+  // Tributação ISS (apenas quando tipo_item='servico')
+  codigo_servico_lc116?: string | null;
+  codigo_tributacao_municipio?: string | null;
+  aliquota_iss?: number | null;
+  retencao_iss?: boolean | null;
+  tipo_tributacao_iss?: number | null;
 }
 
 type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
@@ -89,6 +95,7 @@ const emptyProduto: ProdutoFormData = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN",
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
   grupo_id: "", tipo_item: "produto", variacoes_texto: "", ativo: true,
+  codigo_servico_lc116: "", codigo_tributacao_municipio: "", aliquota_iss: null, retencao_iss: false, tipo_tributacao_iss: 1,
 };
 
 export interface ProdutoFormProps {
@@ -204,6 +211,11 @@ export default function ProdutoForm({
           tipo_item: prod.tipo_item || "produto",
           variacoes_texto: variacoesTexto,
           ativo: prod.ativo !== false,
+          codigo_servico_lc116: prod.codigo_servico_lc116 ?? "",
+          codigo_tributacao_municipio: prod.codigo_tributacao_municipio ?? "",
+          aliquota_iss: prod.aliquota_iss ?? null,
+          retencao_iss: prod.retencao_iss ?? false,
+          tipo_tributacao_iss: prod.tipo_tributacao_iss ?? 1,
         });
         const [compData, fornData] = await Promise.all([
           prod.eh_composto ? listProdutoComposicao(prod.id) : Promise.resolve([]),
@@ -294,7 +306,9 @@ export default function ProdutoForm({
       peso: Number(form.peso) || 0, eh_composto: !!form.eh_composto, grupo_id: form.grupo_id,
     };
     const isInsumo = form.tipo_item === "insumo";
-    const validation = validateForm(isInsumo ? produtoInsumoSchema : produtoSchema, dataParaValidar);
+    const isServico = form.tipo_item === "servico";
+    const schema = isServico ? produtoServicoSchema : isInsumo ? produtoInsumoSchema : produtoSchema;
+    const validation = validateForm(schema, dataParaValidar);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstErr = Object.values(validation.errors)[0];
@@ -632,6 +646,7 @@ export default function ProdutoForm({
                       <SelectContent>
                         <SelectItem value="produto">Produto</SelectItem>
                         <SelectItem value="insumo">Insumo</SelectItem>
+                        <SelectItem value="servico">Serviço</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -777,7 +792,72 @@ export default function ProdutoForm({
 
             {/* FISCAL */}
             <TabsContent value="fiscal" className="space-y-4 mt-0 min-h-[420px]">
-              {!fiscalCompleto && (() => {
+              {form.tipo_item === "servico" && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Tributação ISS (NFS-e)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label>Item LC 116</Label>
+                      <Input
+                        value={form.codigo_servico_lc116 ?? ""}
+                        onChange={(e) => setForm({ ...form, codigo_servico_lc116: e.target.value })}
+                        placeholder="Ex: 14.01"
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">Lista de serviços LC 116/2003.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cód. Tributação Municipal</Label>
+                      <Input
+                        value={form.codigo_tributacao_municipio ?? ""}
+                        onChange={(e) => setForm({ ...form, codigo_tributacao_municipio: e.target.value })}
+                        placeholder="Conforme prefeitura"
+                        className="font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota ISS (%)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" max="100"
+                        value={form.aliquota_iss == null ? "" : (Number(form.aliquota_iss) * 100).toString()}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setForm({ ...form, aliquota_iss: v === "" ? null : Number(v) / 100 });
+                        }}
+                        placeholder="Ex: 5,00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Tributação</Label>
+                      <Select
+                        value={String(form.tipo_tributacao_iss ?? 1)}
+                        onValueChange={(v) => setForm({ ...form, tipo_tributacao_iss: Number(v) })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 - Tributação no Município</SelectItem>
+                          <SelectItem value="2">2 - Tributação fora do Município</SelectItem>
+                          <SelectItem value="3">3 - Isenção</SelectItem>
+                          <SelectItem value="4">4 - Imune</SelectItem>
+                          <SelectItem value="5">5 - Exigib. suspensa (decisão judicial)</SelectItem>
+                          <SelectItem value="6">6 - Exigib. suspensa (proc. administrativo)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">ISS retido na fonte</Label>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm ${!form.retencao_iss ? "font-semibold" : "text-muted-foreground"}`}>Não</span>
+                        <Switch checked={!!form.retencao_iss} onCheckedChange={(v) => setForm({ ...form, retencao_iss: v })} />
+                        <span className={`text-sm ${form.retencao_iss ? "font-semibold" : "text-muted-foreground"}`}>Sim</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {form.tipo_item !== "servico" && !fiscalCompleto && (() => {
                 const faltantes = [!form.ncm && "NCM", !form.cst && "CST", !form.cfop_padrao && "CFOP"].filter(Boolean) as string[];
                 return (
                   <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
@@ -794,7 +874,7 @@ export default function ProdutoForm({
                   </div>
                 );
               })()}
-              <div className="space-y-3">
+              {form.tipo_item !== "servico" && <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Dados Fiscais
                   {fiscalCompleto && (
@@ -834,7 +914,7 @@ export default function ProdutoForm({
                     <p className="text-xs text-muted-foreground">4–8 dígitos (tabela TIPI).</p>
                   </div>
                 </div>
-              </div>
+              </div>}
             </TabsContent>
 
             {/* COMPRAS */}

@@ -19,8 +19,7 @@ export function useEditDeepLink<T = Record<string, unknown>>(opts: {
     | "funcionarios"
     | "grupos_economicos"
     | "formas_pagamento"
-    | "unidades_medida"
-    | "servicos";
+    | "unidades_medida";
   onLoad: (record: T) => void;
 }) {
   const location = useLocation();

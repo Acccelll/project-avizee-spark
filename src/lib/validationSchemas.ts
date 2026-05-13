@@ -96,6 +96,17 @@ export const produtoInsumoSchema = produtoSchema.extend({
 });
 
 /**
+ * Variante para Serviços (tipo_item='servico'). Campos físicos opcionais
+ * (estoque/peso) e fiscais NF-e (NCM/CST/CFOP) também ficam opcionais —
+ * a tributação relevante é o ISS (campos LC 116 / alíquota).
+ */
+export const produtoServicoSchema = produtoSchema.extend({
+  preco_venda: z.number().min(0).optional(),
+  estoque_minimo: z.number().min(0).optional(),
+  peso: z.number().min(0).optional(),
+});
+
+/**
  * Schema de validação para Transportadoras — exige DV de CNPJ.
  */
 export const transportadoraSchema = z.object({

@@ -4938,7 +4938,6 @@ export type Database = {
           quantidade: number | null
           quantidade_origem: number | null
           seguro_rateado: number | null
-          servico_id: string | null
           unidade: string | null
           unidade_origem: string | null
           unidade_tributavel: string | null
@@ -4994,7 +4993,6 @@ export type Database = {
           quantidade?: number | null
           quantidade_origem?: number | null
           seguro_rateado?: number | null
-          servico_id?: string | null
           unidade?: string | null
           unidade_origem?: string | null
           unidade_tributavel?: string | null
@@ -5050,7 +5048,6 @@ export type Database = {
           quantidade?: number | null
           quantidade_origem?: number | null
           seguro_rateado?: number | null
-          servico_id?: string | null
           unidade?: string | null
           unidade_origem?: string | null
           unidade_tributavel?: string | null
@@ -5123,13 +5120,6 @@ export type Database = {
             columns: ["produto_identificador_legacy_id"]
             isOneToOne: false
             referencedRelation: "produto_identificadores_legacy"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_itens_servico_id_fkey"
-            columns: ["servico_id"]
-            isOneToOne: false
-            referencedRelation: "servicos"
             referencedColumns: ["id"]
           },
         ]
@@ -6326,12 +6316,15 @@ export type Database = {
       }
       produtos: {
         Row: {
+          aliquota_iss: number | null
           ativo: boolean
           cest: string | null
           cfop_padrao: string | null
           codigo_interno: string
           codigo_interno_legado: string | null
           codigo_legado: string | null
+          codigo_servico_lc116: string | null
+          codigo_tributacao_municipio: string | null
           created_at: string
           cst: string | null
           deleted_at: string | null
@@ -6358,20 +6351,25 @@ export type Database = {
           ponto_reposicao: number | null
           preco_custo: number | null
           preco_venda: number | null
+          retencao_iss: boolean | null
           sku: string | null
           tipo_item: string | null
+          tipo_tributacao_iss: number | null
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
           variacoes: string[] | null
         }
         Insert: {
+          aliquota_iss?: number | null
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string
           codigo_interno_legado?: string | null
           codigo_legado?: string | null
+          codigo_servico_lc116?: string | null
+          codigo_tributacao_municipio?: string | null
           created_at?: string
           cst?: string | null
           deleted_at?: string | null
@@ -6398,20 +6396,25 @@ export type Database = {
           ponto_reposicao?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
+          retencao_iss?: boolean | null
           sku?: string | null
           tipo_item?: string | null
+          tipo_tributacao_iss?: number | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
           variacoes?: string[] | null
         }
         Update: {
+          aliquota_iss?: number | null
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string
           codigo_interno_legado?: string | null
           codigo_legado?: string | null
+          codigo_servico_lc116?: string | null
+          codigo_tributacao_municipio?: string | null
           created_at?: string
           cst?: string | null
           deleted_at?: string | null
@@ -6438,8 +6441,10 @@ export type Database = {
           ponto_reposicao?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
+          retencao_iss?: boolean | null
           sku?: string | null
           tipo_item?: string | null
+          tipo_tributacao_iss?: number | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
@@ -7176,62 +7181,6 @@ export type Database = {
           id?: string
         }
         Relationships: []
-      }
-      servicos: {
-        Row: {
-          aliquota_iss: number | null
-          ativo: boolean
-          codigo: string | null
-          codigo_servico_lc116: string | null
-          codigo_tributacao_municipio: string | null
-          created_at: string
-          descricao: string
-          empresa_id: string
-          id: string
-          retencao_iss: boolean
-          tipo_tributacao_iss: number
-          unidade: string
-          updated_at: string
-        }
-        Insert: {
-          aliquota_iss?: number | null
-          ativo?: boolean
-          codigo?: string | null
-          codigo_servico_lc116?: string | null
-          codigo_tributacao_municipio?: string | null
-          created_at?: string
-          descricao: string
-          empresa_id?: string
-          id?: string
-          retencao_iss?: boolean
-          tipo_tributacao_iss?: number
-          unidade?: string
-          updated_at?: string
-        }
-        Update: {
-          aliquota_iss?: number | null
-          ativo?: boolean
-          codigo?: string | null
-          codigo_servico_lc116?: string | null
-          codigo_tributacao_municipio?: string | null
-          created_at?: string
-          descricao?: string
-          empresa_id?: string
-          id?: string
-          retencao_iss?: boolean
-          tipo_tributacao_iss?: number
-          unidade?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "servicos_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       social_alertas: {
         Row: {

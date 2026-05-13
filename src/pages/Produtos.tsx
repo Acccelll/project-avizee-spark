@@ -16,13 +16,13 @@ import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { listGruposAtivos, fetchProdutosEstoqueSummary } from "@/services/produtos.service";
-import { Package, Archive, AlertCircle } from "lucide-react";
+import { Package, Archive, AlertCircle, Wrench } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
 
-type TipoItem = "produto" | "insumo";
+type TipoItem = "produto" | "insumo" | "servico";
 
 interface Produto {
   id: string; sku: string; codigo_interno: string; nome: string; descricao: string;
@@ -171,6 +171,7 @@ const Produtos = () => {
   // KPIs precisam de counts globais (data agora é só a página corrente).
   const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
   const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
+  const totalServicos = useTableCount("produtos", { tipo_item: "servico" }).data ?? null;
   // Conta global de itens com problema de estoque (RPC) — substitui o "(página)".
   const { data: estoqueSummary } = useQuery({
     queryKey: ["produtos", "estoque-summary"],
@@ -378,12 +379,14 @@ const Produtos = () => {
     total: totalCount ?? data.length,
     produtos: totalProdutos ?? 0,
     insumos: totalInsumos ?? 0,
+    servicos: totalServicos ?? 0,
     criticos: estoqueSummary?.abaixo_minimo ?? 0,
   };
 
   // Estado "ativo" dos cards quando filtram a tabela (feedback visual).
   const isProdutosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "produto";
   const isInsumosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "insumo";
+  const isServicosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "servico";
   const isCriticosActive = estoqueFilters.length > 0
     && estoqueFilters.every((f) => f === "critico" || f === "zerado")
     && (estoqueFilters.includes("critico") || estoqueFilters.includes("zerado"));
@@ -392,7 +395,7 @@ const Produtos = () => {
     const chips: FilterChip[] = [];
     ativoFilters.forEach(f => chips.push({ key: "ativo", label: "Status", value: [f], displayValue: f === "ativo" ? "Ativo" : "Inativo" }));
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "simples" ? "Simples" : "Composto" }));
-    tipoItemFilters.forEach(f => chips.push({ key: "tipoItem", label: "Classificação", value: [f], displayValue: f === "produto" ? "Produto" : "Insumo" }));
+    tipoItemFilters.forEach(f => chips.push({ key: "tipoItem", label: "Classificação", value: [f], displayValue: f === "produto" ? "Produto" : f === "insumo" ? "Insumo" : "Serviço" }));
     estoqueFilters.forEach(f => chips.push({ key: "estoque", label: "Estoque", value: [f], displayValue: situacaoEstoqueConfig[f as SituacaoEstoque]?.label ?? f }));
     grupoFilters.forEach(f => {
       const g = grupos.find(x => x.id === f);
@@ -416,6 +419,7 @@ const Produtos = () => {
   const tipoItemOptions: MultiSelectOption[] = [
     { label: "Produto", value: "produto" },
     { label: "Insumo", value: "insumo" },
+    { label: "Serviço", value: "servico" },
   ];
   const ativoOptions: MultiSelectOption[] = [
     { label: "Ativos", value: "ativo" },
@@ -489,6 +493,28 @@ const Produtos = () => {
               isInsumosActive
                 ? "Filtro ativo · clique para limpar"
                 : kpis.insumos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
+            title="Serviços"
+            value={kpis.servicos}
+            icon={Wrench}
+            variant="default"
+            density="compact"
+            active={isServicosActive}
+            onClick={
+              isServicosActive
+                ? () => setTipoItemFilters([])
+                : kpis.servicos > 0
+                ? () => setTipoItemFilters(["servico"])
+                : undefined
+            }
+            subtitle={
+              isServicosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.servicos > 0
                 ? "Clique para filtrar"
                 : undefined
             }
