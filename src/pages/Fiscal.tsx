@@ -127,7 +127,7 @@ const modeloLabels: Record<string, string> = {
   '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
 };
 
-const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
+const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", xml_importado: "Importação XML" };
 
 interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
@@ -666,7 +666,7 @@ const Fiscal = () => {
       desconto_valor: nfe.valorDesconto,
       outras_despesas: nfe.valorOutrasDespesas,
       valor_total: nfe.valorTotal,
-      origem: "importacao_xml",
+      origem: "xml_importado",
     });
     setItems(newItems);
     setMode("create");
@@ -891,9 +891,9 @@ const Fiscal = () => {
       if (mode === "create") {
         await registrarEventoFiscal({
           nota_fiscal_id: nfId,
-          tipo_evento: form.origem === "importacao_xml" ? "importacao_xml" : "criacao",
+          tipo_evento: form.origem === "xml_importado" ? "importacao_xml" : "criacao",
           status_novo: "pendente",
-          descricao: form.origem === "importacao_xml"
+          descricao: form.origem === "xml_importado"
             ? `NF ${form.numero} criada via importação de XML.`
             : `NF ${form.numero} criada manualmente.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
@@ -901,7 +901,7 @@ const Fiscal = () => {
         // Geração de financeiro a partir das duplicatas do XML (NF-e de entrada).
         if (
           form.tipo === "entrada" &&
-          form.origem === "importacao_xml" &&
+          form.origem === "xml_importado" &&
           xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           try {
@@ -930,13 +930,13 @@ const Fiscal = () => {
           }
         } else if (
           form.tipo === "entrada" &&
-          form.origem === "importacao_xml" &&
+          form.origem === "xml_importado" &&
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
         } else if (
           form.tipo === "saida" &&
-          form.origem === "importacao_xml" &&
+          form.origem === "xml_importado" &&
           xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           // NF de saída importada via XML → gera Contas a Receber.
@@ -965,7 +965,7 @@ const Fiscal = () => {
           }
         } else if (
           form.tipo === "saida" &&
-          form.origem === "importacao_xml" &&
+          form.origem === "xml_importado" &&
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas — informe a condição financeira manualmente.");
