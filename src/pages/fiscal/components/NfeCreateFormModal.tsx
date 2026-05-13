@@ -48,6 +48,7 @@ export interface NfeCreateFormModalProps {
   traducaoLinhasCount: number;
   onAbrirTraducao: () => void;
   onCriarProdutoQuick: () => void;
+  onCriarFornecedorQuick?: () => void;
 }
 
 export function NfeCreateFormModal(props: NfeCreateFormModalProps) {
