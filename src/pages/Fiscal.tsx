@@ -34,6 +34,8 @@ import {
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
 import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
+import { gerarFinanceiroNfeSaida } from "@/services/fiscal/lifecycle.service";
+import { getEmpresaConfig } from "@/services/fiscal/empresaConfig.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -72,6 +74,7 @@ import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 
 /**
