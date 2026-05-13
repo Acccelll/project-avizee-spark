@@ -646,6 +646,7 @@ export default function ProdutoForm({
                       <SelectContent>
                         <SelectItem value="produto">Produto</SelectItem>
                         <SelectItem value="insumo">Insumo</SelectItem>
+                        <SelectItem value="servico">Serviço</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
