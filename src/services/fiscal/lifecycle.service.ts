@@ -58,6 +58,28 @@ export async function confirmarNotaFiscal(nfId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Confirma NFS-e: gera lançamento financeiro do serviço (ISS retido considerado). */
+export async function confirmarNfse(nfId: string): Promise<void> {
+  const { error } = await supabase.rpc("confirmar_nfse", { p_nota_id: nfId });
+  if (error) throw error;
+}
+
+/** Confirma CT-e: rateia o frete entre as NF-es referenciadas e gera financeiro. */
+export async function confirmarCte(nfId: string): Promise<void> {
+  const { error } = await supabase.rpc("confirmar_cte", { p_nota_id: nfId });
+  if (error) throw error;
+}
+
+/** Dispatch genérico baseado em tipo_documento. */
+export async function confirmarDocumentoFiscal(
+  nfId: string,
+  tipo: "nfe" | "nfse" | "cte" | null | undefined,
+): Promise<void> {
+  if (tipo === "nfse") return confirmarNfse(nfId);
+  if (tipo === "cte") return confirmarCte(nfId);
+  return confirmarNotaFiscal(nfId);
+}
+
 export async function estornarNotaFiscal(input: { nfId: string; motivo?: string }): Promise<void> {
   const { error } = await supabase.rpc("estornar_nota_fiscal", {
     p_nf_id: input.nfId,

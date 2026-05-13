@@ -428,7 +428,7 @@ const Fiscal = () => {
     if (!ok) return;
     await confirmarLock.run(async () => {
       try {
-        await confirmarMutation.mutateAsync(nf.id);
+        await confirmarMutation.mutateAsync({ nfId: nf.id, tipoDocumento: (nf as any).tipo_documento ?? "nfe" });
         toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         fetchData();
         // Invalidação cross-módulo: outros módulos abertos em background
@@ -496,9 +496,12 @@ const Fiscal = () => {
     // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
     // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
     const traducao = traducaoLinhas.find((t) => t.index === idx);
+    const td = (form as any).tipo_documento as string | undefined;
+    const categoria = td === "nfse" ? "servico" : td === "cte" ? "frete" : "produto";
     return {
       nota_fiscal_id: nfId,
       produto_id: i.produto_id,
+      categoria,
       quantidade: i.quantidade,
       valor_unitario: i.valor_unitario,
       conta_contabil_id: itemContaContabil[idx] || null,
@@ -563,7 +566,7 @@ const Fiscal = () => {
         itemsBuilder: (nfId) => buildNfItemsPayload(nfId) as never,
       });
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarMutation.mutateAsync(selected.id);
+      await confirmarMutation.mutateAsync({ nfId: selected.id, tipoDocumento: (form as any).tipo_documento ?? (selected as any).tipo_documento ?? "nfe" });
       toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
       setModalOpen(false);
       fetchData();
@@ -1141,9 +1144,20 @@ const Fiscal = () => {
       key: "modelo",
       label: "Modelo",
       // U1: modelo é informação chave em página que mistura NF-e/NFC-e/CT-e/NFS-e.
-      render: (n: NotaFiscal) => (
-        <span className="text-xs font-mono font-medium">{modeloLabels[n.modelo_documento || "55"] || n.modelo_documento}</span>
-      ),
+      render: (n: NotaFiscal) => {
+        const td = (n as any).tipo_documento as string | undefined;
+        const label = td === "nfse" ? "NFS-e" : td === "cte" ? "CT-e" : (modeloLabels[n.modelo_documento || "55"] || n.modelo_documento);
+        const cls = td === "nfse"
+          ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30"
+          : td === "cte"
+          ? "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30"
+          : "bg-muted text-foreground/80 border-border";
+        return (
+          <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold ${cls}`}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: "operacao",
