@@ -621,8 +621,11 @@ const Fiscal = () => {
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = (
     nfe: import("@/lib/nfeXmlParser").NFeData,
+    tipo: "entrada" | "saida",
     fornecedorId: string,
     fornecedorNome: string,
+    clienteId: string,
+    clienteNome: string,
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
   ) => {
@@ -639,14 +642,20 @@ const Fiscal = () => {
         valor_total: t.xmlValorTotal,
       };
     });
+    // Quando o XML traz protocolo SEFAZ (procNFe autorizado), pré-marcamos
+    // como já confirmada/autorizada — caso contrário fica como rascunho.
+    const temProtocolo = !!nfe.protocolo;
     setForm({
       ...emptyForm,
-      tipo: "entrada",
+      tipo,
       numero: nfe.numero,
       serie: nfe.serie,
+      modelo_documento: nfe.modelo || "55",
       chave_acesso: nfe.chaveAcesso,
       data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-      fornecedor_id: fornecedorId,
+      fornecedor_id: tipo === "entrada" ? fornecedorId : "",
+      cliente_id: tipo === "saida" ? clienteId : "",
+      status: temProtocolo ? "importada" : "pendente",
       frete_valor: nfe.valorFrete,
       icms_valor: nfe.icmsTotal,
       ipi_valor: nfe.ipiTotal,
@@ -664,7 +673,7 @@ const Fiscal = () => {
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
-    setXmlOriginInfo({ fornecedorId, fornecedorNome, cobranca: nfe.cobranca });
+    setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
     setModalOpen(true);
   };
 
