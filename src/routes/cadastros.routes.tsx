@@ -28,7 +28,7 @@ export const cadastrosRoutes = (
   <>
     <Route path="/produtos" element={<PermissionRoute resource="produtos"><LazyPage><Produtos /></LazyPage></PermissionRoute>} />
     {/* Serviços: classificação dentro de Produtos (tipo_item='servico') */}
-    <Route path="/servicos" element={<Navigate to="/produtos?tipo_item=servico" replace />} />
+    <Route path="/servicos" element={<Navigate to="/produtos?tipoItem=servico" replace />} />
     {/* Rotas legadas: agora abrem o ProdutoFormModal dentro de /produtos
         via query string (?new=1, ?editId=:id). Preserva deep-links. */}
     <Route path="/produtos/novo" element={<Navigate to="/produtos?new=1" replace />} />
