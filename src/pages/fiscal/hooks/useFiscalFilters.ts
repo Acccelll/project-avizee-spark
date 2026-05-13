@@ -17,7 +17,7 @@ const modeloLabels: Record<string, string> = {
 const origemLabels: Record<string, string> = {
   manual: "Manual",
   pedido: "Pedido",
-  importacao_xml: "Importação XML",
+  xml_importado: "Importação XML",
 };
 
 export interface NotaFiscalFilterInput {
