@@ -1141,9 +1141,20 @@ const Fiscal = () => {
       key: "modelo",
       label: "Modelo",
       // U1: modelo é informação chave em página que mistura NF-e/NFC-e/CT-e/NFS-e.
-      render: (n: NotaFiscal) => (
-        <span className="text-xs font-mono font-medium">{modeloLabels[n.modelo_documento || "55"] || n.modelo_documento}</span>
-      ),
+      render: (n: NotaFiscal) => {
+        const td = (n as any).tipo_documento as string | undefined;
+        const label = td === "nfse" ? "NFS-e" : td === "cte" ? "CT-e" : (modeloLabels[n.modelo_documento || "55"] || n.modelo_documento);
+        const cls = td === "nfse"
+          ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30"
+          : td === "cte"
+          ? "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30"
+          : "bg-muted text-foreground/80 border-border";
+        return (
+          <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold ${cls}`}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: "operacao",
