@@ -792,7 +792,72 @@ export default function ProdutoForm({
 
             {/* FISCAL */}
             <TabsContent value="fiscal" className="space-y-4 mt-0 min-h-[420px]">
-              {!fiscalCompleto && (() => {
+              {form.tipo_item === "servico" && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Tributação ISS (NFS-e)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label>Item LC 116</Label>
+                      <Input
+                        value={form.codigo_servico_lc116 ?? ""}
+                        onChange={(e) => setForm({ ...form, codigo_servico_lc116: e.target.value })}
+                        placeholder="Ex: 14.01"
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">Lista de serviços LC 116/2003.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cód. Tributação Municipal</Label>
+                      <Input
+                        value={form.codigo_tributacao_municipio ?? ""}
+                        onChange={(e) => setForm({ ...form, codigo_tributacao_municipio: e.target.value })}
+                        placeholder="Conforme prefeitura"
+                        className="font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota ISS (%)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" max="100"
+                        value={form.aliquota_iss == null ? "" : (Number(form.aliquota_iss) * 100).toString()}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setForm({ ...form, aliquota_iss: v === "" ? null : Number(v) / 100 });
+                        }}
+                        placeholder="Ex: 5,00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Tributação</Label>
+                      <Select
+                        value={String(form.tipo_tributacao_iss ?? 1)}
+                        onValueChange={(v) => setForm({ ...form, tipo_tributacao_iss: Number(v) })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 - Tributação no Município</SelectItem>
+                          <SelectItem value="2">2 - Tributação fora do Município</SelectItem>
+                          <SelectItem value="3">3 - Isenção</SelectItem>
+                          <SelectItem value="4">4 - Imune</SelectItem>
+                          <SelectItem value="5">5 - Exigib. suspensa (decisão judicial)</SelectItem>
+                          <SelectItem value="6">6 - Exigib. suspensa (proc. administrativo)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">ISS retido na fonte</Label>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm ${!form.retencao_iss ? "font-semibold" : "text-muted-foreground"}`}>Não</span>
+                        <Switch checked={!!form.retencao_iss} onCheckedChange={(v) => setForm({ ...form, retencao_iss: v })} />
+                        <span className={`text-sm ${form.retencao_iss ? "font-semibold" : "text-muted-foreground"}`}>Sim</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {form.tipo_item !== "servico" && !fiscalCompleto && (() => {
                 const faltantes = [!form.ncm && "NCM", !form.cst && "CST", !form.cfop_padrao && "CFOP"].filter(Boolean) as string[];
                 return (
                   <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
@@ -809,7 +874,7 @@ export default function ProdutoForm({
                   </div>
                 );
               })()}
-              <div className="space-y-3">
+              {form.tipo_item !== "servico" && <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Dados Fiscais
                   {fiscalCompleto && (
@@ -849,7 +914,7 @@ export default function ProdutoForm({
                     <p className="text-xs text-muted-foreground">4–8 dígitos (tabela TIPI).</p>
                   </div>
                 </div>
-              </div>
+              </div>}
             </TabsContent>
 
             {/* COMPRAS */}
