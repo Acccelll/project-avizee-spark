@@ -184,6 +184,23 @@ export async function gerarFinanceiroNfeEntrada(
   if (error) throw error;
 }
 
+/**
+ * Gera lançamentos no Contas a Receber a partir das duplicatas da NF-e de saída
+ * importada via XML. Wrappa a RPC `gerar_financeiro_nfe_saida` (idempotente).
+ */
+export async function gerarFinanceiroNfeSaida(
+  notaId: string,
+  duplicatas: DuplicataNfe[],
+  formaPagamento: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("gerar_financeiro_nfe_saida", {
+    p_nota_id: notaId,
+    p_duplicatas: duplicatas as unknown as Json,
+    p_forma_pagamento: formaPagamento,
+  } as never);
+  if (error) throw error;
+}
+
 export interface ParcelaFiscal {
   numero: number;
   vencimento: string;
