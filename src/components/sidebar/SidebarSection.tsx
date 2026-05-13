@@ -5,6 +5,19 @@ import { BADGE_TONE_CLASS, type BadgeInfo } from '@/hooks/useSidebarBadges';
 import { SidebarSectionItem } from './SidebarSectionItem';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+const BADGE_TOOLTIP_BY_SECTION: Record<string, (count: number) => string> = {
+  financeiro: (n) => `${n} lançamento${n === 1 ? '' : 's'} aguardando baixa`,
+  comercial: (n) => `${n} orçamento${n === 1 ? '' : 's'} aguardando aprovação`,
+  fiscal: (n) => `${n} nota${n === 1 ? '' : 's'} pendente${n === 1 ? '' : 's'} de tratamento`,
+  estoque: (n) => `${n} item${n === 1 ? '' : 'ns'} com estoque baixo`,
+  administracao: (n) => `${n} e-mail${n === 1 ? '' : 's'} na fila de erros (DLQ)`,
+};
+
+function badgeTooltip(sectionKey: string, count: number): string {
+  const fn = BADGE_TOOLTIP_BY_SECTION[sectionKey];
+  return fn ? fn(count) : `${count} pendente${count === 1 ? '' : 's'}`;
+}
+
 interface SidebarSectionProps {
   section: NavSection;
   collapsed: boolean;
@@ -83,7 +96,7 @@ export function SidebarSection({
           <button
             type="button"
             aria-label={`Abrir seção ${section.title}`}
-            title={section.title}
+            title={moduleBadgeCount > 0 ? `${section.title} — ${badgeTooltip(section.key, moduleBadgeCount)}` : section.title}
             className={`relative flex w-full items-center justify-center gap-3 rounded-lg px-0 py-2 text-left text-sm font-medium transition ${
               isActive ? 'sidebar-section-active' : 'text-foreground hover:bg-accent'
             }`}
@@ -160,6 +173,8 @@ export function SidebarSection({
         {moduleBadgeCount > 0 && (
           <span
             className={`ml-auto mr-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+            title={badgeTooltip(section.key, moduleBadgeCount)}
+            aria-label={badgeTooltip(section.key, moduleBadgeCount)}
           >
             {moduleBadgeCount}
           </span>

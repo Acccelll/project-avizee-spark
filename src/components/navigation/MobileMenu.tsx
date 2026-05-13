@@ -29,7 +29,7 @@ interface MobileMenuProps {
   onOpenSearch: () => void;
 }
 
-const OPEN_SECTION_STORAGE_KEY = 'erp:mobile-menu:open-section';
+const OPEN_SECTION_STORAGE_KEY = 'avizee_menu_section_state';
 const ADMIN_ADVANCED_PATHS = new Set([
   '/admin/migracao',
   '/admin/auditoria',
@@ -76,23 +76,40 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
 
   const [profilePickerOpen, setProfilePickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | undefined>(() => {
+  const [openSections, setOpenSections] = useState<string[]>(() => {
     try {
-      return localStorage.getItem(OPEN_SECTION_STORAGE_KEY) ?? undefined;
+      const raw = localStorage.getItem(OPEN_SECTION_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as string[]) : [];
     } catch {
-      return undefined;
+      return [];
     }
   });
   const [showAdvancedAdmin, setShowAdvancedAdmin] = useState(false);
 
   useEffect(() => {
     try {
-      if (openSection) localStorage.setItem(OPEN_SECTION_STORAGE_KEY, openSection);
-      else localStorage.removeItem(OPEN_SECTION_STORAGE_KEY);
+      localStorage.setItem(OPEN_SECTION_STORAGE_KEY, JSON.stringify(openSections));
     } catch {
       // ignore
     }
-  }, [openSection]);
+  }, [openSections]);
+
+  const isItemActiveBase = (path: string) => location.pathname === path.split('?')[0];
+
+  // Garante que a seção que contém a rota ativa abra ao montar/abrir o menu.
+  useEffect(() => {
+    if (!open) return;
+    const activeKey = visibleSections.find((s) => {
+      if (s.directPath) return isItemActiveBase(s.directPath);
+      return s.items.some((g) => g.items.some((i) => isItemActiveBase(i.path)));
+    })?.key;
+    if (activeKey && !openSections.includes(activeKey)) {
+      setOpenSections((prev) => [...prev, activeKey]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, location.pathname]);
 
   const sectionsForMobile = useMemo(
     () => (showAdvancedAdmin ? visibleSections : withoutAdvancedAdmin(visibleSections)),
@@ -104,7 +121,7 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     [sectionsForMobile, profile],
   );
 
-  const isItemActive = (path: string) => location.pathname === path.split('?')[0];
+  const isItemActive = isItemActiveBase;
 
   const handleNavigate = (path: string) => {
     onOpenChange(false);
@@ -172,10 +189,9 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
             {/* Módulos prioritários */}
             <section className="px-3 pt-4">
               <Accordion
-                type="single"
-                collapsible
-                value={openSection}
-                onValueChange={(v) => setOpenSection(v || undefined)}
+                type="multiple"
+                value={openSections}
+                onValueChange={(v) => setOpenSections(v)}
                 className="space-y-0.5"
               >
                 {primary.map(renderSection)}
@@ -191,7 +207,12 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
                     <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <Accordion type="single" collapsible className="mt-1 space-y-0.5">
+                    <Accordion
+                      type="multiple"
+                      value={openSections}
+                      onValueChange={(v) => setOpenSections(v)}
+                      className="mt-1 space-y-0.5"
+                    >
                       {others.map(renderSection)}
                     </Accordion>
                   </CollapsibleContent>

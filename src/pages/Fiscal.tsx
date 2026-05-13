@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
 import { calcularTotalNF } from "@/lib/fiscal";
 import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1238,7 +1238,7 @@ const Fiscal = () => {
         <AdvancedFilterBar
           searchValue={consultaSearch}
           onSearchChange={setConsultaSearch}
-          searchPlaceholder="Buscar por número, chave ou parceiro..."
+          searchPlaceholder="Número, chave de acesso…"
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
           onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
@@ -1282,12 +1282,36 @@ const Fiscal = () => {
             </span>
           </button>
         )}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
           {/* Total de NFs oculto em mobile (redundante com count da lista) */}
           <SummaryCard className="hidden md:block" title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.valorTotal)} icon={DollarSign} variationType="neutral" variation="acumulado" />
-          <SummaryCard title="Pendentes" value={String(kpis.pendentes)} icon={Clock} variationType={kpis.pendentes > 0 ? "negative" : "neutral"} variation="aguardando confirmação" />
-          <SummaryCard title="Confirmadas" value={String(kpis.confirmadas)} icon={CheckCircle} variationType="positive" variation="processadas" />
+          <SummaryCard
+            title="Valor Total"
+            shortTitle="Valor"
+            value={isMobile ? formatCurrencyCompact(kpis.valorTotal) : formatCurrency(kpis.valorTotal)}
+            icon={DollarSign}
+            variationType="neutral"
+            variation="acumulado"
+            density={isMobile ? 'compact' : 'default'}
+          />
+          <SummaryCard
+            title="Pendentes"
+            value={String(kpis.pendentes)}
+            icon={Clock}
+            variant={kpis.pendentes > 0 ? 'warning' : 'default'}
+            variationType={kpis.pendentes > 0 ? 'negative' : 'neutral'}
+            variation="aguardando"
+            density={isMobile ? 'compact' : 'default'}
+          />
+          <SummaryCard
+            title="Confirmadas"
+            value={String(kpis.confirmadas)}
+            icon={CheckCircle}
+            variant="success"
+            variationType="positive"
+            variation="processadas"
+            density={isMobile ? 'compact' : 'default'}
+          />
         </div>
 
         <div data-help-id="fiscal.tabela">
