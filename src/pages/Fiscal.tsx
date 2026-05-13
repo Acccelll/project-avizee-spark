@@ -804,7 +804,8 @@ const Fiscal = () => {
     try {
       const savedTotal = totalNF || form.valor_total;
       const planoParcelas = form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
+      const chaveLimpa = (form.chave_acesso || "").replace(/\D/g, "");
+      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, chave_acesso: chaveLimpa.length === 44 ? chaveLimpa : null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
       const nfId = await upsertNotaFiscalComItens({
         mode: mode === "create" ? "create" : "edit",
         nfId: selected?.id,
