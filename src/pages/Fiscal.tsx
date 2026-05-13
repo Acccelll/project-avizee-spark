@@ -1757,6 +1757,36 @@ const Fiscal = () => {
         }}
       />
 
+      {/* Cadastro rápido de cliente a partir do XML (NF de saída) */}
+      <QuickAddClientModal
+        open={quickClienteOpen}
+        defaults={quickClienteDefaults}
+        onClose={() => setQuickClienteOpen(false)}
+        onCreated={async (clienteId) => {
+          await clientesCrud.fetchData();
+          setQuickClienteOpen(false);
+          if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
+            const clienteNome = quickClienteDefaults.nome_razao_social || "";
+            // Reaplica a importação agora com o cliente recém-criado.
+            aplicarImportacaoXml(
+              pendingXmlImport.nfe,
+              "saida",
+              "",
+              "",
+              clienteId,
+              clienteNome,
+              traducaoLinhas,
+              pendingXmlImport.fiscalMap,
+            );
+            setPendingXmlImport(null);
+            toast.success("Cliente cadastrado. NF de saída pronta para revisão.");
+          } else {
+            setForm((prev) => ({ ...prev, cliente_id: clienteId }));
+            toast.success("Cliente cadastrado e selecionado.");
+          }
+        }}
+      />
+
       {confirmDialog}
     </>
   );
