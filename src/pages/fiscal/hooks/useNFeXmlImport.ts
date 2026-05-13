@@ -23,6 +23,12 @@ export interface FornecedorMatchRef {
   cpf_cnpj: string | null;
 }
 
+export interface ClienteMatchRef {
+  id: string;
+  nome_razao_social: string;
+  cpf_cnpj: string | null;
+}
+
 export interface ProdutoMatchRef {
   id: string;
   nome: string;
@@ -72,7 +78,11 @@ export interface TraducaoLinha {
 
 export interface NFeXmlImportResult {
   nfe: NFeData;
+  /** "entrada" quando o emitente do XML é um terceiro; "saida" quando é a própria empresa. */
+  tipo: "entrada" | "saida";
   fornecedorId: string;
+  /** Preenchido apenas quando `tipo === "saida"` — match pelo CNPJ do destinatário. */
+  clienteId: string;
   items: GridItem[];
   fiscalMap: Record<number, NfItemFiscalDataLike>;
   unmatchedItemsCount: number;
@@ -92,6 +102,10 @@ export interface NFeXmlImportResult {
 export interface UseNFeXmlImportArgs {
   fornecedores: FornecedorMatchRef[];
   produtos: ProdutoMatchRef[];
+  /** Lista de clientes para casamento por CNPJ do destinatário (NF de saída). */
+  clientes?: ClienteMatchRef[];
+  /** CNPJ da própria empresa (apenas dígitos). Usado para detectar NF de saída. */
+  cnpjEmpresa?: string | null;
 }
 
 /**
@@ -99,7 +113,7 @@ export interface UseNFeXmlImportArgs {
  * normalizado para popular o formulário. Lança erro em caso de duplicidade
  * ou parse inválido — o caller decide como reagir (toast/modal).
  */
-export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs) {
+export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa }: UseNFeXmlImportArgs) {
   const importXml = useCallback(
     async (input: File | string): Promise<NFeXmlImportResult | null> => {
       // Aceita File (upload manual) ou string (XML obtido por consulta de chave / DistDFe).
@@ -142,12 +156,18 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
         }
       }
 
-      // Match de fornecedor por CNPJ (limpo).
+      // Detecção de tipo: emitente == própria empresa → NF de saída.
+      const emitCnpjClean = (nfe.emitente.cnpj || "").replace(/\D/g, "");
+      const empresaCnpjClean = (cnpjEmpresa || "").replace(/\D/g, "");
+      const isSaida = !!empresaCnpjClean && emitCnpjClean === empresaCnpjClean;
+      const tipo: "entrada" | "saida" = isSaida ? "saida" : "entrada";
+
+      // Match de fornecedor (entrada) ou cliente (saída) por CNPJ.
       let fornecedorId = "";
-      if (nfe.emitente.cnpj) {
-        const cnpjClean = nfe.emitente.cnpj.replace(/\D/g, "");
+      let clienteId = "";
+      if (tipo === "entrada" && emitCnpjClean) {
         const matched = fornecedores.find(
-          (f) => (f.cpf_cnpj || "").replace(/\D/g, "") === cnpjClean,
+          (f) => (f.cpf_cnpj || "").replace(/\D/g, "") === emitCnpjClean,
         );
         if (matched) {
           fornecedorId = matched.id;
@@ -157,12 +177,28 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
             `Fornecedor CNPJ ${nfe.emitente.cnpj} não encontrado no cadastro. Preencha manualmente.`,
           );
         }
+      } else if (tipo === "saida") {
+        const destCnpj = (nfe.destinatario?.cpfCnpj || "").replace(/\D/g, "");
+        if (destCnpj && clientes && clientes.length > 0) {
+          const matched = clientes.find(
+            (c) => (c.cpf_cnpj || "").replace(/\D/g, "") === destCnpj,
+          );
+          if (matched) {
+            clienteId = matched.id;
+            toast.info(`Cliente identificado: ${matched.nome_razao_social}`);
+          } else {
+            toast.info(
+              `Cliente CNPJ/CPF ${nfe.destinatario?.cpfCnpj} não encontrado no cadastro. Cadastre rapidamente para continuar.`,
+            );
+          }
+        }
       }
 
-      // Lookup do de-para por (fornecedor, cProd) — fonte preferencial de match.
+      // Lookup do de-para por (fornecedor, cProd) — apenas em NF de entrada.
+      // Em NF de saída, cProd já é o SKU/codigo_interno do nosso cadastro.
       type DeParaRow = { produto_id: string; referencia_fornecedor: string | null; unidade_fornecedor: string | null; fator_conversao: number };
       const deParaByCodigo = new Map<string, DeParaRow>();
-      if (fornecedorId) {
+      if (tipo === "entrada" && fornecedorId) {
         const codigos = Array.from(new Set(nfe.itens.map((i) => i.codigo).filter(Boolean)));
         if (codigos.length > 0) {
           const { data: depara } = await supabase
@@ -209,6 +245,12 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
           matchStatus = "auto";
           pendente = false;
         } else if (unidadesIguais) {
+          fator = 1;
+          matchStatus = "direto";
+          pendente = false;
+        } else if (tipo === "saida") {
+          // NF de saída: cProd é nosso SKU; quando houver match por id e
+          // a unidade do XML divergir, mantemos fator 1 (a unidade interna prevalece).
           fator = 1;
           matchStatus = "direto";
           pendente = false;
@@ -269,9 +311,9 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
       const unmatchedItemsCount = items.filter((i) => !i.produto_id).length;
       const traducaoOk = traducao.every((t) => !t.pendente);
 
-      return { nfe, fornecedorId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk, distdfeRef };
+      return { nfe, tipo, fornecedorId, clienteId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk, distdfeRef };
     },
-    [fornecedores, produtos],
+    [fornecedores, produtos, clientes, cnpjEmpresa],
   );
 
   return { importXml };
