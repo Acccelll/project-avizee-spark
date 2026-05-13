@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,7 @@ import { NfeFormBody } from "@/pages/fiscal/components/NfeFormBody";
 import { useFiscalNotaForm } from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 /**
  * Página de criação/edição de NF-e (Fase 4 do roadmap fiscal).
@@ -52,6 +53,8 @@ export default function NotaFiscalFormPage() {
     },
   });
 
+  const { isAdmin } = useIsAdmin();
+
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
   const [statusErp, setStatusErp] = useState<string | null>(null);
   const [nfRow, setNfRow] = useState<NotaFiscal | null>(null);
@@ -72,8 +75,14 @@ export default function NotaFiscalFormPage() {
     })();
   }, [id, isCreate]);
 
-  const readOnly =
+  const wouldBeReadOnly =
     !isCreate && !!statusSefaz && STATUS_SEFAZ_TRAVADOS.has(statusSefaz);
+  const isAdminEntradaOverride =
+    !isCreate && isAdmin && nfRow?.tipo === "entrada";
+  const readOnly = wouldBeReadOnly && !isAdminEntradaOverride;
+  const showAdminOverrideBanner =
+    isAdminEntradaOverride &&
+    (wouldBeReadOnly || (statusErp && ["confirmada", "importada", "cancelada"].includes(statusErp)));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +132,27 @@ export default function NotaFiscalFormPage() {
             </Badge>
             na SEFAZ. Para alterar, utilize Cancelar/Inutilizar pela tela de
             Fiscal e emita uma nova nota.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showAdminOverrideBanner && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Modo administrador</AlertTitle>
+          <AlertDescription>
+            Você está editando uma NF de entrada já lançada
+            {statusErp && (
+              <Badge variant="secondary" className="mx-1">
+                {statusErp}
+              </Badge>
+            )}
+            {statusSefaz && (
+              <Badge variant="secondary" className="mx-1">
+                {statusSefaz}
+              </Badge>
+            )}
+            . Alterações afetam estoque e financeiro vinculados — confirme com cuidado e revise os lançamentos após salvar.
           </AlertDescription>
         </Alert>
       )}
