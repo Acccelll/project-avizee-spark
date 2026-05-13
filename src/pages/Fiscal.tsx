@@ -215,8 +215,11 @@ const Fiscal = () => {
   /** Snapshot do resultado do XML aguardando confirmação da tradução (quando há pendência). */
   const [pendingXmlImport, setPendingXmlImport] = useState<{
     nfe: import("@/lib/nfeXmlParser").NFeData;
+    tipo: "entrada" | "saida";
     fornecedorId: string;
     fornecedorNome: string;
+    clienteId?: string;
+    clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
