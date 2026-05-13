@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ChevronDown, Star } from 'lucide-react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import type { NavSection, NavLeafItem } from '@/lib/navigation';
@@ -32,6 +33,12 @@ export function MobileMenuSection({
   const allItems: NavLeafItem[] = section.items.flatMap((g) => g.items);
   const itemCount = allItems.length;
   const hasBadge = (badge?.count ?? 0) > 0;
+  const COLLAPSE_THRESHOLD = 4;
+  const COLLAPSED_VISIBLE = 3;
+  const shouldCollapse = itemCount > COLLAPSE_THRESHOLD;
+  const hasActiveLeafLocal = allItems.some((i) => isItemActive(i.path));
+  const [showAll, setShowAll] = useState(hasActiveLeafLocal);
+  const visibleItems = !shouldCollapse || showAll ? allItems : allItems.slice(0, COLLAPSED_VISIBLE);
 
   // Direct-link section
   if (section.directPath && onDirectNavigate) {
@@ -70,14 +77,12 @@ export function MobileMenuSection({
     );
   }
 
-  const hasActiveLeaf = allItems.some((i) => isItemActive(i.path));
-
   return (
     <AccordionItem value={section.key} className="border-0">
       <AccordionTrigger
         className={cn(
           'group flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider transition hover:bg-accent hover:no-underline data-[state=open]:bg-muted/40',
-          hasActiveLeaf ? 'text-foreground' : 'text-foreground/80',
+          hasActiveLeafLocal ? 'text-foreground' : 'text-foreground/80',
         )}
       >
         <span className="flex-1 truncate">{section.title}</span>
@@ -102,7 +107,7 @@ export function MobileMenuSection({
       </AccordionTrigger>
       <AccordionContent className="pb-1 pt-0.5">
         <div className="space-y-0.5 pl-2">
-          {allItems.map((item) => {
+          {visibleItems.map((item) => {
             const ItemIcon = item.icon ?? section.icon;
             const active = isItemActive(item.path);
             const starred = isFavorite(item.path);
@@ -152,6 +157,15 @@ export function MobileMenuSection({
               </div>
             );
           })}
+          {shouldCollapse && !showAll && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowAll(true); }}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-primary hover:bg-primary/5 transition"
+            >
+              Ver mais {itemCount - COLLAPSED_VISIBLE} {itemCount - COLLAPSED_VISIBLE === 1 ? 'item' : 'itens'}
+            </button>
+          )}
         </div>
       </AccordionContent>
     </AccordionItem>
