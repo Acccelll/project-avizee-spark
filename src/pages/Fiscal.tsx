@@ -33,7 +33,7 @@ import {
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
-import { gerarFinanceiroNfeEntrada } from "@/services/fiscal/lifecycle.service";
+import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -65,6 +65,7 @@ import {
   fiscalSefazStatusOptions,
   getFiscalInternalStatus,
   getFiscalSefazStatus,
+  isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
