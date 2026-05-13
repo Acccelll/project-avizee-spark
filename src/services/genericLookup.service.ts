@@ -8,7 +8,8 @@ export type DeepLinkTable =
   | "funcionarios"
   | "grupos_economicos"
   | "formas_pagamento"
-  | "unidades_medida";
+  | "unidades_medida"
+  | "servicos";
 
 /**
  * Busca uma única linha por id em tabelas suportadas pelo deep-link `?editId=`.
