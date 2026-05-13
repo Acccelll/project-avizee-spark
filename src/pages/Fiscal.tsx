@@ -496,9 +496,12 @@ const Fiscal = () => {
     // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
     // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
     const traducao = traducaoLinhas.find((t) => t.index === idx);
+    const td = (form as any).tipo_documento as string | undefined;
+    const categoria = td === "nfse" ? "servico" : td === "cte" ? "frete" : "produto";
     return {
       nota_fiscal_id: nfId,
       produto_id: i.produto_id,
+      categoria,
       quantidade: i.quantidade,
       valor_unitario: i.valor_unitario,
       conta_contabil_id: itemContaContabil[idx] || null,
