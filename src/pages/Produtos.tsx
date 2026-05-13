@@ -498,6 +498,28 @@ const Produtos = () => {
             }
           />
           <SummaryCard
+            title="Serviços"
+            value={kpis.servicos}
+            icon={Wrench}
+            variant="default"
+            density="compact"
+            active={isServicosActive}
+            onClick={
+              isServicosActive
+                ? () => setTipoItemFilters([])
+                : kpis.servicos > 0
+                ? () => setTipoItemFilters(["servico"])
+                : undefined
+            }
+            subtitle={
+              isServicosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.servicos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
             title="Abaixo do mínimo"
             shortTitle="Estoque crítico"
             value={kpis.criticos}
