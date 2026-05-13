@@ -26,6 +26,12 @@ import {
   Store,
   Briefcase,
   FolderCog,
+  FilePlus2,
+  FileOutput,
+  FileInput,
+  ListChecks,
+  History,
+  Settings2,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
@@ -199,15 +205,15 @@ export const navSections: NavSection[] = [
       {
         title: 'Documentos fiscais',
         items: [
-          { title: 'Emitir NF-e', path: '/faturamento/emitir', icon: Receipt, keywords: ['emissao', 'wizard', 'sefaz', 'nfe'] },
-          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
-          { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
-          { title: 'Consulta documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
+          { title: 'Emitir NF-e', path: '/faturamento/emitir', icon: FilePlus2, keywords: ['emissao', 'wizard', 'sefaz', 'nfe'] },
+          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: FileOutput, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
+          { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: FileInput, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
+          { title: 'Consulta de Documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
           { title: 'Faturamento', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'wizard', 'kpi', 'hub', 'sefaz'] },
-          { title: 'Fila de Faturamento', path: '/faturamento/backlog', icon: Receipt, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla', 'backlog'] },
+          { title: 'Fila de Faturamento', path: '/faturamento/backlog', icon: ListChecks, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla', 'backlog'] },
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
-          { title: 'Distribuição NF-e (DF-e)', path: '/fiscal/distdfe-historico', icon: FileSearch, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz', 'distribuicao'] },
-          { title: 'Cadastros fiscais', path: '/faturamento/cadastros', icon: FolderCog, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
+          { title: 'Distribuição NF-e (DF-e)', path: '/fiscal/distdfe-historico', icon: History, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz', 'distribuicao'] },
+          { title: 'Cadastros Fiscais', path: '/faturamento/cadastros', icon: Settings2, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
         ],
       },
     ],
