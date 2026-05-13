@@ -697,7 +697,7 @@ export default function ProdutoForm({
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label>Preço de Venda {form.tipo_item !== 'insumo' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal text-xs">(opcional para insumo)</span>}</Label>
+                    <Label>Preço de Venda {form.tipo_item === 'produto' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal text-xs">(opcional para {form.tipo_item})</span>}</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
                       <Input type="number" step="0.01" min="0" className="pl-9" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
