@@ -33,6 +33,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
+import { TipoDocumentoSelector } from "@/components/fiscal/TipoDocumentoSelector";
+import { NfseFieldsSection } from "@/components/fiscal/NfseFieldsSection";
+import { CteFieldsSection } from "@/components/fiscal/CteFieldsSection";
+import type { TipoDocumentoFiscal } from "@/types/domain";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -352,6 +356,29 @@ export function NotaFiscalEditModal({
 
         {/* ── Form ──────────────────────────────────────────────────── */}
         <form onSubmit={onSubmit} className="space-y-6">
+          {/* Seletor de tipo de documento */}
+          <TipoDocumentoSelector
+            value={(form.tipo_documento ?? "nfe") as TipoDocumentoFiscal}
+            onChange={(v) => {
+              const cleared: Record<string, any> = { ...form, tipo_documento: v };
+              if (v !== "nfse") {
+                Object.keys(cleared).forEach((k) => { if (k.startsWith("nfse_")) cleared[k] = null; });
+              }
+              if (v !== "cte") {
+                Object.keys(cleared).forEach((k) => { if (k.startsWith("cte_")) cleared[k] = null; });
+              }
+              setForm(cleared);
+            }}
+            disabled={rules.isStructurallyLocked || rules.isFullyLocked}
+          />
+
+          {form.tipo_documento === "nfse" && (
+            <NfseFieldsSection form={form} setForm={setForm} disabled={rules.isFullyLocked} />
+          )}
+          {form.tipo_documento === "cte" && (
+            <CteFieldsSection form={form} setForm={setForm} disabled={rules.isFullyLocked} />
+          )}
+
           {/* ── 1. Identificação Fiscal ──────────────────────────── */}
           <div>
             <SectionHeader

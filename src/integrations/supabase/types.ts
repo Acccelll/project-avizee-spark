@@ -4434,6 +4434,34 @@ export type Database = {
           condicao_pagamento: string | null
           conta_contabil_id: string | null
           created_at: string
+          cte_cfop: string | null
+          cte_chave_nfe_ref: string[] | null
+          cte_dados_extras: Json | null
+          cte_destinatario_doc: string | null
+          cte_destinatario_razao_social: string | null
+          cte_destinatario_uf: string | null
+          cte_expedidor_doc: string | null
+          cte_expedidor_razao_social: string | null
+          cte_modal: string | null
+          cte_municipio_fim: string | null
+          cte_municipio_fim_cod: string | null
+          cte_municipio_fim_uf: string | null
+          cte_municipio_inicio: string | null
+          cte_municipio_inicio_cod: string | null
+          cte_municipio_inicio_uf: string | null
+          cte_natureza_operacao: string | null
+          cte_produto_predominante: string | null
+          cte_quantidade: number | null
+          cte_recebedor_doc: string | null
+          cte_recebedor_razao_social: string | null
+          cte_remetente_doc: string | null
+          cte_remetente_razao_social: string | null
+          cte_remetente_uf: string | null
+          cte_tipo: string | null
+          cte_tomador_tipo: number | null
+          cte_unidade_medida: string | null
+          cte_valor_prestacao: number | null
+          cte_valor_receber: number | null
           data_emissao: string | null
           data_saida: string | null
           data_saida_entrada: string | null
@@ -4464,6 +4492,22 @@ export type Database = {
           natureza_operacao: string | null
           nf_referenciada_chave: string | null
           nf_referenciada_id: string | null
+          nfse_aliquota_iss: number | null
+          nfse_codigo_servico_lc116: string | null
+          nfse_data_competencia: string | null
+          nfse_descricao_servico: string | null
+          nfse_incentivador_cultural: boolean | null
+          nfse_iss_retido: boolean | null
+          nfse_municipio_prestacao: string | null
+          nfse_municipio_prestacao_cod: string | null
+          nfse_natureza_operacao: number | null
+          nfse_numero_rps: string | null
+          nfse_optante_simples: boolean | null
+          nfse_serie_rps: string | null
+          nfse_valor_base_calculo_iss: number | null
+          nfse_valor_deducoes: number | null
+          nfse_valor_iss: number | null
+          nfse_valor_servicos: number | null
           numeracao_volumes: string | null
           numero: string | null
           numero_parcelas: number
@@ -4484,6 +4528,7 @@ export type Database = {
           status: string | null
           status_sefaz: string | null
           tipo: string | null
+          tipo_documento: string
           tipo_operacao: string | null
           transportadora_id: string | null
           updated_at: string
@@ -4510,6 +4555,34 @@ export type Database = {
           condicao_pagamento?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          cte_cfop?: string | null
+          cte_chave_nfe_ref?: string[] | null
+          cte_dados_extras?: Json | null
+          cte_destinatario_doc?: string | null
+          cte_destinatario_razao_social?: string | null
+          cte_destinatario_uf?: string | null
+          cte_expedidor_doc?: string | null
+          cte_expedidor_razao_social?: string | null
+          cte_modal?: string | null
+          cte_municipio_fim?: string | null
+          cte_municipio_fim_cod?: string | null
+          cte_municipio_fim_uf?: string | null
+          cte_municipio_inicio?: string | null
+          cte_municipio_inicio_cod?: string | null
+          cte_municipio_inicio_uf?: string | null
+          cte_natureza_operacao?: string | null
+          cte_produto_predominante?: string | null
+          cte_quantidade?: number | null
+          cte_recebedor_doc?: string | null
+          cte_recebedor_razao_social?: string | null
+          cte_remetente_doc?: string | null
+          cte_remetente_razao_social?: string | null
+          cte_remetente_uf?: string | null
+          cte_tipo?: string | null
+          cte_tomador_tipo?: number | null
+          cte_unidade_medida?: string | null
+          cte_valor_prestacao?: number | null
+          cte_valor_receber?: number | null
           data_emissao?: string | null
           data_saida?: string | null
           data_saida_entrada?: string | null
@@ -4540,6 +4613,22 @@ export type Database = {
           natureza_operacao?: string | null
           nf_referenciada_chave?: string | null
           nf_referenciada_id?: string | null
+          nfse_aliquota_iss?: number | null
+          nfse_codigo_servico_lc116?: string | null
+          nfse_data_competencia?: string | null
+          nfse_descricao_servico?: string | null
+          nfse_incentivador_cultural?: boolean | null
+          nfse_iss_retido?: boolean | null
+          nfse_municipio_prestacao?: string | null
+          nfse_municipio_prestacao_cod?: string | null
+          nfse_natureza_operacao?: number | null
+          nfse_numero_rps?: string | null
+          nfse_optante_simples?: boolean | null
+          nfse_serie_rps?: string | null
+          nfse_valor_base_calculo_iss?: number | null
+          nfse_valor_deducoes?: number | null
+          nfse_valor_iss?: number | null
+          nfse_valor_servicos?: number | null
           numeracao_volumes?: string | null
           numero?: string | null
           numero_parcelas?: number
@@ -4560,6 +4649,7 @@ export type Database = {
           status?: string | null
           status_sefaz?: string | null
           tipo?: string | null
+          tipo_documento?: string
           tipo_operacao?: string | null
           transportadora_id?: string | null
           updated_at?: string
@@ -4586,6 +4676,34 @@ export type Database = {
           condicao_pagamento?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          cte_cfop?: string | null
+          cte_chave_nfe_ref?: string[] | null
+          cte_dados_extras?: Json | null
+          cte_destinatario_doc?: string | null
+          cte_destinatario_razao_social?: string | null
+          cte_destinatario_uf?: string | null
+          cte_expedidor_doc?: string | null
+          cte_expedidor_razao_social?: string | null
+          cte_modal?: string | null
+          cte_municipio_fim?: string | null
+          cte_municipio_fim_cod?: string | null
+          cte_municipio_fim_uf?: string | null
+          cte_municipio_inicio?: string | null
+          cte_municipio_inicio_cod?: string | null
+          cte_municipio_inicio_uf?: string | null
+          cte_natureza_operacao?: string | null
+          cte_produto_predominante?: string | null
+          cte_quantidade?: number | null
+          cte_recebedor_doc?: string | null
+          cte_recebedor_razao_social?: string | null
+          cte_remetente_doc?: string | null
+          cte_remetente_razao_social?: string | null
+          cte_remetente_uf?: string | null
+          cte_tipo?: string | null
+          cte_tomador_tipo?: number | null
+          cte_unidade_medida?: string | null
+          cte_valor_prestacao?: number | null
+          cte_valor_receber?: number | null
           data_emissao?: string | null
           data_saida?: string | null
           data_saida_entrada?: string | null
@@ -4616,6 +4734,22 @@ export type Database = {
           natureza_operacao?: string | null
           nf_referenciada_chave?: string | null
           nf_referenciada_id?: string | null
+          nfse_aliquota_iss?: number | null
+          nfse_codigo_servico_lc116?: string | null
+          nfse_data_competencia?: string | null
+          nfse_descricao_servico?: string | null
+          nfse_incentivador_cultural?: boolean | null
+          nfse_iss_retido?: boolean | null
+          nfse_municipio_prestacao?: string | null
+          nfse_municipio_prestacao_cod?: string | null
+          nfse_natureza_operacao?: number | null
+          nfse_numero_rps?: string | null
+          nfse_optante_simples?: boolean | null
+          nfse_serie_rps?: string | null
+          nfse_valor_base_calculo_iss?: number | null
+          nfse_valor_deducoes?: number | null
+          nfse_valor_iss?: number | null
+          nfse_valor_servicos?: number | null
           numeracao_volumes?: string | null
           numero?: string | null
           numero_parcelas?: number
@@ -4636,6 +4770,7 @@ export type Database = {
           status?: string | null
           status_sefaz?: string | null
           tipo?: string | null
+          tipo_documento?: string
           tipo_operacao?: string | null
           transportadora_id?: string | null
           updated_at?: string
@@ -4759,14 +4894,17 @@ export type Database = {
       }
       notas_fiscais_itens: {
         Row: {
+          aliquota_iss: number | null
           base_cofins: number | null
           base_ipi: number | null
           base_pis: number | null
           base_st: number | null
+          categoria: string
           cest: string | null
           cfop: string | null
           codigo_produto: string | null
           codigo_produto_origem: string | null
+          codigo_servico_lc116: string | null
           cofins_aliquota: number | null
           cofins_valor: number | null
           created_at: string
@@ -4800,9 +4938,11 @@ export type Database = {
           quantidade: number | null
           quantidade_origem: number | null
           seguro_rateado: number | null
+          servico_id: string | null
           unidade: string | null
           unidade_origem: string | null
           unidade_tributavel: string | null
+          valor_iss: number | null
           valor_st: number | null
           valor_total: number | null
           valor_total_origem: number | null
@@ -4810,14 +4950,17 @@ export type Database = {
           valor_unitario_origem: number | null
         }
         Insert: {
+          aliquota_iss?: number | null
           base_cofins?: number | null
           base_ipi?: number | null
           base_pis?: number | null
           base_st?: number | null
+          categoria?: string
           cest?: string | null
           cfop?: string | null
           codigo_produto?: string | null
           codigo_produto_origem?: string | null
+          codigo_servico_lc116?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
@@ -4851,9 +4994,11 @@ export type Database = {
           quantidade?: number | null
           quantidade_origem?: number | null
           seguro_rateado?: number | null
+          servico_id?: string | null
           unidade?: string | null
           unidade_origem?: string | null
           unidade_tributavel?: string | null
+          valor_iss?: number | null
           valor_st?: number | null
           valor_total?: number | null
           valor_total_origem?: number | null
@@ -4861,14 +5006,17 @@ export type Database = {
           valor_unitario_origem?: number | null
         }
         Update: {
+          aliquota_iss?: number | null
           base_cofins?: number | null
           base_ipi?: number | null
           base_pis?: number | null
           base_st?: number | null
+          categoria?: string
           cest?: string | null
           cfop?: string | null
           codigo_produto?: string | null
           codigo_produto_origem?: string | null
+          codigo_servico_lc116?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
@@ -4902,9 +5050,11 @@ export type Database = {
           quantidade?: number | null
           quantidade_origem?: number | null
           seguro_rateado?: number | null
+          servico_id?: string | null
           unidade?: string | null
           unidade_origem?: string | null
           unidade_tributavel?: string | null
+          valor_iss?: number | null
           valor_st?: number | null
           valor_total?: number | null
           valor_total_origem?: number | null
@@ -4973,6 +5123,13 @@ export type Database = {
             columns: ["produto_identificador_legacy_id"]
             isOneToOne: false
             referencedRelation: "produto_identificadores_legacy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "servicos"
             referencedColumns: ["id"]
           },
         ]
@@ -7019,6 +7176,62 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      servicos: {
+        Row: {
+          aliquota_iss: number | null
+          ativo: boolean
+          codigo: string | null
+          codigo_servico_lc116: string | null
+          codigo_tributacao_municipio: string | null
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          retencao_iss: boolean
+          tipo_tributacao_iss: number
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota_iss?: number | null
+          ativo?: boolean
+          codigo?: string | null
+          codigo_servico_lc116?: string | null
+          codigo_tributacao_municipio?: string | null
+          created_at?: string
+          descricao: string
+          empresa_id?: string
+          id?: string
+          retencao_iss?: boolean
+          tipo_tributacao_iss?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota_iss?: number | null
+          ativo?: boolean
+          codigo?: string | null
+          codigo_servico_lc116?: string | null
+          codigo_tributacao_municipio?: string | null
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          retencao_iss?: boolean
+          tipo_tributacao_iss?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       social_alertas: {
         Row: {
@@ -9275,6 +9488,8 @@ export type Database = {
         Args: { p_cartao_id: string; p_data: string }
         Returns: string
       }
+      confirmar_cte: { Args: { p_nota_id: string }; Returns: string }
+      confirmar_nfse: { Args: { p_nota_id: string }; Returns: string }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_enriquecimento: {
