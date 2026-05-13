@@ -4,6 +4,7 @@ import { PermissionRoute } from "@/components/PermissionRoute";
 import { LazyPage } from "./LazyPage";
 
 const Produtos = lazy(() => import("@/pages/Produtos"));
+const Servicos = lazy(() => import("@/pages/Servicos"));
 const Clientes = lazy(() => import("@/pages/Clientes"));
 const GruposEconomicos = lazy(() => import("@/pages/GruposEconomicos"));
 const Fornecedores = lazy(() => import("@/pages/Fornecedores"));
@@ -27,6 +28,7 @@ function RedirectToProdutoEdit() {
 export const cadastrosRoutes = (
   <>
     <Route path="/produtos" element={<PermissionRoute resource="produtos"><LazyPage><Produtos /></LazyPage></PermissionRoute>} />
+    <Route path="/servicos" element={<PermissionRoute resource="produtos"><LazyPage><Servicos /></LazyPage></PermissionRoute>} />
     {/* Rotas legadas: agora abrem o ProdutoFormModal dentro de /produtos
         via query string (?new=1, ?editId=:id). Preserva deep-links. */}
     <Route path="/produtos/novo" element={<Navigate to="/produtos?new=1" replace />} />
