@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Building2, MapPin, Phone, User } from "lucide-react";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
@@ -19,6 +19,22 @@ interface QuickAddClientModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: (clienteId: string) => void;
+  /** Pré-preenchimento opcional (ex.: cliente extraído do XML da NF-e). */
+  defaults?: Partial<{
+    nome_razao_social: string;
+    nome_fantasia: string;
+    cpf_cnpj: string;
+    tipo_pessoa: "F" | "J";
+    inscricao_estadual: string;
+    email: string;
+    telefone: string;
+    cep: string;
+    logradouro: string;
+    numero: string;
+    bairro: string;
+    cidade: string;
+    uf: string;
+  }>;
 }
 
 type TipoPessoa = "F" | "J";
@@ -42,12 +58,19 @@ const emptyForm = {
   uf: "",
 };
 
-export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClientModalProps) {
+export function QuickAddClientModal({ open, onClose, onCreated, defaults }: QuickAddClientModalProps) {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar cliente" });
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const [form, setForm] = useState({ ...emptyForm });
   const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (open && defaults) {
+      setForm((prev) => ({ ...prev, ...defaults }));
+      setIsDirty(true);
+    }
+  }, [open, defaults]);
 
   const update = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));

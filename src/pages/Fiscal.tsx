@@ -34,6 +34,8 @@ import {
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
 import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
+import { gerarFinanceiroNfeSaida } from "@/services/fiscal/lifecycle.service";
+import { getEmpresaConfig } from "@/services/fiscal/empresaConfig.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -72,6 +74,7 @@ import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 
 /**
@@ -212,14 +215,20 @@ const Fiscal = () => {
   /** Snapshot do resultado do XML aguardando confirmação da tradução (quando há pendência). */
   const [pendingXmlImport, setPendingXmlImport] = useState<{
     nfe: import("@/lib/nfeXmlParser").NFeData;
+    tipo: "entrada" | "saida";
     fornecedorId: string;
     fornecedorNome: string;
+    clienteId?: string;
+    clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
     fornecedorId: string;
     fornecedorNome: string;
+    clienteId?: string;
+    clienteNome?: string;
+    tipo?: "entrada" | "saida";
     cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
   } | null>(null);
   // Quick-add disparado a partir do drawer de tradução XML
@@ -233,6 +242,36 @@ const Fiscal = () => {
     email?: string;
     telefone?: string;
   }>({});
+  // Quick-add de cliente a partir do XML (destinatário não cadastrado em NF de saída)
+  const [quickClienteOpen, setQuickClienteOpen] = useState(false);
+  const [quickClienteDefaults, setQuickClienteDefaults] = useState<{
+    nome_razao_social?: string;
+    cpf_cnpj?: string;
+    tipo_pessoa?: "F" | "J";
+    inscricao_estadual?: string;
+    email?: string;
+    telefone?: string;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+  }>({});
+  // CNPJ da empresa (carregado uma vez) — usado para detectar NF de saída no XML.
+  const [cnpjEmpresa, setCnpjEmpresa] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await getEmpresaConfig();
+        if (!cancelled) setCnpjEmpresa((cfg as { cnpj?: string | null } | null)?.cnpj ?? null);
+      } catch {
+        // empresa_config ausente: import seguirá como entrada por default.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
   // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
   // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
@@ -272,6 +311,8 @@ const Fiscal = () => {
   const { importXml } = useNFeXmlImport({
     fornecedores: fornecedoresCrud.data,
     produtos: produtosCrud.data,
+    clientes: clientesCrud.data,
+    cnpjEmpresa,
   });
 
   // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
@@ -580,8 +621,11 @@ const Fiscal = () => {
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = (
     nfe: import("@/lib/nfeXmlParser").NFeData,
+    tipo: "entrada" | "saida",
     fornecedorId: string,
     fornecedorNome: string,
+    clienteId: string,
+    clienteNome: string,
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
   ) => {
@@ -598,14 +642,20 @@ const Fiscal = () => {
         valor_total: t.xmlValorTotal,
       };
     });
+    // Quando o XML traz protocolo SEFAZ (procNFe autorizado), pré-marcamos
+    // como já confirmada/autorizada — caso contrário fica como rascunho.
+    const temProtocolo = !!nfe.protocolo;
     setForm({
       ...emptyForm,
-      tipo: "entrada",
+      tipo,
       numero: nfe.numero,
       serie: nfe.serie,
+      modelo_documento: nfe.modelo || "55",
       chave_acesso: nfe.chaveAcesso,
       data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-      fornecedor_id: fornecedorId,
+      fornecedor_id: tipo === "entrada" ? fornecedorId : "",
+      cliente_id: tipo === "saida" ? clienteId : "",
+      status: temProtocolo ? "importada" : "pendente",
       frete_valor: nfe.valorFrete,
       icms_valor: nfe.icmsTotal,
       ipi_valor: nfe.ipiTotal,
@@ -623,7 +673,7 @@ const Fiscal = () => {
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
-    setXmlOriginInfo({ fornecedorId, fornecedorNome, cobranca: nfe.cobranca });
+    setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
     setModalOpen(true);
   };
 
@@ -673,11 +723,36 @@ const Fiscal = () => {
       if (!result) {
         return;
       }
-      const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
+      const { nfe, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
       const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+      const clienteNome = clientesCrud.data.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
 
-      // Sem fornecedor → oferecer cadastro rápido pré-preenchido com dados do XML.
-      if (!fornecedorId && nfe.emitente?.cnpj) {
+      // NF de saída sem cliente cadastrado → quick-add com dados do destinatário.
+      if (tipo === "saida" && !clienteId && nfe.destinatario?.cpfCnpj) {
+        const d = nfe.destinatario;
+        setQuickClienteDefaults({
+          nome_razao_social: d.razaoSocial || "",
+          cpf_cnpj: d.cpfCnpj,
+          tipo_pessoa: d.tipoPessoa,
+          inscricao_estadual: d.inscricaoEstadual || "",
+          email: d.email || "",
+          telefone: d.telefone || "",
+          cep: d.cep || "",
+          logradouro: d.logradouro || "",
+          numero: d.numero || "",
+          bairro: d.bairro || "",
+          cidade: d.municipio || "",
+          uf: d.uf || "",
+        });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome: "", clienteId: "", clienteNome: d.razaoSocial || "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setTraducaoLinhas(traducao);
+        setQuickClienteOpen(true);
+        toast.info(`Cliente ${d.cpfCnpj} não cadastrado. Cadastre rapidamente para continuar.`);
+        return;
+      }
+
+      // NF de entrada sem fornecedor → quick-add com dados do emitente.
+      if (tipo === "entrada" && !fornecedorId && nfe.emitente?.cnpj) {
         setQuickFornecedorDefaults({
           nome_razao_social: nfe.emitente.razaoSocial || "",
           cpf_cnpj: nfe.emitente.cnpj,
@@ -685,7 +760,7 @@ const Fiscal = () => {
           telefone: (nfe.emitente as { telefone?: string }).telefone || "",
         });
         // Mantém pendingXmlImport para retomar após cadastro do fornecedor.
-        setPendingXmlImport({ nfe, fornecedorId: "", fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome, clienteId: "", clienteNome: "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
         setTraducaoLinhas(traducao);
         setQuickFornecedorOpen(true);
         toast.info(`Fornecedor ${nfe.emitente.cnpj} não cadastrado. Cadastre rapidamente para continuar.`);
@@ -694,11 +769,11 @@ const Fiscal = () => {
 
       if (traducaoOk) {
         // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
-        aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
+        aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
         toast.success("XML importado. Tradução automática aplicada.");
       } else {
         // Pendência → drawer obrigatório, segura abertura do form.
-        setPendingXmlImport({ nfe, fornecedorId, fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
         setTraducaoLinhas(traducao);
         setTraducaoReadOnly(false);
         setTraducaoOpen(true);
@@ -708,9 +783,9 @@ const Fiscal = () => {
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
     if (pendingXmlImport) {
       // Fluxo "tinha pendência": agora aplica e abre o form.
-      const { nfe, fornecedorId, fornecedorNome, fiscalMap } = pendingXmlImport;
-      await salvarDeParaFornecedor(fornecedorId, linhas);
-      aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, linhas, fiscalMap);
+      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap } = pendingXmlImport;
+      if (tipo === "entrada") await salvarDeParaFornecedor(fornecedorId, linhas);
+      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap);
       setPendingXmlImport(null);
       setTraducaoOpen(false);
       toast.success("Tradução confirmada. Revise a NF e salve.");
@@ -858,6 +933,41 @@ const Fiscal = () => {
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+        } else if (
+          form.tipo === "saida" &&
+          form.origem === "importacao_xml" &&
+          xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          // NF de saída importada via XML → gera Contas a Receber.
+          try {
+            const { mapTPagSefaz } = await import("@/lib/financeiro");
+            const formaPag = xmlOriginInfo.cobranca.tPag
+              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
+              : "boleto";
+            await gerarFinanceiroNfeSaida(
+              nfId,
+              xmlOriginInfo.cobranca.duplicatas.map((d) => ({
+                numero: d.numero,
+                vencimento: d.vencimento,
+                valor: d.valor,
+              })),
+              formaPag,
+            );
+            toast.success(
+              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Receber.`,
+            );
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro NFe saida:", rpcErr);
+            toast.warning(
+              "NF salva, mas houve falha ao gerar parcelas a receber. Lance manualmente.",
+            );
+          }
+        } else if (
+          form.tipo === "saida" &&
+          form.origem === "importacao_xml" &&
+          !xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          toast.info("XML sem duplicatas — informe a condição financeira manualmente.");
         } else if (
           form.tipo === "entrada" &&
           form.gera_financeiro &&
@@ -1643,6 +1753,36 @@ const Fiscal = () => {
             // Cadastro inline a partir do form de NF: seleciona o novo fornecedor.
             setForm((prev) => ({ ...prev, fornecedor_id: fornecedorId }));
             toast.success("Fornecedor cadastrado e selecionado.");
+          }
+        }}
+      />
+
+      {/* Cadastro rápido de cliente a partir do XML (NF de saída) */}
+      <QuickAddClientModal
+        open={quickClienteOpen}
+        defaults={quickClienteDefaults}
+        onClose={() => setQuickClienteOpen(false)}
+        onCreated={async (clienteId) => {
+          await clientesCrud.fetchData();
+          setQuickClienteOpen(false);
+          if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
+            const clienteNome = quickClienteDefaults.nome_razao_social || "";
+            // Reaplica a importação agora com o cliente recém-criado.
+            aplicarImportacaoXml(
+              pendingXmlImport.nfe,
+              "saida",
+              "",
+              "",
+              clienteId,
+              clienteNome,
+              traducaoLinhas,
+              pendingXmlImport.fiscalMap,
+            );
+            setPendingXmlImport(null);
+            toast.success("Cliente cadastrado. NF de saída pronta para revisão.");
+          } else {
+            setForm((prev) => ({ ...prev, cliente_id: clienteId }));
+            toast.success("Cliente cadastrado e selecionado.");
           }
         }}
       />
