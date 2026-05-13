@@ -38,6 +38,7 @@ export function useSidebarBadges(): SidebarBadges {
       comercial: { count: alerts.orcamentosPendentes, tone: 'warning' },
       fiscal: { count: fiscalTotal, tone: fiscalTone },
       administracao: { count: alerts.filaEmailDLQ, tone: 'danger' },
+      compras: { count: alerts.pedidosCompraPendentes, tone: 'warning' },
     };
 
     const itemBadges: Record<string, BadgeInfo> = {
@@ -46,6 +47,8 @@ export function useSidebarBadges(): SidebarBadges {
       // grupo pai — não duplicar. O badge no módulo já comunica.
       '/faturamento': { count: alerts.nfeEntradaSemManifestacao, tone: 'warning' },
       '/administracao': { count: alerts.filaEmailDLQ, tone: 'danger' },
+      '/pedidos-compra': { count: alerts.pedidosCompraPendentes, tone: 'warning' },
+      '/fiscal?tipo=entrada': { count: alerts.nfeEntradaPendentes, tone: 'warning' },
     };
 
     const secondsSinceSync = alerts.lastUpdatedAt

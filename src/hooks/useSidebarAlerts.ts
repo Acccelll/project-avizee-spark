@@ -12,6 +12,8 @@ export interface SidebarAlerts {
   nfRejeitadas: number;
   nfeEntradaSemManifestacao: number;
   filaEmailDLQ: number;
+  pedidosCompraPendentes: number;
+  nfeEntradaPendentes: number;
   lastUpdatedAt?: string;
 }
 
@@ -49,6 +51,8 @@ export function useSidebarAlerts(): SidebarAlerts {
       nfRejeitadas: 0,
       nfeEntradaSemManifestacao: 0,
       filaEmailDLQ: 0,
+      pedidosCompraPendentes: 0,
+      nfeEntradaPendentes: 0,
       lastUpdatedAt: undefined,
     }
   );

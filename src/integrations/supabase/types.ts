@@ -10032,8 +10032,10 @@ export type Database = {
           financeiro_vencer: number
           financeiro_vencidos: number
           nf_rejeitadas: number
+          nfe_entrada_pendentes: number
           nfe_sem_manifestacao: number
           orcamentos_pendentes: number
+          pedidos_compra_pendentes: number
         }[]
       }
       social_alertas_periodo: {
