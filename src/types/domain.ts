@@ -29,6 +29,25 @@ export type Produto = TableRow<"produtos"> & {
   grupos_produto?: { nome: string } | null;
 };
 
+export type Servico = TableRow<"servicos">;
+
+// ── Discriminadores fiscais (NF-e / NFS-e / CT-e) ───────────────────────────
+
+export type TipoDocumentoFiscal = "nfe" | "nfce" | "nfse" | "cte" | "cte_os";
+
+export type ModalTransporteCte =
+  | "rodoviario"
+  | "aereo"
+  | "aquaviario"
+  | "ferroviario"
+  | "dutoviario"
+  | "multimodal";
+
+export type TomadorTipoCte = 0 | 1 | 2 | 3 | 4;
+export type NaturezaOperacaoNfse = 1 | 2 | 3 | 4 | 5 | 6;
+export type CategoriaItemNota = "produto" | "insumo" | "servico" | "frete";
+export type TipoTributacaoIss = 1 | 2 | 3 | 4 | 5 | 6;
+
 export type Cliente = TableRow<"clientes"> & {
   grupos_economicos?: { nome: string } | null;
 };
