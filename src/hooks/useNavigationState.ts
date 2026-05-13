@@ -100,6 +100,11 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
     [manualSections, saveManualSections],
   );
 
+  const activeSectionKeysSet = useMemo(
+    () => new Set(activeSectionKeys),
+    [activeSectionKeys],
+  );
+
   const isInsideAdminModule =
     location.pathname === '/administracao' || location.pathname.startsWith('/administracao/');
 
@@ -109,13 +114,13 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
       if (key === 'administracao' && isInsideAdminModule) return false;
       const overrides = manualSections ?? {};
       if (key in overrides) return overrides[key];
-      // Por padrão, todos os submódulos começam recolhidos.
-      // O usuário expande manualmente; a preferência é persistida em
-      // `manualSections`. Navegar para uma rota interna não abre mais
-      // automaticamente o grupo.
+      // Por padrão, todos os submódulos começam recolhidos. Exceção: a seção
+      // que contém a rota ativa abre automaticamente para dar contexto, a
+      // menos que o usuário tenha explicitamente fechado (override === false).
+      if (activeSectionKeysSet.has(key)) return true;
       return false;
     },
-    [manualSections, isInsideAdminModule],
+    [manualSections, isInsideAdminModule, activeSectionKeysSet],
   );
 
   const toggleSection = useCallback(
