@@ -118,6 +118,9 @@ export function parseNFeXml(xmlString: string): NFeData {
   const numero = text(ide, "nNF");
   const serie = text(ide, "serie");
   const dataEmissao = text(ide, "dhEmi").substring(0, 10);
+  const tpNFRaw = text(ide, "tpNF");
+  const tpNF: NFeData["tpNF"] = tpNFRaw === "0" || tpNFRaw === "1" ? tpNFRaw : null;
+  const modelo = text(ide, "mod") || null;
 
   // emit - emitter
   const emit = infNFe.getElementsByTagName("emit")[0];
@@ -128,6 +131,31 @@ export function parseNFeXml(xmlString: string): NFeData {
     inscricaoEstadual: text(emit, "IE"),
     uf: text(emit?.getElementsByTagName("enderEmit")?.[0] || null, "UF"),
   };
+
+  // dest - destinatário (presente em quase todas as NF-e, exceto algumas NFC-e)
+  const destEl = infNFe.getElementsByTagName("dest")[0] || null;
+  let destinatario: NFeDestinatario | undefined;
+  if (destEl) {
+    const enderDest = destEl.getElementsByTagName("enderDest")[0] || null;
+    const cnpjDest = text(destEl, "CNPJ");
+    const cpfDest = text(destEl, "CPF");
+    const cpfCnpj = (cnpjDest || cpfDest).replace(/\D/g, "");
+    destinatario = {
+      cpfCnpj,
+      tipoPessoa: cnpjDest ? "J" : "F",
+      razaoSocial: text(destEl, "xNome"),
+      inscricaoEstadual: text(destEl, "IE"),
+      indIEDest: text(destEl, "indIEDest"),
+      uf: text(enderDest, "UF"),
+      cep: text(enderDest, "CEP"),
+      logradouro: text(enderDest, "xLgr"),
+      numero: text(enderDest, "nro"),
+      bairro: text(enderDest, "xBairro"),
+      municipio: text(enderDest, "xMun"),
+      email: text(destEl, "email"),
+      telefone: text(enderDest, "fone"),
+    };
+  }
 
   // det - items
   const dets = infNFe.getElementsByTagName("det");
@@ -216,6 +244,9 @@ export function parseNFeXml(xmlString: string): NFeData {
     chaveAcesso,
     dataEmissao,
     emitente,
+    destinatario,
+    tpNF,
+    modelo,
     valorProdutos: num(total, "vProd"),
     valorFrete: num(total, "vFrete"),
     valorDesconto: num(total, "vDesc"),
