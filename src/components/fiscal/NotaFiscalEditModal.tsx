@@ -31,6 +31,8 @@ import { isFiscalReadOnly, isFiscalStructurallyLocked, canConfirmFiscal, getFisc
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -79,6 +81,13 @@ interface NotaFiscalEditModalProps {
   >;
   parcelas: number;
   setParcelas: (n: number) => void;
+  /**
+   * Plano detalhado de parcelas (vencimentos e valores). Opcional —
+   * quando informado, a seção Pagamento embute o `ParcelasFiscalEditor`
+   * para edição linha-a-linha. Compartilhado com o fluxo de criação.
+   */
+  parcelasPlano?: ParcelaPlano[];
+  setParcelasPlano?: (p: ParcelaPlano[]) => void;
   saving: boolean;
   onSubmit: (e: FormEvent) => void;
   onSaveAndConfirm?: () => void;
@@ -182,6 +191,8 @@ export function NotaFiscalEditModal({
   setItemContaContabil,
   parcelas,
   setParcelas,
+  parcelasPlano,
+  setParcelasPlano,
   saving,
   onSubmit,
   onSaveAndConfirm,
@@ -812,27 +823,16 @@ export function NotaFiscalEditModal({
           {!rules.isFullyLocked && (
             <div>
               <SectionHeader title="Pagamento" />
-              {rules.isStructurallyLocked ? (
-                <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/20 border p-4">
-                  <ReadField
-                    label="Forma de Pagamento"
-                    value={
-                      <span className="capitalize">
-                        {form.forma_pagamento || "—"}
-                      </span>
-                    }
-                  />
-                  <ReadField
-                    label="Condição"
-                    value={
-                      form.condicao_pagamento === "a_vista"
-                        ? "À Vista"
-                        : "A Prazo"
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {rules.isStructurallyLocked && (
+                <Alert className="mb-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    NF confirmada: alterar o pagamento substitui os lançamentos em aberto.
+                    Parcelas já baixadas (pagas/parciais) impedem a alteração — estorne antes.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label>Forma de Pagamento</Label>
                     <Select
@@ -885,6 +885,28 @@ export function NotaFiscalEditModal({
                       />
                     </div>
                   )}
+              </div>
+              {form.condicao_pagamento === "a_prazo" && parcelasPlano && setParcelasPlano && (
+                <div className="mt-3">
+                  <ParcelasFiscalEditor
+                    total={totalNF}
+                    qtdParcelas={parcelas}
+                    dataEmissao={form.data_emissao || selected.data_emissao || ""}
+                    primeiroVencimento={
+                      parcelasPlano[0]?.vencimento ||
+                      form.data_vencimento ||
+                      ""
+                    }
+                    intervaloDias={Number(form.intervalo_parcelas_dias) || 30}
+                    parcelas={parcelasPlano}
+                    onPrimeiroVencimentoChange={(v) =>
+                      setForm({ ...form, data_vencimento: v })
+                    }
+                    onIntervaloChange={(v) =>
+                      setForm({ ...form, intervalo_parcelas_dias: v })
+                    }
+                    onParcelasChange={setParcelasPlano}
+                  />
                 </div>
               )}
             </div>

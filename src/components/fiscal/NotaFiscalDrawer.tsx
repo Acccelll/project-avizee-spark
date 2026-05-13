@@ -5,7 +5,6 @@ import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useState } from "react";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
-import { EditarPagamentoNotaModal } from "@/components/fiscal/EditarPagamentoNotaModal";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
 import { DetailEmpty } from "@/components/ui/DetailStates";
@@ -158,7 +157,6 @@ export function NotaFiscalDrawer({
   const isMobile = useIsMobile();
   const { canHardDelete: isAdmin } = useCanHardDelete();
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
-  const [editarPagamentoOpen, setEditarPagamentoOpen] = useState(false);
 
   if (!open || !selected) return null;
 
@@ -321,12 +319,9 @@ export function NotaFiscalDrawer({
           </ViewField>
         </div>
         {!["cancelada", "cancelada_sefaz", "inativada"].includes(selected.status) && (
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setEditarPagamentoOpen(true)}>
-              <Edit className="h-3.5 w-3.5 mr-1.5" />
-              Editar pagamento
-            </Button>
-          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Para alterar forma, condição ou parcelas, use <strong>Editar</strong> no topo do drawer.
+          </p>
         )}
       </ViewSection>
 
@@ -1070,16 +1065,6 @@ export function NotaFiscalDrawer({
         onDeleted={() => {
           onPermanentlyDeleted?.();
           onClose();
-        }}
-      />
-    )}
-    {selected && (
-      <EditarPagamentoNotaModal
-        open={editarPagamentoOpen}
-        onClose={() => setEditarPagamentoOpen(false)}
-        nota={selected}
-        onSaved={() => {
-          onRefresh?.();
         }}
       />
     )}

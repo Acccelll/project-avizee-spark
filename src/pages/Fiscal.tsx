@@ -33,7 +33,7 @@ import {
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
-import { gerarFinanceiroNfeEntrada } from "@/services/fiscal/lifecycle.service";
+import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -65,6 +65,7 @@ import {
   fiscalSefazStatusOptions,
   getFiscalInternalStatus,
   getFiscalSefazStatus,
+  isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
@@ -366,7 +367,18 @@ const Fiscal = () => {
       pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
       desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
       origem: n.origem || "manual",
+      data_vencimento: (n as { data_vencimento?: string | null }).data_vencimento || "",
+      intervalo_parcelas_dias: (n as { intervalo_parcelas_dias?: number | null }).intervalo_parcelas_dias || 30,
     });
+    // Seed parcelas + plano a partir da NF (necessário p/ editar pagamento de NF confirmada)
+    const numParc = Math.max(1, Number((n as { numero_parcelas?: number | null }).numero_parcelas) || 1);
+    setParcelas(numParc);
+    const planoExistente = (n as { parcelas?: unknown }).parcelas;
+    if (Array.isArray(planoExistente) && planoExistente.length > 0) {
+      setParcelasPlano(planoExistente as import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]);
+    } else {
+      setParcelasPlano([]);
+    }
     const itens = await listNotaFiscalItensCompletos(n.id).catch(() => []);
     const itensTyped = itens as unknown as NfItemRow[];
     const loadedItems = itensTyped.map((i) => ({
@@ -737,6 +749,47 @@ const Fiscal = () => {
     if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
     if (form.forma_pagamento === "cartao_credito" && !form.cartao_id) {
       toast.error("Selecione o cartão de crédito.");
+      return;
+    }
+    // NF estruturalmente travada (confirmada/importada): só pagamento é editável.
+    // Regenera lançamentos via RPC dedicada e encerra.
+    if (
+      mode === "edit" &&
+      selected &&
+      isFiscalStructurallyLocked(selected.status, (selected as { status_sefaz?: string }).status_sefaz)
+    ) {
+      setSaving(true);
+      try {
+        const total = totalNF || form.valor_total || Number(selected.valor_total || 0);
+        const planoFinal =
+          form.condicao_pagamento === "a_prazo" && parcelas > 1
+            ? (parcelasPlano.length === parcelas ? parcelasPlano : [])
+            : [{
+                numero: 1,
+                vencimento: form.condicao_pagamento === "a_prazo"
+                  ? (form.data_vencimento || selected.data_emissao || new Date().toISOString().split("T")[0])
+                  : (selected.data_emissao || new Date().toISOString().split("T")[0]),
+                valor: total,
+              }];
+        if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
+          toast.error("Defina o plano de parcelas antes de salvar.");
+          setSaving(false);
+          return;
+        }
+        await atualizarFinanceiroNota({
+          notaId: selected.id,
+          formaPagamento: form.forma_pagamento,
+          condicaoPagamento: form.condicao_pagamento,
+          parcelas: planoFinal as never,
+        });
+        toast.success("Pagamento atualizado e lançamentos regenerados.");
+        setModalOpen(false);
+        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
+      } catch (err) {
+        notifyError(err);
+      } finally {
+        setSaving(false);
+      }
       return;
     }
     const unlinkedCount = items.filter(i => !i.produto_id).length;
@@ -1383,6 +1436,8 @@ const Fiscal = () => {
           setItemContaContabil={setItemContaContabil}
           parcelas={parcelas}
           setParcelas={setParcelas}
+          parcelasPlano={parcelasPlano}
+          setParcelasPlano={setParcelasPlano}
           saving={saving}
           onSubmit={handleSubmit}
           onSaveAndConfirm={selected.status === "pendente" ? handleSaveAndConfirm : undefined}
