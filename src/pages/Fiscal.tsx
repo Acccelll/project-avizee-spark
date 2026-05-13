@@ -1434,6 +1434,10 @@ const Fiscal = () => {
         traducaoLinhasCount={traducaoLinhas.length}
         onAbrirTraducao={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}
         onCriarProdutoQuick={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
+        onCriarFornecedorQuick={() => {
+          setQuickFornecedorDefaults({});
+          setQuickFornecedorOpen(true);
+        }}
       />
 
       {/* Edit Modal */}
@@ -1588,6 +1592,10 @@ const Fiscal = () => {
             setPendingXmlImport(newPending);
             setTraducaoReadOnly(false);
             setTraducaoOpen(true);
+          } else {
+            // Cadastro inline a partir do form de NF: seleciona o novo fornecedor.
+            setForm((prev) => ({ ...prev, fornecedor_id: fornecedorId }));
+            toast.success("Fornecedor cadastrado e selecionado.");
           }
         }}
       />

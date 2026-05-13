@@ -20,6 +20,8 @@ import {
 import type { NotaFiscal } from "@/types/domain";
 import { NfeFormBody } from "@/pages/fiscal/components/NfeFormBody";
 import { useFiscalNotaForm } from "@/pages/fiscal/hooks/useFiscalNotaForm";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { toast } from "sonner";
 
 /**
  * Página de criação/edição de NF-e (Fase 4 do roadmap fiscal).
@@ -53,6 +55,7 @@ export default function NotaFiscalFormPage() {
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
   const [statusErp, setStatusErp] = useState<string | null>(null);
   const [nfRow, setNfRow] = useState<NotaFiscal | null>(null);
+  const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
 
   useEffect(() => {
     if (isCreate) return;
@@ -193,6 +196,7 @@ export default function NotaFiscalFormPage() {
                   traducaoLinhasCount={0}
                   onAbrirTraducao={() => {}}
                   onCriarProdutoQuick={() => {}}
+                  onCriarFornecedorQuick={() => setQuickFornecedorOpen(true)}
                 />
               </fieldset>
               {!readOnly && (
@@ -209,6 +213,18 @@ export default function NotaFiscalFormPage() {
           )}
         </CardContent>
       </Card>
+
+      <QuickAddSupplierModal
+        open={quickFornecedorOpen}
+        defaults={{}}
+        onClose={() => setQuickFornecedorOpen(false)}
+        onCreated={async (fornecedorId) => {
+          await fnf.refetchFornecedores();
+          setQuickFornecedorOpen(false);
+          fnf.setForm({ ...(fnf.form as Record<string, unknown>), fornecedor_id: fornecedorId } as never);
+          toast.success("Fornecedor cadastrado e selecionado.");
+        }}
+      />
     </div>
   );
 }

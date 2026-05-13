@@ -54,6 +54,11 @@ export interface NfeFormBodyProps {
   traducaoLinhasCount: number;
   onAbrirTraducao: () => void;
   onCriarProdutoQuick: () => void;
+  /**
+   * Quando definido, exibe o botão "Cadastrar novo fornecedor" no autocomplete
+   * de Fornecedor (apenas em NFs de entrada). Mesmo padrão de Orçamentos.
+   */
+  onCriarFornecedorQuick?: () => void;
 }
 
 export function NfeFormBody(props: NfeFormBodyProps) {
@@ -65,6 +70,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
     fornecedores, clientes, produtos, ordensVenda,
     contasContabeis, cartoes, valorProdutos, totalImpostos, totalNF,
     xmlOriginInfo, traducaoLinhasCount, onAbrirTraducao, onCriarProdutoQuick,
+    onCriarFornecedorQuick,
   } = props;
 
   return (
@@ -94,7 +100,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       <div className="col-span-2 space-y-2"><Label>Chave de Acesso</Label><Input value={String(form.chave_acesso)} onChange={(e) => setForm({ ...form, chave_acesso: e.target.value })} className="font-mono text-xs" /></div>
       <div className="bg-accent/30 rounded-lg p-4 space-y-3">
         {form.tipo === "entrada" ? (
-          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." /></>
+          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
         ) : (
           <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj }))} value={String(form.cliente_id)} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
         )}
