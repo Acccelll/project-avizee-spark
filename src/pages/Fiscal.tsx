@@ -656,6 +656,7 @@ const Fiscal = () => {
       fornecedor_id: tipo === "entrada" ? fornecedorId : "",
       cliente_id: tipo === "saida" ? clienteId : "",
       status: temProtocolo ? "importada" : "pendente",
+      status_sefaz: temProtocolo ? "importada_externa" : "nao_enviada",
       frete_valor: nfe.valorFrete,
       icms_valor: nfe.icmsTotal,
       ipi_valor: nfe.ipiTotal,
