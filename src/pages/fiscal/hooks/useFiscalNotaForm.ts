@@ -315,6 +315,7 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
   return {
     // lookups
     fornecedores: fornecedoresCrud.data,
+    refetchFornecedores: fornecedoresCrud.fetchData,
     clientes: clientesCrud.data,
     produtos: produtosCrud.data,
     ordensVenda, contasContabeis, cartoes,
