@@ -31,6 +31,8 @@ import { isFiscalReadOnly, isFiscalStructurallyLocked, canConfirmFiscal, getFisc
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -79,6 +81,13 @@ interface NotaFiscalEditModalProps {
   >;
   parcelas: number;
   setParcelas: (n: number) => void;
+  /**
+   * Plano detalhado de parcelas (vencimentos e valores). Opcional —
+   * quando informado, a seção Pagamento embute o `ParcelasFiscalEditor`
+   * para edição linha-a-linha. Compartilhado com o fluxo de criação.
+   */
+  parcelasPlano?: ParcelaPlano[];
+  setParcelasPlano?: (p: ParcelaPlano[]) => void;
   saving: boolean;
   onSubmit: (e: FormEvent) => void;
   onSaveAndConfirm?: () => void;
@@ -182,6 +191,8 @@ export function NotaFiscalEditModal({
   setItemContaContabil,
   parcelas,
   setParcelas,
+  parcelasPlano,
+  setParcelasPlano,
   saving,
   onSubmit,
   onSaveAndConfirm,
