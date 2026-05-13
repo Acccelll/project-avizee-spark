@@ -1,12 +1,14 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, KeyRound, ScanLine, MoreVertical } from "lucide-react";
+import { Upload, KeyRound, ScanLine, FileCode2, Download } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface FiscalToolbarActionsProps {
   onXmlChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -35,45 +37,67 @@ const BUSCA_CHAVE_ENABLED =
  */
 export const FiscalToolbarActions = forwardRef<HTMLInputElement, FiscalToolbarActionsProps>(
   ({ onXmlChange, onImportClick, onBuscarChaveClick, onScannerClick, compact = false }, ref) => {
+    const [sheetOpen, setSheetOpen] = useState(false);
+
+    const fire = (cb: () => void) => {
+      setSheetOpen(false);
+      // Aguarda o sheet fechar para evitar foco preso
+      setTimeout(cb, 80);
+    };
+
     if (compact) {
       return (
         <>
           <input ref={ref} type="file" accept=".xml" className="hidden" onChange={onXmlChange} />
-          {BUSCA_CHAVE_ENABLED && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 min-h-11 px-3"
-              onClick={onScannerClick}
-              aria-label="Ler chave por código de barras ou QR Code"
-            >
-              <ScanLine className="h-4 w-4" />
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="min-h-11 min-w-11 px-2"
-                aria-label="Mais ações"
+                className="gap-1.5 min-h-11 px-3"
+                aria-label="Importar nota fiscal"
               >
-                <MoreVertical className="h-4 w-4" />
+                <Download className="h-4 w-4" />
+                Importar
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={onImportClick} className="gap-2 min-h-11">
-                <Upload className="h-4 w-4" />
-                Importar XML
-              </DropdownMenuItem>
-              {BUSCA_CHAVE_ENABLED && (
-                <DropdownMenuItem onClick={onBuscarChaveClick} className="gap-2 min-h-11">
-                  <KeyRound className="h-4 w-4" />
-                  Buscar por chave
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl pb-[env(safe-area-inset-bottom)]">
+              <SheetHeader className="text-left">
+                <SheetTitle>Importar nota fiscal</SheetTitle>
+                <SheetDescription>Escolha como quer trazer a NF-e.</SheetDescription>
+              </SheetHeader>
+              <div className="grid grid-cols-3 gap-3 py-4">
+                {BUSCA_CHAVE_ENABLED && (
+                  <button
+                    type="button"
+                    onClick={() => fire(onBuscarChaveClick)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 min-h-[96px] hover:bg-accent transition"
+                  >
+                    <KeyRound className="h-6 w-6 text-primary" />
+                    <span className="text-xs font-medium">Chave</span>
+                  </button>
+                )}
+                {BUSCA_CHAVE_ENABLED && (
+                  <button
+                    type="button"
+                    onClick={() => fire(onScannerClick)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 min-h-[96px] hover:bg-accent transition"
+                  >
+                    <ScanLine className="h-6 w-6 text-primary" />
+                    <span className="text-xs font-medium">QR Code</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fire(onImportClick)}
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 min-h-[96px] hover:bg-accent transition"
+                >
+                  <FileCode2 className="h-6 w-6 text-primary" />
+                  <span className="text-xs font-medium">XML</span>
+                </button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </>
       );
     }
