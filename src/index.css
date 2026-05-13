@@ -60,7 +60,7 @@
 
     /* Larguras canônicas da sidebar — usadas por AppLayout e AppSidebar para evitar drift. */
     --sidebar-w-collapsed: 72px;
-    --sidebar-w-expanded: 240px;
+    --sidebar-w-expanded: 248px;
   }
 
   .dark {
