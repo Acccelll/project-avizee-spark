@@ -129,6 +129,11 @@ export const navSections: NavSection[] = [
           { title: 'Fornecedores', path: '/fornecedores', icon: Store },
           { title: 'Transportadoras', path: '/transportadoras', icon: Truck, keywords: ['frete', 'logistica'] },
           { title: 'Formas de Pagamento', path: '/formas-pagamento', icon: CreditCard, keywords: ['prazo', 'parcelamento'] },
+        ],
+      },
+      {
+        title: 'Empresa',
+        items: [
           { title: 'Grupos Econômicos', path: '/grupos-economicos', icon: Building2, keywords: ['matriz', 'filiais'] },
           { title: 'Funcionários', path: '/funcionarios', icon: UserCog, keywords: ['fopag', 'folha', 'salario', 'rh'] },
           { title: 'Sócios', path: '/socios', icon: Briefcase, keywords: ['socio', 'societario', 'participacao'] },

@@ -1324,6 +1324,28 @@ const Fiscal = () => {
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
+          emptyTitle={fiscalActiveFilters.length > 0 || consultaSearch ? "Nenhuma nota corresponde aos filtros" : "Nenhuma nota fiscal encontrada"}
+          emptyDescription={fiscalActiveFilters.length > 0 || consultaSearch ? "Ajuste ou limpe os filtros para ver mais resultados." : "Importe um XML, busque por chave ou emita uma nova nota."}
+          emptyAction={
+            (fiscalActiveFilters.length > 0 || consultaSearch) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConsultaSearch("");
+                  setTipoFilters([]);
+                  setModeloFilters([]);
+                  setStatusFilters([]);
+                  setOrigemFilters([]);
+                  setStatusSefazFilters([]);
+                  setEmissaoMes("");
+                  setVencimentoMes("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            ) : undefined
+          }
           mobileStatusKey="status"
           mobileIdentifierKey="parceiro"
           mobilePrimaryAction={(n) => {
