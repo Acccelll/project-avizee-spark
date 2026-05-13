@@ -367,7 +367,18 @@ const Fiscal = () => {
       pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
       desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
       origem: n.origem || "manual",
+      data_vencimento: (n as { data_vencimento?: string | null }).data_vencimento || "",
+      intervalo_parcelas_dias: (n as { intervalo_parcelas_dias?: number | null }).intervalo_parcelas_dias || 30,
     });
+    // Seed parcelas + plano a partir da NF (necessário p/ editar pagamento de NF confirmada)
+    const numParc = Math.max(1, Number((n as { numero_parcelas?: number | null }).numero_parcelas) || 1);
+    setParcelas(numParc);
+    const planoExistente = (n as { parcelas?: unknown }).parcelas;
+    if (Array.isArray(planoExistente) && planoExistente.length > 0) {
+      setParcelasPlano(planoExistente as import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]);
+    } else {
+      setParcelasPlano([]);
+    }
     const itens = await listNotaFiscalItensCompletos(n.id).catch(() => []);
     const itensTyped = itens as unknown as NfItemRow[];
     const loadedItems = itensTyped.map((i) => ({
