@@ -1188,7 +1188,7 @@ export default function ProdutoForm({
                 const novo = await createGrupoProduto(novoGrupoForm);
                 setGrupos((prev) => [...prev, { id: novo.id, nome: novo.nome, sigla: novo.sigla }]
                   .sort((a, b) => a.nome.localeCompare(b.nome)));
-                setForm((f) => ({ ...f, grupo_id: novo.id }));
+                setForm({ ...form, grupo_id: novo.id });
                 toast.success(`Grupo "${novo.nome}" criado.`);
                 setNovoGrupoDialogOpen(false);
               } catch (err) {
