@@ -29,8 +29,6 @@ export type Produto = TableRow<"produtos"> & {
   grupos_produto?: { nome: string } | null;
 };
 
-export type Servico = TableRow<"servicos">;
-
 // ── Discriminadores fiscais (NF-e / NFS-e / CT-e) ───────────────────────────
 
 export type TipoDocumentoFiscal = "nfe" | "nfce" | "nfse" | "cte" | "cte_os";
