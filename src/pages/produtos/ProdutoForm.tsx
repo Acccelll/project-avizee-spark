@@ -43,7 +43,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useFieldUnique } from "@/hooks/useFieldUnique";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
-import { produtoSchema, produtoInsumoSchema, validateForm } from "@/lib/validationSchemas";
+import { produtoSchema, produtoInsumoSchema, produtoServicoSchema, validateForm } from "@/lib/validationSchemas";
 import { notifyError } from "@/utils/errorMessages";
 import {
   listGruposAtivos,
@@ -58,7 +58,7 @@ import {
   updateGrupoSigla,
 } from "@/services/produtos.service";
 
-type TipoItem = "produto" | "insumo";
+type TipoItem = "produto" | "insumo" | "servico";
 
 interface Produto {
   id: string; sku: string; codigo_interno: string; nome: string; descricao: string;
@@ -66,6 +66,12 @@ interface Produto {
   estoque_atual: number; estoque_minimo: number; ncm: string; cst: string; cfop_padrao: string;
   peso: number; eh_composto: boolean; ativo: boolean; created_at: string; updated_at?: string; tipo_item: TipoItem;
   variacoes?: string[] | null;
+  // Tributação ISS (apenas quando tipo_item='servico')
+  codigo_servico_lc116?: string | null;
+  codigo_tributacao_municipio?: string | null;
+  aliquota_iss?: number | null;
+  retencao_iss?: boolean | null;
+  tipo_tributacao_iss?: number | null;
 }
 
 type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
@@ -89,6 +95,7 @@ const emptyProduto: ProdutoFormData = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN",
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
   grupo_id: "", tipo_item: "produto", variacoes_texto: "", ativo: true,
+  codigo_servico_lc116: "", codigo_tributacao_municipio: "", aliquota_iss: null, retencao_iss: false, tipo_tributacao_iss: 1,
 };
 
 export interface ProdutoFormProps {
