@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
 import { calcularTotalNF } from "@/lib/fiscal";
 import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
