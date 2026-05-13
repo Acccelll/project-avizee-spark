@@ -784,7 +784,7 @@ const Fiscal = () => {
         });
         toast.success("Pagamento atualizado e lançamentos regenerados.");
         setModalOpen(false);
-        await invalidateAfterMutation(INVALIDATION_KEYS.fiscal);
+        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err) {
         notifyError(err);
       } finally {
