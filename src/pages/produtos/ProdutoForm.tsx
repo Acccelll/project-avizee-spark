@@ -347,6 +347,8 @@ export default function ProdutoForm({
         variacoes: variacoesArr.length > 0 ? variacoesArr : null,
         preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
       };
+      // Normaliza UUIDs opcionais — Postgres rejeita string vazia em coluna uuid.
+      if (!payload.grupo_id) payload.grupo_id = null;
       if (mode === "create") {
         payload.codigo_interno = "";
       } else {
