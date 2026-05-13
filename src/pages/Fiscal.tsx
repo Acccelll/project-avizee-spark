@@ -934,6 +934,41 @@ const Fiscal = () => {
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
         } else if (
+          form.tipo === "saida" &&
+          form.origem === "importacao_xml" &&
+          xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          // NF de saída importada via XML → gera Contas a Receber.
+          try {
+            const { mapTPagSefaz } = await import("@/lib/financeiro");
+            const formaPag = xmlOriginInfo.cobranca.tPag
+              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
+              : "boleto";
+            await gerarFinanceiroNfeSaida(
+              nfId,
+              xmlOriginInfo.cobranca.duplicatas.map((d) => ({
+                numero: d.numero,
+                vencimento: d.vencimento,
+                valor: d.valor,
+              })),
+              formaPag,
+            );
+            toast.success(
+              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Receber.`,
+            );
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro NFe saida:", rpcErr);
+            toast.warning(
+              "NF salva, mas houve falha ao gerar parcelas a receber. Lance manualmente.",
+            );
+          }
+        } else if (
+          form.tipo === "saida" &&
+          form.origem === "importacao_xml" &&
+          !xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          toast.info("XML sem duplicatas — informe a condição financeira manualmente.");
+        } else if (
           form.tipo === "entrada" &&
           form.gera_financeiro &&
           form.forma_pagamento === "cartao_credito" &&
