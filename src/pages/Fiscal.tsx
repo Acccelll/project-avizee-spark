@@ -428,7 +428,7 @@ const Fiscal = () => {
     if (!ok) return;
     await confirmarLock.run(async () => {
       try {
-        await confirmarMutation.mutateAsync(nf.id);
+        await confirmarMutation.mutateAsync({ nfId: nf.id, tipoDocumento: (nf as any).tipo_documento ?? "nfe" });
         toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         fetchData();
         // Invalidação cross-módulo: outros módulos abertos em background
@@ -563,7 +563,7 @@ const Fiscal = () => {
         itemsBuilder: (nfId) => buildNfItemsPayload(nfId) as never,
       });
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarMutation.mutateAsync(selected.id);
+      await confirmarMutation.mutateAsync({ nfId: selected.id, tipoDocumento: (form as any).tipo_documento ?? (selected as any).tipo_documento ?? "nfe" });
       toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
       setModalOpen(false);
       fetchData();
