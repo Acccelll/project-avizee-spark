@@ -9,6 +9,7 @@ import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/componen
 import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosSection";
 import { formatCurrency } from "@/lib/format";
 import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
+import { useMemo } from "react";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
 import type {
   FornecedorRefMin,
