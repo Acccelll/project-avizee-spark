@@ -622,6 +622,11 @@ export default function ProdutoForm({
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                        title="Criar novo grupo de produto" aria-label="Criar novo grupo de produto"
+                        onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
