@@ -9577,6 +9577,17 @@ export type Database = {
           parcela: number
         }[]
       }
+      gerar_financeiro_nfe_saida: {
+        Args: {
+          p_duplicatas: Json
+          p_forma_pagamento?: string
+          p_nota_id: string
+        }
+        Returns: {
+          lancamento_id: string
+          parcela: number
+        }[]
+      }
       gerar_financeiro_retirada: {
         Args: {
           p_conta_bancaria_id?: string
