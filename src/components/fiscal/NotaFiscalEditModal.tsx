@@ -33,6 +33,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
+import { TipoDocumentoSelector } from "@/components/fiscal/TipoDocumentoSelector";
+import { NfseFieldsSection } from "@/components/fiscal/NfseFieldsSection";
+import { CteFieldsSection } from "@/components/fiscal/CteFieldsSection";
+import type { TipoDocumentoFiscal } from "@/types/domain";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
