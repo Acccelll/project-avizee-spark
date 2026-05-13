@@ -306,7 +306,9 @@ export default function ProdutoForm({
       peso: Number(form.peso) || 0, eh_composto: !!form.eh_composto, grupo_id: form.grupo_id,
     };
     const isInsumo = form.tipo_item === "insumo";
-    const validation = validateForm(isInsumo ? produtoInsumoSchema : produtoSchema, dataParaValidar);
+    const isServico = form.tipo_item === "servico";
+    const schema = isServico ? produtoServicoSchema : isInsumo ? produtoInsumoSchema : produtoSchema;
+    const validation = validateForm(schema, dataParaValidar);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstErr = Object.values(validation.errors)[0];
