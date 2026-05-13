@@ -1,101 +1,69 @@
-# Plano — UX Navegação AviZee
+## Objetivo
 
-Aplicar as 3 superfícies do brief mantendo design system (paleta coral/off-white, tokens semânticos, border-radius). Implementação em **4 fases** por prioridade. Cada fase é entregável independente.
+Permitir que usuários **admin** editem qualquer campo de **notas de entrada** já lançadas — inclusive quando `status ∈ {confirmada, importada, cancelada}` ou `status_sefaz ∈ {autorizada, cancelada_sefaz, denegada}` — mantendo o bloqueio para os demais perfis e preservando integridade contábil/fiscal.
 
----
+## Escopo
 
-## Fase 1 — Correções rápidas de alto impacto 🔴
+- Apenas `tipo = 'entrada'` (NFs de saída/emissão própria continuam protegidas pelas regras SEFAZ).
+- Apenas `role = admin` (via `has_role(auth.uid(),'admin')`).
+- Edição estrutural total: fornecedor, números, valores, chave, datas, itens, financeiro vinculado.
 
-**1.1. Stat cards Fiscal (mobile) — item 2.4**
-- `src/pages/Fiscal.tsx`: forçar `grid-cols-3` mesmo no mobile (atualmente quebra em 2+1).
-- Criar `src/utils/formatCurrencyCompact.ts` com regra `< 1k`, `≥ 1k → R$ 1,2k`, `≥ 1M → R$ 1,4M`.
-- Aplicar em SummaryCards do Fiscal; cor semântica: pendentes → `warning`, confirmadas → `success`, total → padrão.
-- Substituir label `Confirma...` por `Confirmadas` (font-size 11px caso necessário).
+## Mudanças
 
-**1.2. Sidebar — Configurações duplicada — item 3.3**
-- `src/lib/navigation.ts` (ou `src/config/navigation.config.ts`): remover entrada "Configurações" da seção `administracao`. Mantém apenas o link no `SidebarFooter`.
+### 1. Backend — trigger `trg_nf_protege_edicao`
 
-**1.3. Sidebar — truncamento de labels — item 3.2**
-- Reduzir indent dos sub-itens em `SidebarSectionItem.tsx` (`px-2` → `pl-1.5 pr-2`) e/ou ajustar `--sidebar-w-expanded` em `index.css` de ~230px para 248px. Escolher a menor mudança que resolva os 5 labels.
-- Validar visualmente sem afetar densidade de outros módulos.
+Adicionar bypass quando o operador é admin **e** a NF é de entrada:
 
-**1.4. Topbar Fiscal mobile — título + bottom-sheet importar — itens 2.1, 2.2, 2.3, 2.7**
-- `AppHeader.tsx`: garantir título completo (sem truncar para "N.. E..."); remover avatar no mobile (mantém back, título, search, sino).
-- `FiscalToolbarActions.tsx`: substituir os 3 botões inline (`chave`, `QR/Código`, `XML`) por **um botão "Importar"** que abre um bottom-sheet (Sheet shadcn `side=bottom`) com 3 opções em grid. Botão "+ Nova" continua inline (variant primary coral).
-- Corrigir placeholder da busca para `"Número, chave de acesso…"`.
-- Garantir que rota `/fiscal?tipo=saida` exibe o mesmo cabeçalho com título "Notas de Saída" + subtítulo (atualmente ausente).
+```sql
+IF v_internal_op = '1'
+   OR (OLD.tipo = 'entrada' AND public.has_role(auth.uid(),'admin'))
+THEN
+  RETURN NEW;
+END IF;
+```
 
----
+Resultado: admin consegue alterar `valor_total`, `chave_acesso`, `fornecedor_id`, `numero`, `serie`, `modelo_documento`, `tipo_operacao` em NF de entrada confirmada/importada/cancelada. Para demais usuários e para NFs de saída, comportamento atual permanece intacto.
 
-## Fase 2 — Reorganização estrutural de navegação 🟠
+### 2. Backend — trigger `trg_nf_protege_delete` (escopo controlado)
 
-**2.1. Sidebar accordion — apenas seção da rota ativa aberta — item 3.1**
-- `useNavigationState.ts`: persistir estado em `localStorage["avizee_sidebar_state"]` como `Record<sectionKey, boolean>`.
-- Default: tudo fechado, exceto seção que contém a rota ativa (forçar abrir ao navegar, sem sobrescrever a preferência manual da sessão).
+Não alterado por padrão. O hard delete continua exigindo `app.hard_delete=on` (já gated por admin via `useCanHardDelete`). Edição não implica delete.
 
-**2.2. MobileMenu accordion + persistência — itens 1.2, 1.4, 1.6, 1.7**
-- `MobileMenuSection.tsx`: cada seção vira accordion controlado, com chevron animado (`transition-transform 200ms`).
-- Estado em `localStorage["avizee_menu_section_state"]`. Ao abrir o sheet, força a seção da rota ativa aberta.
-- Seções com >4 itens: mostrar 3 + botão "Ver mais X itens" (expand inline). Afeta Fiscal, Financeiro, Cadastros.
-- Remover labels "• também na barra inferior" dos cabeçalhos (Cadastros, Comercial, Financeiro). Substituir por tooltip de onboarding `first-visit` (flag em localStorage).
-- Renomear: "Backlog faturamento" → "Fila de Faturamento"; "Histórico DistDF-e" → "Distribuição NF-e (DF-e)".
+### 3. Backend — itens (`trg_nf_itens_protege_edicao`)
 
-**2.3. Card de nota Fiscal mobile redesenhado — item 2.5**
-- Componente do card (em `src/pages/fiscal/components/`): novo layout com header (número + tipo muted + status badge), corpo (nome cliente/fornecedor, data, valor formatado), footer com ações (DANFE, ação principal contextual conforme status, menu `...`).
-- Ação principal por status: pendente → "Confirmar", confirmada → "Ver XML", rejeitada → "Reenviar".
-- Status badges com `flex-wrap`, lado a lado.
+Aplicar o mesmo bypass para admin em itens de NF cuja `tipo='entrada'`, para que a edição estrutural propague aos itens. Será uma cópia simétrica do padrão acima referenciando `notas_fiscais.tipo` da NF pai.
 
-**2.4. Empty state com "Limpar filtros" inline — item 2.6**
-- Quando há filtros ativos no Fiscal e o resultado é vazio, renderizar `EmptyState` com botão "Limpar filtros" abaixo da descrição.
+### 4. Frontend — `src/pages/fiscal/NotaFiscalForm.tsx`
 
----
+- Importar `useCan` (ou `useIsAdmin`) e `nfRow.tipo`.
+- Ajustar `readOnly`:
 
-## Fase 3 — Badges, ícones e atalhos 🟡
+```ts
+const isAdminOverride = isAdmin && nfRow?.tipo === "entrada";
+const readOnly = !isCreate && !!statusSefaz
+  && STATUS_SEFAZ_TRAVADOS.has(statusSefaz)
+  && !isAdminOverride;
+```
 
-**3.1. Atalhos rápidos mobile — grid de chips 3×2 — item 1.1**
-- `MobileQuickActionsGrid.tsx`: substituir lista vertical por grid `grid-cols-3 gap-2`. Chip = ícone 24px + label 10px. Altura alvo ~80px total.
-- Mapear atalhos: Orçamento, Cliente, Produto, Pedido, NF-e, Baixa (ícones lucide equivalentes aos `ti-*` do brief).
+- Quando `isAdminOverride && readOnly-original`, exibir um `Alert variant="destructive"` com tom de aviso:
+  > **Modo administrador:** você está editando uma NF de entrada já confirmada/importada. Alterações afetam estoque e financeiro — confirme com cuidado.
+- Substituir o `Alert` "Somente leitura" por esse aviso quando o override estiver ativo.
 
-**3.2. Sidebar — ícones distintos e sub-grupos visuais em Fiscal — item 3.4**
-- `src/lib/navigation.ts`: trocar ícones de cada item Fiscal (mapeamento do brief → lucide).
-- Suportar `groupLabel` opcional em `NavGroup`: render como label uppercase 9px sem interação. Sub-grupos: Emissão / Entrada / Gestão.
+### 5. Sem mudança em `salvar_nota_fiscal`
 
-**3.3. Badges no MobileMenu — item 1.3**
-- `MobileMenuSection.tsx`: usar `useSidebarBadges()` para mostrar badge no cabeçalho (visível mesmo fechado). Mover o "84" do leaf Financeiro para o cabeçalho da seção. Tons: warning para pendência, danger para vencido/rejeitado.
+A RPC já roda como `SECURITY DEFINER` mas o trigger usa `auth.uid()` — que dentro de uma RPC `SECURITY DEFINER` continua retornando o usuário autenticado da sessão (`auth.uid()` lê do JWT, não do owner). Portanto `has_role(auth.uid(),'admin')` funciona corretamente sem ajustes na RPC.
 
-**3.4. Tooltip e expansão de badges — itens 3.6, 3.7**
-- `SidebarSection.tsx` / `SidebarSectionItem.tsx`: adicionar `title` descritivo nos badges ("X lançamentos aguardando baixa", "X orçamentos aguardando aprovação", etc).
-- Estender `useSidebarAlerts.ts` / `useSidebarBadges.ts` para cobrir Pedidos de Compra (aguardando recebimento) e Notas de Entrada (pendentes). Usar consultas existentes onde possível; criar contagens novas via `head:true, count:'exact'` no Supabase.
+### 6. Memória de projeto
 
----
+Atualizar `mem://security/restricoes-escrita-exclusao` (ou criar nota em `mem://features/`) registrando: "Admin pode editar qualquer campo de NF de entrada (incluindo confirmada/importada/cancelada). Bloqueio mantido para NF de saída e perfis não-admin."
 
-## Fase 4 — Polimento 🟢
+## Fora de escopo
 
-**4.1. User bar compacta no rodapé do MobileMenu — item 1.5**
-- Refatorar `MobileNavProfilePicker.tsx` para uma barra horizontal: avatar 32 + nome/papel + ícones (lua = toggle tema, settings = navega `/configuracoes`, logout = vermelho com confirmação).
+- NFs de saída (emissão própria) — bloqueio SEFAZ permanece absoluto.
+- Re-execução automática de estornos contábeis. Admin é responsável por revisar lançamentos financeiros e movimentos de estoque após a edição (toast de aviso já cobre).
+- Auditoria detalhada de campos alterados (pode entrar em iteração futura via `nf_eventos`).
 
-**4.2. Remover Social "EM BREVE" do sidebar — item 3.5**
-- `useVisibleNavSections.ts` ou `navigation.ts`: ocultar item `social` quando `VITE_FEATURE_SOCIAL` desabilitado (já existe flag). Confirmar se o badge "EM BREVE" some completamente até lançamento.
+## Validação
 
-**4.3. Texto "Sincronizado" granular — item 3.8**
-- `SidebarFooter.tsx`: trocar render por função pura — `<5s` → "agora"; `5–59s` → "há Xs"; `≥60s` → "há Xmin"; `!online` (do `useOnlineStatus`) → "Sem conexão" + dot vermelho.
-
-**4.4. Reorganizar Cadastros — item 3.9** *(opcional, validar com usuário)*
-- Mover Grupos Econômicos, Funcionários, Sócios para sub-grupo "Empresa" dentro de Cadastros (não para Administração, para preservar permissões atuais).
-
----
-
-## Detalhes técnicos
-
-- **Não introduzir novas libs.** Usar shadcn `Sheet` (bottom-sheet), `Collapsible`/`Accordion`, `Tooltip` já presentes.
-- **Persistência** via `useSyncedStorage` (já existe) para estados de sidebar/menu.
-- **Tokens** — manter `bg-warning/text-warning-foreground`, `bg-destructive`, `text-success`. Nada de cores hardcoded.
-- **Tipagem** — qualquer novo campo em `NavSection`/`NavGroup` (ex.: `groupLabel`) tipado em `src/lib/navigation.ts`.
-- **Memória do projeto** — registrar nova entrada em `mem://produto/sidebar-acordeon-persistente` e `mem://produto/mobile-menu-acordeon` ao final, documentando chaves de localStorage (`avizee_sidebar_state`, `avizee_menu_section_state`) e regra "rota ativa abre automaticamente".
-
-## Aceitação por fase
-
-- **F1**: stat cards 3 colunas com valores compactos, Configurações apenas no rodapé, labels não mais truncados, "Notas de Entrada/Saída" completos no topbar com botão "Importar" único.
-- **F2**: sidebar e menu mobile abrem fechados (exceto rota ativa), persistem entre sessões; cards de nota com novo layout; empty state com "Limpar filtros".
-- **F3**: chips 3×2 no MobileMenu, ícones distintos + sub-grupos em Fiscal, badges com tooltip e expandidos para outros módulos.
-- **F4**: user bar compacta, Social removido, texto de sync granular, Cadastros opcionalmente reorganizado.
+1. Login como admin → abrir NF de entrada `confirmada` → editar `valor_total` e `fornecedor_id` → salvar → sem erro do trigger, registro atualizado.
+2. Login como `financeiro` → abrir mesma NF → permanece read-only com banner original.
+3. Login como admin → abrir NF de **saída** autorizada → permanece read-only (bypass não se aplica).
