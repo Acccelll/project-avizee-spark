@@ -146,42 +146,11 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <GlobalPeriodChip className="hidden xs:inline-flex" />
+            <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onOpenSearch} aria-label="Abrir busca global" title="Buscar">
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onOpenShortcuts} aria-label="Abrir atalhos">
-                <Keyboard className="h-4 w-4" />
-              </Button>
-
-              <HelpMenu onOpenShortcuts={onOpenShortcuts} variant="mobile" />
-
               <NotificationsPanel />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative" aria-label={`Menu da conta — ${roleLabel}`}>
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                    </Avatar>
-                    <span
-                      aria-hidden="true"
-                      className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
-                    />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="space-y-0.5">
-                    <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn('inline-block h-1.5 w-1.5 rounded-full', roleDot)} aria-hidden="true" />
-                      <p className="text-xs text-muted-foreground font-normal">{roleLabel}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <AccountMenuItems navigate={navigate} theme={theme} setTheme={setTheme} signOut={signOut} />
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </>
         ) : (
