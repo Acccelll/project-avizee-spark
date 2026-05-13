@@ -1434,6 +1434,10 @@ const Fiscal = () => {
         traducaoLinhasCount={traducaoLinhas.length}
         onAbrirTraducao={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}
         onCriarProdutoQuick={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
+        onCriarFornecedorQuick={() => {
+          setQuickFornecedorDefaults({});
+          setQuickFornecedorOpen(true);
+        }}
       />
 
       {/* Edit Modal */}
