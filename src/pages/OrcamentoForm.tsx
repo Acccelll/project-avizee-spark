@@ -33,6 +33,7 @@ import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCan } from "@/hooks/useCan";
 import { Tables } from "@/integrations/supabase/types";
 import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
@@ -189,6 +190,9 @@ export default function OrcamentoForm() {
   const isEdit = !!id;
   const isMobile = useIsMobile();
   const { user, roles, extraPermissions } = useAuth();
+  const { can } = useCan();
+  const isAdmin = roles.includes("admin");
+  const canApprove = isAdmin || can("orcamentos:aprovar");
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
@@ -305,9 +309,6 @@ export default function OrcamentoForm() {
     observacoes,
     observacoesInternas,
   } = watch();
-  const [simDescontoGeral, setSimDescontoGeral] = useState(0);
-  const [simFreteSeguro, setSimFreteSeguro] = useState(0);
-  const [simPagamento, setSimPagamento] = useState('');
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   // Stepper de envio de e-mail: idle → pdf → upload → email → done
@@ -345,7 +346,6 @@ export default function OrcamentoForm() {
 
   const totalProdutos = items.reduce((sum, i) => sum + (i.valor_total || 0), 0);
   const valorTotal = totalProdutos - desconto + impostoSt + impostoIpi + freteValor + outrasDespesas;
-  const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
   const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
   const pesoTotalCalculado = pesoTotalItens + (pesoEmbalagemTotal || 0);
@@ -735,6 +735,18 @@ export default function OrcamentoForm() {
       toast.error(`Orçamento "${status}" não pode ser editado.`, {
         description: "Use \"Criar revisão\" no drawer para gerar uma nova versão.",
       });
+      return;
+    }
+    // Guard de permissão: bloquear escolha manual de "aprovado"/"convertido" no Select.
+    const formStatus = getValues().status;
+    if (formStatus === "aprovado" && !canApprove) {
+      toast.error("Você não tem permissão para aprovar orçamentos.", {
+        description: "Use o fluxo de aprovação na lista de orçamentos.",
+      });
+      return;
+    }
+    if (formStatus === "convertido") {
+      toast.error("Conversão em pedido deve ser feita pela lista de orçamentos.");
       return;
     }
     // Validar formulário via react-hook-form
