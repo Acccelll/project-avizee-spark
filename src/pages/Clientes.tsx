@@ -805,7 +805,7 @@ const Clientes = () => {
               className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
             >
               <TabsTrigger value="dados-gerais" className="gap-1.5">
-                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                <User2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}
                 {tabIssues.dadosGerais && (
                   <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Faltam dados básicos do cliente.</TooltipContent></Tooltip>
@@ -840,11 +840,11 @@ const Clientes = () => {
               </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="comunicacoes" className="gap-1.5">
-                  <MessageSquare className="h-3.5 w-3.5" />Comunicações
+                  <MessageSquare className="h-3.5 w-3.5" />{isMobile ? "Comunic." : "Comunicações"}
                   {comunicacoesCount > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{comunicacoesCount}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Observações</TabsTrigger>
+              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />{isMobile ? "Obs." : "Observações"}</TabsTrigger>
             </TabsList>
 
             {/* DADOS GERAIS */}
