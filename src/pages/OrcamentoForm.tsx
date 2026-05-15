@@ -1073,14 +1073,9 @@ export default function OrcamentoForm() {
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
-                <>
-                  <DropdownMenuItem onSelect={handleDuplicate}>
-                    <Copy className="w-4 h-4 mr-2" />Duplicar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setMailModalOpen(true)} disabled={!clienteSnapshot.email}>
-                    <Mail className="w-4 h-4 mr-2" />Reenviar por e-mail
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onSelect={handleDuplicate}>
+                  <Copy className="w-4 h-4 mr-2" />Duplicar
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1127,9 +1122,6 @@ export default function OrcamentoForm() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleDuplicate}><Copy className="w-4 h-4 mr-2" />Duplicar</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMailModalOpen(true)} disabled={!clienteSnapshot.email}>
-                  <Mail className="w-4 h-4 mr-2" />Reenviar por e-mail
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
