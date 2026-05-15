@@ -21,6 +21,10 @@ import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { toast } from "sonner";
+import { MobileCardActionButton } from "@/components/ui/MobileCardActions";
 
 type TipoItem = "produto" | "insumo" | "servico";
 
