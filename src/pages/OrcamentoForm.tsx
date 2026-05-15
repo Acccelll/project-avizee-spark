@@ -352,6 +352,30 @@ export default function OrcamentoForm() {
   const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
+  // isLocked: orçamentos que já saíram de "rascunho" são imutáveis (snapshot histórico).
+  const isLocked = isEdit && !!status && status !== "rascunho";
+
+  // Opções de status filtradas por permissão. "Convertido" nunca é selecionável manualmente.
+  const statusOptions = useMemo(() => {
+    const base: { value: string; label: string }[] = [
+      { value: "rascunho", label: "Rascunho" },
+      { value: "pendente", label: "Aguardando Aprovação" },
+      { value: "cancelado", label: "Cancelado" },
+    ];
+    if (canApprove) {
+      base.push(
+        { value: "aprovado", label: "Aprovado" },
+        { value: "rejeitado", label: "Rejeitado" },
+        { value: "expirado", label: "Expirado" },
+      );
+    }
+    // Garante que o status atual sempre apareça (ex.: "convertido" em orçamento já convertido).
+    if (status && !base.some((o) => o.value === status)) {
+      base.push({ value: status, label: STATUS_LABEL[status] || status });
+    }
+    return base;
+  }, [canApprove, status]);
+
   const productCostMap = useMemo(() => {
     const map = new Map<string, InternalCostCandidate>();
     for (const product of produtos) {
