@@ -40,6 +40,8 @@ interface FormModalProps {
   confirmOnDirty?: boolean;
   /** Footer sticky (use <FormModalFooter />). */
   footer?: ReactNode;
+  /** Banner exibido no topo do conteúdo (após o header, antes do hint de criação). */
+  topBanner?: ReactNode;
 }
 
 const sizeMap = {
@@ -64,6 +66,7 @@ export function FormModal({
   isDirty,
   confirmOnDirty,
   footer,
+  topBanner,
 }: FormModalProps) {
   const isCreate = mode === "create";
   const hasMeta = (meta && meta.length > 0) || isDirty;
@@ -137,6 +140,7 @@ export function FormModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-sm:pb-32">
+          {topBanner && <div>{topBanner}</div>}
           {isCreate && createHint && (
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground/80 flex items-start gap-2">
               <span aria-hidden="true">💡</span>
