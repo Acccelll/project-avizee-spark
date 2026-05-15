@@ -793,21 +793,21 @@ const Clientes = () => {
               <TabsTrigger value="dados-gerais" className="gap-1.5">
                 <User2 className="h-3.5 w-3.5" />Dados Gerais
                 {tabIssues.dadosGerais && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Faltam dados básicos do cliente.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5">
                 <Phone className="h-3.5 w-3.5" />Contatos
                 {tabIssues.contatos && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Sem nenhum canal de contato.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />Endereço
                 {tabIssues.endereco && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Endereço incompleto.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
@@ -820,7 +820,7 @@ const Clientes = () => {
               <TabsTrigger value="comercial" className="gap-1.5">
                 <CreditCard className="h-3.5 w-3.5" />Comercial
                 {tabIssues.comercial && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Sem forma de pagamento ou prazo definido.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
