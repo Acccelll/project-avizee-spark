@@ -29,6 +29,7 @@ import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
+import { GreetingBanner } from "@/components/dashboard/GreetingBanner";
 import {
   ShoppingBag,
   Package,
@@ -40,21 +41,6 @@ import {
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
 );
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia";
-  if (hour < 18) return "Boa tarde";
-  return "Boa noite";
-}
-
-function formatVencimentosHoje(receber: number, pagar: number): string {
-  if (receber === 0 && pagar === 0) return "Sem vencimentos para hoje.";
-  const partes: string[] = [];
-  if (receber > 0) partes.push(`${receber} recebimento${receber > 1 ? "s" : ""}`);
-  if (pagar > 0) partes.push(`${pagar} pagamento${pagar > 1 ? "s" : ""}`);
-  return `Você tem ${partes.join(" e ")} vencendo hoje.`;
-}
 
 function LazyInViewWidget({
   children,
@@ -75,7 +61,7 @@ const DashboardContent = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
   const { metas } = useMetas();
-  const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
+  const { prefs, toggleVisibility, reorderWidgets, resetLayout } = useDashboardLayout(user?.id);
   const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
   const isMobile = useIsMobile();
 
@@ -104,9 +90,6 @@ const DashboardContent = () => {
     vencimentosHoje,
     scopes,
   } = useDashboardData();
-
-  // React Query handles fetching/caching automatically — no useEffect needed.
-  const greeting = getGreeting();
 
   const { kpiCards, operationalCards, saldoProjetado } = useDashboardKpis({
     metas,
