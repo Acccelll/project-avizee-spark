@@ -38,7 +38,6 @@ import {
 export const NAV_SECTION_KEYS = [
   'cadastros',
   'comercial',
-  'compras',
   'estoque',
   'financeiro',
   'fiscal',
@@ -147,21 +146,14 @@ export const navSections: NavSection[] = [
     icon: FileText,
     items: [
       {
-        title: 'Pipeline de vendas',
+        title: 'Vendas',
         items: [
           { title: 'Orçamentos', path: '/orcamentos', icon: FileText, keywords: ['orcamentos', 'propostas', 'cotacoes', 'cotações'] },
           { title: 'Pedidos', path: '/pedidos', icon: ClipboardList, keywords: ['pedidos', 'backlog', 'operacional', 'ordens', 'ov'] },
         ],
       },
-    ],
-  },
-  {
-    key: 'compras',
-    title: 'Compras',
-    icon: ShoppingCart,
-    items: [
       {
-        title: 'Gestão de compras',
+        title: 'Compras',
         items: [
           { title: 'Cotações de Compra', path: '/cotacoes-compra', icon: ShoppingCart, keywords: ['comparacao', 'fornecedores', 'cotacao'] },
           { title: 'Pedidos de Compra', path: '/pedidos-compra', icon: ShoppingCart, keywords: ['pre-nota', 'pedido fornecedor', 'recebimento'] },
@@ -208,17 +200,21 @@ export const navSections: NavSection[] = [
     icon: Receipt,
     items: [
       {
-        title: 'Documentos fiscais',
+        title: 'Operacional',
         items: [
           { title: 'Emitir NF-e', path: '/faturamento/emitir', icon: FilePlus2, keywords: ['emissao', 'wizard', 'sefaz', 'nfe'] },
-          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: FileOutput, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
+          { title: 'Backlog de faturamento', path: '/faturamento/backlog', icon: ClipboardList, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla', 'backlog'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: FileInput, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
-          { title: 'Consulta de Documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
-          { title: 'Faturamento', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'wizard', 'kpi', 'hub', 'sefaz'] },
-          { title: 'Fila de Faturamento', path: '/faturamento/backlog', icon: ListChecks, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla', 'backlog'] },
+          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: FileOutput, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
+        ],
+      },
+      {
+        title: 'Gestão e consulta',
+        items: [
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
-          { title: 'Distribuição NF-e (DF-e)', path: '/fiscal/distdfe-historico', icon: History, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz', 'distribuicao'] },
-          { title: 'Cadastros Fiscais', path: '/faturamento/cadastros', icon: Settings2, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
+          { title: 'Consulta de Documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
+          { title: 'Histórico DistDF-e', path: '/fiscal/distdfe-historico', icon: History, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz', 'distribuicao'] },
+          { title: 'Cadastros Fiscais', path: '/faturamento/cadastros', icon: FolderCog, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
         ],
       },
     ],
@@ -330,7 +326,18 @@ const extraRouteLabels: Record<string, string> = {
   '/fiscal': 'Fiscal',
   '/ajuda': 'Central de Ajuda',
   '/fiscal/dashboard': 'Dashboard Fiscal',
-  '/fiscal/distdfe-historico': 'Distribuição NF-e (DF-e)',
+  '/fiscal/distdfe-historico': 'Histórico DistDF-e',
+  '/faturamento': 'Faturamento',
+  '/faturamento/emitir': 'Emitir NF-e',
+  '/faturamento/backlog': 'Backlog de Faturamento',
+  '/faturamento/documentos': 'Consulta de Documentos',
+  '/faturamento/cadastros': 'Cadastros Fiscais',
+  '/admin/audit-duplicidades': 'Auditoria de Duplicidades',
+  '/socios': 'Sócios',
+  '/funcionarios': 'Funcionários',
+  '/grupos-economicos': 'Grupos Econômicos',
+  '/contas-contabeis-plano': 'Plano de Contas',
+  '/cartoes-credito': 'Cartões de Crédito',
 };
 
 export function isPathActive(currentPath: string, targetPath: string) {
@@ -357,9 +364,16 @@ export function getRouteLabel(pathname: string) {
   if (pathname.startsWith('/fornecedores/')) return 'Fornecedor';
   if (pathname.startsWith('/remessas/')) return 'Remessa';
   if (pathname.startsWith('/financeiro/')) return 'Lançamento';
+  if (pathname === '/admin/audit-duplicidades') return 'Auditoria de Duplicidades';
+  if (pathname.startsWith('/admin/')) return 'Administração';
+  if (pathname === '/faturamento') return 'Faturamento';
+  if (pathname.startsWith('/faturamento/emitir')) return 'Emitir NF-e';
+  if (pathname.startsWith('/faturamento/backlog')) return 'Backlog de Faturamento';
+  if (pathname.startsWith('/faturamento/documentos')) return 'Consulta de Documentos';
+  if (pathname.startsWith('/faturamento/cadastros')) return 'Cadastros Fiscais';
   // Rotas estáticas conhecidas devem ser tratadas antes do fallback genérico /fiscal/
   if (pathname === '/fiscal/dashboard') return 'Dashboard Fiscal';
-  if (pathname === '/fiscal/distdfe-historico') return 'Distribuição NF-e (DF-e)';
+  if (pathname === '/fiscal/distdfe-historico') return 'Histórico DistDF-e';
   if (pathname.startsWith('/fiscal/')) return 'Nota Fiscal';
   if (pathname.startsWith('/fiscal')) return 'Fiscal';
   return 'Detalhe';
