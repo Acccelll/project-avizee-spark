@@ -529,8 +529,8 @@ const Orcamentos = () => {
                     <Send className="w-3 h-3" /> Enviar
                   </Button>
                 )}
-                {canApproveOrcamento(o.status) && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!canAprovar || approveLock.pending} title={!canAprovar ? "Você não tem permissão para aprovar" : ""}>
+                {canApproveOrcamento(o.status) && canAprovar && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={approveLock.pending}>
                     <CheckCircle className="w-3 h-3" /> Aprovar
                   </Button>
                 )}
@@ -605,14 +605,13 @@ const Orcamentos = () => {
                   </Button>
                 );
               }
-              if (canApproveOrcamento(o.status)) {
+              if (canApproveOrcamento(o.status) && canAprovar) {
                 return (
                   <Button
                     size="lg"
                     variant="default"
                     className="h-11 w-full gap-2 text-sm"
-                    disabled={!canAprovar || approveLock.pending}
-                    title={!canAprovar ? "Você não tem permissão para aprovar" : ""}
+                    disabled={approveLock.pending}
                     onClick={(e) => { e.stopPropagation(); handleApprove(o); }}
                   >
                     <CheckCircle className="w-4 h-4" /> Aprovar
