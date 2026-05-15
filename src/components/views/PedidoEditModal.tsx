@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -58,7 +59,7 @@ interface PedidoRecord {
   prazo_despacho_dias: number | null;
   observacoes: string | null;
   clientes?: { nome_razao_social: string } | null;
-  orcamentos?: { numero: string } | null;
+  orcamentos?: { id: string; numero: string } | null;
 }
 
 interface Props {
@@ -70,6 +71,7 @@ interface Props {
 
 export function PedidoEditModal({ open, pedidoId, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
   const { confirm, dialog } = useConfirmDialog();
   const salvarPedido = useSalvarPedido();
@@ -91,7 +93,7 @@ export function PedidoEditModal({ open, pedidoId, onClose, onSaved }: Props) {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, clientes(nome_razao_social), orcamentos(id, numero)")
           .eq("id", pedidoId)
           .maybeSingle();
         if (error) throw error;
@@ -248,9 +250,28 @@ export function PedidoEditModal({ open, pedidoId, onClose, onSaved }: Props) {
               </div>
             ) : (
               <div className="space-y-5">
-                <p className="text-xs text-muted-foreground inline-flex items-start gap-1.5">
+                <p className="text-xs text-muted-foreground inline-flex items-start gap-1.5 flex-wrap">
                   <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Esta tela altera apenas dados operacionais. Itens, valores e vínculos permanecem controlados pelo orçamento e pelo faturamento.
+                  <span>
+                    Edição operacional — status, datas e PO. Itens e valores permanecem controlados pelo orçamento e pelo faturamento.
+                    {pedido.orcamentos?.numero && pedido.orcamentos?.id && (
+                      <>
+                        {" "}Para itens e valores, acesse{" "}
+                        <button
+                          type="button"
+                          className="text-primary hover:underline font-medium"
+                          onClick={() => {
+                            const orcId = pedido.orcamentos?.id;
+                            onClose();
+                            if (orcId) navigate(`/orcamentos/${orcId}`);
+                          }}
+                        >
+                          Orçamento {pedido.orcamentos.numero}
+                        </button>
+                        .
+                      </>
+                    )}
+                  </span>
                 </p>
 
                 <section className="bg-card rounded-xl border shadow-soft p-4 space-y-4">
