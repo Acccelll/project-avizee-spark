@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, Keyboard, Moon, Plus, Search, Settings, Sun } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -125,8 +125,21 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
     else navigate(-1);
   };
 
+  const headerRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const update = () => {
+      document.documentElement.style.setProperty('--app-header-height', `${el.offsetHeight}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <header role="banner" className="sticky top-0 z-40 border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_0_hsl(var(--border)/0.4)]">
+    <header ref={headerRef} role="banner" className="sticky top-0 z-40 border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_0_hsl(var(--border)/0.4)]">
       <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 md:px-6">
         {isMobile ? (
           <>
