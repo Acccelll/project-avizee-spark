@@ -13,6 +13,8 @@ interface MobileMenuSectionProps {
   onNavigate: (path: string) => void;
   onToggleFavorite: (path: string) => void;
   onDirectNavigate?: (path: string) => void;
+  /** DOM id for jump-chip scroll targets in the mobile drawer. */
+  anchorId?: string;
 }
 
 function badgeLabel(b: BadgeInfo): string {
@@ -29,6 +31,7 @@ export function MobileMenuSection({
   onNavigate,
   onToggleFavorite,
   onDirectNavigate,
+  anchorId,
 }: MobileMenuSectionProps) {
   const allItems: NavLeafItem[] = section.items.flatMap((g) => g.items);
   const itemCount = allItems.length;
@@ -46,6 +49,7 @@ export function MobileMenuSection({
     return (
       <button
         type="button"
+        id={anchorId}
         onClick={() => onDirectNavigate(section.directPath!)}
         aria-current={active ? 'page' : undefined}
         className={cn(
@@ -78,7 +82,7 @@ export function MobileMenuSection({
   }
 
   return (
-    <AccordionItem value={section.key} className="border-0">
+    <AccordionItem value={section.key} id={anchorId} className="border-0 scroll-mt-2">
       <AccordionTrigger
         className={cn(
           'group flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider transition hover:bg-accent hover:no-underline data-[state=open]:bg-muted/40',
