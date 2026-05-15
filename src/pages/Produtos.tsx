@@ -195,6 +195,7 @@ const Produtos = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formProdutoId, setFormProdutoId] = useState<string | undefined>(undefined);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const openCreate = () => { setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
   const openEdit = (p: Produto) => { setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
