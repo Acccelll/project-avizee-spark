@@ -616,6 +616,9 @@ const Fornecedores = () => {
               </TabsTrigger>
               <TabsTrigger value="compras" className="gap-1.5">
                 <ShoppingCart className="h-3.5 w-3.5" />Compras
+                {mode === "edit" && modalComprasForn.count > 0 && (
+                  <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{modalComprasForn.count}</span>
+                )}
                 {formErrors.prazo_padrao && (
                   <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
