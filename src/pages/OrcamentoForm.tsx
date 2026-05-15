@@ -33,6 +33,7 @@ import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCan } from "@/hooks/useCan";
 import { Tables } from "@/integrations/supabase/types";
 import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
@@ -189,6 +190,9 @@ export default function OrcamentoForm() {
   const isEdit = !!id;
   const isMobile = useIsMobile();
   const { user, roles, extraPermissions } = useAuth();
+  const { can } = useCan();
+  const isAdmin = roles.includes("admin");
+  const canApprove = isAdmin || can("orcamentos:aprovar");
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
@@ -305,9 +309,6 @@ export default function OrcamentoForm() {
     observacoes,
     observacoesInternas,
   } = watch();
-  const [simDescontoGeral, setSimDescontoGeral] = useState(0);
-  const [simFreteSeguro, setSimFreteSeguro] = useState(0);
-  const [simPagamento, setSimPagamento] = useState('');
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   // Stepper de envio de e-mail: idle → pdf → upload → email → done
@@ -345,12 +346,35 @@ export default function OrcamentoForm() {
 
   const totalProdutos = items.reduce((sum, i) => sum + (i.valor_total || 0), 0);
   const valorTotal = totalProdutos - desconto + impostoSt + impostoIpi + freteValor + outrasDespesas;
-  const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
   const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
   const pesoTotalCalculado = pesoTotalItens + (pesoEmbalagemTotal || 0);
   const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
+
+  // isLocked: orçamentos que já saíram de "rascunho" são imutáveis (snapshot histórico).
+  const isLocked = isEdit && !!status && status !== "rascunho";
+
+  // Opções de status filtradas por permissão. "Convertido" nunca é selecionável manualmente.
+  const statusOptions = useMemo(() => {
+    const base: { value: string; label: string }[] = [
+      { value: "rascunho", label: "Rascunho" },
+      { value: "pendente", label: "Aguardando Aprovação" },
+      { value: "cancelado", label: "Cancelado" },
+    ];
+    if (canApprove) {
+      base.push(
+        { value: "aprovado", label: "Aprovado" },
+        { value: "rejeitado", label: "Rejeitado" },
+        { value: "expirado", label: "Expirado" },
+      );
+    }
+    // Garante que o status atual sempre apareça (ex.: "convertido" em orçamento já convertido).
+    if (status && !base.some((o) => o.value === status)) {
+      base.push({ value: status, label: STATUS_LABEL[status] || status });
+    }
+    return base;
+  }, [canApprove, status]);
 
   const productCostMap = useMemo(() => {
     const map = new Map<string, InternalCostCandidate>();
@@ -737,6 +761,18 @@ export default function OrcamentoForm() {
       });
       return;
     }
+    // Guard de permissão: bloquear escolha manual de "aprovado"/"convertido" no Select.
+    const formStatus = getValues().status;
+    if (formStatus === "aprovado" && !canApprove) {
+      toast.error("Você não tem permissão para aprovar orçamentos.", {
+        description: "Use o fluxo de aprovação na lista de orçamentos.",
+      });
+      return;
+    }
+    if (formStatus === "convertido") {
+      toast.error("Conversão em pedido deve ser feita pela lista de orçamentos.");
+      return;
+    }
     // Validar formulário via react-hook-form
     const valid = await trigger(['numero', 'clienteId']);
     if (!valid) {
@@ -1061,23 +1097,38 @@ export default function OrcamentoForm() {
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
-                <>
-                  <DropdownMenuItem onSelect={handleDuplicate}>
-                    <Copy className="w-4 h-4 mr-2" />Duplicar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setMailModalOpen(true)} disabled={!clienteSnapshot.email}>
-                    <Mail className="w-4 h-4 mr-2" />Reenviar por e-mail
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onSelect={handleDuplicate}>
+                  <Copy className="w-4 h-4 mr-2" />Duplicar
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
-          <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
+          {isLocked ? (
+            <Button
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  const novoId = await criarRevisaoOrcamento(id);
+                  if (novoId) {
+                    toast.success("Revisão criada.");
+                    navigate(`/orcamentos/${novoId}`, { replace: true });
+                  }
+                } catch (err) { notifyError(err); }
+              }}
+              className="gap-2"
+              title="Criar nova revisão deste orçamento"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Criar revisão
+            </Button>
+          ) : (
+            <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
+              <Save className="w-4 h-4" />
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2"><Eye className="w-4 h-4" />Visualizar</Button>
           <Button variant="secondary" onClick={handleGeneratePdf} className="gap-2"><FileText className="w-4 h-4" />Gerar PDF</Button>
 
@@ -1115,9 +1166,6 @@ export default function OrcamentoForm() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleDuplicate}><Copy className="w-4 h-4 mr-2" />Duplicar</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMailModalOpen(true)} disabled={!clienteSnapshot.email}>
-                  <Mail className="w-4 h-4 mr-2" />Reenviar por e-mail
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -1217,7 +1265,8 @@ export default function OrcamentoForm() {
         </Alert>
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
-        <div className="lg:col-span-8 space-y-5">
+        <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
+        <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70 contents">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
             <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
@@ -1250,16 +1299,12 @@ export default function OrcamentoForm() {
                   name="status"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={isLocked}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="rascunho">Rascunho</SelectItem>
-                        <SelectItem value="pendente">Aguardando Aprovação</SelectItem>
-                        <SelectItem value="aprovado">Aprovado</SelectItem>
-                        <SelectItem value="convertido">Convertido em Pedido</SelectItem>
-                        <SelectItem value="rejeitado">Rejeitado</SelectItem>
-                        <SelectItem value="expirado">Expirado</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                        {statusOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -1413,19 +1458,26 @@ export default function OrcamentoForm() {
           <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
-              <Textarea {...register('observacoes')}
+              <Textarea {...register('observacoes')} disabled={isLocked}
                 placeholder="Texto livre para observações comerciais, instruções, validade, condições extras, etc."
                 className="min-h-[100px]" />
-              <p className="text-xs text-muted-foreground mt-1.5">✓ Este texto <strong>aparecerá</strong> no PDF e no link enviado ao cliente.</p>
+              <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-success shrink-0" aria-hidden />
+                Este texto <strong>aparecerá</strong> no PDF e no link enviado ao cliente.
+              </p>
             </div>
             <div className="border-t pt-4">
               <h3 className="font-semibold text-foreground mb-1">Observações Internas</h3>
-              <p className="text-xs text-muted-foreground mb-2">🔒 Uso exclusivo da equipe — <strong>não aparece</strong> para o cliente, no PDF nem no link público.</p>
-              <Textarea {...register('observacoesInternas')}
+              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <Lock className="h-3 w-3 shrink-0" aria-hidden />
+                Uso exclusivo da equipe — <strong>não aparece</strong> para o cliente, no PDF nem no link público.
+              </p>
+              <Textarea {...register('observacoesInternas')} disabled={isLocked}
                 placeholder="Notas internas: margem, estratégia de negociação, alertas para a equipe, etc."
                 className="min-h-[80px] border-dashed" />
             </div>
           </div>
+        </fieldset>
         </div>
 
         <div className="hidden lg:col-span-4 lg:block">
@@ -1434,25 +1486,6 @@ export default function OrcamentoForm() {
             freteValor={freteValor} valorTotal={valorTotal}
             pesoTotal={pesoTotal} validade={validade}
           />
-          <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
-            <h4 className="font-semibold">Simulador de Condições</h4>
-            <div className="space-y-2">
-              <Label className="text-xs">Desconto geral adicional</Label>
-              <Input type="number" value={simDescontoGeral} onChange={(e) => setSimDescontoGeral(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Acréscimo frete/seguro</Label>
-              <Input type="number" value={simFreteSeguro} onChange={(e) => setSimFreteSeguro(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Forma de pagamento simulada</Label>
-              <Input value={simPagamento} onChange={(e) => setSimPagamento(e.target.value)} placeholder="Ex.: 30/60/90" />
-            </div>
-            <div className="rounded-md bg-muted/40 p-3 text-sm">
-              <p>Total atual: <strong>{formatCurrency(valorTotal)}</strong></p>
-              <p>Total simulado: <strong>{formatCurrency(valorSimulado)}</strong></p>
-            </div>
-          </div>
           {isEdit && (
             <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -1506,8 +1539,6 @@ export default function OrcamentoForm() {
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
-                {/* TODO: persistir "último envio" em coluna futura */}
-                <p>• Último envio: <span className="text-foreground font-medium">—</span></p>
               </div>
             </div>
           )}
@@ -1516,6 +1547,30 @@ export default function OrcamentoForm() {
 
 
         {/* Footer sticky mobile consolidado — único, acima do MobileBottomNav */}
+
+      {/* Resumo compacto fixo — visível apenas entre md e lg (sem sidebar) */}
+      <div
+        className="hidden md:flex lg:hidden fixed inset-x-0 z-20 items-center justify-between gap-4 border-t bg-background/95 backdrop-blur px-6 py-3 shadow-[0_-4px_12px_-4px_hsl(var(--border))]"
+        style={{ bottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <div className="flex items-center gap-6 text-sm">
+          <span className="text-muted-foreground">
+            {items.filter((i) => i.produto_id).length}{" "}
+            {items.filter((i) => i.produto_id).length === 1 ? "item" : "itens"}
+          </span>
+          {pesoTotal > 0 && (
+            <span className="text-muted-foreground">{formatWeightKg(pesoTotal)}</span>
+          )}
+          {validade && (
+            <span className={new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive font-medium" : "text-muted-foreground"}>
+              Val. {formatDate(validade)}
+            </span>
+          )}
+        </div>
+        <div className="font-bold text-lg font-mono text-primary">
+          {formatCurrency(valorTotal)}
+        </div>
+      </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent
