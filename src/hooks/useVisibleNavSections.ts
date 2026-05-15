@@ -13,8 +13,7 @@ import type { ErpResource } from '@/lib/permissions';
  */
 const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
   cadastros: ['produtos', 'clientes', 'fornecedores', 'transportadoras', 'formas_pagamento', 'socios', 'usuarios'],
-  comercial: ['orcamentos', 'pedidos'],
-  compras: ['compras'],
+  comercial: ['orcamentos', 'pedidos', 'compras'],
   estoque: ['estoque', 'logistica'],
   financeiro: ['financeiro', 'socios'],
   fiscal: ['faturamento_fiscal'],

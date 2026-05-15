@@ -1,4 +1,5 @@
-import { Star } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Star, X } from 'lucide-react';
 import type { FlatNavItem } from '@/lib/navigation';
 
 interface SidebarFavoritesProps {
@@ -7,8 +8,50 @@ interface SidebarFavoritesProps {
   onNavigate: (path: string) => void;
 }
 
+const FAVORITES_HINT_KEY = 'avizee:favorites-hint-dismissed';
+
 export function SidebarFavorites({ items, isItemActive, onNavigate }: SidebarFavoritesProps) {
-  if (items.length === 0) return null;
+  const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem(FAVORITES_HINT_KEY) === 'true';
+  });
+
+  // Quando o usuário adiciona o primeiro favorito, marcar o hint como dispensado.
+  useEffect(() => {
+    if (items.length > 0 && !hintDismissed) {
+      localStorage.setItem(FAVORITES_HINT_KEY, 'true');
+      setHintDismissed(true);
+    }
+  }, [items.length, hintDismissed]);
+
+  if (items.length === 0) {
+    if (hintDismissed) return null;
+    return (
+      <div className="mb-3 rounded-md border border-dashed border-border/60 bg-muted/30 p-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <Star className="h-3 w-3 fill-warning text-warning" />
+            Favoritos
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.setItem(FAVORITES_HINT_KEY, 'true');
+              setHintDismissed(true);
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Dispensar dica de favoritos"
+            title="Dispensar"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Passe o mouse sobre um item e clique na <Star className="inline h-3 w-3 align-text-bottom" /> para fixá-lo aqui.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-3">

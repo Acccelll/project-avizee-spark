@@ -49,8 +49,8 @@ export const PROFILE_SECTION_KEYS: Record<NavProfile, NavSectionKey[]> = {
   comercial: ['comercial', 'cadastros', 'fiscal'],
   financeiro: ['financeiro', 'relatorios', 'cadastros'],
   fiscal: ['fiscal', 'cadastros', 'financeiro'],
-  logistica: ['estoque', 'cadastros', 'compras'],
-  compras: ['compras', 'cadastros', 'estoque'],
+  logistica: ['estoque', 'cadastros', 'comercial'],
+  compras: ['comercial', 'cadastros', 'estoque'],
   diretoria: ['relatorios', 'financeiro', 'fiscal', 'comercial'],
 };
 

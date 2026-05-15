@@ -752,7 +752,7 @@ export default function ProdutoForm({
             {/* ESTOQUE */}
             <TabsContent value="estoque" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><Archive className="w-4 h-4" /> Suprimentos e Logística</h3>
+                <h3 className="font-semibold text-sm flex items-center gap-2"><Archive className="w-4 h-4" /> Estoque e Logística</h3>
                 {mode === "edit" && editingProduct && (() => {
                   const atual = Number(editingProduct.estoque_atual ?? 0);
                   const reservado = Number(((editingProduct as unknown) as { estoque_reservado?: number | null }).estoque_reservado ?? 0);

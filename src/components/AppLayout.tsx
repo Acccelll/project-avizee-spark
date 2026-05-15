@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './navigation/AppHeader';
@@ -36,6 +36,7 @@ export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hoverExpanded, setHoverExpanded] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Hooks fiscais (`useNfeEntradaToast`, `useAutoCienciaDistDFe`) foram movidos
   // para `<FiscalShell>` em src/components/fiscal/FiscalShell.tsx — montados
   // somente dentro de rotas /fiscal/*, evitando queries para perfis sem
@@ -66,6 +67,25 @@ export function AppLayout() {
     if (!isMobile) setMobileMenuOpen(false);
   }, [isMobile]);
 
+  // Cleanup do timer de hover ao desmontar
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
+
+  const handleSidebarMouseEnter = useCallback(() => {
+    if (!isDynamic) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => setHoverExpanded(true), 150);
+  }, [isDynamic]);
+
+  const handleSidebarMouseLeave = useCallback(() => {
+    if (!isDynamic) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoverExpanded(false);
+  }, [isDynamic]);
+
   return (
     <GlobalPeriodProvider>
     <HelpProvider>
@@ -78,8 +98,8 @@ export function AppLayout() {
 
       <div
         className="hidden md:block"
-        onMouseEnter={isDynamic ? () => setHoverExpanded(true) : undefined}
-        onMouseLeave={isDynamic ? () => setHoverExpanded(false) : undefined}
+        onMouseEnter={isDynamic ? handleSidebarMouseEnter : undefined}
+        onMouseLeave={isDynamic ? handleSidebarMouseLeave : undefined}
       >
         <AppSidebar
           collapsed={collapsed}
