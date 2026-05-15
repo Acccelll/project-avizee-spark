@@ -271,6 +271,17 @@ export const mobileBottomTabs: MobileBottomTab[] = [
 const BOTTOM_TAB_SECTION_KEYS = new Set<NavSectionKey>(['comercial', 'cadastros', 'financeiro']);
 export const mobileMenuSections = navSections.filter((section) => !BOTTOM_TAB_SECTION_KEYS.has(section.key));
 
+/**
+ * Set de keys das seções presentes no bottom nav mobile (exclui Dashboard).
+ * Use este set em vez de listas hardcoded para manter sincronia automática
+ * com `mobileBottomTabs` ao adicionar/remover tabs.
+ */
+export const mobileBottomTabKeys: ReadonlySet<NavSectionKey> = new Set(
+  mobileBottomTabs
+    .filter((t) => t.key !== DASHBOARD_KEY)
+    .map((t) => t.key as NavSectionKey),
+);
+
 export type FlatNavItem = NavLeafItem & { section: string; subgroup: string; sectionKey?: NavSectionKey };
 
 export const flatNavItems: FlatNavItem[] = [
