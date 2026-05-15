@@ -1113,11 +1113,13 @@ const Clientes = () => {
                   )}
                 </div>
               </div>
-              <details className="mt-2 group">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+              <Collapsible className="mt-2">
+                <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground select-none">
+                  <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
                   Avançado (caixa postal)
-                </summary>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                </CollapsibleTrigger>
+                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1">
                       <Label>Caixa Postal</Label>
@@ -1130,8 +1132,9 @@ const Clientes = () => {
                     </div>
                     <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
                   </div>
-                </div>
-              </details>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </TabsContent>
 
             {/* COMERCIAL */}
