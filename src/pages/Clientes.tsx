@@ -830,7 +830,7 @@ const Clientes = () => {
                   {comunicacoesCount > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{comunicacoesCount}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Observações</TabsTrigger>
             </TabsList>
 
             {/* DADOS GERAIS */}
