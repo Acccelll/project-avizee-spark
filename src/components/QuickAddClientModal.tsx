@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, MapPin, Phone, User } from "lucide-react";
+import { Building2, Phone } from "lucide-react";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { FormSection } from "@/components/FormSection";
@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
-import { useViaCep } from "@/hooks/useViaCep";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -61,7 +60,6 @@ const emptyForm = {
 export function QuickAddClientModal({ open, onClose, onCreated, defaults }: QuickAddClientModalProps) {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar cliente" });
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
-  const { buscarCep, loading: cepLoading } = useViaCep();
   const [form, setForm] = useState({ ...emptyForm });
   const [isDirty, setIsDirty] = useState(false);
 
@@ -94,20 +92,6 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
         cidade: result.municipio || prev.cidade,
         uf: result.uf || prev.uf,
         cep: result.cep || prev.cep,
-      }));
-      setIsDirty(true);
-    }
-  };
-
-  const handleCepLookup = async () => {
-    const result = await buscarCep(form.cep);
-    if (result) {
-      setForm((prev) => ({
-        ...prev,
-        logradouro: result.logradouro || prev.logradouro,
-        bairro: result.bairro || prev.bairro,
-        cidade: result.localidade || prev.cidade,
-        uf: result.uf || prev.uf,
       }));
       setIsDirty(true);
     }
@@ -166,10 +150,10 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
       onClose={handleClose}
       title="Cadastro Rápido de Cliente"
       mode="create"
-      size="lg"
+      size="md"
       isDirty={isDirty}
       confirmOnDirty
-      createHint="Preencha os dados essenciais do cliente para reaproveitar no orçamento."
+      createHint="Apenas o essencial — endereço, e-mail e condições comerciais podem ser adicionados após o cadastro."
       footer={
         <FormModalFooter
           saving={saving}
@@ -213,88 +197,22 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
             <Input
               value={form.nome_razao_social}
               onChange={(e) => update("nome_razao_social", e.target.value)}
-              placeholder="Nome completo ou razão social"
+              placeholder={form.tipo_pessoa === "J" ? "Razão social" : "Nome completo"}
               required
             />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Nome Fantasia</Label>
-              <Input value={form.nome_fantasia} onChange={(e) => update("nome_fantasia", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Inscrição Estadual</Label>
-              <Input value={form.inscricao_estadual} onChange={(e) => update("inscricao_estadual", e.target.value)} />
-            </div>
           </div>
         </FormSection>
 
         <FormSection icon={Phone} title="Contato">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input value={form.telefone} onChange={(e) => update("telefone", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Celular</Label>
-              <Input value={form.celular} onChange={(e) => update("celular", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Contato</Label>
-              <Input value={form.contato} onChange={(e) => update("contato", e.target.value)} placeholder="Nome do contato" />
-            </div>
+          <div className="space-y-2">
+            <Label>WhatsApp / Telefone</Label>
+            <MaskedInput mask="telefone" value={form.celular} onChange={(v) => update("celular", v)} />
           </div>
         </FormSection>
 
-        <FormSection icon={MapPin} title="Endereço">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-1 space-y-2">
-              <Label>CEP</Label>
-              <div className="flex gap-1">
-                <MaskedInput mask="cep" value={form.cep} onChange={(v) => update("cep", v)} />
-                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cepLoading} onClick={handleCepLookup} aria-label="Buscar CEP">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="sm:col-span-2 space-y-2">
-              <Label>Logradouro</Label>
-              <Input value={form.logradouro} onChange={(e) => update("logradouro", e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="space-y-2">
-              <Label>Número</Label>
-              <Input value={form.numero} onChange={(e) => update("numero", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Complemento</Label>
-              <Input value={form.complemento} onChange={(e) => update("complemento", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Bairro</Label>
-              <Input value={form.bairro} onChange={(e) => update("bairro", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Cidade / UF</Label>
-              <div className="flex gap-1">
-                <Input value={form.cidade} onChange={(e) => update("cidade", e.target.value)} className="flex-1" />
-                <Input
-                  value={form.uf}
-                  onChange={(e) => update("uf", e.target.value.toUpperCase())}
-                  maxLength={2}
-                  className="w-14 uppercase"
-                />
-              </div>
-            </div>
-          </div>
-        </FormSection>
+        <p className="text-xs text-muted-foreground">
+          Endereço, e-mail e condições comerciais podem ser adicionados após o cadastro.
+        </p>
       </form>
     </FormModal>
   );
