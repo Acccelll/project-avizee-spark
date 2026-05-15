@@ -200,42 +200,18 @@ export function QuickAddSupplierModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Nome Fantasia</Label>
-            <Input
-              value={form.nome_fantasia}
-              onChange={(e) => update("nome_fantasia", e.target.value)}
-            />
-          </div>
         </FormSection>
 
         <FormSection icon={Phone} title="Contato">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={form.telefone}
-                onChange={(e) => update("telefone", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Contato</Label>
-              <Input
-                value={form.contato}
-                onChange={(e) => update("contato", e.target.value)}
-                placeholder="Pessoa de contato no fornecedor"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>WhatsApp / Telefone</Label>
+            <MaskedInput mask="telefone" value={form.telefone} onChange={(v) => update("telefone", v)} />
           </div>
         </FormSection>
+
+        <p className="text-xs text-muted-foreground">
+          E-mail, contato e endereço podem ser adicionados após o cadastro.
+        </p>
       </form>
     </FormModal>
   );
