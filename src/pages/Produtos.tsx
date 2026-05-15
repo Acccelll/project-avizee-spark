@@ -589,6 +589,14 @@ const Produtos = () => {
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
             serverSortDir={sort.sortDir}
+            mobileInlineActions={(p: Produto) => (
+              <MobileCardActionButton
+                icon={Package}
+                label="Ver produto"
+                onClick={(e) => { e.stopPropagation(); pushView("produto", p.id); }}
+                variant="primary"
+              />
+            )}
           />
         </div>
       </PullToRefresh>
@@ -599,6 +607,17 @@ const Produtos = () => {
         produtoId={formProdutoId}
         onClose={closeForm}
         onSaved={handleSaved}
+      />
+
+      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />
+      <QuickAddProductModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={() => {
+          setQuickAddOpen(false);
+          fetchData?.();
+          toast.success("Produto cadastrado com sucesso");
+        }}
       />
     </ModulePage>
   );
