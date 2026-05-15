@@ -82,7 +82,10 @@ export function MobileDashboardHeader({
   };
 
   return (
-    <div className="-mx-4 mb-2 sticky top-0 z-30 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div
+      className="-mx-4 mb-2 sticky z-30 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      style={{ top: 'var(--app-header-height, 56px)' }}
+    >
       <div className="flex items-center gap-2">
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>
