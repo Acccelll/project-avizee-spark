@@ -571,7 +571,8 @@ const Fornecedores = () => {
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
         ] : undefined}
-        isDirty={false}
+        isDirty={isDirty}
+        confirmOnDirty
         footer={
           <FormModalFooter
             saving={saving}
