@@ -23,20 +23,23 @@ interface Props {
 }
 
 /**
- * Template de orçamento alinhado à identidade de marca AviZee.
- * Paleta: ink #151514 / wine #690500 / orange #b2592c / cream #fffaed.
- * Tipografia: Montserrat, com tabular-nums em valores monetários.
+ * Template de orçamento — versão "Marca AviZee" (refinada, A4).
+ * Paleta: brand.primary #b2592c · brand.secondary #690500 · ink #1B1411 ·
+ *         muted #8A7E73 · rule #E4DCD2 · softRule #EFE9E0 · tintDeep #F6EADD.
+ * Tipografia: Montserrat (sans) + JetBrains Mono (números/códigos/documentos).
  */
 export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   numero, data, cliente, items, totalProdutos, desconto, impostoSt, impostoIpi,
   freteValor, outrasDespesas, valorTotal, quantidadeTotal, pesoTotal,
   pagamento, prazoPagamento, prazoEntrega, freteTipo, modalidade, observacoes, empresa,
 }, ref) => {
-  const INK = "#151514";
-  const WINE = "#690500";
-  const ORANGE = "#b2592c";
-  const CREAM = "#fffaed";
-  const BORDER = "#e8e1d2";
+  const PRIMARY  = "#b2592c";
+  const SECONDARY = "#690500";
+  const INK      = "#1B1411";
+  const MUTED    = "#8A7E73";
+  const RULE     = "#E4DCD2";
+  const SOFTRULE = "#EFE9E0";
+  const TINTDEEP = "#F6EADD";
 
   const fmtMoney = (n: number) =>
     `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -48,145 +51,252 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   };
 
   const realItems = items.filter(i => i.produto_id);
+  const MIN_ROWS = 10;
+  const fillerRows = Math.max(0, MIN_ROWS - realItems.length);
   const empresaNome = empresa?.razao_social || "AVIZEE EQUIPAMENTOS LTDA";
-  const enderecoLinha = [empresa?.logradouro, empresa?.numero, empresa?.bairro].filter(Boolean).join(", ") || "RUA ADA CAROLINE SCARANO, 259 - JOAO ARANHA";
-  const cidadeLinha = `${[empresa?.cidade, empresa?.uf].filter(Boolean).join(" - ") || "PAULÍNIA - SP"} • CEP: ${empresa?.cep || "13145-794"}`;
-  const cnpjLinha = `CNPJ: ${empresa?.cnpj || "53.078.538/0001-85"}`;
-  const foneLinha = `${empresa?.telefone || "(19) 99898-2930"}${empresa?.email ? ` • ${empresa.email}` : ""}`;
+  const enderecoEmpresa = [empresa?.logradouro, empresa?.numero, empresa?.bairro].filter(Boolean).join(", ") || "Diogo Antônio Feijó, 111, João Aranha";
+  const cidadeEmpresa = [empresa?.cidade, empresa?.uf].filter(Boolean).join(" - ") || "Paulínia - SP";
+  const cepEmpresa = empresa?.cep || "13145-706";
+  const cnpjEmpresa = empresa?.cnpj || "53.078.538/0001-85";
+  const foneEmpresa = empresa?.telefone || "(19) 99898-2930";
 
-  const tabular: React.CSSProperties = { fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum"' };
+  // Tipografia helpers
+  const mono: React.CSSProperties = {
+    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    fontVariantNumeric: "tabular-nums",
+    fontFeatureSettings: '"tnum"',
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "8.5px",
+    textTransform: "uppercase",
+    letterSpacing: "0.14em",
+    fontWeight: 600,
+    color: MUTED,
+    lineHeight: 1.2,
+  };
+  const valueStyle: React.CSSProperties = {
+    fontSize: "10.5px",
+    fontWeight: 500,
+    color: INK,
+    lineHeight: 1.3,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  };
+
+  // Componente Field stacked (label + valor)
+  const Field = ({ label, value, monoValue = false, align = "left" as "left" | "right", title }: {
+    label: string; value: React.ReactNode; monoValue?: boolean; align?: "left" | "right"; title?: string;
+  }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: align }}>
+      <span style={labelStyle}>{label}</span>
+      <span style={{ ...valueStyle, ...(monoValue ? mono : null) }} title={title}>{value}</span>
+    </div>
+  );
+
+  // SVG placeholder do logo (será substituído pelo asset real do cliente)
+  const AvizeeLogo = () => (
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <span style={{
+        fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: "32px",
+        letterSpacing: "0.04em", color: PRIMARY, lineHeight: 1,
+      }}>AVIZEE</span>
+      <svg viewBox="0 0 40 40" width="23" height="23" aria-hidden="true">
+        <circle cx="20" cy="20" r="14" fill="none" stroke={SECONDARY} strokeWidth="2.2" />
+        <path d="M14 22 Q20 12 28 18 Q26 24 20 24 L18 28" stroke={SECONDARY} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+        <circle cx="26" cy="17" r="1.4" fill={SECONDARY} />
+      </svg>
+    </div>
+  );
+
+  // Cabeçalho da tabela
+  const thBase: React.CSSProperties = {
+    background: PRIMARY, color: "#fff",
+    padding: "8px 10px", fontWeight: 700,
+    fontSize: "9.5px", textTransform: "uppercase", letterSpacing: "0.12em",
+  };
+  const tdBase: React.CSSProperties = {
+    padding: "0 10px", height: "36px",
+    borderBottom: `1px solid ${SOFTRULE}`, color: INK,
+    verticalAlign: "middle",
+  };
 
   return (
     <div ref={ref} style={{
-      width: "210mm", minHeight: "297mm", padding: "0",
-      fontFamily: "'Montserrat', sans-serif", fontSize: "10.5px",
+      width: "210mm", minHeight: "297mm", padding: "42px",
+      fontFamily: "'Montserrat', system-ui, sans-serif", fontSize: "11px",
       color: INK, background: "#fff", boxSizing: "border-box",
+      display: "flex", flexDirection: "column", gap: "20px",
+      position: "relative",
     }}>
-      {/* HEADER — base creme, leve, com acento lateral terracota */}
-      <div style={{ background: CREAM, color: INK, padding: "12mm 12mm 8mm", display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `6px solid ${ORANGE}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <img src={empresa?.logo_url || "/images/logoavizee.png"} alt={empresa?.nome_fantasia || "AviZee"} style={{ maxHeight: "46px", maxWidth: "160px", objectFit: "contain", display: "block" }} />
-          <div style={{ borderLeft: `1px solid ${BORDER}`, paddingLeft: "14px" }}>
-            <div style={{ fontSize: "9px", letterSpacing: "2px", color: ORANGE, fontWeight: 700 }}>PROPOSTA COMERCIAL</div>
-            <div style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "0.3px", marginTop: "2px", color: WINE }}>Orçamento</div>
+      {/* 4.1 — Cabeçalho: 3 células em uma única caixa */}
+      <div style={{
+        border: `1px solid ${RULE}`, borderRadius: "4px", overflow: "hidden",
+        display: "grid", gridTemplateColumns: "auto 1fr 200px",
+      }}>
+        {/* Logo */}
+        <div style={{ padding: "18px 24px", borderRight: `1px solid ${RULE}`, display: "flex", alignItems: "center" }}>
+          {empresa?.logo_url ? (
+            <img src={empresa.logo_url} alt={empresa?.nome_fantasia || "AviZee"} style={{ maxHeight: "46px", maxWidth: "180px", objectFit: "contain" }} />
+          ) : (
+            <AvizeeLogo />
+          )}
+        </div>
+        {/* Empresa */}
+        <div style={{ padding: "14px 22px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ fontSize: "12.5px", fontWeight: 700, letterSpacing: "-0.01em", color: INK }}>{empresaNome}</div>
+          <div style={{ marginTop: "4px", color: MUTED, fontSize: "10.5px", lineHeight: 1.55 }}>
+            <div>{enderecoEmpresa}</div>
+            <div>Fone: <span style={mono}>{foneEmpresa}</span></div>
+            <div>{cidadeEmpresa} · CEP: <span style={mono}>{cepEmpresa}</span></div>
+            <div>CNPJ: <span style={mono}>{cnpjEmpresa}</span></div>
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#9b8a64", fontWeight: 500 }}>Nº DO DOCUMENTO</div>
-          <div style={{ fontSize: "30px", fontWeight: 700, color: WINE, ...tabular, lineHeight: 1, marginTop: "2px" }}>{numeroDisplay}</div>
-          <div style={{ fontSize: "10px", marginTop: "5px", color: "#5c4f33" }}>Emitido em <span style={{ color: INK, fontWeight: 700 }}>{formatDate(data)}</span></div>
+        {/* Nº / Data */}
+        <div style={{ borderLeft: `1px solid ${RULE}`, display: "grid", gridTemplateRows: "auto auto auto auto" }}>
+          <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Orçamento</div>
+          <div style={{ padding: "4px 10px 8px", textAlign: "center", borderBottom: `1px solid ${RULE}` }}>
+            <span style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1, color: SECONDARY }}>
+              Nº <span style={mono}>{numeroDisplay}</span>
+            </span>
+          </div>
+          <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Data</div>
+          <div style={{ padding: "4px 10px 8px", textAlign: "center", ...mono, fontSize: "13px", fontWeight: 600, color: INK }}>
+            {formatDate(data)}
+          </div>
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div style={{ padding: "8mm 12mm 12mm" }}>
-        {/* Cards Empresa + Cliente */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
-          {/* Empresa */}
-          <div style={{ background: CREAM, borderLeft: `3px solid ${WINE}`, padding: "8px 12px", fontSize: "9.5px", lineHeight: 1.55 }}>
-            <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: WINE, fontWeight: 700, marginBottom: "3px" }}>EMITENTE</div>
-            <div style={{ fontSize: "10.5px", fontWeight: 700, color: INK, marginBottom: "2px" }}>{empresaNome}</div>
-            <div style={{ color: "#3d3d3a" }}>{enderecoLinha}</div>
-            <div style={{ color: "#3d3d3a" }}>{cidadeLinha}</div>
-            <div style={{ color: "#3d3d3a" }}>{cnpjLinha}</div>
-            <div style={{ color: "#3d3d3a" }}>{foneLinha}</div>
+      {/* 4.2 — Cliente */}
+      <div style={{ border: `1px solid ${RULE}`, borderRadius: "4px", padding: "14px 18px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        {/* Headline row */}
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "20px", alignItems: "end", paddingBottom: "12px", borderBottom: `1px solid ${SOFTRULE}` }}>
+          <Field label="Cód.cliente" value={cliente.codigo || "—"} monoValue />
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+            <span style={labelStyle}>Cliente</span>
+            <span style={{ fontSize: "17px", fontWeight: 700, letterSpacing: "-0.01em", color: INK, lineHeight: 1.2 }}>
+              {cliente.nome_razao_social || "—"}
+            </span>
           </div>
-          {/* Cliente */}
-          <div style={{ background: CREAM, borderLeft: `3px solid ${ORANGE}`, padding: "8px 12px", fontSize: "9.5px", lineHeight: 1.55 }}>
-            <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: ORANGE, fontWeight: 700, marginBottom: "3px" }}>
-              CLIENTE {cliente.codigo ? <span style={{ color: "#7a6a48", fontWeight: 500 }}>• Cód. {cliente.codigo}</span> : null}
-            </div>
-            <div style={{ fontSize: "10.5px", fontWeight: 700, color: INK, marginBottom: "2px" }}>{cliente.nome_razao_social || "—"}</div>
-            {cliente.nome_fantasia && <div style={{ color: "#3d3d3a", fontStyle: "italic" }}>{cliente.nome_fantasia}</div>}
-            <div style={{ color: "#3d3d3a" }}>{[cliente.logradouro, cliente.numero].filter(Boolean).join(", ") || "—"}{cliente.bairro ? ` • ${cliente.bairro}` : ""}</div>
-            <div style={{ color: "#3d3d3a" }}>{[cliente.cidade, cliente.uf].filter(Boolean).join(" - ") || "—"}{cliente.cep ? ` • CEP ${cliente.cep}` : ""}</div>
-            <div style={{ color: "#3d3d3a" }}>
-              CNPJ/CPF: {cliente.cpf_cnpj || "—"}{cliente.inscricao_estadual ? ` • IE: ${cliente.inscricao_estadual}` : ""}
-            </div>
-            <div style={{ color: "#3d3d3a" }}>
-              {cliente.contato ? `${cliente.contato} • ` : ""}{cliente.telefone || cliente.celular || "—"}{cliente.email ? ` • ${cliente.email}` : ""}
-            </div>
+          <Field label="Fantasia" value={cliente.nome_fantasia || "—"} align="right" />
+        </div>
+        {/* Detalhes em grid 4 col */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 0.7fr 1fr 1.6fr", columnGap: "20px", rowGap: "10px" }}>
+          <Field label="Endereço" value={[cliente.logradouro, cliente.numero].filter(Boolean).join(", ") || "—"} title={[cliente.logradouro, cliente.numero].filter(Boolean).join(", ")} />
+          <Field label="Bairro" value={cliente.bairro || "—"} />
+          <Field label={`Cidade${cliente.uf ? " / UF" : ""}`} value={[cliente.cidade, cliente.uf].filter(Boolean).join(" / ") || "—"} />
+          <Field label="E-mail" value={<span style={{ whiteSpace: "normal", wordBreak: "break-all" }}>{cliente.email || "—"}</span>} title={cliente.email} />
+          <Field label="CNPJ / CPF" value={cliente.cpf_cnpj || "—"} monoValue />
+          <Field label="I.E." value={cliente.inscricao_estadual || "—"} monoValue />
+          <Field label="CEP" value={cliente.cep || "—"} monoValue />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", minWidth: 0 }}>
+            <Field label="Fone" value={cliente.telefone || "—"} monoValue />
+            <Field label="Celular" value={cliente.celular || "—"} monoValue />
           </div>
         </div>
+      </div>
 
-        {/* Itens */}
-        <div style={{ marginBottom: "10px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: WINE, fontWeight: 700, marginBottom: "4px", paddingLeft: "2px" }}>ITENS DO ORÇAMENTO</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", border: `1px solid ${BORDER}` }}>
-            <thead>
-              <tr style={{ background: CREAM, color: WINE, borderBottom: `2px solid ${WINE}` }}>
-                <th style={{ padding: "8px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "11%", color: WINE }}>CÓDIGO</th>
-                <th style={{ padding: "8px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", color: WINE }}>DESCRIÇÃO</th>
-                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "10%", color: WINE }}>VARIAÇÃO</th>
-                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "6%", color: WINE }}>QTD</th>
-                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "6%", color: WINE }}>UN</th>
-                <th style={{ padding: "8px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "13%", color: WINE }}>UNITÁRIO</th>
-                <th style={{ padding: "8px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "14%", color: WINE }}>TOTAL</th>
+      {/* 4.3 — Tabela de Itens */}
+      <div style={{ border: `1px solid ${RULE}`, borderRadius: "4px", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+          <thead>
+            <tr>
+              <th style={{ ...thBase, textAlign: "left", width: "76px" }}>Código</th>
+              <th style={{ ...thBase, textAlign: "left" }}>Descrição</th>
+              <th style={{ ...thBase, textAlign: "left", width: "96px" }}>Variação</th>
+              <th style={{ ...thBase, textAlign: "right", width: "54px" }}>Qtd.</th>
+              <th style={{ ...thBase, textAlign: "left", width: "40px" }}>Un.</th>
+              <th style={{ ...thBase, textAlign: "right", width: "102px" }}>Unit.</th>
+              <th style={{ ...thBase, textAlign: "right", width: "112px" }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {realItems.map((item, idx) => (
+              <tr key={`r-${idx}`}>
+                <td style={{ ...tdBase, ...mono, fontSize: "10.5px", fontWeight: 600, color: SECONDARY }}>{item.codigo_snapshot}</td>
+                <td style={{ ...tdBase, fontWeight: 600 }}>{item.descricao_snapshot}</td>
+                <td style={{ ...tdBase, color: MUTED }}>{item.variacao || ""}</td>
+                <td style={{ ...tdBase, ...mono, textAlign: "right", fontWeight: 600 }}>{item.quantidade || ""}</td>
+                <td style={{ ...tdBase, ...mono, color: MUTED }}>{item.unidade}</td>
+                <td style={{ ...tdBase, ...mono, textAlign: "right" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
+                <td style={{ ...tdBase, ...mono, textAlign: "right", fontWeight: 700 }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
               </tr>
-            </thead>
-            <tbody>
-              {realItems.map((item, idx) => (
-                <tr key={`r-${idx}`} style={{ background: idx % 2 === 0 ? "#fff" : CREAM, borderBottom: `1px solid ${BORDER}` }}>
-                  <td style={{ padding: "6px 8px", fontWeight: 600, color: WINE, ...tabular }}>{item.codigo_snapshot}</td>
-                  <td style={{ padding: "6px 8px", color: INK }}>{item.descricao_snapshot}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "center", color: "#3d3d3a" }}>{item.variacao || "—"}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "center", ...tabular, fontWeight: 600 }}>{item.quantidade || ""}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "center", color: "#3d3d3a" }}>{item.unidade}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "right", ...tabular, color: "#3d3d3a" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "right", ...tabular, fontWeight: 700, color: INK }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
-                </tr>
-              ))}
-              {realItems.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: "24px", textAlign: "center", color: "#a0967e", fontStyle: "italic" }}>Nenhum item adicionado.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+            {Array.from({ length: fillerRows }).map((_, idx) => (
+              <tr key={`f-${idx}`}>
+                <td style={{ ...tdBase }}>&nbsp;</td>
+                <td style={tdBase}></td><td style={tdBase}></td><td style={tdBase}></td>
+                <td style={tdBase}></td><td style={tdBase}></td><td style={tdBase}></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Resumo: linhas de totais à esquerda + card destaque à direita */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 0.85fr", gap: "10px", marginBottom: "10px" }}>
-          {/* Esquerda: condições / metadados */}
-          <div style={{ border: `1px solid ${BORDER}`, padding: "10px 12px", fontSize: "10px", lineHeight: 1.7 }}>
-            <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: WINE, fontWeight: 700, marginBottom: "5px" }}>CONDIÇÕES COMERCIAIS</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "12px" }}>
-              <div><span style={{ color: "#7a6a48" }}>Pagamento</span><br /><b>{paymentLabel[pagamento] || pagamento || "—"}</b></div>
-              <div><span style={{ color: "#7a6a48" }}>Prazo Pagto.</span><br /><b>{prazoPagamento || "—"}</b></div>
-              <div><span style={{ color: "#7a6a48" }}>Prazo Entrega</span><br /><b>{prazoEntrega || "—"}</b></div>
-              <div><span style={{ color: "#7a6a48" }}>Frete</span><br /><b>{freteTipo || "—"}</b></div>
-              <div><span style={{ color: "#7a6a48" }}>Modalidade</span><br /><b>{modalidade || "—"}</b></div>
-              <div><span style={{ color: "#7a6a48" }}>Qtd / Peso</span><br /><b style={tabular}>{quantidadeTotal} / {pesoTotal.toFixed(2)} kg</b></div>
-            </div>
+      {/* 4.4 — Totais */}
+      <div style={{
+        border: `1px solid ${RULE}`, borderRadius: "4px", overflow: "hidden", background: "#fff",
+        display: "grid", gridTemplateColumns: "repeat(6, 1fr) 1.9fr",
+      }}>
+        {[
+          { label: "Produtos", value: totalProdutos },
+          { label: "(−) Desconto", value: desconto },
+          { label: "(+) Imp. S.T.", value: impostoSt },
+          { label: "(+) Imp. IPI", value: impostoIpi },
+          { label: "(+) Frete", value: freteValor },
+          { label: "(+) Outras", value: outrasDespesas },
+        ].map((cell, i) => (
+          <div key={cell.label} style={{
+            padding: "10px", display: "flex", flexDirection: "column", gap: "4px",
+            minWidth: 0, borderRight: i < 5 ? `1px solid ${SOFTRULE}` : `1px solid ${SOFTRULE}`,
+          }}>
+            <span style={{ fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cell.label}</span>
+            <span style={{ ...mono, fontSize: "11.5px", fontWeight: 600, color: INK, whiteSpace: "nowrap" }}>{fmtMoney(cell.value)}</span>
           </div>
-          {/* Direita: card valor total — claro com destaque terracota */}
-          <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderTop: `3px solid ${ORANGE}`, padding: "10px 14px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ fontSize: "9.5px", lineHeight: 1.7 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>Total Produtos</span><span style={{ ...tabular, color: INK }}>{fmtMoney(totalProdutos)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(−) Desconto</span><span style={{ ...tabular, color: INK }}>{fmtMoney(desconto)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) ST</span><span style={{ ...tabular, color: INK }}>{fmtMoney(impostoSt)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) IPI</span><span style={{ ...tabular, color: INK }}>{fmtMoney(impostoIpi)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) Frete</span><span style={{ ...tabular, color: INK }}>{fmtMoney(freteValor)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) Outras</span><span style={{ ...tabular, color: INK }}>{fmtMoney(outrasDespesas)}</span></div>
-            </div>
-            <div style={{ background: CREAM, marginTop: "8px", padding: "8px 10px", borderLeft: `3px solid ${WINE}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: "10px", letterSpacing: "1.5px", color: WINE, fontWeight: 700 }}>VALOR TOTAL</span>
-              <span style={{ fontSize: "22px", fontWeight: 700, color: WINE, ...tabular }}>{fmtMoney(valorTotal)}</span>
-            </div>
-          </div>
+        ))}
+        <div style={{
+          background: PRIMARY, color: "#fff", padding: "10px 18px",
+          display: "flex", flexDirection: "column", justifyContent: "center", gap: "2px",
+        }}>
+          <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.18em", fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>Valor Total</span>
+          <span style={{ ...mono, fontSize: "22px", fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1, whiteSpace: "nowrap" }}>{fmtMoney(valorTotal)}</span>
         </div>
+      </div>
 
-        {/* Observações */}
-        <div>
-          <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: WINE, fontWeight: 700, marginBottom: "4px" }}>OBSERVAÇÕES</div>
-          <div style={{ border: `1px solid ${BORDER}`, background: CREAM, padding: "10px 12px", fontSize: "9.5px", whiteSpace: "pre-wrap", minHeight: "55px", color: "#3d3d3a", lineHeight: 1.55 }}>
-            {observacoes || "—"}
-          </div>
-        </div>
+      {/* 4.5 — Meta (sem caixa) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", columnGap: "18px", rowGap: "8px", padding: "0 4px" }}>
+        <Field label="Quantidade" value={quantidadeTotal} monoValue />
+        <Field label="Peso (kg)" value={pesoTotal.toFixed(2)} monoValue />
+        <Field label="Pagamento" value={paymentLabel[pagamento] || pagamento || "—"} />
+        <Field label="Prazo" value={prazoPagamento || "—"} monoValue />
+        <Field label="Entrega" value={prazoEntrega || "—"} />
+        <Field label="Frete" value={freteTipo || "—"} />
+        <Field label="Tipo" value={modalidade || "—"} />
+      </div>
 
-        {/* Rodapé */}
-        <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", fontSize: "8.5px", color: "#7a6a48", letterSpacing: "0.3px" }}>
-          <span>{empresaNome} • {cnpjLinha}</span>
-          <span>Documento gerado eletronicamente</span>
+      {/* 4.6 — Spacer flexível */}
+      <div style={{ flex: 1 }} />
+
+      {/* 4.7 — Observações */}
+      <div>
+        <div style={{ ...labelStyle, marginBottom: "6px" }}>Observações</div>
+        <div style={{
+          border: `1px solid ${RULE}`, borderRadius: "4px",
+          minHeight: "64px", padding: "10px 12px", background: TINTDEEP,
+          fontSize: "10.5px", color: INK, lineHeight: 1.55, whiteSpace: "pre-wrap",
+        }}>
+          {observacoes || "\u00A0"}
         </div>
+      </div>
+
+      {/* 4.8 — Rodapé interno */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", paddingTop: "6px",
+        borderTop: `1px solid ${SOFTRULE}`,
+        fontSize: "8.5px", color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600,
+      }}>
+        <span>{empresaNome} · Orçamento Nº <span style={mono}>{numeroDisplay}</span></span>
+        <span>Documento gerado em <span style={mono}>{formatDate(data)}</span></span>
       </div>
     </div>
   );
