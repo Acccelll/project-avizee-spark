@@ -11,20 +11,22 @@ export interface WidgetMeta {
   description: string;
   /** Set to true if the widget should never be hidden by the user (e.g. KPIs). */
   required?: boolean;
+  /** ID do widget com quem este forma par lado-a-lado no layout desktop. */
+  pairWith?: WidgetId;
 }
 
 export const WIDGET_REGISTRY: Record<WidgetId, WidgetMeta> = {
   kpis: { id: 'kpis', label: 'KPIs Financeiros', description: 'Receber, Pagar e Saldo Projetado', required: true },
   operational: { id: 'operational', label: 'Indicadores Operacionais', description: 'Estoque crítico, backlog, atrasos' },
   alertas: { id: 'alertas', label: 'Faixa de Alertas', description: 'Atalhos contextuais para exceções' },
-  financeiro: { id: 'financeiro', label: 'Bloco Financeiro', description: 'Resumo + fluxo de caixa' },
-  acoes_rapidas: { id: 'acoes_rapidas', label: 'Ações Rápidas', description: 'Atalhos para criar registros' },
-  vendas_chart: { id: 'vendas_chart', label: 'Gráfico de Vendas', description: 'Faturamento por dia' },
-  pendencias: { id: 'pendencias', label: 'Pendências Financeiras', description: 'Vencimentos e atrasos' },
-  comercial: { id: 'comercial', label: 'Bloco Comercial', description: 'Orçamentos e pedidos' },
-  estoque: { id: 'estoque', label: 'Bloco Estoque', description: 'Posição e itens críticos' },
-  logistica: { id: 'logistica', label: 'Bloco Logística', description: 'Compras aguardando entrega' },
-  fiscal: { id: 'fiscal', label: 'Bloco Fiscal', description: 'Notas emitidas e pendentes' },
+  financeiro: { id: 'financeiro', label: 'Bloco Financeiro', description: 'Resumo + fluxo de caixa', pairWith: 'acoes_rapidas' },
+  acoes_rapidas: { id: 'acoes_rapidas', label: 'Ações Rápidas', description: 'Atalhos para criar registros', pairWith: 'financeiro' },
+  vendas_chart: { id: 'vendas_chart', label: 'Gráfico de Vendas', description: 'Faturamento por dia', pairWith: 'comercial' },
+  pendencias: { id: 'pendencias', label: 'Pendências Financeiras', description: 'Vencimentos e atrasos', pairWith: 'fiscal' },
+  comercial: { id: 'comercial', label: 'Bloco Comercial', description: 'Orçamentos e pedidos', pairWith: 'vendas_chart' },
+  estoque: { id: 'estoque', label: 'Bloco Estoque', description: 'Posição e itens críticos', pairWith: 'logistica' },
+  logistica: { id: 'logistica', label: 'Bloco Logística', description: 'Compras aguardando entrega', pairWith: 'estoque' },
+  fiscal: { id: 'fiscal', label: 'Bloco Fiscal', description: 'Notas emitidas e pendentes', pairWith: 'pendencias' },
 };
 
 export const WIDGET_LIST = Object.values(WIDGET_REGISTRY);
