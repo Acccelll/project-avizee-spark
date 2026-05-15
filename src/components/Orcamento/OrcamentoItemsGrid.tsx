@@ -546,3 +546,182 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
     </div>
   );
 }
+
+interface SortableMobileCardProps {
+  id: string;
+  item: OrcamentoItem;
+  idx: number;
+  produtos: ProductWithForn[];
+  precosEspeciais?: Tables<"precos_especiais">[];
+  getProductOptions: () => ReturnType<OrcamentoItemsGridHelpers["getProductOptions"]>;
+  onUpdate: (idx: number, field: keyof OrcamentoItem, value: OrcamentoItem[keyof OrcamentoItem]) => void;
+  onRemove: (idx: number) => void;
+  onDuplicate: (idx: number) => void;
+  onViewDetail: (productId: string) => void;
+}
+
+// Helper interface para tipar o retorno de getProductOptions sem expor toda a função.
+type OrcamentoItemsGridHelpers = {
+  getProductOptions: () => Array<{
+    id: string;
+    label: string;
+    sublabel: string;
+    metaLine: string;
+    rightMeta?: string;
+    imageUrl: string | null;
+    searchTerms: string[];
+  }>;
+};
+
+function SortableMobileCard({
+  id,
+  item,
+  idx,
+  produtos,
+  precosEspeciais,
+  getProductOptions,
+  onUpdate,
+  onRemove,
+  onDuplicate,
+  onViewDetail,
+}: SortableMobileCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const prod = produtos.find((p) => p.id === item.produto_id);
+  const lowStock = item.quantidade > 0 && prod != null && (prod.estoque_atual ?? 0) < item.quantidade;
+  const hasSpecial = precosEspeciais?.some((p) => p.produto_id === item.produto_id);
+  const specialRecord = precosEspeciais?.find((p) => p.produto_id === item.produto_id);
+  const precoEfetivoReferencia =
+    specialRecord && Number(specialRecord.preco_especial) > 0
+      ? Number(specialRecord.preco_especial)
+      : (prod?.preco_venda || 0);
+  const isUnlinked = Boolean(item._unlinked);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 space-y-2 ${isUnlinked ? "bg-destructive/5" : lowStock ? "bg-warning/5" : ""}`}
+    >
+      {/* Header: drag + # + status + ações */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="touch-none -ml-1 inline-flex h-9 w-9 items-center justify-center rounded text-muted-foreground active:bg-muted/60"
+            aria-label="Reordenar item (segurar e arrastar)"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="text-[11px] font-mono text-muted-foreground shrink-0">#{idx + 1}</span>
+          {isUnlinked ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3 w-3" />Não vinculado</span>
+          ) : lowStock ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3 w-3" />Estoque baixo</span>
+          ) : item.produto_id ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3 w-3" />OK</span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onRemove(idx)} aria-label="Remover item">
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Mais ações do item">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {item.produto_id && (
+                <DropdownMenuItem onSelect={() => onViewDetail(item.produto_id)}>
+                  <Info className="h-4 w-4 mr-2" />Ver detalhes
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => onDuplicate(idx)}>
+                <Copy className="h-4 w-4 mr-2" />Duplicar item
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Produto */}
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Produto</label>
+        <AutocompleteSearch
+          options={getProductOptions()}
+          value={item.produto_id}
+          onChange={(val) => onUpdate(idx, "produto_id", val)}
+          placeholder="Buscar produto..."
+          className="w-full"
+          onCreateNew={() => window.open('/produtos', '_blank')}
+          createNewLabel="Produto não encontrado? Cadastrar"
+        />
+        {hasSpecial && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Tag className="h-3 w-3" />Preço especial aplicado</p>}
+        {item.variacao && (
+          <p className="text-[11px] text-muted-foreground italic mt-1">
+            Variação: {item.variacao}
+          </p>
+        )}
+      </div>
+
+      {/* Qtd / Unitário / % */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Qtd ({item.unidade || 'UN'})</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.quantidade || ""}
+            onChange={(e) => onUpdate(idx, "quantidade", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Unitário</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.valor_unitario || ""}
+            onChange={(e) => onUpdate(idx, "valor_unitario", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Desc. %</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.desconto_percentual || 0}
+            onChange={(e) => onUpdate(idx, "desconto_percentual", Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      {hasSpecial && item.valor_unitario !== precoEfetivoReferencia && (
+        <Input
+          placeholder="Justificativa do preço alterado"
+          className={`h-10 text-sm ${!item.override_justificativa ? 'border-destructive' : ''}`}
+          value={item.override_justificativa || ''}
+          onChange={(e) => onUpdate(idx, 'override_justificativa', e.target.value)}
+        />
+      )}
+
+      {/* Subtotal */}
+      <div className="flex items-baseline justify-between pt-1 border-t">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
+        <span className="text-base font-bold text-primary tabular-nums">{formatCurrency(item.valor_total || 0)}</span>
+      </div>
+    </div>
+  );
+}
