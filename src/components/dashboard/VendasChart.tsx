@@ -164,11 +164,13 @@ interface RechartsClickPayload {
           <Tooltip
             formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
+            cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
           />
           <Bar
             dataKey="valor"
             radius={[4, 4, 0, 0]}
-            maxBarSize={48}
+            maxBarSize={56}
+            isAnimationActive={false}
           >
             {data.map((p) => (
               <Cell
