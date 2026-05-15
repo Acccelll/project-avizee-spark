@@ -1458,25 +1458,6 @@ export default function OrcamentoForm() {
             freteValor={freteValor} valorTotal={valorTotal}
             pesoTotal={pesoTotal} validade={validade}
           />
-          <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
-            <h4 className="font-semibold">Simulador de Condições</h4>
-            <div className="space-y-2">
-              <Label className="text-xs">Desconto geral adicional</Label>
-              <Input type="number" value={simDescontoGeral} onChange={(e) => setSimDescontoGeral(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Acréscimo frete/seguro</Label>
-              <Input type="number" value={simFreteSeguro} onChange={(e) => setSimFreteSeguro(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Forma de pagamento simulada</Label>
-              <Input value={simPagamento} onChange={(e) => setSimPagamento(e.target.value)} placeholder="Ex.: 30/60/90" />
-            </div>
-            <div className="rounded-md bg-muted/40 p-3 text-sm">
-              <p>Total atual: <strong>{formatCurrency(valorTotal)}</strong></p>
-              <p>Total simulado: <strong>{formatCurrency(valorSimulado)}</strong></p>
-            </div>
-          </div>
           {isEdit && (
             <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -1530,8 +1511,6 @@ export default function OrcamentoForm() {
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
-                {/* TODO: persistir "último envio" em coluna futura */}
-                <p>• Último envio: <span className="text-foreground font-medium">—</span></p>
               </div>
             </div>
           )}
