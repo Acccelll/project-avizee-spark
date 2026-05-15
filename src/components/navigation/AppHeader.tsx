@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, Keyboard, Moon, Plus, Search, Settings, Sun, User } from 'lucide-react';
+import { ArrowLeft, Keyboard, Moon, Plus, Search, Settings, Sun } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { HelpMenu } from '@/components/help/HelpMenu';
+import { GlobalPeriodChip } from './GlobalPeriodChip';
 
 const ROLE_DOT_COLORS: Record<AppRole, string> = {
   admin: 'bg-destructive',
@@ -56,10 +57,7 @@ function AccountMenuItems({
   return (
     <>
       <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
-        <User className="mr-2 h-4 w-4" /> Minha conta
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => navigate('/configuracoes?tab=aparencia')}>
-        <Settings className="mr-2 h-4 w-4" /> Aparência
+        <Settings className="mr-2 h-4 w-4" /> Configurações
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
         {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
@@ -157,6 +155,8 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
             <div className="min-w-0 flex-1">
               <AppBreadcrumbs />
             </div>
+
+            <GlobalPeriodChip />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
