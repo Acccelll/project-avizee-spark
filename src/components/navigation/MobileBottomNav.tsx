@@ -8,14 +8,15 @@ import {
   Truck,
   Wallet,
   DollarSign,
-  Receipt,
   Users,
   Package,
   Store,
   BarChart3,
+  FileInput,
+  FileOutput,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY, navSections, type NavSectionKey } from '@/lib/navigation';
 import { useVisibleSectionKeys } from '@/hooks/useVisibleNavSections';
@@ -87,8 +88,8 @@ const CONTEXTUAL_TABS_BY_SECTION: Partial<Record<NavSectionKey, ContextualTab[]>
   ],
   fiscal: [
     { key: 'dashboard-fiscal', title: 'Dashboard', icon: BarChart3, path: '/fiscal/dashboard', permission: 'faturamento_fiscal:visualizar' },
-    { key: 'nf-entrada', title: 'Entrada', icon: Receipt, path: '/fiscal?tipo=entrada' },
-    { key: 'nf-saida', title: 'Saída', icon: Receipt, path: '/fiscal?tipo=saida' },
+    { key: 'nf-entrada', title: 'Entrada', icon: FileInput, path: '/fiscal?tipo=entrada' },
+    { key: 'nf-saida', title: 'Saída', icon: FileOutput, path: '/fiscal?tipo=saida' },
   ],
   cadastros: [
     { key: 'clientes', title: 'Clientes', icon: Users, path: '/clientes', permission: 'clientes:visualizar' },
@@ -108,6 +109,28 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const currentRoute = `${location.pathname}${location.search}`;
   const activeKey = getNavSectionKey(currentRoute);
   const visibleKeys = useVisibleSectionKeys();
+  const navRef = useRef<HTMLElement | null>(null);
+
+  // Publica a altura real do nav como CSS var global. Permite que o
+  // MobileMenu drawer e o MobileQuickAddFAB se ancorem dinamicamente
+  // sem `pb-28` hardcoded.
+  useLayoutEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const update = () => {
+      document.documentElement.style.setProperty(
+        '--mobile-nav-height',
+        `${el.offsetHeight}px`,
+      );
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--mobile-nav-height');
+    };
+  }, []);
 
   // Sempre inclui "Início" no começo. Quando o usuário está dentro de uma seção
   // com tabs contextuais definidas, troca os atalhos para itens da própria seção
@@ -146,6 +169,7 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
 
   return (
     <nav
+      ref={navRef}
       aria-label="Navegação mobile"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden"
     >

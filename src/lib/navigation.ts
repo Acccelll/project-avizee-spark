@@ -271,6 +271,17 @@ export const mobileBottomTabs: MobileBottomTab[] = [
 const BOTTOM_TAB_SECTION_KEYS = new Set<NavSectionKey>(['comercial', 'cadastros', 'financeiro']);
 export const mobileMenuSections = navSections.filter((section) => !BOTTOM_TAB_SECTION_KEYS.has(section.key));
 
+/**
+ * Set de keys das seções presentes no bottom nav mobile (exclui Dashboard).
+ * Use este set em vez de listas hardcoded para manter sincronia automática
+ * com `mobileBottomTabs` ao adicionar/remover tabs.
+ */
+export const mobileBottomTabKeys: ReadonlySet<NavSectionKey> = new Set(
+  mobileBottomTabs
+    .filter((t) => t.key !== DASHBOARD_KEY)
+    .map((t) => t.key as NavSectionKey),
+);
+
 export type FlatNavItem = NavLeafItem & { section: string; subgroup: string; sectionKey?: NavSectionKey };
 
 export const flatNavItems: FlatNavItem[] = [
@@ -318,6 +329,40 @@ export const headerIcons: Record<string, LucideIcon> = {
   '/configuracoes': Settings,
   '/fiscal': Receipt,
 };
+
+/**
+ * Mapa de rota-filho → rota-pai para navegação "voltar" no mobile.
+ * Usado pelo botão Voltar do header para evitar `navigate(-1)` cair
+ * fora do app quando a rota foi aberta por deep-link.
+ */
+export const parentRouteMap: Record<string, string> = {
+  '/orcamentos/novo':           '/orcamentos',
+  '/cotacoes-compra/novo':      '/cotacoes-compra',
+  '/pedidos-compra/novo':       '/pedidos-compra',
+  '/faturamento/emitir':        '/faturamento',
+  '/faturamento/backlog':       '/faturamento',
+  '/faturamento/documentos':    '/faturamento',
+  '/faturamento/cadastros':     '/faturamento',
+  '/fiscal/dashboard':          '/fiscal',
+  '/fiscal/distdfe-historico':  '/fiscal',
+  '/relatorios/workbook-gerencial':     '/relatorios',
+  '/relatorios/apresentacao-gerencial': '/relatorios',
+  '/admin/audit-duplicidades':  '/administracao',
+  '/configuracoes':             '/',
+};
+
+/**
+ * Resolve o pai de uma rota: tenta o mapa explícito; caso contrário,
+ * busca em `flatNavItems` o item-pai cujo path é prefixo de `pathname`.
+ * Retorna `null` quando não há pai conhecido (caller deve fazer fallback).
+ */
+export function getParentRoute(pathname: string): string | null {
+  if (parentRouteMap[pathname]) return parentRouteMap[pathname];
+  const parent = flatNavItems
+    .filter((item) => !item.path.includes('?') && item.path !== pathname)
+    .find((item) => pathname.startsWith(item.path + '/'));
+  return parent?.path ?? null;
+}
 
 const extraRouteLabels: Record<string, string> = {
   '/configuracoes': 'Minha conta',

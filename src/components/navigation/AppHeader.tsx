@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { headerIcons, quickActions } from '@/lib/navigation';
+import { headerIcons, quickActions, getParentRoute } from '@/lib/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCan } from '@/hooks/useCan';
 import type { Permission } from '@/utils/permissions';
@@ -119,6 +119,12 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
     return Object.entries(headerIcons).find(([path]) => location.pathname.startsWith(path) && path !== '/')?.[1] || headerIcons['/'];
   }, [location.pathname]);
 
+  const handleBack = () => {
+    const parent = getParentRoute(location.pathname);
+    if (parent) navigate(parent);
+    else navigate(-1);
+  };
+
   return (
     <header role="banner" className="sticky top-0 z-40 border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_0_hsl(var(--border)/0.4)]">
       <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 md:px-6">
@@ -126,7 +132,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
           <>
             <div className="flex min-w-0 flex-1 items-center gap-2">
               {location.pathname !== '/' && (
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" onClick={() => navigate(-1)} aria-label="Voltar para a tela anterior" title="Voltar">
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" onClick={handleBack} aria-label="Voltar para a tela anterior" title="Voltar">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               )}

@@ -14,6 +14,7 @@ import { useRecentRoutes } from '@/hooks/useRecentRoutes';
 import { useMobileQuickActions } from '@/hooks/useMobileQuickActions';
 import { PROFILE_SECTION_KEYS, isPriorityProfile } from '@/lib/navigation/profiles';
 import type { NavSection, NavSectionKey } from '@/lib/navigation';
+import { mobileBottomTabKeys } from '@/lib/navigation';
 import { MobileMenuHeader } from './mobile/MobileMenuHeader';
 import { MobileMenuSection } from './mobile/MobileMenuSection';
 import { MobileMenuRecents } from './mobile/MobileMenuRecents';
@@ -138,6 +139,7 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
       onNavigate={handleNavigate}
       onToggleFavorite={toggleFavorito}
       onDirectNavigate={section.directPath ? handleNavigate : undefined}
+      anchorId={`menu-section-${section.key}`}
     />
   );
 
@@ -149,6 +151,19 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     .toUpperCase();
 
   const hasMaisContent = favoritos.length > 0 || recents.length > 0;
+
+  // Chips de salto: módulos que não estão no bottom nav (mais difíceis de
+  // alcançar via scroll). Scroll suave dentro do container do drawer.
+  const jumpSections = useMemo(
+    () => sectionsForMobile.filter((s) => !mobileBottomTabKeys.has(s.key)),
+    [sectionsForMobile],
+  );
+
+  const handleJumpTo = (key: NavSectionKey) => {
+    const el = document.getElementById(`menu-section-${key}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setOpenSections((prev) => (prev.includes(key) ? prev : [...prev, key]));
+  };
 
   return (
     <>
@@ -179,6 +194,29 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
                 <span>Buscar módulos…</span>
               </button>
             </div>
+
+            {jumpSections.length > 0 && (
+              <div
+                className="mt-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="navigation"
+                aria-label="Saltar para módulo"
+              >
+                {jumpSections.map((section) => {
+                  const SectionIcon = section.icon;
+                  return (
+                    <button
+                      key={section.key}
+                      type="button"
+                      onClick={() => handleJumpTo(section.key)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                    >
+                      <SectionIcon className="h-3 w-3" />
+                      {section.title}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <MobileQuickActionsGrid
               actions={visibleQuickActions}

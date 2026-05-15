@@ -14,6 +14,9 @@ export default {
       },
     },
     extend: {
+      screens: {
+        "xs": "480px",
+      },
       fontFamily: {
         inter: ['Inter', 'sans-serif'],
         sans: ['Inter', 'sans-serif'],
