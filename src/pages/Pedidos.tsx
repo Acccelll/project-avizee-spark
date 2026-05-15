@@ -597,7 +597,6 @@ const Pedidos = () => {
           mobileStatusKey="status"
           mobileIdentifierKey="numero"
           mobileInlineActions={(p) => {
-            const showFaturar = canFaturarPedido(p) && canFaturar;
             const orcamentoId = p.orcamentos?.id;
             return (
               <DropdownMenu>
