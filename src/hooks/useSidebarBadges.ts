@@ -38,7 +38,6 @@ export function useSidebarBadges(): SidebarBadges {
       comercial: { count: alerts.orcamentosPendentes, tone: 'warning' },
       fiscal: { count: fiscalTotal, tone: fiscalTone },
       administracao: { count: alerts.filaEmailDLQ, tone: 'danger' },
-      compras: { count: alerts.pedidosCompraPendentes, tone: 'warning' },
     };
 
     const itemBadges: Record<string, BadgeInfo> = {
