@@ -49,6 +49,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
