@@ -1254,16 +1254,12 @@ export default function OrcamentoForm() {
                   name="status"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={isLocked}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="rascunho">Rascunho</SelectItem>
-                        <SelectItem value="pendente">Aguardando Aprovação</SelectItem>
-                        <SelectItem value="aprovado">Aprovado</SelectItem>
-                        <SelectItem value="convertido">Convertido em Pedido</SelectItem>
-                        <SelectItem value="rejeitado">Rejeitado</SelectItem>
-                        <SelectItem value="expirado">Expirado</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                        {statusOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
