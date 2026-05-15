@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { ArrowUpIcon, ArrowDownIcon, LucideIcon, BarChart2 } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, LucideIcon, BarChart2, Filter } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -105,7 +105,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
           'stat-card',
           isCompact && '!p-3',
           styles.border,
-          onClick && 'cursor-pointer hover:border-primary/30 active:scale-[0.98]',
+          onClick && 'cursor-pointer hover:border-primary/30 active:scale-[0.98] relative group',
           active && 'ring-2 ring-primary/40 bg-primary/5 border-primary/30',
           className
         )}
@@ -115,6 +115,14 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
         aria-label={ariaLabel}
         onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       >
+        {onClick && !active && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-60 text-muted-foreground"
+          >
+            <Filter className="h-3 w-3" />
+          </span>
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className={cn(isCompact ? 'text-xs' : 'text-sm', 'text-muted-foreground font-medium tracking-wide truncate')}>{displayTitle}</p>
