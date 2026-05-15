@@ -124,7 +124,13 @@ export function AppLayout() {
         <main
           id="main-content"
           role="main"
-          className="mx-auto max-w-[1600px] px-3 py-4 pb-28 md:px-6 md:py-5 md:pb-5"
+          className="mx-auto max-w-[1600px] px-3 py-4 md:px-6 md:py-5 md:pb-5"
+          style={{
+            paddingBottom:
+              typeof window !== 'undefined' && window.innerWidth < 768
+                ? 'calc(var(--mobile-nav-height, 5rem) + 1rem)'
+                : undefined,
+          }}
         >
           <div className="mb-3 empty:mb-0">
             <CertificadoValidadeAlert dismissible />
