@@ -37,7 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
-  Info, Loader2, Calendar, Mail, CheckCircle2, Handshake, BadgeCheck, Package,
+  Info, Loader2, Calendar, Mail, CheckCircle2, BadgeCheck, Package,
   Users, UserCheck, Trash2, Plus,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -620,7 +620,7 @@ const Fornecedores = () => {
                   <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
               </TabsTrigger>
-              <TabsTrigger value="observacoes" className="gap-1.5"><Handshake className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Observações</TabsTrigger>
             </TabsList>
 
             {/* ── TAB: DADOS GERAIS ─────────────────────────── */}
