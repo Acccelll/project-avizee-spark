@@ -1,9 +1,15 @@
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronDown, type LucideIcon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreference } from '@/hooks/useUserPreference';
+import { useDebounce } from '@/hooks/useDebounce';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface MobileCollapsibleBlockProps {
   /** Title shown in the collapsed header. */
@@ -47,47 +53,55 @@ export function MobileCollapsibleBlock({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const prefKey = persistKey ? `dashboard.collapse.${persistKey}` : 'dashboard.collapse.__ephemeral__';
-  const { value: open, save } = useUserPreference<boolean>(
+  const { value: persistedOpen, save } = useUserPreference<boolean>(
     persistKey ? user?.id ?? null : null,
     prefKey,
     defaultOpen,
   );
-  const setOpen = (next: boolean) => {
-    void save(next);
-  };
+  const [open, setOpen] = useState<boolean>(persistedOpen);
+  useEffect(() => {
+    setOpen(persistedOpen);
+  }, [persistedOpen]);
+  const debouncedOpen = useDebounce(open, 800);
+  useEffect(() => {
+    if (debouncedOpen === persistedOpen) return;
+    void save(debouncedOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedOpen]);
 
   if (!isMobile) {
     return <>{children}</>;
   }
 
   return (
-    <div className="bg-card rounded-xl border overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex w-full min-h-[52px] items-center gap-2 px-4 py-3 text-left active:bg-muted/40 transition-colors"
-      >
-        <Icon className={cn('h-4 w-4 shrink-0', iconColor)} />
-        <span className="text-sm font-semibold text-foreground">{title}</span>
-        {badge}
-        <div className="ml-auto flex items-center gap-2">
-          {!open && summary && (
-            <span className="text-xs text-muted-foreground truncate max-w-[180px] text-right">{summary}</span>
-          )}
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform',
-              open && 'rotate-180',
+    <Collapsible open={open} onOpenChange={setOpen} className="bg-card rounded-xl border overflow-hidden">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          aria-expanded={open}
+          className="flex w-full min-h-[52px] items-center gap-2 px-4 py-3 text-left active:bg-muted/40 transition-colors"
+        >
+          <Icon className={cn('h-4 w-4 shrink-0', iconColor)} />
+          <span className="text-sm font-semibold text-foreground shrink-0">{title}</span>
+          {badge}
+          <div className="ml-auto flex items-center gap-2 min-w-0">
+            {!open && summary && (
+              <span className="text-xs text-muted-foreground truncate text-right">{summary}</span>
             )}
-          />
-        </div>
-      </button>
-      {open && (
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-muted-foreground transition-transform shrink-0',
+                open && 'rotate-180',
+              )}
+            />
+          </div>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
         <div className="border-t border-border/60">
           <div className="[&>div]:rounded-none [&>div]:border-0">{children}</div>
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
