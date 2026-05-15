@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,7 +39,7 @@ import { formatDate } from "@/lib/format";
 import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
 import {
-  Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
+  Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText, ChevronRight,
   Info, Loader2, Calendar, Mail, Users, UserCheck, AlertTriangle,
   MessageSquare, Home, Pencil, Check as CheckIcon,
 } from "lucide-react";
