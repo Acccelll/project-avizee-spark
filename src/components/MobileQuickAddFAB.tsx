@@ -18,17 +18,20 @@ interface MobileQuickAddFABProps {
 export function MobileQuickAddFAB({
   onClick,
   label = "Novo",
-  bottomOffset = "5.25rem",
+  bottomOffset,
   className,
 }: MobileQuickAddFABProps) {
   const isMobile = useIsMobile();
   if (!isMobile) return null;
+  // Default segue a altura real do MobileBottomNav (publicada como CSS var).
+  // Fallback de 5rem cobre o caso de o nav ainda não ter medido.
+  const bottom = bottomOffset ?? "calc(var(--mobile-nav-height, 5rem) + 0.75rem)";
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      style={{ bottom: bottomOffset }}
+      style={{ bottom }}
       className={cn(
         "fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full",
         "bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-background",
