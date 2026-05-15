@@ -619,11 +619,6 @@ const Pedidos = () => {
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPedidoId(p.id); }}>
                     Editar pedido
                   </DropdownMenuItem>
-                  {showFaturar && (
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}>
-                      {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
-                    </DropdownMenuItem>
-                  )}
                   {orcamentoId && (
                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pushView("orcamento", orcamentoId); }}>
                       Ver orçamento de origem
