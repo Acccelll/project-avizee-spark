@@ -84,19 +84,33 @@ export function MobileCardList<T extends { id?: string }>({
 
   const renderCard = (item: T, idx: number) => {
     let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let visualTimer: ReturnType<typeof setTimeout> | null = null;
+    let cardEl: HTMLDivElement | null = null;
     const startPress = () => {
       if (!onLongPress) return;
-      pressTimer = setTimeout(() => onLongPress(item), 500);
+      visualTimer = setTimeout(() => {
+        cardEl?.classList.add("long-press-active");
+      }, 200);
+      pressTimer = setTimeout(() => {
+        if (visualTimer) { clearTimeout(visualTimer); visualTimer = null; }
+        if ("vibrate" in navigator) {
+          try { navigator.vibrate(40); } catch { /* noop */ }
+        }
+        onLongPress(item);
+      }, 500);
     };
     const cancelPress = () => {
       if (pressTimer) {
         clearTimeout(pressTimer);
         pressTimer = null;
       }
+      if (visualTimer) { clearTimeout(visualTimer); visualTimer = null; }
+      cardEl?.classList.remove("long-press-active");
     };
     return (
       <div
         key={item.id ?? idx}
+        ref={(el) => { cardEl = el; }}
         className={cn(
           "relative rounded-xl border bg-card px-3.5 py-2.5 transition-colors active:bg-muted/60",
           onItemClick && "cursor-pointer",

@@ -158,6 +158,13 @@ export function AdvancedFilterBar({
               </div>
             </div>
             <DrawerFooter className="pt-2">
+              {count !== undefined && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {count === 0
+                    ? "Nenhum resultado"
+                    : `${count} resultado${count !== 1 ? "s" : ""}`}
+                </p>
+              )}
               {onClearAll && activeCount > 0 && (
                 <Button
                   variant="outline"
@@ -167,7 +174,7 @@ export function AdvancedFilterBar({
                 </Button>
               )}
               <Button onClick={() => setDrawerOpen(false)}>
-                Ver resultados{count !== undefined ? ` (${count})` : ""}
+                {count !== undefined && count > 0 ? `Ver ${count} resultado${count !== 1 ? "s" : ""}` : "Fechar"}
               </Button>
             </DrawerFooter>
           </DrawerContent>

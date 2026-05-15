@@ -21,6 +21,10 @@ import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { toast } from "sonner";
+import { MobileCardActionButton } from "@/components/ui/MobileCardActions";
 
 type TipoItem = "produto" | "insumo" | "servico";
 
@@ -191,6 +195,7 @@ const Produtos = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formProdutoId, setFormProdutoId] = useState<string | undefined>(undefined);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const openCreate = () => { setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
   const openEdit = (p: Produto) => { setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
@@ -584,6 +589,14 @@ const Produtos = () => {
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
             serverSortDir={sort.sortDir}
+            mobileInlineActions={(p: Produto) => (
+              <MobileCardActionButton
+                icon={Package}
+                label="Ver produto"
+                onClick={(e) => { e.stopPropagation(); pushView("produto", p.id); }}
+                variant="primary"
+              />
+            )}
           />
         </div>
       </PullToRefresh>
@@ -594,6 +607,17 @@ const Produtos = () => {
         produtoId={formProdutoId}
         onClose={closeForm}
         onSaved={handleSaved}
+      />
+
+      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />
+      <QuickAddProductModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={() => {
+          setQuickAddOpen(false);
+          fetchData?.();
+          toast.success("Produto cadastrado com sucesso");
+        }}
       />
     </ModulePage>
   );

@@ -434,3 +434,9 @@
   animation: collapsible-up 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
 }
+
+.long-press-active {
+  background-color: hsl(var(--primary) / 0.06);
+  transform: scale(0.985);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
