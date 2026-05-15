@@ -9,7 +9,10 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  Command,
 } from '@/components/ui/command';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { flatNavItems, quickActions, navSections } from '@/lib/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -112,6 +115,7 @@ function highlight(text: string, term: string) {
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const navigate = useNavigate();
   const { can } = useCan();
+  const isMobile = useIsMobile();
   const visibleSections = useVisibleNavSections();
   const visibleSectionKeys = useMemo(() => new Set(visibleSections.map((s) => s.key)), [visibleSections]);
   // Mapa path-base → leaf, para checar `disabled` rapidamente sem percorrer árvore.
@@ -297,10 +301,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     pushView(entity.entityType, entity.entityId);
   };
 
-  return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+  const body = (
+    <>
       <CommandInput placeholder="Buscar módulos, registros e ações..." value={search} onValueChange={setSearch} />
-      <CommandList>
+      <CommandList className={isMobile ? 'max-h-[65vh]' : undefined}>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
 
         {recentSearches.length > 0 && !search.trim() && (
@@ -384,6 +388,27 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           ))}
         </CommandGroup>
       </CommandList>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="px-0 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Busca global</DrawerTitle>
+          </DrawerHeader>
+          <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 mt-2 bg-transparent">
+            {body}
+          </Command>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      {body}
     </CommandDialog>
   );
 }
