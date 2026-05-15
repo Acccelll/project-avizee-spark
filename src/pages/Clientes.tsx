@@ -782,20 +782,27 @@ const Clientes = () => {
           );
         })()}
         footer={
-          <FormModalFooter
-            saving={saving} isDirty={isDirty}
-            disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
-            disabledReason={
-              Object.keys(formErrors).length > 0
-                ? "Corrija os erros do formulário antes de salvar."
-                : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
-            }
-            onCancel={async () => {
-              if (isDirty && !(await confirmDiscard())) return;
-              setModalOpen(false);
-            }}
-            submitAsForm formId="cliente-form" mode={mode}
-          />
+          <>
+            {mode === "create" && (
+              <p className="hidden max-sm:block mb-2 text-[11px] text-muted-foreground">
+                Entregas e Comunicações ficam disponíveis após salvar o cliente.
+              </p>
+            )}
+            <FormModalFooter
+              saving={saving} isDirty={isDirty}
+              disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
+              disabledReason={
+                Object.keys(formErrors).length > 0
+                  ? "Corrija os erros do formulário antes de salvar."
+                  : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
+              }
+              onCancel={async () => {
+                if (isDirty && !(await confirmDiscard())) return;
+                setModalOpen(false);
+              }}
+              submitAsForm formId="cliente-form" mode={mode}
+            />
+          </>
         }
       >
         <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
