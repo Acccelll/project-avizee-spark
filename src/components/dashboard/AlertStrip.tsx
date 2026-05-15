@@ -127,8 +127,9 @@ export function AlertStrip({
           : 'border-border/60 bg-muted/10')
       }
     >
-      <div className="flex items-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible -mx-1 px-1 snap-x snap-mandatory md:snap-none scrollbar-thin">
-        <span
+      <div className="relative">
+        <div className="flex items-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible -mx-1 px-1 snap-x snap-mandatory md:snap-none scrollbar-thin">
+          <span
           className={
             'mr-1 hidden md:inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider shrink-0 ' +
             (hasCritical ? 'text-destructive' : 'text-muted-foreground')
@@ -155,6 +156,13 @@ export function AlertStrip({
             </button>
           );
         })}
+        </div>
+        {items.length > 2 && (
+          <div
+            aria-hidden
+            className="md:hidden pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-background to-transparent"
+          />
+        )}
       </div>
     </div>
   );
