@@ -29,9 +29,7 @@ import {
   FilePlus2,
   FileOutput,
   FileInput,
-  ListChecks,
   History,
-  Settings2,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
