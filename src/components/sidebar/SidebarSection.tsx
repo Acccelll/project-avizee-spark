@@ -4,6 +4,7 @@ import type { NavSection } from '@/lib/navigation';
 import { BADGE_TONE_CLASS, type BadgeInfo } from '@/hooks/useSidebarBadges';
 import { SidebarSectionItem } from './SidebarSectionItem';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const BADGE_TOOLTIP_BY_SECTION: Record<string, (count: number) => string> = {
   financeiro: (n) => `${n} lançamento${n === 1 ? '' : 's'} aguardando baixa`,
@@ -156,14 +157,13 @@ export function SidebarSection({
   }
 
   return (
-    <div>
+    <Collapsible open={isOpen} onOpenChange={onToggleSection}>
+      <CollapsibleTrigger asChild>
       <button
         type="button"
-        onClick={() => {
-          onToggleSection();
-        }}
         aria-expanded={isOpen}
         aria-controls={`sidebar-section-${section.key}`}
+        title={section.title}
         className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
           isActive ? 'sidebar-section-active' : 'text-foreground hover:bg-accent'
         }`}
@@ -186,12 +186,13 @@ export function SidebarSection({
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           ))}
       </button>
+      </CollapsibleTrigger>
 
-      {isOpen && (
-        <div
-          id={`sidebar-section-${section.key}`}
-          className="ml-2 space-y-0.5 border-l border-border/50 pl-3 py-1"
-        >
+      <CollapsibleContent
+        id={`sidebar-section-${section.key}`}
+        className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+      >
+        <div className="ml-2 space-y-0.5 border-l border-border/50 pl-3 py-1">
           {section.items.map((group) => (
             <Fragment key={group.title}>
               {section.items.length > 1 && (
@@ -211,7 +212,7 @@ export function SidebarSection({
             </Fragment>
           ))}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
