@@ -993,6 +993,59 @@ const Clientes = () => {
                   <Input value={form.nome_fantasia} onChange={(e) => updateForm({ nome_fantasia: e.target.value })} placeholder="Nome comercial (opcional)" />
                 </div>
               </div>
+
+              {/* Grupo Econômico — movido de Comercial para Dados Gerais */}
+              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
+                <Building2 className="w-4 h-4 text-primary/70" />
+                <h3 className="font-semibold text-sm">Grupo Econômico</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Vincule o cliente a um grupo econômico para consolidar dados de vendas, crédito e relacionamento.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-1.5">
+                  <Label>Grupo Econômico</Label>
+                  <Select
+                    value={form.grupo_economico_id || "nenhum"}
+                    onValueChange={(v) => updateForm({ grupo_economico_id: v === "nenhum" ? "" : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <Label>Tipo de Relação</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                      <TooltipContent className="max-w-[240px] text-xs space-y-1">
+                        <p><strong>Matriz:</strong> empresa controladora do grupo.</p>
+                        <p><strong>Filial:</strong> empresa controlada pela matriz.</p>
+                        <p><strong>Coligada:</strong> empresa com participação societária no grupo.</p>
+                        <p><strong>Independente:</strong> sem vínculo hierárquico.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select value={form.tipo_relacao_grupo} onValueChange={(v) => updateForm({ tipo_relacao_grupo: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {relacaoOptions.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {form.grupo_economico_id && (
+                <div className="mb-2 flex items-center gap-2 bg-muted/30 rounded-md px-3 py-2 text-xs text-muted-foreground border">
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                  <span>
+                    <strong className="text-foreground">{grupos.find(g => g.id === form.grupo_economico_id)?.nome}</strong>
+                    {" — "}{relacaoLabel[form.tipo_relacao_grupo] || form.tipo_relacao_grupo}
+                  </span>
+                </div>
+              )}
             </TabsContent>
 
             {/* CONTATOS */}
