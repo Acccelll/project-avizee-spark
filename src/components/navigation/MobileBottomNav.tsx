@@ -21,6 +21,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY, navSections, type NavSectionKey } from '@/lib/navigation';
 import { useVisibleSectionKeys } from '@/hooks/useVisibleNavSections';
 import { useCan } from '@/hooks/useCan';
+import { useNavProfile } from '@/hooks/useNavProfile';
+import { PROFILE_SECTION_KEYS } from '@/lib/navigation/profiles';
 import type { Permission } from '@/utils/permissions';
 import { cn } from '@/lib/utils';
 
@@ -106,6 +108,7 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { can } = useCan();
+  const { profile } = useNavProfile();
   const currentRoute = `${location.pathname}${location.search}`;
   const activeKey = getNavSectionKey(currentRoute);
   const visibleKeys = useVisibleSectionKeys();
@@ -150,7 +153,7 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
       }
     }
 
-    return mobileBottomTabs
+    const baseTabs = mobileBottomTabs
       .filter((tab) => tab.key === DASHBOARD_KEY || visibleKeys.has(tab.key as NavSectionKey))
       .map((tab) => {
         if (tab.key === DASHBOARD_KEY) return tab;
@@ -165,7 +168,22 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
         });
         return allowedLeaf ? { ...tab, path: allowedLeaf.path } : tab;
       });
-  }, [activeKey, visibleKeys, can]);
+
+    // Reordena por perfil ativo: seções priorizadas vêm primeiro,
+    // mantendo Início como âncora à esquerda.
+    const priorities = PROFILE_SECTION_KEYS[profile] ?? [];
+    if (priorities.length === 0) return baseTabs;
+    const dashboard = baseTabs.find((t) => t.key === DASHBOARD_KEY);
+    const others = baseTabs.filter((t) => t.key !== DASHBOARD_KEY);
+    others.sort((a, b) => {
+      const ai = priorities.indexOf(a.key as NavSectionKey);
+      const bi = priorities.indexOf(b.key as NavSectionKey);
+      const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+      const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+      return av - bv;
+    });
+    return dashboard ? [dashboard, ...others] : others;
+  }, [activeKey, visibleKeys, can, profile]);
 
   return (
     <nav
