@@ -35,9 +35,9 @@ export const DEFAULT_ORDER: WidgetId[] = [
   'pendencias',
   'fiscal',
   'comercial',
+  'vendas_chart',
   'estoque',
   'logistica',
-  'vendas_chart',
 ];
 
 const DEFAULT_PREFS: DashboardLayoutPrefs = { order: DEFAULT_ORDER, hidden: [] };
@@ -125,9 +125,19 @@ export function useDashboardLayout(userId: string | null | undefined) {
     [prefs, save],
   );
 
+  const reorderWidgets = useCallback(
+    async (newOrder: WidgetId[]) => {
+      // Mantém os mesmos ids, apenas reordena.
+      const sanitized = newOrder.filter((id) => (DEFAULT_ORDER as string[]).includes(id)) as WidgetId[];
+      const merged = [...sanitized, ...prefs.order.filter((id) => !sanitized.includes(id))];
+      await save({ ...prefs, order: merged });
+    },
+    [prefs, save],
+  );
+
   const resetLayout = useCallback(async () => {
     await save(DEFAULT_PREFS);
   }, [save]);
 
-  return { prefs, toggleVisibility, moveWidget, resetLayout };
+  return { prefs, toggleVisibility, moveWidget, reorderWidgets, resetLayout };
 }

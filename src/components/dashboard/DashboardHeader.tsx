@@ -116,6 +116,12 @@ export function DashboardHeader({ lastUpdated, onRefresh, fetching = false, righ
         </div>
       </div>
 
+      <p className="mt-1.5 text-[11px] text-muted-foreground md:text-right">
+        <span className="font-medium text-foreground/80">Aplica a:</span> Financeiro e Comercial.
+        <span className="mx-1 text-border">·</span>
+        Estoque e Logística usam posição atual.
+      </p>
+
       {period === 'custom' && (
         <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">

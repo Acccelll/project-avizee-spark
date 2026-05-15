@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { FluxoCaixaFinanceiroRow } from '@/types/database-views';
+import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
 interface ChartPoint {
   mes: string;
@@ -25,13 +26,20 @@ interface FluxoCaixaChartProps {
 
 export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   const [view, setView] = useState<'realizado' | 'previsto'>('realizado');
+  const { range } = useDashboardPeriod();
   const { data = [], isLoading: loading } = useQuery<ChartPoint[]>({
-    queryKey: ['dashboard', 'fluxo-caixa-6m'],
+    queryKey: ['dashboard', 'fluxo-caixa', range.dateFrom, range.dateTo],
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
       sixMonthsAgo.setDate(1);
-      const dateFrom = sixMonthsAgo.toISOString().slice(0, 10);
+      const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
+      // Mantém janela mínima de 6 meses para legibilidade do gráfico mensal,
+      // mas amplia se o período global for maior.
+      const dateFrom =
+        range.dateFrom && range.dateFrom < sixMonthsAgoStr
+          ? range.dateFrom
+          : sixMonthsAgoStr;
 
       const { data: rows } = await (supabase as unknown as {
         from: (t: string) => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
+import { Eye, AlertTriangle, Clock, ChevronRight, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -123,7 +123,7 @@ export function PendenciasList() {
 
       {clamped && (
         <div className="mb-2 rounded-md border border-info/20 bg-info/5 px-2.5 py-1.5 text-[11px] text-info">
-          Janela limitada: mostrando próximos 7 dias e atrasados dos últimos 60 dias.
+          Exibindo janela operacional de 60 dias retroativos e 7 dias à frente. O período global selecionado é mais amplo.
         </div>
       )}
 
@@ -227,6 +227,16 @@ export function PendenciasList() {
               onClick={() => setShowAll((v) => !v)}
             >
               {showAll ? 'Mostrar menos' : `Mostrar todas (${pendencias.length})`}
+            </button>
+          )}
+          {pendencias.length >= 20 && (
+            <button
+              type="button"
+              onClick={() => navigate('/financeiro')}
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            >
+              Ver todas no Financeiro
+              <ArrowRight className="h-3 w-3" />
             </button>
           )}
         </div>

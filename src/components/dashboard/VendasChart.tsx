@@ -46,12 +46,18 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
   const navigate = useNavigate();
   const { range } = useDashboardPeriod();
   const { data = [], isLoading: loading } = useQuery<VendasPoint[]>({
-    queryKey: ['dashboard', 'vendas-6m', range.dateTo],
+    queryKey: ['dashboard', 'vendas', range.dateFrom, range.dateTo],
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
       sixMonthsAgo.setDate(1);
-      const dateFrom = sixMonthsAgo.toISOString().slice(0, 10);
+      const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
+      // Período global menor que 6m → respeita o range.
+      // Período maior → mantém janela de 6m para legibilidade.
+      const dateFrom =
+        range.dateFrom && range.dateFrom > sixMonthsAgoStr
+          ? range.dateFrom
+          : sixMonthsAgoStr;
       const dateTo = range.dateTo || new Date().toISOString().slice(0, 10);
 
       const { data: rows } = await supabase
@@ -69,13 +75,16 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
         monthMap.set(month, (monthMap.get(month) ?? 0) + Number(row.valor_total || 0));
       }
 
-      // Sempre devolve 6 meses (atual + 5 anteriores), preenchendo zeros para
-      // garantir um eixo X estável e leitura visual previsível.
-      const today = new Date();
+      // Gera sequência de meses entre dateFrom e dateTo (preenchendo zeros),
+      // garantindo eixo X estável conforme o range global.
+      const [fy, fm] = dateFrom.split('-').map(Number);
+      const [ty, tm] = dateTo.split('-').map(Number);
       const months: string[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      const cursor = new Date(fy, fm - 1, 1);
+      const endCursor = new Date(ty, tm - 1, 1);
+      while (cursor <= endCursor) {
+        months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+        cursor.setMonth(cursor.getMonth() + 1);
       }
       return months.map((month) => ({
         mes: parseMonth(month).label,
