@@ -12,6 +12,7 @@ import { EstoqueBlock } from "@/components/dashboard/EstoqueBlock";
 import { LogisticaBlock } from "@/components/dashboard/LogisticaBlock";
 import { FiscalBlock } from "@/components/dashboard/FiscalBlock";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { MobileDashboardSkeleton } from "@/components/dashboard/MobileDashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
@@ -30,6 +31,9 @@ import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomiz
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
 import { GreetingBanner } from "@/components/dashboard/GreetingBanner";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
 import {
   ShoppingBag,
   Package,
@@ -45,11 +49,13 @@ const VendasChart = lazy(() =>
 function LazyInViewWidget({
   children,
   fallback,
+  rootMargin = '0px 0px -80px 0px',
 }: {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  rootMargin?: string;
 }) {
-  const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.05 });
+  const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.1, rootMargin });
   return (
     <div ref={ref}>
       {inView ? children : (fallback ?? <Skeleton className="min-h-[220px] w-full rounded-xl" />)}
@@ -120,8 +126,10 @@ const DashboardContent = () => {
     estoqueBaixo,
   });
 
+  const ptr = usePullToRefresh({ onRefresh: loadData, disabled: fetching || !isMobile });
+
   if (loading) {
-    return <DashboardSkeleton />;
+    return isMobile ? <MobileDashboardSkeleton /> : <DashboardSkeleton />;
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
@@ -154,8 +162,14 @@ const DashboardContent = () => {
         aria-atomic="false"
         className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
       >
-        {kpiCards.map((c) => (
-          <div key={c.id} className="min-w-0">
+        {kpiCards.map((c, idx) => (
+          <div
+            key={c.id}
+            className={cn(
+              'min-w-0',
+              idx === kpiCards.length - 1 && kpiCards.length % 2 === 1 && 'col-span-2 sm:col-span-1',
+            )}
+          >
             <SummaryCard {...c} density="compact" />
           </div>
         ))}
@@ -243,7 +257,7 @@ const DashboardContent = () => {
         <DashboardCard>
           <BlockErrorBoundary label="Gráfico de Vendas">
             <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
-              <div className="h-[280px]">
+              <div className="h-[260px] md:h-[280px]">
                 <VendasChart
                   onBarClick={(start, end) =>
                     navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
@@ -271,8 +285,8 @@ const DashboardContent = () => {
           iconColor="text-secondary"
           summary={
             faturamento.mesAtual > 0
-              ? `${fmtK(faturamento.mesAtual)} · ${backlogOVsCount} ped · ${stats.orcamentos} orç`
-              : `${stats.orcamentos} orç · ${backlogOVsCount} ped`
+              ? `${fmtK(faturamento.mesAtual)} · ${stats.orcamentos} orç`
+              : `${stats.orcamentos} orç`
           }
           persistKey="comercial"
         >
@@ -298,8 +312,8 @@ const DashboardContent = () => {
           iconColor="text-info"
           summary={
             estoqueBaixo.length > 0
-              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''} · ${fmtK(valorEstoque)} parado`
-              : `${stats.produtos} ativos · ${fmtK(valorEstoque)}`
+              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
+              : `${stats.produtos} ativos`
           }
           defaultOpen={estoqueBaixo.length > 0}
           persistKey="estoque"
@@ -323,8 +337,8 @@ const DashboardContent = () => {
             iconColor="text-info"
             summary={
               remessasAtrasadas > 0
-                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''} · ${comprasAguardando.length} a chegar`
-                : `Sem atrasos · ${comprasAguardando.length} a chegar`
+                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''}`
+                : 'Sem atrasos'
             }
             persistKey="logistica"
           >
@@ -348,7 +362,7 @@ const DashboardContent = () => {
             iconColor="text-secondary"
             summary={
               fiscalStats.pendentes > 0
-                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''} · ${fiscalStats.emitidas} emitidas`
+                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''}`
                 : `${fiscalStats.emitidas} emitidas`
             }
             persistKey="fiscal"
@@ -378,24 +392,9 @@ const DashboardContent = () => {
 
   // Constrói as linhas conforme prefs.order respeitando os pares.
   const baseVisibleOrder = prefs.order.filter((id) => isVisible(id));
-  // No mobile, sobrescrevemos a ordem para uma sequência operacional fixa
-  // (KPIs → exceções → alertas → financeiro → vendas → pendências → comercial → estoque → logística → fiscal).
-  // Pares caem para 1 coluna automaticamente em <lg, então renderizar em sequência funciona.
-  const MOBILE_ORDER: WidgetId[] = [
-    'kpis',
-    'operational',
-    'alertas',
-    'financeiro',
-    'vendas_chart',
-    'pendencias',
-    'comercial',
-    'estoque',
-    'logistica',
-    'fiscal',
-  ];
-  const visibleOrder = isMobile
-    ? MOBILE_ORDER.filter((id) => baseVisibleOrder.includes(id))
-    : baseVisibleOrder;
+  // Respeita a ordem persistida do usuário em qualquer breakpoint. No mobile
+  // os pares caem para 1 coluna naturalmente (lg:grid-cols-2).
+  const visibleOrder = baseVisibleOrder;
   const rows: Array<{ key: string; items: WidgetId[]; pair: boolean }> = [];
   let i = 0;
   while (i < visibleOrder.length) {
@@ -417,9 +416,37 @@ const DashboardContent = () => {
   }
 
   return (
-    <>
+    <div
+      onTouchStart={ptr.handlers.onTouchStart}
+      onTouchMove={ptr.handlers.onTouchMove}
+      onTouchEnd={ptr.handlers.onTouchEnd}
+      style={isMobile && ptr.pullDistance > 0 ? { transform: `translateY(${ptr.pullDistance}px)`, transition: 'transform 0.05s linear' } : undefined}
+    >
+      {isMobile && (ptr.refreshing || ptr.pullDistance > 0) && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed left-1/2 z-40 -translate-x-1/2"
+          style={{ top: 'calc(var(--app-header-height, 56px) + 4px)' }}
+        >
+          <div className="rounded-full bg-background/90 p-2 shadow-md">
+            <RefreshCw className={cn('h-4 w-4 text-primary', ptr.refreshing && 'animate-spin')} />
+          </div>
+        </div>
+      )}
       {isMobile ? (
-        <MobileDashboardHeader lastUpdated={loadedAt} onRefresh={loadData} fetching={fetching} />
+        <MobileDashboardHeader
+          lastUpdated={loadedAt}
+          onRefresh={loadData}
+          fetching={fetching}
+          rightSlot={
+            <DashboardCustomizeMenu
+              prefs={prefs}
+              onToggle={toggleVisibility}
+              onReorder={reorderWidgets}
+              onReset={resetLayout}
+            />
+          }
+        />
       ) : (
         <DashboardHeader
           lastUpdated={loadedAt}
@@ -473,7 +500,7 @@ const DashboardContent = () => {
       />
 
       <BackToTopButton />
-    </>
+    </div>
   );
 };
 
