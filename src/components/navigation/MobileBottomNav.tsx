@@ -8,11 +8,12 @@ import {
   Truck,
   Wallet,
   DollarSign,
-  Receipt,
   Users,
   Package,
   Store,
   BarChart3,
+  FileInput,
+  FileOutput,
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -87,8 +88,8 @@ const CONTEXTUAL_TABS_BY_SECTION: Partial<Record<NavSectionKey, ContextualTab[]>
   ],
   fiscal: [
     { key: 'dashboard-fiscal', title: 'Dashboard', icon: BarChart3, path: '/fiscal/dashboard', permission: 'faturamento_fiscal:visualizar' },
-    { key: 'nf-entrada', title: 'Entrada', icon: Receipt, path: '/fiscal?tipo=entrada' },
-    { key: 'nf-saida', title: 'Saída', icon: Receipt, path: '/fiscal?tipo=saida' },
+    { key: 'nf-entrada', title: 'Entrada', icon: FileInput, path: '/fiscal?tipo=entrada' },
+    { key: 'nf-saida', title: 'Saída', icon: FileOutput, path: '/fiscal?tipo=saida' },
   ],
   cadastros: [
     { key: 'clientes', title: 'Clientes', icon: Users, path: '/clientes', permission: 'clientes:visualizar' },
