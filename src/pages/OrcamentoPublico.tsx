@@ -304,7 +304,45 @@ export default function OrcamentoPublico() {
   })();
 
   return (
-    <div style={{ minHeight: "100vh", background: CREAM, fontFamily: "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: INK }}>
+    <div style={{ minHeight: "100vh", background: CREAM, fontFamily: "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: INK, colorScheme: "light" }}>
+      {/* Banner sticky de CTA — só para orçamentos ativos no mobile */}
+      {!actionDone && !isExpired && data.status === "pendente" && (
+        <div
+          className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-4 py-2 border-b shadow-sm"
+          style={{ background: "#fff", borderColor: BORDER }}
+        >
+          <div className="min-w-0 flex-1">
+            <div style={{ fontSize: 11, fontWeight: 700, color: WINE }} className="truncate">
+              Proposta {data.numero}
+            </div>
+            {data.validade && (
+              <div style={{ fontSize: 10, color: "#7a6a48" }} className="truncate">
+                Válida até {formatDate(data.validade)}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => { setComentario(""); setDialogAcao("aprovado"); }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold"
+            style={{ background: "#16a34a", color: "#fff" }}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Aceitar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('orcamento-cta-section');
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium"
+            style={{ borderColor: BORDER, color: INK, background: "#fff" }}
+          >
+            Ver detalhes ↓
+          </button>
+        </div>
+      )}
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "24px 16px 48px", display: "flex", flexDirection: "column", gap: 16 }}>
         {/* CABEÇALHO INSTITUCIONAL */}
         <header style={{ background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, borderLeft: `6px solid ${ORANGE}`, overflow: "hidden" }}>
@@ -518,7 +556,7 @@ export default function OrcamentoPublico() {
 
         {/* AÇÕES */}
         {!actionDone && !isExpired && !["aprovado", "rejeitado", "cancelado"].includes(data.status) && (
-          <section style={{ background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, padding: "20px 24px", textAlign: "center" }}>
+          <section id="orcamento-cta-section" style={{ background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, padding: "20px 24px", textAlign: "center" }}>
             <p style={{ fontSize: 13.5, color: "#3d3d3a", marginBottom: 16 }}>
               Revise os itens acima e confirme sua resposta:
             </p>

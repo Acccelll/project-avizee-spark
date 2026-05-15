@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { FileOutput, AlertTriangle, MoreVertical } from "lucide-react";
+import { FileOutput, AlertTriangle, MoreVertical, Eye } from "lucide-react";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -599,12 +599,22 @@ const Pedidos = () => {
           mobileInlineActions={(p) => {
             const orcamentoId = p.orcamentos?.id;
             return (
-              <DropdownMenu>
+              <div className="flex items-center gap-1 ml-auto">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 p-0"
+                  onClick={(e) => { e.stopPropagation(); handleView(p); }}
+                  aria-label="Ver detalhes do pedido"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-10 w-10 p-0 ml-auto"
+                    className="h-10 w-10 p-0"
                     onClick={(e) => e.stopPropagation()}
                     aria-label="Mais ações"
                   >
@@ -612,9 +622,6 @@ const Pedidos = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleView(p); }}>
-                    Visualizar pedido
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPedidoId(p.id); }}>
                     Editar pedido
                   </DropdownMenuItem>
@@ -624,7 +631,8 @@ const Pedidos = () => {
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
-              </DropdownMenu>
+                </DropdownMenu>
+              </div>
             );
           }}
           mobilePrimaryAction={(p) => {

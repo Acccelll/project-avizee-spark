@@ -26,8 +26,48 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+
+function MobileSection({
+  title,
+  icon: Icon,
+  summary,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  summary?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isMobile = useIsMobile();
+  if (!isMobile) return <>{children}</>;
+  return (
+    <div className="bg-card rounded-xl border shadow-soft overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full min-h-[52px] items-center gap-3 px-5 py-4 text-left active:bg-muted/40 transition-colors"
+      >
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
+        <span className="text-sm font-semibold text-foreground shrink-0">{title}</span>
+        {!open && summary && (
+          <span className="ml-auto text-xs text-muted-foreground truncate">{summary}</span>
+        )}
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open ? "rotate-180" : "", !summary && "ml-auto")} />
+      </button>
+      {open && (
+        <div className="border-t [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
@@ -1395,15 +1435,17 @@ export default function OrcamentoForm() {
             precosEspeciais={precosEspeciais}
           />
 
-          <OrcamentoInternalAnalysisPanel
-            baseAnalysis={baseAnalysis}
-            scenarioAnalysis={scenarioAnalysis}
-            items={items}
-            onItemsChange={setItems}
-            scenarioConfig={scenarioConfig}
-            onScenarioConfigChange={setScenarioConfig}
-            access={internalAccess}
-          />
+          <MobileSection title="Análise Interna" icon={BarChart3} summary="Margem · Cenário" defaultOpen={false}>
+            <OrcamentoInternalAnalysisPanel
+              baseAnalysis={baseAnalysis}
+              scenarioAnalysis={scenarioAnalysis}
+              items={items}
+              onItemsChange={setItems}
+              scenarioConfig={scenarioConfig}
+              onScenarioConfigChange={setScenarioConfig}
+              access={internalAccess}
+            />
+          </MobileSection>
 
           <OrcamentoTotaisCard
             totalProdutos={totalProdutos}
@@ -1421,6 +1463,12 @@ export default function OrcamentoForm() {
             }}
           />
 
+          <MobileSection
+            title="Frete"
+            icon={Truck}
+            summary={freteValor > 0 ? formatCurrency(freteValor) : "Sem frete definido"}
+            defaultOpen={false}
+          >
           <FreteSimuladorCard
             orcamentoId={id || null}
             clienteId={clienteId}
@@ -1449,12 +1497,16 @@ export default function OrcamentoForm() {
               setFreteComprimentoCm(payload.comprimentoCm);
             }}
           />
+          </MobileSection>
 
-          <OrcamentoCondicoesCard
-            form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
-            onChange={handleCondicaoChange}
-          />
+          <MobileSection title="Condições Comerciais" icon={CreditCard} defaultOpen>
+            <OrcamentoCondicoesCard
+              form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
+              onChange={handleCondicaoChange}
+            />
+          </MobileSection>
 
+          <MobileSection title="Observações" icon={FileText} defaultOpen={false}>
           <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
@@ -1477,6 +1529,7 @@ export default function OrcamentoForm() {
                 className="min-h-[80px] border-dashed" />
             </div>
           </div>
+          </MobileSection>
         </fieldset>
         </div>
 
@@ -1974,10 +2027,24 @@ export default function OrcamentoForm() {
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-10 w-10" aria-label="Visualizar">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPreviewOpen(true)}
+            className="h-11 w-11"
+            aria-label="Visualizar proposta"
+            title="Visualizar proposta em PDF"
+          >
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-10 w-10" aria-label="Gerar PDF">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={handleGeneratePdf}
+            className="h-11 w-11"
+            aria-label="Gerar PDF"
+            title="Baixar PDF"
+          >
             <FileText className="w-4 h-4" />
           </Button>
         </div>

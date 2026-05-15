@@ -11,6 +11,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil } from "lucide-react";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -619,6 +620,14 @@ const Orcamentos = () => {
                   </Button>
                 );
               }
+              if (canApproveOrcamento(o.status) && !canAprovar) {
+                return (
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground py-2">
+                    <Clock className="w-3.5 h-3.5" />
+                    Aguardando aprovação do gerente
+                  </div>
+                );
+              }
               if (canSendOrcamento(o.status)) {
                 return (
                   <Button
@@ -665,6 +674,11 @@ const Orcamentos = () => {
           </div>
         </PullToRefresh>
       </ModulePage>
+
+      <MobileQuickAddFAB
+        onClick={() => navigate('/orcamentos/novo')}
+        label="Novo orçamento"
+      />
 
       <CrossModuleActionDialog
         open={!!convertingId}

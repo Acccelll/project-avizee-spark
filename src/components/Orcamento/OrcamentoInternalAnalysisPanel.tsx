@@ -3,12 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronUp, RotateCcw, ShieldAlert, SlidersHorizontal, TriangleAlert, Maximize2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { OrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import type { MarginStatus, RentabilidadeAnalise, InternalCostSource } from "@/lib/orcamentoRentabilidade";
 import type { OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
@@ -69,6 +71,7 @@ export function OrcamentoInternalAnalysisPanel({
   const [open, setOpen] = useState(false);
   const [advancedIndex, setAdvancedIndex] = useState<number | null>(null);
   const [expandedOpen, setExpandedOpen] = useState(false);
+  const isMobile = useIsMobile();
   const topAlerts = useMemo(() => scenarioAnalysis.alerts.slice(0, 4), [scenarioAnalysis.alerts]);
 
   const changedIndexes = useMemo(
@@ -142,7 +145,7 @@ export function OrcamentoInternalAnalysisPanel({
   const margemDelta = scenarioAnalysis.resumo.margemGeralPercentual - baseAnalysis.resumo.margemGeralPercentual;
 
   const comparisonTable = (
-    <div className="overflow-x-auto border rounded-lg bg-background">
+    <div className="overflow-x-auto -mx-1 px-1 max-w-full border rounded-lg bg-background">
       <table className="w-full min-w-[1500px] text-xs">
         <thead>
           <tr className="border-b bg-muted/30">
@@ -265,14 +268,25 @@ export function OrcamentoInternalAnalysisPanel({
 
           {!expandedOpen && comparisonTable}
 
-          <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
-            <DialogContent className="max-w-[95vw] sm:max-w-[95vw] xl:max-w-7xl">
-              <DialogHeader>
-                <DialogTitle>Análise Interna · Base x Cenário (tela cheia)</DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto px-6 py-4">{comparisonTable}</div>
-            </DialogContent>
-          </Dialog>
+          {isMobile ? (
+            <Drawer open={expandedOpen} onOpenChange={setExpandedOpen}>
+              <DrawerContent className="max-h-[92vh]">
+                <DrawerHeader>
+                  <DrawerTitle>Análise de Rentabilidade</DrawerTitle>
+                </DrawerHeader>
+                <div className="flex-1 overflow-auto px-2 py-2">{comparisonTable}</div>
+              </DrawerContent>
+            </Drawer>
+          ) : (
+            <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
+              <DialogContent className="max-w-[95vw] sm:max-w-[95vw] xl:max-w-7xl">
+                <DialogHeader>
+                  <DialogTitle>Análise Interna · Base x Cenário (tela cheia)</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 overflow-auto px-6 py-4">{comparisonTable}</div>
+              </DialogContent>
+            </Dialog>
+          )}
 
           <div className="rounded-lg border bg-background p-3 text-xs">
             <p className="font-medium mb-1 flex items-center gap-1.5"><ShieldAlert className="h-3.5 w-3.5" />Resumo interno da cotação e cenário</p>

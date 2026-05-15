@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { formatCurrency } from "@/lib/format";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Textarea } from "@/components/ui/textarea";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 import {
@@ -18,6 +19,23 @@ import {
   aplicarPrecoEspecial,
   type RegraPrecoEspecial,
 } from "@/lib/precos-especiais";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ProductWithForn extends Tables<"produtos"> {
   produtos_fornecedores?: (Tables<"produtos_fornecedores"> & { fornecedores?: { nome_razao_social: string } | null })[];
@@ -74,6 +92,23 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
   const [importText, setImportText] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [expandedOpen, setExpandedOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const itemKey = (item: OrcamentoItem, idx: number) => item.id ?? `item-${idx}`;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((it, i) => itemKey(it, i) === active.id);
+    const newIndex = items.findIndex((it, i) => itemKey(it, i) === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    onChange(arrayMove(items, oldIndex, newIndex));
+  };
 
   const addItem = () => onChange([...items, emptyItem()]);
 
@@ -393,131 +428,48 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
   );
 
   const renderMobileCards = () => (
-    <div className="md:hidden divide-y">
+    <div className="md:hidden">
       {items.length === 0 ? (
         <div className="text-center text-muted-foreground py-10 text-sm">Nenhum item adicionado</div>
-      ) : items.map((item, idx) => {
-        const prod = produtos.find((p) => p.id === item.produto_id);
-        const lowStock = item.quantidade > 0 && prod != null && (prod.estoque_atual ?? 0) < item.quantidade;
-        const hasSpecial = precosEspeciais?.some((p) => p.produto_id === item.produto_id);
-        const specialRecord = precosEspeciais?.find((p) => p.produto_id === item.produto_id);
-        const precoEfetivoReferencia =
-          specialRecord && Number(specialRecord.preco_especial) > 0
-            ? Number(specialRecord.preco_especial)
-            : (prod?.preco_venda || 0);
-        const isUnlinked = Boolean(item._unlinked);
-        return (
-          <div
-            key={item.id ?? `mcard-${item.produto_id || "new"}-${idx}`}
-            className={`p-3 space-y-2 ${isUnlinked ? "bg-destructive/5" : lowStock ? "bg-warning/5" : ""}`}
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={items.map((it, i) => itemKey(it, i))}
+            strategy={verticalListSortingStrategy}
           >
-            {/* Header: # + status + ações */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[11px] font-mono text-muted-foreground shrink-0">#{idx + 1}</span>
-                {isUnlinked ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3 w-3" />Não vinculado</span>
-                ) : lowStock ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3 w-3" />Estoque baixo</span>
-                ) : item.produto_id ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3 w-3" />OK</span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)} aria-label="Remover item">
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Mais ações do item">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    {item.produto_id && (
-                      <DropdownMenuItem onSelect={() => setDetailProductId(item.produto_id)}>
-                        <Info className="h-4 w-4 mr-2" />Ver detalhes
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onSelect={() => duplicateItem(idx)}>
-                      <Copy className="h-4 w-4 mr-2" />Duplicar item
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Produto */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Produto</label>
-              <AutocompleteSearch
-                options={getProductOptions()}
-                value={item.produto_id}
-                onChange={(val) => updateItem(idx, "produto_id", val)}
-                placeholder="Buscar produto..."
-                className="w-full"
-                onCreateNew={() => window.open('/produtos', '_blank')}
-                createNewLabel="Produto não encontrado? Cadastrar"
-              />
-              {hasSpecial && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Tag className="h-3 w-3" />Preço especial aplicado</p>}
-              {item.variacao && (
-                <p className="text-[11px] text-muted-foreground italic mt-1">
-                  Variação: {item.variacao}
-                </p>
-              )}
-            </div>
-
-            {/* Qtd / Unitário / % */}
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Qtd ({item.unidade || 'UN'})</label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  className="h-10 text-right"
-                  value={item.quantidade || ""}
-                  onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))}
+            <div className="divide-y">
+              {items.map((item, idx) => (
+                <SortableMobileCard
+                  key={itemKey(item, idx)}
+                  id={itemKey(item, idx)}
+                  item={item}
+                  idx={idx}
+                  produtos={produtos}
+                  precosEspeciais={precosEspeciais}
+                  getProductOptions={getProductOptions}
+                  onUpdate={updateItem}
+                  onRemove={removeItem}
+                  onDuplicate={duplicateItem}
+                  onViewDetail={setDetailProductId}
                 />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Unitário</label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  className="h-10 text-right"
-                  value={item.valor_unitario || ""}
-                  onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Desc. %</label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  className="h-10 text-right"
-                  value={item.desconto_percentual || 0}
-                  onChange={(e) => updateItem(idx, "desconto_percentual", Number(e.target.value))}
-                />
-              </div>
+              ))}
             </div>
-
-            {hasSpecial && item.valor_unitario !== precoEfetivoReferencia && (
-              <Input
-                placeholder="Justificativa do preço alterado"
-                className={`h-10 text-sm ${!item.override_justificativa ? 'border-destructive' : ''}`}
-                value={item.override_justificativa || ''}
-                onChange={(e) => updateItem(idx, 'override_justificativa', e.target.value)}
-              />
-            )}
-
-            {/* Subtotal grande */}
-            <div className="flex items-baseline justify-between pt-1 border-t">
-              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
-              <span className="text-base font-bold text-primary tabular-nums">{formatCurrency(item.valor_total || 0)}</span>
-            </div>
-          </div>
-        );
-      })}
+          </SortableContext>
+        </DndContext>
+      )}
+      {/* Botão de adicionar ao final da lista — alivia scroll após muitos itens */}
+      <div className="p-3 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addItem}
+          className="w-full h-11 gap-1.5"
+          aria-label="Adicionar novo item ao orçamento"
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar item
+        </Button>
+      </div>
     </div>
   );
 
@@ -528,7 +480,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Subtotal dos itens: {formatCurrency(subtotal)}</div>
           <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1" aria-label="Importar texto"><Upload className="h-3.5 w-3.5" /><span>Importar</span></Button>
-          <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1 hidden md:inline-flex"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
+          <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
         </div>
       </div>
@@ -537,21 +489,36 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
       {/* Desktop: tabela compacta */}
       <div className="hidden md:block">{renderTable(true)}</div>
 
-      <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
-        <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
-          <DialogHeader className="shrink-0 px-5 py-4 border-b">
-            <DialogTitle>Itens do Orçamento — Tela cheia</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-auto px-5 py-3">{renderTable(false)}</div>
-          <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-t bg-background">
-            <div className="text-xs text-muted-foreground">Subtotal dos itens: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
+      {isMobile ? (
+        <Drawer open={expandedOpen} onOpenChange={setExpandedOpen}>
+          <DrawerContent className="max-h-[92vh]">
+            <DrawerHeader>
+              <DrawerTitle>Itens do Orçamento</DrawerTitle>
+            </DrawerHeader>
+            <div className="flex-1 min-h-0 overflow-auto px-2 pb-2">{renderMobileCards()}</div>
+            <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-t bg-background">
+              <div className="text-xs text-muted-foreground">Subtotal: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
               <Button size="sm" onClick={() => setExpandedOpen(false)}>Fechar</Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
+          <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
+            <DialogHeader className="shrink-0 px-5 py-4 border-b">
+              <DialogTitle>Itens do Orçamento — Tela cheia</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-auto px-5 py-3">{renderTable(false)}</div>
+            <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-t bg-background">
+              <div className="text-xs text-muted-foreground">Subtotal dos itens: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
+                <Button size="sm" onClick={() => setExpandedOpen(false)}>Fechar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ViewDrawerV2 open={!!detailProductId} onClose={() => setDetailProductId(null)} title={activeDetailProduct?.nome || "Detalhes do Produto"}>
         {activeDetailProduct ? (
@@ -576,6 +543,185 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+interface SortableMobileCardProps {
+  id: string;
+  item: OrcamentoItem;
+  idx: number;
+  produtos: ProductWithForn[];
+  precosEspeciais?: Tables<"precos_especiais">[];
+  getProductOptions: () => ReturnType<OrcamentoItemsGridHelpers["getProductOptions"]>;
+  onUpdate: (idx: number, field: keyof OrcamentoItem, value: OrcamentoItem[keyof OrcamentoItem]) => void;
+  onRemove: (idx: number) => void;
+  onDuplicate: (idx: number) => void;
+  onViewDetail: (productId: string) => void;
+}
+
+// Helper interface para tipar o retorno de getProductOptions sem expor toda a função.
+type OrcamentoItemsGridHelpers = {
+  getProductOptions: () => Array<{
+    id: string;
+    label: string;
+    sublabel: string;
+    metaLine: string;
+    rightMeta?: string;
+    imageUrl: string | null;
+    searchTerms: string[];
+  }>;
+};
+
+function SortableMobileCard({
+  id,
+  item,
+  idx,
+  produtos,
+  precosEspeciais,
+  getProductOptions,
+  onUpdate,
+  onRemove,
+  onDuplicate,
+  onViewDetail,
+}: SortableMobileCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const prod = produtos.find((p) => p.id === item.produto_id);
+  const lowStock = item.quantidade > 0 && prod != null && (prod.estoque_atual ?? 0) < item.quantidade;
+  const hasSpecial = precosEspeciais?.some((p) => p.produto_id === item.produto_id);
+  const specialRecord = precosEspeciais?.find((p) => p.produto_id === item.produto_id);
+  const precoEfetivoReferencia =
+    specialRecord && Number(specialRecord.preco_especial) > 0
+      ? Number(specialRecord.preco_especial)
+      : (prod?.preco_venda || 0);
+  const isUnlinked = Boolean(item._unlinked);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 space-y-2 ${isUnlinked ? "bg-destructive/5" : lowStock ? "bg-warning/5" : ""}`}
+    >
+      {/* Header: drag + # + status + ações */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="touch-none -ml-1 inline-flex h-9 w-9 items-center justify-center rounded text-muted-foreground active:bg-muted/60"
+            aria-label="Reordenar item (segurar e arrastar)"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="text-[11px] font-mono text-muted-foreground shrink-0">#{idx + 1}</span>
+          {isUnlinked ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3 w-3" />Não vinculado</span>
+          ) : lowStock ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3 w-3" />Estoque baixo</span>
+          ) : item.produto_id ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3 w-3" />OK</span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onRemove(idx)} aria-label="Remover item">
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Mais ações do item">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {item.produto_id && (
+                <DropdownMenuItem onSelect={() => onViewDetail(item.produto_id)}>
+                  <Info className="h-4 w-4 mr-2" />Ver detalhes
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => onDuplicate(idx)}>
+                <Copy className="h-4 w-4 mr-2" />Duplicar item
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Produto */}
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Produto</label>
+        <AutocompleteSearch
+          options={getProductOptions()}
+          value={item.produto_id}
+          onChange={(val) => onUpdate(idx, "produto_id", val)}
+          placeholder="Buscar produto..."
+          className="w-full"
+          onCreateNew={() => window.open('/produtos', '_blank')}
+          createNewLabel="Produto não encontrado? Cadastrar"
+        />
+        {hasSpecial && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Tag className="h-3 w-3" />Preço especial aplicado</p>}
+        {item.variacao && (
+          <p className="text-[11px] text-muted-foreground italic mt-1">
+            Variação: {item.variacao}
+          </p>
+        )}
+      </div>
+
+      {/* Qtd / Unitário / % */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Qtd ({item.unidade || 'UN'})</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.quantidade || ""}
+            onChange={(e) => onUpdate(idx, "quantidade", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Unitário</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.valor_unitario || ""}
+            onChange={(e) => onUpdate(idx, "valor_unitario", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Desc. %</label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            className="h-10 text-right"
+            value={item.desconto_percentual || 0}
+            onChange={(e) => onUpdate(idx, "desconto_percentual", Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      {hasSpecial && item.valor_unitario !== precoEfetivoReferencia && (
+        <Input
+          placeholder="Justificativa do preço alterado"
+          className={`h-10 text-sm ${!item.override_justificativa ? 'border-destructive' : ''}`}
+          value={item.override_justificativa || ''}
+          onChange={(e) => onUpdate(idx, 'override_justificativa', e.target.value)}
+        />
+      )}
+
+      {/* Subtotal */}
+      <div className="flex items-baseline justify-between pt-1 border-t">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
+        <span className="text-base font-bold text-primary tabular-nums">{formatCurrency(item.valor_total || 0)}</span>
+      </div>
     </div>
   );
 }
