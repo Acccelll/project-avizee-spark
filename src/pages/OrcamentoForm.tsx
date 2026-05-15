@@ -1245,7 +1245,8 @@ export default function OrcamentoForm() {
         </Alert>
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
-        <div className="lg:col-span-8 space-y-5">
+        <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
+        <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70 contents">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
             <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
@@ -1437,7 +1438,7 @@ export default function OrcamentoForm() {
           <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
-              <Textarea {...register('observacoes')}
+              <Textarea {...register('observacoes')} disabled={isLocked}
                 placeholder="Texto livre para observações comerciais, instruções, validade, condições extras, etc."
                 className="min-h-[100px]" />
               <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
@@ -1451,11 +1452,12 @@ export default function OrcamentoForm() {
                 <Lock className="h-3 w-3 shrink-0" aria-hidden />
                 Uso exclusivo da equipe — <strong>não aparece</strong> para o cliente, no PDF nem no link público.
               </p>
-              <Textarea {...register('observacoesInternas')}
+              <Textarea {...register('observacoesInternas')} disabled={isLocked}
                 placeholder="Notas internas: margem, estratégia de negociação, alertas para a equipe, etc."
                 className="min-h-[80px] border-dashed" />
             </div>
           </div>
+        </fieldset>
         </div>
 
         <div className="hidden lg:col-span-4 lg:block">
