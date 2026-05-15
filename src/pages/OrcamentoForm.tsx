@@ -26,7 +26,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
