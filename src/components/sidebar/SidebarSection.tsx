@@ -157,7 +157,7 @@ export function SidebarSection({
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={onToggleSection}>
+    <Collapsible open={isOpen} onOpenChange={() => onToggleSection()}>
       <CollapsibleTrigger asChild>
       <button
         type="button"
