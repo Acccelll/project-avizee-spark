@@ -675,6 +675,11 @@ const Orcamentos = () => {
         </PullToRefresh>
       </ModulePage>
 
+      <MobileQuickAddFAB
+        onClick={() => navigate('/orcamentos/novo')}
+        label="Novo orçamento"
+      />
+
       <CrossModuleActionDialog
         open={!!convertingId}
         onClose={() => {
