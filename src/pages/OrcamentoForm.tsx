@@ -1105,10 +1105,30 @@ export default function OrcamentoForm() {
           </DropdownMenu>
         </div>
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
-          <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
+          {isLocked ? (
+            <Button
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  const novoId = await criarRevisaoOrcamento(id);
+                  if (novoId) {
+                    toast.success("Revisão criada.");
+                    navigate(`/orcamentos/${novoId}`, { replace: true });
+                  }
+                } catch (err) { notifyError(err); }
+              }}
+              className="gap-2"
+              title="Criar nova revisão deste orçamento"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Criar revisão
+            </Button>
+          ) : (
+            <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
+              <Save className="w-4 h-4" />
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2"><Eye className="w-4 h-4" />Visualizar</Button>
           <Button variant="secondary" onClick={handleGeneratePdf} className="gap-2"><FileText className="w-4 h-4" />Gerar PDF</Button>
 
