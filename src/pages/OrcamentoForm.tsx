@@ -1435,15 +1435,17 @@ export default function OrcamentoForm() {
             precosEspeciais={precosEspeciais}
           />
 
-          <OrcamentoInternalAnalysisPanel
-            baseAnalysis={baseAnalysis}
-            scenarioAnalysis={scenarioAnalysis}
-            items={items}
-            onItemsChange={setItems}
-            scenarioConfig={scenarioConfig}
-            onScenarioConfigChange={setScenarioConfig}
-            access={internalAccess}
-          />
+          <MobileSection title="Análise Interna" icon={BarChart3} summary="Margem · Cenário" defaultOpen={false}>
+            <OrcamentoInternalAnalysisPanel
+              baseAnalysis={baseAnalysis}
+              scenarioAnalysis={scenarioAnalysis}
+              items={items}
+              onItemsChange={setItems}
+              scenarioConfig={scenarioConfig}
+              onScenarioConfigChange={setScenarioConfig}
+              access={internalAccess}
+            />
+          </MobileSection>
 
           <OrcamentoTotaisCard
             totalProdutos={totalProdutos}
@@ -1461,6 +1463,12 @@ export default function OrcamentoForm() {
             }}
           />
 
+          <MobileSection
+            title="Frete"
+            icon={Truck}
+            summary={freteValor > 0 ? formatCurrency(freteValor) : "Sem frete definido"}
+            defaultOpen={false}
+          >
           <FreteSimuladorCard
             orcamentoId={id || null}
             clienteId={clienteId}
@@ -1489,12 +1497,16 @@ export default function OrcamentoForm() {
               setFreteComprimentoCm(payload.comprimentoCm);
             }}
           />
+          </MobileSection>
 
-          <OrcamentoCondicoesCard
-            form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
-            onChange={handleCondicaoChange}
-          />
+          <MobileSection title="Condições Comerciais" icon={CreditCard} defaultOpen>
+            <OrcamentoCondicoesCard
+              form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
+              onChange={handleCondicaoChange}
+            />
+          </MobileSection>
 
+          <MobileSection title="Observações" icon={FileText} defaultOpen={false}>
           <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
@@ -1517,6 +1529,7 @@ export default function OrcamentoForm() {
                 className="min-h-[80px] border-dashed" />
             </div>
           </div>
+          </MobileSection>
         </fieldset>
         </div>
 
