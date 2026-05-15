@@ -343,7 +343,8 @@ const Orcamentos = () => {
       render: (o: Orcamento) => <span className="text-xs">{formatDate(o.data_orcamento)}</span>,
     },
     {
-      key: "validade", mobileCard: true, label: "Validade",
+      key: "validade", mobileCard: true, label: "Validade", sortable: true,
+      sortValue: (o: Orcamento) => o.validade ?? "",
       render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
     },
     {
