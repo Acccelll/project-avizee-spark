@@ -219,19 +219,31 @@ const DashboardContent = () => {
         </div>
       </BlockErrorBoundary>
     ),
-    acoes_rapidas: () => (
-      <div className="hidden md:block">
-        <BlockErrorBoundary label="Ações Rápidas">
-          <QuickActions />
-        </BlockErrorBoundary>
-      </div>
-    ),
+    acoes_rapidas: () => {
+      // Quando não está adjacente ao seu par natural, limita a largura para
+      // não ocupar full-width sozinho (estética).
+      const idx = prefs.order.indexOf('acoes_rapidas');
+      const prev = prefs.order[idx - 1];
+      const next = prefs.order[idx + 1];
+      const groupKey = widgetToGroup.get('acoes_rapidas');
+      const isInPair = Boolean(
+        (prev && groupKey && widgetToGroup.get(prev) === groupKey && isVisible(prev)) ||
+        (next && groupKey && widgetToGroup.get(next) === groupKey && isVisible(next)),
+      );
+      return (
+        <div className={isInPair ? 'hidden md:block' : 'hidden md:block max-w-md'}>
+          <BlockErrorBoundary label="Ações Rápidas">
+            <QuickActions />
+          </BlockErrorBoundary>
+        </div>
+      );
+    },
     vendas_chart: () => (
       <LazyInViewWidget fallback={<Skeleton className="min-h-[240px] w-full rounded-xl" />}>
         <DashboardCard>
           <BlockErrorBoundary label="Gráfico de Vendas">
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <div className="h-[200px]">
+            <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
+              <div className="h-[280px]">
                 <VendasChart
                   onBarClick={(start, end) =>
                     navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
@@ -353,8 +365,8 @@ const DashboardContent = () => {
   const PAIR_GROUPS: Record<string, WidgetId[]> = {
     finRow: ["financeiro", "acoes_rapidas"],
     midRow: ["pendencias", "fiscal"],
-    comRow: ["comercial", "estoque"],
-    logRow: ["logistica", "vendas_chart"],
+    comRow: ["comercial", "vendas_chart"],
+    supRow: ["estoque", "logistica"],
   };
   const widgetToGroup = new Map<WidgetId, string>();
   for (const [gid, members] of Object.entries(PAIR_GROUPS)) {
@@ -417,50 +429,20 @@ const DashboardContent = () => {
             <DashboardCustomizeMenu
               prefs={prefs}
               onToggle={toggleVisibility}
-              onMove={moveWidget}
+              onReorder={reorderWidgets}
               onReset={resetLayout}
             />
           }
         />
       )}
 
-      {(() => {
-        const temVencimentos = vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0;
-        const temBacklog = backlogOVsCount > 0;
-        const temAlgo = temVencimentos || temBacklog;
-        return (
-          <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
-            <p className="text-sm font-medium text-foreground">
-              {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
-            </p>
-            {temAlgo && (
-              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                {temVencimentos && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/financeiro?venc=hoje`)}
-                    className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
-                  >
-                    {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
-                  </button>
-                )}
-                {temBacklog && (
-                  <>
-                    {temVencimentos && " · "}
-                    <button
-                      type="button"
-                      onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
-                      className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
-                    >
-                      {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
-                    </button>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-        );
-      })()}
+      <GreetingBanner
+        nome={profile?.nome}
+        vencimentosHoje={vencimentosHoje}
+        backlogOVsCount={backlogOVsCount}
+        onNavigateVencimentos={() => navigate(`/financeiro?venc=hoje`)}
+        onNavigateBacklog={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
+      />
 
       <div className="space-y-3 md:space-y-4">
         {rows.map((row) => {
