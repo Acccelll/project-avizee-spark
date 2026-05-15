@@ -1974,10 +1974,24 @@ export default function OrcamentoForm() {
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-10 w-10" aria-label="Visualizar">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPreviewOpen(true)}
+            className="h-11 w-11"
+            aria-label="Visualizar proposta"
+            title="Visualizar proposta em PDF"
+          >
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-10 w-10" aria-label="Gerar PDF">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={handleGeneratePdf}
+            className="h-11 w-11"
+            aria-label="Gerar PDF"
+            title="Baixar PDF"
+          >
             <FileText className="w-4 h-4" />
           </Button>
         </div>
