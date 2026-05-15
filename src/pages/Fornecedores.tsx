@@ -37,7 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
-  Info, Loader2, Calendar, Mail, CheckCircle2, BadgeCheck, Package,
+  Info, Loader2, Calendar, Mail, CheckCircle2, BadgeCheck, Package, FileText,
   Users, UserCheck, Trash2, Plus,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
