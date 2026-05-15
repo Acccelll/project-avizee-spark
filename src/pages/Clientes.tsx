@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,7 +39,7 @@ import { formatDate } from "@/lib/format";
 import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
 import {
-  Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
+  Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText, ChevronRight,
   Info, Loader2, Calendar, Mail, Users, UserCheck, AlertTriangle,
   MessageSquare, Home, Pencil, Check as CheckIcon,
 } from "lucide-react";
@@ -767,6 +768,19 @@ const Clientes = () => {
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
         ] : undefined}
         isDirty={isDirty}
+        topBanner={(() => {
+          if (mode !== "edit" || !selected) return undefined;
+          const pending = getMissingFields(selected).filter((m) => m !== "grupo");
+          if (pending.length === 0) return undefined;
+          return (
+            <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground/90 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <span className="flex-1">
+                Cadastro incompleto. Faltam: <strong>{pending.join(", ")}</strong>.
+              </span>
+            </div>
+          );
+        })()}
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
@@ -793,21 +807,21 @@ const Clientes = () => {
               <TabsTrigger value="dados-gerais" className="gap-1.5">
                 <User2 className="h-3.5 w-3.5" />Dados Gerais
                 {tabIssues.dadosGerais && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Faltam dados básicos do cliente.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5">
                 <Phone className="h-3.5 w-3.5" />Contatos
                 {tabIssues.contatos && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Sem nenhum canal de contato.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />Endereço
                 {tabIssues.endereco && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Endereço incompleto.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
@@ -820,7 +834,7 @@ const Clientes = () => {
               <TabsTrigger value="comercial" className="gap-1.5">
                 <CreditCard className="h-3.5 w-3.5" />Comercial
                 {tabIssues.comercial && (
-                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <Tooltip><TooltipTrigger asChild><span className="inline-flex p-0.5" tabIndex={0} aria-label="Campos pendentes nesta aba"><AlertTriangle className="h-4 w-4 text-warning" /></span></TooltipTrigger>
                   <TooltipContent className="text-xs">Sem forma de pagamento ou prazo definido.</TooltipContent></Tooltip>
                 )}
               </TabsTrigger>
@@ -830,7 +844,7 @@ const Clientes = () => {
                   {comunicacoesCount > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{comunicacoesCount}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Observações</TabsTrigger>
             </TabsList>
 
             {/* DADOS GERAIS */}
@@ -979,6 +993,59 @@ const Clientes = () => {
                   <Input value={form.nome_fantasia} onChange={(e) => updateForm({ nome_fantasia: e.target.value })} placeholder="Nome comercial (opcional)" />
                 </div>
               </div>
+
+              {/* Grupo Econômico — movido de Comercial para Dados Gerais */}
+              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
+                <Building2 className="w-4 h-4 text-primary/70" />
+                <h3 className="font-semibold text-sm">Grupo Econômico</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Vincule o cliente a um grupo econômico para consolidar dados de vendas, crédito e relacionamento.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-1.5">
+                  <Label>Grupo Econômico</Label>
+                  <Select
+                    value={form.grupo_economico_id || "nenhum"}
+                    onValueChange={(v) => updateForm({ grupo_economico_id: v === "nenhum" ? "" : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <Label>Tipo de Relação</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                      <TooltipContent className="max-w-[240px] text-xs space-y-1">
+                        <p><strong>Matriz:</strong> empresa controladora do grupo.</p>
+                        <p><strong>Filial:</strong> empresa controlada pela matriz.</p>
+                        <p><strong>Coligada:</strong> empresa com participação societária no grupo.</p>
+                        <p><strong>Independente:</strong> sem vínculo hierárquico.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select value={form.tipo_relacao_grupo} onValueChange={(v) => updateForm({ tipo_relacao_grupo: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {relacaoOptions.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {form.grupo_economico_id && (
+                <div className="mb-2 flex items-center gap-2 bg-muted/30 rounded-md px-3 py-2 text-xs text-muted-foreground border">
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                  <span>
+                    <strong className="text-foreground">{grupos.find(g => g.id === form.grupo_economico_id)?.nome}</strong>
+                    {" — "}{relacaoLabel[form.tipo_relacao_grupo] || form.tipo_relacao_grupo}
+                  </span>
+                </div>
+              )}
             </TabsContent>
 
             {/* CONTATOS */}
@@ -1112,11 +1179,13 @@ const Clientes = () => {
                   )}
                 </div>
               </div>
-              <details className="mt-2 group">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+              <Collapsible className="mt-2">
+                <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground select-none">
+                  <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
                   Avançado (caixa postal)
-                </summary>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                </CollapsibleTrigger>
+                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1">
                       <Label>Caixa Postal</Label>
@@ -1129,8 +1198,9 @@ const Clientes = () => {
                     </div>
                     <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
                   </div>
-                </div>
-              </details>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </TabsContent>
 
             {/* COMERCIAL */}
@@ -1221,73 +1291,6 @@ const Clientes = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
-                <Building2 className="w-4 h-4 text-primary/70" />
-                <h3 className="font-semibold text-sm">Grupo Econômico</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Vincule o cliente a um grupo econômico para consolidar dados de vendas, crédito e relacionamento.
-              </p>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div className="space-y-1.5">
-                  <Label>Grupo Econômico</Label>
-                  <Select
-                    value={form.grupo_economico_id || "nenhum"}
-                    onValueChange={(v) => updateForm({ grupo_economico_id: v === "nenhum" ? "" : v })}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nenhum">Nenhum</SelectItem>
-                      {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <Label>Tipo de Relação</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent className="max-w-[240px] text-xs space-y-1">
-                        <p><strong>Matriz:</strong> empresa controladora do grupo.</p>
-                        <p><strong>Filial:</strong> empresa controlada pela matriz.</p>
-                        <p><strong>Coligada:</strong> empresa com participação societária no grupo.</p>
-                        <p><strong>Independente:</strong> sem vínculo hierárquico.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select value={form.tipo_relacao_grupo} onValueChange={(v) => updateForm({ tipo_relacao_grupo: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {relacaoOptions.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {form.grupo_economico_id ? (
-                <div className="mb-4 flex items-center gap-2 bg-muted/30 rounded-md px-3 py-2 text-xs text-muted-foreground border">
-                  <Building2 className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-                  <span>
-                    <strong className="text-foreground">{grupos.find(g => g.id === form.grupo_economico_id)?.nome}</strong>
-                    {" — "}{relacaoLabel[form.tipo_relacao_grupo] || form.tipo_relacao_grupo}
-                  </span>
-                </div>
-              ) : <div className="mb-4" />}
-
-              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
-                <Truck className="w-4 h-4 text-primary/70" />
-                <h3 className="font-semibold text-sm">Logística Comercial</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Transportadoras preferenciais usadas em remessas para este cliente.
-              </p>
-              {mode === "create" ? (
-                <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
-                  <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>Transportadoras preferenciais podem ser vinculadas após o cadastro inicial do cliente.</span>
-                </div>
-              ) : selected && (
-                <ClienteTransportadorasTab clienteId={selected.id} />
-              )}
             </TabsContent>
 
             {/* ENTREGAS */}
@@ -1301,6 +1304,14 @@ const Clientes = () => {
                   }}
                   onCountChange={setEnderecosCount}
                 />
+                <div className="flex items-center gap-2 pt-4 pb-1 border-t">
+                  <Truck className="w-4 h-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Transportadoras preferenciais</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Transportadoras preferenciais usadas em remessas para este cliente.
+                </p>
+                <ClienteTransportadorasTab clienteId={selected.id} />
               </TabsContent>
             )}
 

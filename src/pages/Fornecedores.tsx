@@ -37,7 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
-  Info, Loader2, Calendar, Mail, CheckCircle2, Handshake, BadgeCheck, Package,
+  Info, Loader2, Calendar, Mail, CheckCircle2, BadgeCheck, Package, FileText,
   Users, UserCheck, Trash2, Plus,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -571,7 +571,8 @@ const Fornecedores = () => {
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
         ] : undefined}
-        isDirty={false}
+        isDirty={isDirty}
+        confirmOnDirty
         footer={
           <FormModalFooter
             saving={saving}
@@ -615,11 +616,14 @@ const Fornecedores = () => {
               </TabsTrigger>
               <TabsTrigger value="compras" className="gap-1.5">
                 <ShoppingCart className="h-3.5 w-3.5" />Compras
+                {mode === "edit" && modalComprasForn.count > 0 && (
+                  <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{modalComprasForn.count}</span>
+                )}
                 {formErrors.prazo_padrao && (
                   <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
               </TabsTrigger>
-              <TabsTrigger value="observacoes" className="gap-1.5"><Handshake className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+              <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Observações</TabsTrigger>
             </TabsList>
 
             {/* ── TAB: DADOS GERAIS ─────────────────────────── */}
