@@ -768,6 +768,19 @@ const Clientes = () => {
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
         ] : undefined}
         isDirty={isDirty}
+        topBanner={(() => {
+          if (mode !== "edit" || !selected) return undefined;
+          const pending = getMissingFields(selected).filter((m) => m !== "grupo");
+          if (pending.length === 0) return undefined;
+          return (
+            <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground/90 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <span className="flex-1">
+                Cadastro incompleto. Faltam: <strong>{pending.join(", ")}</strong>.
+              </span>
+            </div>
+          );
+        })()}
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
