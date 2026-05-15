@@ -35,9 +35,9 @@ export const DEFAULT_ORDER: WidgetId[] = [
   'pendencias',
   'fiscal',
   'comercial',
+  'vendas_chart',
   'estoque',
   'logistica',
-  'vendas_chart',
 ];
 
 const DEFAULT_PREFS: DashboardLayoutPrefs = { order: DEFAULT_ORDER, hidden: [] };
