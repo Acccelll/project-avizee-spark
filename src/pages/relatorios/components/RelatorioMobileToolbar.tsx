@@ -103,6 +103,7 @@ export function RelatorioMobileToolbar({
               clientes={clientes}
               fornecedores={fornecedores}
               grupos={grupos}
+              layout="stacked"
               semantics={{
                 statusMeaning: semantics?.statusMeaning,
                 typeMeaning: semantics?.typeMeaning,
