@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -580,6 +581,19 @@ export default function Auditoria() {
               <Download className="h-4 w-4 mr-1" />
               PDF
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[11px] text-muted-foreground ml-1 cursor-help underline decoration-dotted">
+                    escopo
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  A exportação inclui apenas os {visibleRows.length} registros desta página
+                  (pág. {page} de {totalPages}). Para exportar mais, navegue pelas páginas ou amplie o período.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         }
       >
