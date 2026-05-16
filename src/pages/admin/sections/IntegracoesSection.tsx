@@ -11,6 +11,7 @@ import { Info, Plug, Receipt, Webhook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SecretInput } from "@/components/ui/SecretInput";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
@@ -78,8 +79,7 @@ export function IntegracoesSection() {
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label>API key do gateway</Label>
-              <Input
-                type="password"
+              <SecretInput
                 placeholder="••••••••••••"
                 value={draft.gatewayApiKey}
                 onChange={(e) => update("gatewayApiKey", e.target.value)}
@@ -144,8 +144,7 @@ export function IntegracoesSection() {
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label>Segredo de assinatura</Label>
-              <Input
-                type="password"
+              <SecretInput
                 placeholder="chave de assinatura HMAC"
                 value={draft.webhookSecret}
                 onChange={(e) => update("webhookSecret", e.target.value)}
