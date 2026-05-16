@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Barcode, AlertCircle } from "lucide-react";
+import { Barcode, AlertCircle, AlertTriangle } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { BoletoReaderModal } from "@/components/financeiro/BoletoReaderModal";
 import { formatCurrency } from "@/lib/format";
 import type { Cliente, Fornecedor } from "@/types/domain";
@@ -63,6 +64,9 @@ export function FinanceiroLancamentoForm({
   const isStatusReadonly = STATUS_READONLY.has(form.status);
   const selectStatusValue = form.status === "vencido" ? "aberto" : form.status;
   const [boletoOpen, setBoletoOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
+  const showCancelMotivo = form.status === "cancelado" && !isStatusReadonly;
+  const canSubmitCancel = !showCancelMotivo || cancelMotivo.trim().length >= 10;
 
   const isCartaoCredito = form.forma_pagamento === "cartao_credito";
   const dataPagamentoEditable = form.status === "pago" || form.status === "parcial";
@@ -78,6 +82,23 @@ export function FinanceiroLancamentoForm({
         variant: "destructive",
       });
       return;
+    }
+    if (showCancelMotivo && !canSubmitCancel) {
+      e.preventDefault();
+      toast({
+        title: "Motivo obrigatório",
+        description: "Informe o motivo do cancelamento (mínimo 10 caracteres).",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (showCancelMotivo) {
+      const motivo = cancelMotivo.trim();
+      const tag = `[Cancelado: ${motivo}]`;
+      const base = (form.observacoes ?? "").trim();
+      if (!base.includes(tag)) {
+        setForm({ ...form, observacoes: base ? `${tag}\n${base}` : tag });
+      }
     }
     onSubmit(e);
   };
@@ -115,6 +136,25 @@ export function FinanceiroLancamentoForm({
           {form.status === "vencido" && (
             <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
           )}
+          {showCancelMotivo && (
+            <div className="space-y-1 mt-2">
+              <Label className="text-xs flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-warning" /> Motivo do cancelamento *
+              </Label>
+              <Textarea
+                value={cancelMotivo}
+                onChange={(e) => setCancelMotivo(e.target.value)}
+                placeholder="Descreva o motivo do cancelamento (mínimo 10 caracteres)..."
+                rows={2}
+                className="text-xs border-warning/40 focus:border-warning"
+              />
+              {cancelMotivo.trim().length > 0 && cancelMotivo.trim().length < 10 && (
+                <p className="text-[11px] text-warning">
+                  {10 - cancelMotivo.trim().length} caractere(s) ainda necessário(s)
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
           <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => updateField("forma_pagamento", v === "nenhum" ? "" : v)}>
@@ -130,17 +170,11 @@ export function FinanceiroLancamentoForm({
         <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => updateField("descricao", e.target.value)} required /></div>
         <div className="space-y-2">
           <Label>Valor *</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
-            <Input
-              type="number"
-              step="0.01"
-              className="pl-9"
-              value={form.valor}
-              onChange={(e) => updateField("valor", Number(e.target.value))}
-              required
-            />
-          </div>
+          <CurrencyInput
+            value={form.valor}
+            onChange={(v) => updateField("valor", v)}
+            required
+          />
         </div>
         <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
         <div className="space-y-2">
@@ -285,7 +319,7 @@ export function FinanceiroLancamentoForm({
         ) : <span />}
         <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={saving || isStatusReadonly}>{saving ? "Salvando..." : "Salvar"}</Button>
+        <Button type="submit" disabled={saving || isStatusReadonly || !canSubmitCancel}>{saving ? "Salvando..." : "Salvar"}</Button>
         </div>
       </div>
       <BoletoReaderModal
