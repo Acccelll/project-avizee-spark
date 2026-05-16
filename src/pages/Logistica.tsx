@@ -5,7 +5,6 @@ import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -53,7 +52,6 @@ import {
 } from "@/services/logistica/lookups.service";
 import { notifyError } from "@/utils/errorMessages";
 import {
-  ENTREGA_STATUS_ORDER,
   ENTREGA_STATUS_META,
   ENTREGA_TERMINAL,
   RECEBIMENTO_STATUS_META,
