@@ -86,5 +86,7 @@ export function useSectionConfig<T extends Record<string, unknown>>(
     });
   };
 
-  return { values, lastSaved, isLoading, isSaving, save };
+  const computeIsDirty = (draft: T) => JSON.stringify(draft) !== JSON.stringify(values);
+
+  return { values, lastSaved, isLoading, isSaving, save, computeIsDirty };
 }
