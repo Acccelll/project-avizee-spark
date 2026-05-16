@@ -24,6 +24,8 @@ interface Props {
   onSalvar: (nome: string) => Promise<boolean | void>;
   onAplicar: (params: string) => void;
   onRemover: (id: string) => void;
+  isNearLimit?: boolean;
+  maxFavoritos?: number;
 }
 
 export function RelatorioHeaderActions({
@@ -33,6 +35,8 @@ export function RelatorioHeaderActions({
   onSalvar,
   onAplicar,
   onRemover,
+  isNearLimit,
+  maxFavoritos = 20,
 }: Props) {
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -78,6 +82,11 @@ export function RelatorioHeaderActions({
             autoFocus
           />
           <Button size="sm" className="w-full" onClick={handleSalvar} disabled={!saveName.trim()}>Salvar</Button>
+          {isNearLimit && (
+            <p className="text-[11px] text-warning-foreground/80 bg-warning/10 border border-warning/30 rounded px-2 py-1">
+              {favoritos.length}/{maxFavoritos} configurações salvas.
+            </p>
+          )}
         </PopoverContent>
       </Popover>
 
@@ -91,7 +100,7 @@ export function RelatorioHeaderActions({
           </PopoverTrigger>
           <PopoverContent align="end" className="w-72 p-3">
             <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Favoritos salvos</p>
-            <div className="space-y-1 max-h-60 overflow-y-auto">
+            <div className="space-y-1 max-h-[min(60vh,320px)] overflow-y-auto">
               {favoritos.map((fav) => (
                 <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
                   <button
