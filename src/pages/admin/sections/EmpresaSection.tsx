@@ -6,7 +6,7 @@
  * por compatibilidade.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Calendar, Globe, Image as ImageIcon, Info, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { notifyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
+import { useReportDirty } from "@/contexts/AdminDirtyContext";
 import { uploadDbavizeeImage } from "@/services/storage.service";
 
 const DEFAULT_FORM = {
@@ -64,6 +65,7 @@ export function EmpresaSection() {
   const { config: geralAux, handleSave: saveGeral, isSaving: geralSaving } = useAppConfig("geral");
 
   const [draft, setDraft] = useState(DEFAULT_FORM);
+  const [baseline, setBaseline] = useState(DEFAULT_FORM);
   const [logoUploading, setLogoUploading] = useState(false);
   const [simboloUploading, setSimboloUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +73,7 @@ export function EmpresaSection() {
 
   useEffect(() => {
     const aux = (geralAux as GeralAux) ?? {};
-    setDraft({
+    const next = {
       ...DEFAULT_FORM,
       empresa: empresaConfig?.razao_social ?? DEFAULT_FORM.empresa,
       nomeFantasia: empresaConfig?.nome_fantasia ?? DEFAULT_FORM.nomeFantasia,
@@ -96,8 +98,16 @@ export function EmpresaSection() {
       marcaSubtitulo: empresaConfig?.marca_subtitulo ?? DEFAULT_FORM.marcaSubtitulo,
       corPrimaria: empresaConfig?.cor_primaria ?? DEFAULT_FORM.corPrimaria,
       corSecundaria: empresaConfig?.cor_secundaria ?? DEFAULT_FORM.corSecundaria,
-    });
+    };
+    setDraft(next);
+    setBaseline(next);
   }, [empresaConfig, geralAux]);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(baseline),
+    [draft, baseline],
+  );
+  useReportDirty(isDirty);
 
   const update = <K extends keyof typeof DEFAULT_FORM>(key: K, value: (typeof DEFAULT_FORM)[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
