@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +35,10 @@ interface Props {
 export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [month, setMonth] = useState<Date | undefined>(initialMonth);
-  // Sincroniza quando o filtro de período externo muda.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState(() => { if (initialMonth) setMonth(initialMonth); });
+  // Sincroniza o mês exibido quando o filtro de período externo muda.
+  useEffect(() => {
+    if (initialMonth) setMonth(initialMonth);
+  }, [initialMonth?.getTime()]);
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
