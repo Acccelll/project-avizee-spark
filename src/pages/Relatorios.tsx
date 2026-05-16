@@ -381,6 +381,9 @@ export default function Relatorios() {
                 setCompactDensity={setCompactDensity}
                 onPreview={() => setPreviewOpen(true)}
                 hasExportableData={hasExportableData}
+                layout={layout}
+                onToggleLayout={toggleLayout}
+                activeFiltersCount={activeFilterChips.length}
                 exportMenu={
                   <ExportMenu
                     recordCount={sortedRows.length}
