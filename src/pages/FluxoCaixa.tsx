@@ -37,6 +37,10 @@ import { financialPeriods, type Period } from "@/components/filters/periodTypes"
 import { periodToFinancialRange } from "@/lib/periodFilter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFluxoCaixaData } from "@/hooks/useFluxoCaixaData";
+import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -49,6 +53,8 @@ interface LancamentoForm {
   forma_pagamento: string;
   conta_bancaria_id: string;
   observacoes: string;
+  cliente_id?: string;
+  fornecedor_id?: string;
 }
 
 /**
@@ -88,11 +94,22 @@ const FluxoCaixa = () => {
   const isMobile = useIsMobile();
   const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
   const qc = useQueryClient();
+  // GlobalPeriod (header) — usado apenas como default inicial quando a URL não traz datas.
+  const globalPeriod = useGlobalPeriod();
 
-  const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
-  const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
+  const defaultDataInicio = () => {
+    if (globalPeriod?.range?.dateFrom) return globalPeriod.range.dateFrom;
+    const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+  };
+  const defaultDataFim = () => {
+    if (globalPeriod?.range?.dateTo) return globalPeriod.range.dateTo;
+    const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0];
+  };
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
+  // Cadastros para campos cliente/fornecedor do lançamento manual
+  const clientesCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "clientes" });
+  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "fornecedores" });
   const [filterBanco, setFilterBanco] = useState(searchParams.get("banco") ?? "todos");
   const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
@@ -245,6 +262,10 @@ const FluxoCaixa = () => {
   }, [grouped]);
 
   const hasNegativeRisk = chartData.some(d => d.previsto < 0);
+  const diaCritico = useMemo(() => {
+    const found = chartData.find(d => d.previsto < 0);
+    return found?.name ?? null;
+  }, [chartData]);
 
   // ─── Movements DataTable ──────────────────────────────────────────────────
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
@@ -363,6 +384,8 @@ const FluxoCaixa = () => {
         forma_pagamento: form.forma_pagamento || null,
         conta_bancaria_id: form.conta_bancaria_id || null,
         observacoes: form.observacoes || null,
+        cliente_id: form.tipo === "receber" ? (form.cliente_id || null) : null,
+        fornecedor_id: form.tipo === "pagar" ? (form.fornecedor_id || null) : null,
       });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
@@ -528,9 +551,20 @@ const FluxoCaixa = () => {
         {hasNegativeRisk && (
           <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2 text-destructive text-sm">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span className="font-medium">
-              Atenção: o saldo previsto ficará negativo em algum período. Considere antecipar recebíveis ou postergar pagamentos.
+            <span className="font-medium flex-1">
+              Atenção: o saldo previsto ficará negativo
+              {diaCritico ? ` a partir de ${diaCritico}` : ""}. Considere antecipar recebíveis ou postergar pagamentos.
             </span>
+            {diaCritico && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => setViewMode("movimentos")}
+              >
+                Ver movimentos
+              </Button>
+            )}
           </div>
         )}
 
@@ -824,14 +858,42 @@ const FluxoCaixa = () => {
               maxLength={200}
             />
           </div>
+          {form.tipo === "receber" && (
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <AutocompleteSearch
+                options={clientesCrud.data.map((c) => ({
+                  id: c.id,
+                  label: c.nome_razao_social,
+                  sublabel: c.cpf_cnpj ?? undefined,
+                }))}
+                value={form.cliente_id ?? ""}
+                onChange={(v) => setForm({ ...form, cliente_id: v })}
+                placeholder="Buscar cliente por nome ou CNPJ..."
+              />
+            </div>
+          )}
+          {form.tipo === "pagar" && (
+            <div className="space-y-2">
+              <Label>Fornecedor</Label>
+              <AutocompleteSearch
+                options={fornecedoresCrud.data.map((f) => ({
+                  id: f.id,
+                  label: f.nome_razao_social,
+                  sublabel: f.cpf_cnpj ?? undefined,
+                }))}
+                value={form.fornecedor_id ?? ""}
+                onChange={(v) => setForm({ ...form, fornecedor_id: v })}
+                placeholder="Buscar fornecedor por nome ou CNPJ..."
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$) <span className="text-destructive">*</span></Label>
-              <Input
-                type="number" min="0.01" step="0.01"
-                value={form.valor || ""}
-                onChange={e => setForm({ ...form, valor: parseFloat(e.target.value) || 0 })}
-                placeholder="0,00"
+              <CurrencyInput
+                value={form.valor}
+                onChange={(v) => setForm({ ...form, valor: v })}
               />
             </div>
             <div className="space-y-2">

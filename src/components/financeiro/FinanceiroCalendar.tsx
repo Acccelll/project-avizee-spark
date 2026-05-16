@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,10 +29,16 @@ interface Lancamento {
 interface Props {
   data: Lancamento[];
   onBaixaSuccess?: () => void;
+  initialMonth?: Date;
 }
 
-export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
+export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [month, setMonth] = useState<Date | undefined>(initialMonth);
+  // Sincroniza o mês exibido quando o filtro de período externo muda.
+  useEffect(() => {
+    if (initialMonth) setMonth(initialMonth);
+  }, [initialMonth?.getTime()]);
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
@@ -161,6 +167,8 @@ export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
             mode="single"
             selected={selectedDate}
             onSelect={handleSelectDate}
+            month={month}
+            onMonthChange={setMonth}
             className={cn("p-3 pointer-events-auto")}
             modifiers={modifiers}
             modifiersClassNames={{

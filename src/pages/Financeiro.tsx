@@ -458,9 +458,20 @@ const Financeiro = () => {
           {/* Em mobile, "Vence Hoje" vira banner acima — esconder card duplicado */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="hidden md:block"><SummaryCard title="Vence Hoje" value={kpis.venceHoje.toString()} icon={Clock} variant="warning" /></div>
+              <div className="hidden md:block">
+                <SummaryCard
+                  title="Vence Hoje"
+                  value={kpis.venceHoje.toString()}
+                  icon={Clock}
+                  variant="warning"
+                  onClick={() => {
+                    setStatusFilters(["aberto"]);
+                    setPeriod("hoje", { clearMes: true });
+                  }}
+                />
+              </div>
             </TooltipTrigger>
-            <TooltipContent>Abertos com vencimento na data de hoje</TooltipContent>
+            <TooltipContent>Abertos com vencimento na data de hoje (clique para filtrar)</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -529,7 +540,11 @@ const Financeiro = () => {
         </div>
 
         {viewMode === "calendario" ? (
-          <FinanceiroCalendar data={data} onBaixaSuccess={invalidateAfterBaixa} />
+          <FinanceiroCalendar
+            data={data}
+            onBaixaSuccess={invalidateAfterBaixa}
+            initialMonth={dateRange.from ? new Date(dateRange.from + "T00:00:00") : undefined}
+          />
         ) : (
           <PullToRefresh onRefresh={fetchData}>
             <div data-help-id="financeiro.tabela">
