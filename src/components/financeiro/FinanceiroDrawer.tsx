@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
@@ -109,6 +109,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const { confirm: confirmCancelar, dialog: cancelarDialog } = useConfirmDestructive({
     verb: "Cancelar",
   });
+  const INITIAL_LIMIT = 5;
+  const [showAllBaixas, setShowAllBaixas] = useState(false);
+  const [showAllAuditoria, setShowAllAuditoria] = useState(false);
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
@@ -339,7 +342,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                       </tr>
                     </thead>
                     <tbody>
-                      {baixasList.map((b, i) => (
+                      {(showAllBaixas ? baixasList : baixasList.slice(0, INITIAL_LIMIT)).map((b, i) => (
                         <tr key={b.id ?? `tmp-${i}`} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                           <td className="px-3 py-2">{new Date(b.data_baixa).toLocaleDateString("pt-BR")}</td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-success">{formatCurrency(Number(b.valor_pago))}</td>
@@ -381,6 +384,17 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     </tbody>
                   </table>
                 </div>
+                {baixasList.length > INITIAL_LIMIT && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBaixas((v) => !v)}
+                    className="w-full text-center text-xs text-primary hover:underline py-2"
+                  >
+                    {showAllBaixas
+                      ? "Mostrar menos"
+                      : `Ver mais ${baixasList.length - INITIAL_LIMIT} baixa${baixasList.length - INITIAL_LIMIT !== 1 ? "s" : ""}`}
+                  </button>
+                )}
                 {baixasList.length > 1 && (
                   <p className="text-xs text-muted-foreground text-right">
                     {baixasList.length} baixas · total {isCR ? "recebido" : "pago"}: <span className="font-mono font-semibold text-success">{formatCurrency(totalBaixado)}</span>
@@ -482,7 +496,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                       </tr>
                     </thead>
                     <tbody>
-                      {auditoriaList.map((e, i) => {
+                      {(showAllAuditoria ? auditoriaList : auditoriaList.slice(0, INITIAL_LIMIT)).map((e, i) => {
                         const payload = (e.payload && typeof e.payload === "object"
                           ? (e.payload as Record<string, unknown>)
                           : {}) as Record<string, unknown>;
@@ -511,6 +525,17 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     </tbody>
                   </table>
                 </div>
+              )}
+              {auditoriaList.length > INITIAL_LIMIT && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllAuditoria((v) => !v)}
+                  className="w-full text-center text-xs text-primary hover:underline py-2"
+                >
+                  {showAllAuditoria
+                    ? "Mostrar menos"
+                    : `Ver mais ${auditoriaList.length - INITIAL_LIMIT} evento${auditoriaList.length - INITIAL_LIMIT !== 1 ? "s" : ""}`}
+                </button>
               )}
             </ViewSection>
             {observacoesLegivel && (
