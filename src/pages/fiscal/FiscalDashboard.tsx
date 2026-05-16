@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Receipt,
@@ -29,6 +29,7 @@ import { exportarDashboardFiscalPdf } from "@/services/fiscal/dashboardFiscalPdf
 import { toast } from "sonner";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
+import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -60,8 +61,30 @@ function todayIso() {
 }
 
 export default function FiscalDashboard() {
-  const [period, setPeriod] = useState<Period>("30d");
+  // Item 8 — inicializa do GlobalPeriod quando compatível.
+  const globalPeriod = (() => {
+    try { return useGlobalPeriod(); } catch { return null; }
+  })();
+  const mapGlobalToFiscal = (p: string | undefined): Period | null => {
+    switch (p) {
+      case "today": return "hoje";
+      case "30d": return "30d";
+      case "year": return "year";
+      default: return null;
+    }
+  };
+  const initialPeriod: Period = mapGlobalToFiscal(globalPeriod?.period) ?? "30d";
+  const [period, setPeriod] = useState<Period>(initialPeriod);
   const [exporting, setExporting] = useState(false);
+  const navigate = useNavigate();
+
+  // Sincroniza quando o usuário muda no chip global do header.
+  useEffect(() => {
+    if (!globalPeriod) return;
+    const next = mapGlobalToFiscal(globalPeriod.period);
+    if (next && next !== period) setPeriod(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalPeriod?.period]);
 
   const periodo = useMemo(
     () => ({ from: periodToDateFrom(period), to: todayIso() }),
@@ -143,6 +166,8 @@ export default function FiscalDashboard() {
                 variant="success"
                 icon={Receipt}
                 density="compact"
+                onClick={() => navigate(`/fiscal/saida?status_sefaz=autorizada`)}
+                ariaLabel="Ver NF-e autorizadas"
               />
               <SummaryCard
                 title="Rejeitadas"
@@ -150,6 +175,8 @@ export default function FiscalDashboard() {
                 variant={data.saida.rejeitadas > 0 ? "danger" : "default"}
                 icon={FileWarning}
                 density="compact"
+                onClick={() => navigate(`/fiscal/saida?status_sefaz=rejeitada`)}
+                ariaLabel="Ver NF-e rejeitadas"
               />
               <SummaryCard
                 title="Canceladas"
@@ -157,6 +184,8 @@ export default function FiscalDashboard() {
                 variant="warning"
                 icon={AlertTriangle}
                 density="compact"
+                onClick={() => navigate(`/fiscal/saida?status_sefaz=cancelada_sefaz`)}
+                ariaLabel="Ver NF-e canceladas"
               />
               <SummaryCard
                 title="Pendentes / rascunho"
@@ -164,6 +193,8 @@ export default function FiscalDashboard() {
                 variant="info"
                 icon={TrendingUp}
                 density="compact"
+                onClick={() => navigate(`/fiscal/saida?status=rascunho,pendente`)}
+                ariaLabel="Ver NF-e pendentes"
               />
             </div>
           </section>
@@ -181,6 +212,8 @@ export default function FiscalDashboard() {
                 variant="info"
                 icon={Inbox}
                 density="compact"
+                onClick={() => navigate(`/fiscal/entrada`)}
+                ariaLabel="Ver NF-e de entrada"
               />
               <SummaryCard
                 title="Sem manifestação"
@@ -188,6 +221,8 @@ export default function FiscalDashboard() {
                 variant={data.entrada.semManifestacao > 0 ? "warning" : "default"}
                 icon={AlertTriangle}
                 density="compact"
+                onClick={() => navigate(`/fiscal/distdfe-historico`)}
+                ariaLabel="Ver histórico DistDF-e sem manifestação"
               />
               <SummaryCard
                 title="Ciência / Confirmadas"
@@ -195,6 +230,8 @@ export default function FiscalDashboard() {
                 variant="success"
                 icon={ShieldCheck}
                 density="compact"
+                onClick={() => navigate(`/fiscal/entrada`)}
+                ariaLabel="Ver NF-e com ciência"
               />
               <SummaryCard
                 title="Desconhecidas / Não realizadas"
