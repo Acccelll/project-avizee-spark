@@ -37,6 +37,10 @@ import { financialPeriods, type Period } from "@/components/filters/periodTypes"
 import { periodToFinancialRange } from "@/lib/periodFilter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFluxoCaixaData } from "@/hooks/useFluxoCaixaData";
+import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -49,6 +53,8 @@ interface LancamentoForm {
   forma_pagamento: string;
   conta_bancaria_id: string;
   observacoes: string;
+  cliente_id?: string;
+  fornecedor_id?: string;
 }
 
 /**
@@ -88,11 +94,24 @@ const FluxoCaixa = () => {
   const isMobile = useIsMobile();
   const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
   const qc = useQueryClient();
+  // GlobalPeriod (header) — usado apenas como default inicial quando a URL não traz datas.
+  const globalPeriod = (() => {
+    try { return useGlobalPeriod(); } catch { return null; }
+  })();
 
-  const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
-  const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
+  const defaultDataInicio = () => {
+    if (globalPeriod?.range?.dateFrom) return globalPeriod.range.dateFrom;
+    const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+  };
+  const defaultDataFim = () => {
+    if (globalPeriod?.range?.dateTo) return globalPeriod.range.dateTo;
+    const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0];
+  };
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
+  // Cadastros para campos cliente/fornecedor do lançamento manual
+  const clientesCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "clientes" });
+  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "fornecedores" });
   const [filterBanco, setFilterBanco] = useState(searchParams.get("banco") ?? "todos");
   const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
@@ -245,6 +264,10 @@ const FluxoCaixa = () => {
   }, [grouped]);
 
   const hasNegativeRisk = chartData.some(d => d.previsto < 0);
+  const diaCritico = useMemo(() => {
+    const found = chartData.find(d => d.previsto < 0);
+    return found?.name ?? null;
+  }, [chartData]);
 
   // ─── Movements DataTable ──────────────────────────────────────────────────
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
@@ -363,6 +386,8 @@ const FluxoCaixa = () => {
         forma_pagamento: form.forma_pagamento || null,
         conta_bancaria_id: form.conta_bancaria_id || null,
         observacoes: form.observacoes || null,
+        cliente_id: form.tipo === "receber" ? (form.cliente_id || null) : null,
+        fornecedor_id: form.tipo === "pagar" ? (form.fornecedor_id || null) : null,
       });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
