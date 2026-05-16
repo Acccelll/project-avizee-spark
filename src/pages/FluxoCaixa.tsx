@@ -847,14 +847,42 @@ const FluxoCaixa = () => {
               maxLength={200}
             />
           </div>
+          {form.tipo === "receber" && (
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <AutocompleteSearch
+                options={clientesCrud.data.map((c) => ({
+                  id: c.id,
+                  label: c.nome_razao_social,
+                  sublabel: c.cpf_cnpj ?? undefined,
+                }))}
+                value={form.cliente_id ?? ""}
+                onChange={(v) => setForm({ ...form, cliente_id: v })}
+                placeholder="Buscar cliente por nome ou CNPJ..."
+              />
+            </div>
+          )}
+          {form.tipo === "pagar" && (
+            <div className="space-y-2">
+              <Label>Fornecedor</Label>
+              <AutocompleteSearch
+                options={fornecedoresCrud.data.map((f) => ({
+                  id: f.id,
+                  label: f.nome_razao_social,
+                  sublabel: f.cpf_cnpj ?? undefined,
+                }))}
+                value={form.fornecedor_id ?? ""}
+                onChange={(v) => setForm({ ...form, fornecedor_id: v })}
+                placeholder="Buscar fornecedor por nome ou CNPJ..."
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$) <span className="text-destructive">*</span></Label>
-              <Input
-                type="number" min="0.01" step="0.01"
-                value={form.valor || ""}
-                onChange={e => setForm({ ...form, valor: parseFloat(e.target.value) || 0 })}
-                placeholder="0,00"
+              <CurrencyInput
+                value={form.valor}
+                onChange={(v) => setForm({ ...form, valor: v })}
               />
             </div>
             <div className="space-y-2">
