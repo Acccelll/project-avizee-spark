@@ -719,7 +719,21 @@ export function DataTable<T extends Record<string, any>>({
       <MobileCardList<T>
         items={pagedData}
         fields={fields}
-        onItemClick={onRowClick ?? onView ?? onEdit}
+        onItemClick={
+          selectable && mobileSelectionMode
+            ? (item) => toggleSelect(item.id)
+            : (onRowClick ?? onView ?? onEdit)
+        }
+        onLongPress={
+          selectable
+            ? (item) => {
+                setMobileSelectionMode(true);
+                if (!selectedIds.includes(item.id)) {
+                  onSelectionChange?.([...selectedIds, item.id]);
+                }
+              }
+            : undefined
+        }
         actionsInline={mobileInlineActions}
         primaryAction={mobilePrimaryAction}
         hideIdentifier={mobileHideIdentifier}
