@@ -14,9 +14,20 @@ const FIELDS = [
   { label: "Outras Despesas", key: "outras_despesas" },
 ] as const;
 
+const FIELDS_BY_MODELO: Record<string, readonly string[]> = {
+  "55": ["frete_valor", "icms_valor", "ipi_valor", "pis_valor", "cofins_valor", "icms_st_valor", "desconto_valor", "outras_despesas"],
+  "65": ["icms_valor", "pis_valor", "cofins_valor", "desconto_valor", "outras_despesas"],
+  "57": ["frete_valor", "desconto_valor", "outras_despesas"],
+  "67": ["frete_valor", "desconto_valor", "outras_despesas"],
+  nfse: ["pis_valor", "cofins_valor", "desconto_valor", "outras_despesas"],
+  outro: ["frete_valor", "icms_valor", "ipi_valor", "pis_valor", "cofins_valor", "icms_st_valor", "desconto_valor", "outras_despesas"],
+};
+
 interface FiscalImpostosSectionProps {
   values: Record<string, string | number | boolean>;
   onChange: (key: string, value: number) => void;
+  /** Modelo do documento fiscal (55, 65, 57, 67, nfse, outro). Filtra os campos exibidos. */
+  modelo?: string;
 }
 
 /**
@@ -24,7 +35,9 @@ interface FiscalImpostosSectionProps {
  * Colapsável no mobile, sempre aberto no desktop.
  * Extraído de Fiscal.tsx (Fase 6) — preserva markup/estilos.
  */
-export function FiscalImpostosSection({ values, onChange }: FiscalImpostosSectionProps) {
+export function FiscalImpostosSection({ values, onChange, modelo = "55" }: FiscalImpostosSectionProps) {
+  const activeKeys = FIELDS_BY_MODELO[modelo] ?? FIELDS_BY_MODELO["55"];
+  const visibleFields = FIELDS.filter((f) => activeKeys.includes(f.key));
   return (
     <Collapsible defaultOpen={false} className="space-y-3 md:[&]:!block">
       <CollapsibleTrigger
@@ -40,7 +53,7 @@ export function FiscalImpostosSection({ values, onChange }: FiscalImpostosSectio
         className="md:!block data-[state=closed]:hidden md:data-[state=closed]:!block"
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {FIELDS.map(({ label, key }) => (
+          {visibleFields.map(({ label, key }) => (
             <div key={key} className="space-y-1">
               <Label className="text-xs">{label}</Label>
               <Input
