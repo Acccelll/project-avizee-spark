@@ -229,6 +229,7 @@ export default function Relatorios() {
 
   const handleSelectTipo = (next: TipoRelatorio) => {
     // 8.6.3 — Não limpar `hiddenColumns`: cada `tipo` tem suas próprias preferências persistidas.
+    registrarRecente(next);
     setSearchParams({ tipo: next });
   };
 
@@ -240,6 +241,7 @@ export default function Relatorios() {
     handleExportXlsx,
     PDF_ROW_LIMIT,
     isLikelyTruncated,
+    confirmDialogs,
   } = useRelatorioExport({
     tipo,
     resultado,
