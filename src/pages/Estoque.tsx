@@ -32,7 +32,7 @@ import type { TableRow } from "@/types/domain";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
-  ArrowRight, History,
+  ArrowRight, History, Eye,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -646,7 +646,7 @@ const Estoque = () => {
                   }}
                   aria-label="Ver posição e histórico do produto"
                 >
-                  <Info className="h-4 w-4" />
+                  <Eye className="h-4 w-4" />
                 </Button>
               )}
               rowAccent={(p) => {
