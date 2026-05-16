@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Montserrat (self-hosted) — usado no template "Marca AviZee" do PDF de
+ * orçamento. Self-host garante que html2canvas renderize a fonte de forma
+ * confiável (sem depender do Google Fonts em tempo de captura). */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-Medium.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-SemiBold.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-ExtraBold.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/montserrat/Montserrat-Black.otf') format('opentype');
+}
+
 @layer base {
   :root {
     --base-font-size: 16px;
