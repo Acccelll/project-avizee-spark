@@ -31,6 +31,12 @@ interface UseSectionConfigResult<T> {
    * `_updatedAt` (ISO now) e `_updatedByName` (nome amigável do usuário).
    */
   save: (next: T) => void;
+  /**
+   * Helper: dado o `draft` atual da seção, retorna true se diverge dos
+   * valores persistidos (`values`). Comparação por serialização — barato
+   * o suficiente para as JSONs pequenas das seções administrativas.
+   */
+  computeIsDirty: (draft: T) => boolean;
 }
 
 const META_KEYS = ["_updatedAt", "_updatedBy", "_updatedByName"] as const;
@@ -80,5 +86,7 @@ export function useSectionConfig<T extends Record<string, unknown>>(
     });
   };
 
-  return { values, lastSaved, isLoading, isSaving, save };
+  const computeIsDirty = (draft: T) => JSON.stringify(draft) !== JSON.stringify(values);
+
+  return { values, lastSaved, isLoading, isSaving, save, computeIsDirty };
 }

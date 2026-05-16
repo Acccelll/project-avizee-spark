@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
+import { useReportDirty } from "@/contexts/AdminDirtyContext";
 import { EmBreve } from "@/components/EmBreve";
+import { toast } from "sonner";
 
 const DEFAULTS = {
   frequencia: "diario",
@@ -26,10 +28,20 @@ const DEFAULTS = {
 };
 
 export function BackupSection() {
-  const { values, lastSaved, save, isSaving } = useSectionConfig("backup", DEFAULTS);
+  const { values, lastSaved, save, isSaving, computeIsDirty } = useSectionConfig("backup", DEFAULTS);
   const [draft, setDraft] = useState(values);
 
   useEffect(() => setDraft(values), [values]);
+
+  useReportDirty(computeIsDirty(draft));
+
+  const handleSave = () => {
+    save(draft);
+    toast.warning(
+      "Política de backup salva. Execução automática (cron) ainda não está ativa — continue realizando backup manual.",
+      { duration: 6000 },
+    );
+  };
 
   const update = <K extends keyof typeof DEFAULTS>(key: K, value: (typeof DEFAULTS)[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -41,7 +53,7 @@ export function BackupSection() {
       saveCta="Salvar política de backup"
       lastSavedAt={lastSaved.at}
       isSaving={isSaving}
-      onSave={() => save(draft)}
+      onSave={handleSave}
     >
       <div className="space-y-6">
         <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning">

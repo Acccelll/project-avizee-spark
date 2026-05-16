@@ -10,7 +10,7 @@
  * a `?tab=` interna nem disparam render-time side-effects.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Activity, Building, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
@@ -37,6 +37,8 @@ import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection"
 import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
 import { EmpresasSection } from "@/pages/admin/sections/EmpresasSection";
 import { RequireStrictAdmin } from "@/components/admin/RequireStrictAdmin";
+import { AdminDirtyProvider, useAdminDirty } from "@/contexts/AdminDirtyContext";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
@@ -103,11 +105,21 @@ const EXTERNAL_ROUTES: Record<string, string> = {
 };
 
 export default function Administracao() {
+  return (
+    <AdminDirtyProvider>
+      <AdministracaoInner />
+    </AdminDirtyProvider>
+  );
+}
+
+function AdministracaoInner() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab") || "empresa";
   const activeSection = VALID_SECTION_KEYS.has(rawTab) ? rawTab : "empresa";
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { isDirty, setIsDirty } = useAdminDirty();
+  const [pendingTarget, setPendingTarget] = useState<{ key: string; external?: boolean } | null>(null);
 
   // Encontra o item ativo para exibir título no header sticky mobile.
   const activeItem = useMemo(() => {
@@ -125,19 +137,33 @@ export default function Administracao() {
     }
   }, [rawTab, navigate]);
 
-  const handleSectionChange = (key: string) => {
-    if (key in EXTERNAL_ROUTES) {
-      navigate(EXTERNAL_ROUTES[key]);
-      return;
-    }
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set("tab", key);
-      return next;
-    });
-    // Em mobile, fecha o Sheet após selecionar.
-    setMobileNavOpen(false);
-  };
+  const commitSectionChange = useCallback(
+    (key: string) => {
+      if (key in EXTERNAL_ROUTES) {
+        navigate(EXTERNAL_ROUTES[key]);
+        return;
+      }
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set("tab", key);
+        return next;
+      });
+      setMobileNavOpen(false);
+    },
+    [navigate, setSearchParams],
+  );
+
+  const handleSectionChange = useCallback(
+    (key: string) => {
+      if (key === activeSection) return;
+      if (isDirty) {
+        setPendingTarget({ key, external: key in EXTERNAL_ROUTES });
+        return;
+      }
+      commitSectionChange(key);
+    },
+    [activeSection, isDirty, commitSectionChange],
+  );
 
   return (
     <ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
@@ -184,6 +210,21 @@ export default function Administracao() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={!!pendingTarget}
+        onClose={() => setPendingTarget(null)}
+        onConfirm={() => {
+          if (!pendingTarget) return;
+          setIsDirty(false);
+          commitSectionChange(pendingTarget.key);
+          setPendingTarget(null);
+        }}
+        title="Alterações não salvas"
+        description="Você modificou esta seção. Se sair agora as alterações serão descartadas."
+        confirmLabel="Descartar e sair"
+        confirmVariant="destructive"
+      />
     </ModulePage>
   );
 }

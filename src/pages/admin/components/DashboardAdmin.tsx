@@ -14,7 +14,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowRight, History, ShieldAlert, UserMinus, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ async function fetchEventosAdmin24h(): Promise<number> {
 }
 
 export function DashboardAdmin() {
+  const navigate = useNavigate();
   const sessoes = useSessoesMetricas();
   const timeline = useEventosAdminTimeline();
 
@@ -157,10 +158,13 @@ export function DashboardAdmin() {
                 const heightPct = (b.total / maxBucket) * 100;
                 return (
                   <div key={b.dia} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      className="w-full rounded-sm bg-primary/70 transition-all"
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/auditoria?periodo=7d&data=${b.dia}`)}
+                      className="w-full rounded-sm bg-primary/70 hover:bg-primary transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       style={{ height: `${Math.max(heightPct, 4)}%` }}
-                      title={`${b.dia}: ${b.total} eventos`}
+                      title={`${b.dia}: ${b.total} eventos — clique para abrir auditoria`}
+                      aria-label={`Ver ${b.total} eventos de ${b.dia}`}
                     />
                     <span className="text-[10px] text-muted-foreground">
                       {b.dia.slice(8, 10)}/{b.dia.slice(5, 7)}

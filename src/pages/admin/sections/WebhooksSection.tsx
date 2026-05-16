@@ -24,12 +24,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   useWebhookDeliveries, useWebhookEndpoints, useWebhookMetrics, useWebhookMutations,
 } from "@/pages/admin/hooks/useWebhooks";
@@ -62,8 +59,19 @@ export function WebhooksSection() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<WebhookEndpoint | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<WebhookEndpoint | null>(null);
   const [secretReveal, setSecretReveal] = useState<{ secret: string; nome: string } | null>(null);
+  const { confirm: confirmDelete, dialog: deleteDialog } = useConfirmDialog();
+
+  const handleDelete = async (ep: WebhookEndpoint) => {
+    const ok = await confirmDelete({
+      title: `Remover webhook "${ep.nome}"?`,
+      description:
+        "Todos os eventos futuros para este endpoint serão cancelados. O histórico de entregas é preservado para auditoria.",
+      confirmLabel: "Remover webhook",
+      confirmVariant: "destructive",
+    });
+    if (ok) m.remove.mutate(ep.id);
+  };
 
   return (
     <SectionShell
@@ -160,7 +168,7 @@ export function WebhooksSection() {
                           <Button
                             variant="ghost" size="icon" className="h-8 w-8 text-destructive"
                             title="Remover"
-                            onClick={() => setConfirmDelete(ep)}
+                            onClick={() => handleDelete(ep)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -271,27 +279,7 @@ export function WebhooksSection() {
 
       <SecretRevealDialog reveal={secretReveal} onClose={() => setSecretReveal(null)} />
 
-      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover webhook?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O endpoint <strong>{confirmDelete?.nome}</strong> deixará de receber eventos imediatamente.
-              O histórico de entregas também será removido.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (confirmDelete) m.remove.mutate(confirmDelete.id);
-                setConfirmDelete(null);
-              }}
-            >Remover</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteDialog}
     </SectionShell>
   );
 }
