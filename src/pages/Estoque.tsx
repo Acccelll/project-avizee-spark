@@ -634,6 +634,21 @@ const Estoque = () => {
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
               mobileStatusKey="situacao"
               mobileIdentifierKey="estoque_atual"
+              mobileInlineActions={(p: ProdutoPosicao) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPosicao(p);
+                    setPosicaoDrawerOpen(true);
+                  }}
+                  aria-label="Ver posição e histórico do produto"
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+              )}
               rowAccent={(p) => {
                 const sit = getSituacao(p as ProdutoPosicao);
                 if (sit === 'zerado') return 'destructive';
@@ -981,7 +996,7 @@ const Estoque = () => {
                 </form>
 
                 {/* Coluna direita: histórico recente */}
-                <aside className="lg:col-span-1">
+                <aside className="lg:col-span-1 hidden lg:block">
                   <Card className="lg:sticky lg:top-4">
                     <CardContent className="pt-5 space-y-3">
                       <div className="flex items-center gap-2 mb-1">
