@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -61,6 +62,7 @@ function todayIso() {
 }
 
 export default function FiscalDashboard() {
+  const isMobile = useIsMobile();
   // Item 8 — inicializa do GlobalPeriod quando compatível.
   const globalPeriod = (() => {
     try { return useGlobalPeriod(); } catch { return null; }
@@ -136,6 +138,7 @@ export default function FiscalDashboard() {
             size="sm"
             onClick={() => void handleExportPdf()}
             disabled={!data || exporting || isLoading}
+            className="hidden md:inline-flex"
           >
             <FileDown className={`h-4 w-4 mr-2 ${exporting ? "animate-pulse" : ""}`} />
             {exporting ? "Gerando…" : "Exportar PDF"}
@@ -263,7 +266,7 @@ export default function FiscalDashboard() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Movimento diário no período</CardTitle>
               </CardHeader>
-              <CardContent className="h-72">
+              <CardContent className="h-48 md:h-72">
                 {data.serieDiaria.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                     Sem movimento no período selecionado.
@@ -272,9 +275,10 @@ export default function FiscalDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={data.serieDiaria}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <XAxis dataKey="dia" tick={{ fontSize: 11 }} interval={isMobile ? 5 : "preserveStartEnd"} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={isMobile ? 28 : 40} />
                       <Tooltip
+                        trigger={isMobile ? "click" : "hover"}
                         contentStyle={{ borderRadius: 6, fontSize: 12 }}
                         labelFormatter={(l) => `Dia ${l}`}
                       />
