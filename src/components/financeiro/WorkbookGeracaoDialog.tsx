@@ -53,14 +53,30 @@ export function WorkbookGeracaoDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => { if (!isGenerating) onOpenChange(o); }}>
+      <DialogContent
+        className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => { if (isGenerating) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (isGenerating) e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle>Gerar Workbook Gerencial</DialogTitle>
           <DialogDescription>
             Configure os parâmetros e clique em Gerar para criar o arquivo Excel gerencial.
           </DialogDescription>
         </DialogHeader>
+        {isGenerating && (
+          <div className="rounded-md border border-info/40 bg-info/10 p-3 text-sm flex items-start gap-2">
+            <Loader2 className="h-4 w-4 mt-0.5 animate-spin flex-shrink-0" />
+            <div className="space-y-0.5">
+              <p className="font-semibold">Gerando Workbook Gerencial…</p>
+              <p className="text-xs text-muted-foreground">
+                Compilando dados de múltiplas abas e períodos. Este processo pode levar até 1 minuto.
+                Não feche esta janela.
+              </p>
+            </div>
+          </div>
+        )}
         <WorkbookParametrosCard
           competenciaInicial={competenciaInicial}
           competenciaFinal={competenciaFinal}
