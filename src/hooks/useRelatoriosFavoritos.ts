@@ -29,6 +29,7 @@ import {
 } from "@/services/relatoriosFavoritos.service";
 
 const STORAGE_KEY = "relatorios_favoritos_v1";
+const MAX_FAVORITOS = 20;
 
 export interface RelatorioFavorito {
   id: string;
@@ -151,6 +152,13 @@ export function useRelatoriosFavoritos() {
       if (!nomeClean) return null;
       if (!searchParams.get("tipo")) return null;
 
+      if (favoritos.length >= MAX_FAVORITOS) {
+        toast.warning(
+          `Limite de ${MAX_FAVORITOS} configurações salvas atingido. Remova uma antes de salvar.`,
+        );
+        return null;
+      }
+
       // Reject duplicate names locally (server enforces it via unique index too)
       if (favoritos.some((f) => f.nome.toLowerCase() === nomeClean.toLowerCase())) {
         toast.warning(`Já existe um favorito com o nome "${nomeClean}".`);
@@ -231,5 +239,6 @@ export function useRelatoriosFavoritos() {
     [userId],
   );
 
-  return { favoritos, salvar, remover, renomear };
+  const isNearLimit = favoritos.length >= MAX_FAVORITOS - 3;
+  return { favoritos, salvar, remover, renomear, isNearLimit, maxFavoritos: MAX_FAVORITOS };
 }
