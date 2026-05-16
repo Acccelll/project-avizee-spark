@@ -27,3 +27,6 @@ type: design
 ## Banner mobile e KPIs
 - "Vence Hoje" em mobile aparece como banner tappable acima dos KPIs (`md:hidden`, `min-h-11`, variant warning) — ao tocar, aplica `statusFilters=["aberto"]` + `period="hoje"`. O card duplicado dentro do grid é ocultado via `className="hidden md:flex"`.
 - `BaixaLoteModal` exibe empty state quando aberto sem seleção (atalho Dashboard `?baixa=lote`) com instrução para selecionar títulos primeiro.
+
+## Seleção em lote mobile (DataTable)
+- DataTable com `selectable` ativa "modo de seleção" em mobile via long-press (500ms, vibração 40ms) no card. Tap subsequente toggleia a seleção em vez de abrir a linha; modo sai automaticamente quando `selectedIds.length === 0`. Checkbox segue visível no canto do card durante o modo.
