@@ -494,16 +494,39 @@ export function NotaFiscalEditModal({
                     acesso eletrônica
                   </p>
                 )
-              ) : (
-                <Input
-                  value={form.chave_acesso}
-                  onChange={(e) =>
-                    setForm({ ...form, chave_acesso: e.target.value })
-                  }
-                  className="font-mono text-xs"
-                  placeholder="Chave de acesso de 44 dígitos..."
-                />
-              )}
+              ) : (() => {
+                const digits = String(form.chave_acesso || "").replace(/\D/g, "");
+                const invalid = digits.length > 0 && digits.length !== 44;
+                return (
+                  <>
+                    <div className="flex items-center justify-end -mt-5 mb-1.5">
+                      {digits.length > 0 && (
+                        <span className={cn("text-[11px] font-mono", digits.length === 44 ? "text-success" : "text-destructive")}>
+                          {digits.length}/44 {digits.length === 44 ? "✓" : "✗"}
+                        </span>
+                      )}
+                    </div>
+                    <Input
+                      value={digits}
+                      onChange={(e) => {
+                        const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 44);
+                        setForm({ ...form, chave_acesso: onlyDigits });
+                      }}
+                      inputMode="numeric"
+                      maxLength={44}
+                      className={cn("font-mono text-xs", invalid && "border-destructive focus-visible:ring-destructive")}
+                      placeholder="44 dígitos numéricos"
+                    />
+                    {invalid && (
+                      <p className="text-[11px] text-destructive mt-1">
+                        {44 - digits.length > 0
+                          ? `Faltam ${44 - digits.length} dígitos`
+                          : `Excede o limite em ${digits.length - 44} dígitos`}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
