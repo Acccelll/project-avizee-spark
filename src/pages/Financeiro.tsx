@@ -539,6 +539,26 @@ const Financeiro = () => {
         </AdvancedFilterBar>
         </div>
 
+        {/* Mobile: toggle Lista/Calendário inline (duplica o do header, mais visível) */}
+        <div className="md:hidden flex gap-1 mb-3">
+          <Button
+            size="sm"
+            variant={viewMode === "lista" ? "default" : "outline"}
+            className="flex-1 h-9 gap-1.5 text-xs"
+            onClick={() => setViewMode("lista")}
+          >
+            <List className="h-3.5 w-3.5" /> Lista
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === "calendario" ? "default" : "outline"}
+            className="flex-1 h-9 gap-1.5 text-xs"
+            onClick={() => setViewMode("calendario")}
+          >
+            <CalendarDays className="h-3.5 w-3.5" /> Calendário
+          </Button>
+        </div>
+
         {viewMode === "calendario" ? (
           <FinanceiroCalendar
             data={data}
