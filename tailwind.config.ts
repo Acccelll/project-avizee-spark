@@ -18,8 +18,8 @@ export default {
         "xs": "480px",
       },
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
-        sans: ['Inter', 'sans-serif'],
+        inter: ['Montserrat', 'Inter', 'sans-serif'],
+        sans: ['Montserrat', 'Inter', 'sans-serif'],
         mono: ['Roboto Mono', 'monospace'],
       },
       colors: {

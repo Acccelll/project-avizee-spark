@@ -170,7 +170,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
     line-height: 1.6;
     font-size: var(--base-font-size);
   }
