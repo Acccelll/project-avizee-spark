@@ -95,9 +95,7 @@ const FluxoCaixa = () => {
   const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
   const qc = useQueryClient();
   // GlobalPeriod (header) — usado apenas como default inicial quando a URL não traz datas.
-  const globalPeriod = (() => {
-    try { return useGlobalPeriod(); } catch { return null; }
-  })();
+  const globalPeriod = useGlobalPeriod();
 
   const defaultDataInicio = () => {
     if (globalPeriod?.range?.dateFrom) return globalPeriod.range.dateFrom;
