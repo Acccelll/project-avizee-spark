@@ -19,6 +19,9 @@ import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   form: LancamentoForm;
@@ -70,8 +73,14 @@ export function FinanceiroLancamentoForm({
 
   const isCartaoCredito = form.forma_pagamento === "cartao_credito";
   const dataPagamentoEditable = form.status === "pago" || form.status === "parcial";
+  const showDataPagamento = mode === "edit" || dataPagamentoEditable;
   const showBoleto = form.tipo === "pagar" && FORMAS_COM_BOLETO.has(form.forma_pagamento);
   const showContaBancaria = !isCartaoCredito;
+  const isMobile = useIsMobile();
+  const [pagamentoOpen, setPagamentoOpen] = useState(false);
+  const [avancadoOpen, setAvancadoOpen] = useState(false);
+  const showPagamento = !isMobile || pagamentoOpen;
+  const showAvancado = !isMobile || avancadoOpen;
 
   const handleSubmit = (e: FormEvent) => {
     if (isCartaoCredito && !form.cartao_id) {
@@ -105,66 +114,12 @@ export function FinanceiroLancamentoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── Grupo 1: Essencial (sempre visível) ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="space-y-2"><Label>Tipo</Label>
           <Select value={form.tipo} onValueChange={(v) => updateField("tipo", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="receber">A Receber</SelectItem><SelectItem value="pagar">A Pagar</SelectItem></SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Status</Label>
-          {isStatusReadonly ? (
-            <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/30">
-              <Badge variant={STATUS_BADGE_VARIANTS[form.status] ?? "outline"}>
-                {getStatusLabel(statusFinanceiro, form.status)}
-              </Badge>
-              <span className="text-xs text-muted-foreground">(somente leitura)</span>
-            </div>
-          ) : (
-            <Select value={selectStatusValue} onValueChange={(v) => updateField("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="aberto">Aberto</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          <p className="text-[11px] text-muted-foreground mt-1">
-            <strong>Pago/Parcial</strong> são definidos automaticamente pelas baixas. Para liquidar, use <strong>Registrar Baixa</strong>.
-          </p>
-          {form.status === "vencido" && (
-            <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
-          )}
-          {showCancelMotivo && (
-            <div className="space-y-1 mt-2">
-              <Label className="text-xs flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-warning" /> Motivo do cancelamento *
-              </Label>
-              <Textarea
-                value={cancelMotivo}
-                onChange={(e) => setCancelMotivo(e.target.value)}
-                placeholder="Descreva o motivo do cancelamento (mínimo 10 caracteres)..."
-                rows={2}
-                className="text-xs border-warning/40 focus:border-warning"
-              />
-              {cancelMotivo.trim().length > 0 && cancelMotivo.trim().length < 10 && (
-                <p className="text-[11px] text-warning">
-                  {10 - cancelMotivo.trim().length} caractere(s) ainda necessário(s)
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="space-y-2"><Label>Forma de Pagamento</Label>
-          <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => updateField("forma_pagamento", v === "nenhum" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nenhum">Selecione...</SelectItem>
-              {FORMA_PAGAMENTO_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
           </Select>
         </div>
         <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => updateField("descricao", e.target.value)} required /></div>
@@ -177,18 +132,72 @@ export function FinanceiroLancamentoForm({
           />
         </div>
         <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
-        <div className="space-y-2">
-          <Label>Data Pagamento</Label>
-          <Input
-            type="date"
-            value={form.data_pagamento}
-            onChange={(e) => updateField("data_pagamento", e.target.value)}
-            disabled={!dataPagamentoEditable}
-            placeholder="Preenchida na baixa"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Preenchida automaticamente ao registrar baixa.
-          </p>
+        {form.tipo === "receber" && (
+          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Cliente</Label>
+            <AutocompleteSearch
+              options={clientes.map((c) => ({
+                id: c.id,
+                label: c.nome_razao_social,
+                sublabel: c.cpf_cnpj ?? undefined,
+              }))}
+              value={form.cliente_id ?? ""}
+              onChange={(v) => updateField("cliente_id", v)}
+              placeholder="Buscar cliente por nome ou CNPJ..."
+            />
+          </div>
+        )}
+        {form.tipo === "pagar" && (
+          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Fornecedor</Label>
+            <AutocompleteSearch
+              options={fornecedores.map((f) => ({
+                id: f.id,
+                label: f.nome_razao_social,
+                sublabel: f.cpf_cnpj ?? undefined,
+              }))}
+              value={form.fornecedor_id ?? ""}
+              onChange={(v) => updateField("fornecedor_id", v)}
+              placeholder="Buscar fornecedor por nome ou CNPJ..."
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Grupo 2: Pagamento (colapsável no mobile) ── */}
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => setPagamentoOpen((v) => !v)}
+          className="w-full min-h-11 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-muted/30 text-left text-sm font-medium"
+          aria-expanded={pagamentoOpen}
+        >
+          <span className="flex items-center gap-2">
+            <ChevronDown className={cn("h-4 w-4 transition-transform", pagamentoOpen && "rotate-180")} />
+            Pagamento
+          </span>
+          {!pagamentoOpen && (
+            <span className="text-xs text-muted-foreground truncate max-w-[55%]">
+              {[
+                FORMA_PAGAMENTO_OPTIONS.find((o) => o.value === form.forma_pagamento)?.label,
+                contasBancarias.find((c) => c.id === form.conta_bancaria_id)?.descricao,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "conta, forma..."}
+            </span>
+          )}
+        </button>
+      )}
+      {showPagamento && (
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="space-y-2"><Label>Forma de Pagamento</Label>
+          <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => updateField("forma_pagamento", v === "nenhum" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nenhum">Selecione...</SelectItem>
+              {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {showContaBancaria && (
           <div className="space-y-2"><Label>Conta Bancária</Label>
@@ -244,37 +253,88 @@ export function FinanceiroLancamentoForm({
             )}
           </div>
         )}
-        {form.tipo === "receber" && (
-          <div className="space-y-2"><Label>Cliente</Label>
-            <AutocompleteSearch
-              options={clientes.map((c) => ({
-                id: c.id,
-                label: c.nome_razao_social,
-                sublabel: c.cpf_cnpj ?? undefined,
-              }))}
-              value={form.cliente_id ?? ""}
-              onChange={(v) => updateField("cliente_id", v)}
-              placeholder="Buscar cliente por nome ou CNPJ..."
+        {showDataPagamento && (
+          <div className="space-y-2">
+            <Label>Data Pagamento</Label>
+            <Input
+              type="date"
+              value={form.data_pagamento}
+              onChange={(e) => updateField("data_pagamento", e.target.value)}
+              disabled={!dataPagamentoEditable}
+              placeholder="Preenchida na baixa"
             />
-          </div>
-        )}
-        {form.tipo === "pagar" && (
-          <div className="space-y-2"><Label>Fornecedor</Label>
-            <AutocompleteSearch
-              options={fornecedores.map((f) => ({
-                id: f.id,
-                label: f.nome_razao_social,
-                sublabel: f.cpf_cnpj ?? undefined,
-              }))}
-              value={form.fornecedor_id ?? ""}
-              onChange={(v) => updateField("fornecedor_id", v)}
-              placeholder="Buscar fornecedor por nome ou CNPJ..."
-            />
+            <p className="text-[11px] text-muted-foreground">
+              Preenchida automaticamente ao registrar baixa.
+            </p>
           </div>
         )}
       </div>
+      )}
 
-      {contasContabeis.length > 0 && (
+      {/* ── Grupo 3: Avançado (colapsável no mobile) ── */}
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => setAvancadoOpen((v) => !v)}
+          className="w-full min-h-11 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-muted/30 text-left text-sm font-medium"
+          aria-expanded={avancadoOpen}
+        >
+          <span className="flex items-center gap-2">
+            <ChevronDown className={cn("h-4 w-4 transition-transform", avancadoOpen && "rotate-180")} />
+            Avançado
+          </span>
+          {!avancadoOpen && (
+            <span className="text-xs text-muted-foreground">status, conta contábil, parcelas...</span>
+          )}
+        </button>
+      )}
+      {showAvancado && (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>Status</Label>
+          {isStatusReadonly ? (
+            <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/30">
+              <Badge variant={STATUS_BADGE_VARIANTS[form.status] ?? "outline"}>
+                {getStatusLabel(statusFinanceiro, form.status)}
+              </Badge>
+              <span className="text-xs text-muted-foreground">(somente leitura)</span>
+            </div>
+          ) : (
+            <Select value={selectStatusValue} onValueChange={(v) => updateField("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aberto">Aberto</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            <strong>Pago/Parcial</strong> são definidos automaticamente pelas baixas. Para liquidar, use <strong>Registrar Baixa</strong>.
+          </p>
+          {form.status === "vencido" && (
+            <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
+          )}
+          {showCancelMotivo && (
+            <div className="space-y-1 mt-2">
+              <Label className="text-xs flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-warning" /> Motivo do cancelamento *
+              </Label>
+              <Textarea
+                value={cancelMotivo}
+                onChange={(e) => setCancelMotivo(e.target.value)}
+                placeholder="Descreva o motivo do cancelamento (mínimo 10 caracteres)..."
+                rows={2}
+                className="text-xs border-warning/40 focus:border-warning"
+              />
+              {cancelMotivo.trim().length > 0 && cancelMotivo.trim().length < 10 && (
+                <p className="text-[11px] text-warning">
+                  {10 - cancelMotivo.trim().length} caractere(s) ainda necessário(s)
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        {contasContabeis.length > 0 && (
         <div className="space-y-2">
           <Label>Conta Contábil (opcional)</Label>
           <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => updateField("conta_contabil_id", v === "none" ? "" : v)}>
@@ -285,9 +345,9 @@ export function FinanceiroLancamentoForm({
             </SelectContent>
           </Select>
         </div>
-      )}
+        )}
 
-      {mode === "create" && (
+        {mode === "create" && (
         <div className="space-y-3 rounded-lg border p-4">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
             <input type="checkbox" checked={form.gerar_parcelas} onChange={(e) => updateField("gerar_parcelas", e.target.checked)} className="rounded" />
@@ -308,9 +368,12 @@ export function FinanceiroLancamentoForm({
             </div>
           )}
         </div>
+        )}
+
+        <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
+      </div>
       )}
 
-      <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
       <div className="flex justify-between items-center gap-2">
         {showBoleto ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => setBoletoOpen(true)}>
