@@ -1526,6 +1526,15 @@ const Fiscal = () => {
             const canDevolucao = n.tipo === "saida" && (n.tipo_operacao || "normal") === "normal" && ["confirmada", "autorizada", "importada"].includes(n.status);
             return (
               <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="min-h-11 min-w-11 px-3"
+                  onClick={(e) => { e.stopPropagation(); openView(n); }}
+                  aria-label={`Ver detalhes da NF ${n.numero}`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 {editable && (
                   <Button
                     size="sm"
