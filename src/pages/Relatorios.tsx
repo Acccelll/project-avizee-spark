@@ -27,6 +27,8 @@ import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensit
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
 import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
+import { useRelatorioLayout } from '@/pages/relatorios/hooks/useRelatorioLayout';
+import { useRelatorioRecentes } from '@/pages/relatorios/hooks/useRelatorioRecentes';
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Hash } from 'lucide-react';
