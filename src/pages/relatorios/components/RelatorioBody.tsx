@@ -74,7 +74,6 @@ export function RelatorioBody(props: RelatorioBodyProps) {
   const isSideBySide = !isMobile && layout === 'side-by-side' && !!resultado?.chartData?.length && !isDreReport;
   // Item 11 — relatórios grandes ganham Collapsible também no desktop.
   const isLargeReport = !isMobile && sortedRows.length > 100;
-  const gridClass = isSideBySide ? 'grid gap-6 xl:grid-cols-[2fr_1fr]' : 'grid gap-6';
 
   // Tabela desktop (com possível Collapsible para grandes relatórios).
   const desktopTable = (
