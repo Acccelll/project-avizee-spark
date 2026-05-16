@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ContaBancaria {
   id: string;
@@ -53,6 +54,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
   const [overrides, setOverrides] = useState<Record<string, BaixaItemOverride>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftOverride, setDraftOverride] = useState<BaixaItemOverride>({});
+  const isMobile = useIsMobile();
 
   const totalBaixa = useMemo(() => {
     return selectedLancamentos.reduce((s, l) => s + Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0), 0);
@@ -149,6 +151,155 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
         ) : (
         <>
         <div className="space-y-4">
+          {isMobile && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data de Baixa *</Label>
+                <Input type="date" value={baixaDate} onChange={(e) => setBaixaDate(e.target.value)} required className="h-11" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo de Baixa</Label>
+                <Select value={tipoBaixa} onValueChange={(v) => setTipoBaixa(v as "total" | "parcial")}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Total</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Forma de Pagamento *</Label>
+                <Select value={formaPagamento || "none"} onValueChange={(v) => setFormaPagamento(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione...</SelectItem>
+                    {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Conta Bancária *</Label>
+                <Select value={contaBancaria || "none"} onValueChange={(v) => setContaBancaria(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione...</SelectItem>
+                    {contasBancarias.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.bancos?.nome} - {c.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          {isMobile ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {selectedLancamentos.length} título{selectedLancamentos.length !== 1 ? "s" : ""} selecionado{selectedLancamentos.length !== 1 ? "s" : ""}
+              </p>
+              {selectedLancamentos.map((l) => {
+                const ovr = overrides[l.id];
+                const hasOverride = !!ovr;
+                const isEditing = editingId === l.id;
+                const saldoBase = Number(l.saldo_restante ?? l.valor ?? 0);
+                const displayValue = hasOverride && ovr.valor_pago != null ? ovr.valor_pago : saldoBase;
+                const parceiro = l.tipo === "receber"
+                  ? l.clientes?.nome_razao_social
+                  : l.fornecedores?.nome_razao_social;
+                return (
+                  <div
+                    key={l.id}
+                    className={cn(
+                      "rounded-lg border bg-card p-3 space-y-2",
+                      isEditing && "ring-2 ring-primary/40",
+                      editingId !== null && editingId !== l.id && "opacity-60",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{parceiro ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{l.descricao}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Venc: {new Date(l.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {hasOverride && !isEditing ? (
+                          <>
+                            <p className="text-[11px] line-through text-muted-foreground/70 font-mono">
+                              {formatCurrency(saldoBase)}
+                            </p>
+                            <p className="text-sm font-bold font-mono text-primary">{formatCurrency(displayValue)}</p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-bold font-mono">{formatCurrency(displayValue)}</p>
+                        )}
+                      </div>
+                    </div>
+                    {!isEditing && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-10 text-xs"
+                        onClick={() => {
+                          if (editingId !== null && editingId !== l.id) {
+                            toast.warning("Confirme ou descarte a edição atual antes de editar outro item.");
+                            return;
+                          }
+                          startEdit(l);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3 mr-1.5" />
+                        {hasOverride ? "Editar valor" : "Ajustar valor"}
+                      </Button>
+                    )}
+                    {isEditing && (
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase">Valor para este item</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            inputMode="decimal"
+                            className="h-11 font-mono"
+                            value={draftOverride.valor_pago ?? 0}
+                            onChange={(e) => setDraftOverride(d => ({ ...d, valor_pago: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" className="flex-1 h-10" onClick={() => saveEdit(l.id)}>
+                            <Check className="h-3.5 w-3.5 mr-1.5" /> Confirmar
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" className="flex-1 h-10" onClick={cancelEdit}>
+                            <X className="h-3.5 w-3.5 mr-1.5" /> Cancelar
+                          </Button>
+                          {hasOverride && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-10 px-2 text-muted-foreground"
+                              onClick={() => { removeOverride(l.id); cancelEdit(); }}
+                              aria-label="Remover personalização"
+                            >
+                              Remover
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
+                <span className="text-sm font-bold font-mono text-primary">{formatCurrency(totalBaixa)}</span>
+              </div>
+            </div>
+          ) : (
           <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -307,12 +458,14 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
               </tfoot>
             </table>
           </div>
+          )}
           {Object.keys(overrides).length > 0 && (
             <p className="text-xs text-primary flex items-center gap-1.5">
               <Check className="h-3 w-3" />
               {Object.keys(overrides).length} título(s) com configuração individual — sobrescrevem os defaults abaixo.
             </p>
           )}
+          {!isMobile && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Baixa *</Label>
@@ -353,6 +506,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
               </Select>
             </div>
           </div>
+          )}
           {tipoBaixa === "parcial" && (
             <div className="space-y-2">
               <Label>Valor a Pagar *</Label>
