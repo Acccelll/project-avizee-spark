@@ -587,13 +587,24 @@ const FluxoCaixa = () => {
                   <CardTitle className="text-base">Saldo Acumulado — Previsto vs Realizado</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
+                  <div className={cn(isMobile ? "h-56" : "h-64")}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 11 }}
+                          interval={isMobile ? "preserveStartEnd" : 0}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                          width={isMobile ? 40 : 50}
+                        />
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          trigger={isMobile ? "click" : "hover"}
+                        />
                         <Area type="monotone" dataKey="previsto" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.15)" strokeWidth={2} name="Previsto" />
                         <Area type="monotone" dataKey="realizado" stroke="hsl(var(--success))" fill="hsl(var(--success) / 0.15)" strokeWidth={2} name="Realizado" />
                       </AreaChart>
