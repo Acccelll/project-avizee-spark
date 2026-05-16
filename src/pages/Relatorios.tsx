@@ -327,7 +327,7 @@ export default function Relatorios() {
         <div className="space-y-6">
 
           {/* ── Report selector ── */}
-          {!tipo && <RelatorioCatalogo onSelect={handleSelectTipo} />}
+          {!tipo && <RelatorioCatalogo onSelect={handleSelectTipo} recentes={recentes} />}
 
           {/* ── Active report ── */}
           {!!tipo && selectedMeta && (
