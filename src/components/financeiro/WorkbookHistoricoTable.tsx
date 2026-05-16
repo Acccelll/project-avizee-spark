@@ -1,4 +1,4 @@
-import { Download, Loader2, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Download, Loader2, CheckCircle2, XCircle, Clock, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/DataTable';
@@ -28,6 +28,8 @@ const ABAS_LABELS: Record<string, string> = {
   raw: 'RAW',
 };
 
+const DIAS_DESATUALIZADO = 30;
+
 interface WorkbookHistoricoTableProps {
   geracoes: WorkbookGeracao[];
   isLoading: boolean;
@@ -45,8 +47,29 @@ export function WorkbookHistoricoTable({
     {
       key: 'gerado_em',
       label: 'Gerado em',
-      render: (r: WorkbookGeracao) =>
-        new Date(r.gerado_em).toLocaleString('pt-BR'),
+      render: (r: WorkbookGeracao) => {
+        const ts = new Date(r.gerado_em).getTime();
+        const dias = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+        const isDesatualizado = dias > DIAS_DESATUALIZADO && r.status === 'concluido';
+        return (
+          <div className="flex items-center gap-1.5">
+            <span>{new Date(r.gerado_em).toLocaleString('pt-BR')}</span>
+            {isDesatualizado && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="gap-1 border-warning/50 text-warning-foreground bg-warning/10 text-[10px]">
+                    <AlertTriangle className="h-3 w-3" />
+                    Desatualizado
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  Gerado há {dias} dias. Considere gerar um novo para dados atualizados.
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'template',

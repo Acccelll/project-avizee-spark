@@ -40,6 +40,10 @@ export interface PreviewDocumentProps {
   footerCols?: FooterTotalCol[];
   /** Conteúdo customizado para relatórios não-tabulares (ex: DRE). */
   customBody?: ReactNode;
+  /** Indica que o conteúdo exibido aqui (e no PDF) é parcial vs total. */
+  isTruncated?: boolean;
+  totalRowsOriginal?: number;
+  pdfRowLimit?: number;
 }
 
 export function PreviewDocument({
@@ -55,6 +59,9 @@ export function PreviewDocument({
   isQuantityReport,
   footerCols,
   customBody,
+  isTruncated,
+  totalRowsOriginal,
+  pdfRowLimit,
 }: PreviewDocumentProps) {
   const empresaNome =
     empresa?.nome_fantasia || empresa?.razao_social || "Empresa";
@@ -163,6 +170,17 @@ export function PreviewDocument({
       {/* Footer de totais */}
       {footerCols && footerCols.length > 0 && (
         <ReportResultFooter rows={rows} cols={footerCols} />
+      )}
+
+      {isTruncated && totalRowsOriginal && pdfRowLimit && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground flex items-start gap-2">
+          <span aria-hidden>⚠</span>
+          <span>
+            <span className="font-medium">Relatório parcial</span> — exibe{' '}
+            {pdfRowLimit.toLocaleString('pt-BR')} de {totalRowsOriginal.toLocaleString('pt-BR')}{' '}
+            registros. Para o relatório completo, exporte em Excel.
+          </span>
+        </div>
       )}
     </div>
   );

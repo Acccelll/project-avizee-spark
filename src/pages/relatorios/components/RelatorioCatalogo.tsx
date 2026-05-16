@@ -27,12 +27,15 @@ import {
   type ReportCategory,
 } from '@/config/relatoriosConfig';
 import type { TipoRelatorio } from '@/services/relatorios.service';
+import { formatRelativeTime, type RelatorioRecente } from '@/pages/relatorios/hooks/useRelatorioRecentes';
+import { Clock } from 'lucide-react';
 
 interface RelatorioCatalogoProps {
   onSelect: (tipo: TipoRelatorio) => void;
+  recentes?: RelatorioRecente[];
 }
 
-export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
+export function RelatorioCatalogo({ onSelect, recentes = [] }: RelatorioCatalogoProps) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<ReportCategory | 'all'>('all');
 
@@ -127,6 +130,44 @@ export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
+        {showPrioritized && recentes.length > 0 && (
+          <div>
+            <p className="text-sm font-medium mb-2 flex items-center gap-1.5 text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Recentemente usados
+            </p>
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {recentes.map((r) => {
+                const config = reportConfigs[r.tipo as TipoRelatorio];
+                if (!config) return null;
+                const Icon = config.icon;
+                const ago = formatRelativeTime(r.acessadoEm);
+                return (
+                  <button
+                    key={r.tipo}
+                    onClick={() => onSelect(r.tipo as TipoRelatorio)}
+                    aria-label={`Abrir relatório: ${config.title}`}
+                    className={cn(
+                      'flex flex-col items-start gap-1 rounded-lg border bg-card p-3 text-left transition-colors min-h-16',
+                      'hover:border-primary/40 hover:bg-primary/5 active:bg-muted',
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Icon className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="text-sm font-semibold truncate">{config.title}</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">{ago}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {reportCategoryMeta[config.category]?.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {showPrioritized && (
           <div>
             <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
@@ -157,8 +198,40 @@ export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
                 variant="noResults"
                 icon={SearchX}
                 title="Nenhum relatório encontrado"
-                description={`Nenhum resultado para "${search}". Tente outro termo.`}
+                description={
+                  normalizedSearch
+                    ? `Nenhum resultado para "${search}". Tente outro termo.`
+                    : 'Nenhum relatório nesta categoria.'
+                }
                 className="py-8"
+                action={
+                  (activeCategory !== 'all' || normalizedSearch) ? (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {activeCategory !== 'all' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setActiveCategory('all')}
+                          className="gap-1.5 text-xs"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Limpar categoria
+                        </Button>
+                      )}
+                      {normalizedSearch && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSearch('')}
+                          className="gap-1.5 text-xs"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Limpar busca
+                        </Button>
+                      )}
+                    </div>
+                  ) : undefined
+                }
               />
             </div>
           )}

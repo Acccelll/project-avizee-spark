@@ -27,6 +27,8 @@ import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensit
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
 import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
+import { useRelatorioLayout } from '@/pages/relatorios/hooks/useRelatorioLayout';
+import { useRelatorioRecentes } from '@/pages/relatorios/hooks/useRelatorioRecentes';
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Hash } from 'lucide-react';
@@ -84,7 +86,10 @@ export default function Relatorios() {
 
   const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
-  const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
+  const { favoritos, salvar: salvarFavorito, remover: removerFavorito, isNearLimit, maxFavoritos } = useRelatoriosFavoritos();
+
+  const { layout, toggleLayout } = useRelatorioLayout();
+  const { recentes, registrar: registrarRecente } = useRelatorioRecentes();
 
   const { grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
   // Resolve labels apenas para os ids selecionados (sem pré-carregar listas inteiras).
@@ -224,6 +229,7 @@ export default function Relatorios() {
 
   const handleSelectTipo = (next: TipoRelatorio) => {
     // 8.6.3 — Não limpar `hiddenColumns`: cada `tipo` tem suas próprias preferências persistidas.
+    registrarRecente(next);
     setSearchParams({ tipo: next });
   };
 
@@ -235,6 +241,7 @@ export default function Relatorios() {
     handleExportXlsx,
     PDF_ROW_LIMIT,
     isLikelyTruncated,
+    confirmDialogs,
   } = useRelatorioExport({
     tipo,
     resultado,
@@ -309,6 +316,8 @@ export default function Relatorios() {
       }}
       onAplicar={(params) => setSearchParams(new URLSearchParams(params))}
       onRemover={removerFavorito}
+      isNearLimit={isNearLimit}
+      maxFavoritos={maxFavoritos}
     />
   );
 
@@ -318,7 +327,7 @@ export default function Relatorios() {
         <div className="space-y-6">
 
           {/* ── Report selector ── */}
-          {!tipo && <RelatorioCatalogo onSelect={handleSelectTipo} />}
+          {!tipo && <RelatorioCatalogo onSelect={handleSelectTipo} recentes={recentes} />}
 
           {/* ── Active report ── */}
           {!!tipo && selectedMeta && (
@@ -372,6 +381,9 @@ export default function Relatorios() {
                 setCompactDensity={setCompactDensity}
                 onPreview={() => setPreviewOpen(true)}
                 hasExportableData={hasExportableData}
+                layout={layout}
+                onToggleLayout={toggleLayout}
+                activeFiltersCount={activeFilterChips.length}
                 exportMenu={
                   <ExportMenu
                     recordCount={sortedRows.length}
@@ -451,11 +463,13 @@ export default function Relatorios() {
                 handleExportPdf={handleExportPdf}
                 handleExportXlsx={handleExportXlsx}
                 handleExportCsv={handleExportCsv}
+                layout={layout}
               />
             </>
           )}
         </div>
       </ModulePage>
+      {confirmDialogs}
 
       <PreviewModal
         open={previewOpen}
@@ -485,6 +499,9 @@ export default function Relatorios() {
           isQuantityReport={isQtyReport}
           footerCols={footerCols}
           customBody={isDreReport ? <DreTable rows={sortedRows as unknown as DreRow[]} /> : undefined}
+          isTruncated={!isDreReport && sortedRows.length > PDF_ROW_LIMIT}
+          totalRowsOriginal={sortedRows.length}
+          pdfRowLimit={PDF_ROW_LIMIT}
         />
       </PreviewModal>
     </>

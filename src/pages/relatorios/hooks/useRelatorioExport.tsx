@@ -11,6 +11,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import {
   exportarParaCsv,
   exportarParaExcel,
@@ -53,6 +54,9 @@ export function useRelatorioExport({
   dataFim,
 }: UseRelatorioExportArgs) {
   const [isExporting, setIsExporting] = useState(false);
+  const { confirm: confirmCsv, dialog: dialogCsv } = useConfirmDialog();
+  const { confirm: confirmPdf, dialog: dialogPdf } = useConfirmDialog();
+  const { confirm: confirmXlsx, dialog: dialogXlsx } = useConfirmDialog();
 
   const exportScopeDescription = `${sortedRows.length} ${
     sortedRows.length === 1 ? 'registro' : 'registros'
@@ -73,15 +77,17 @@ export function useRelatorioExport({
     });
   }, [visibleColumns, tipo]);
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     if (!sortedRows.length) {
       toast.warning('Nenhum dado visível para exportar.');
       return;
     }
     if (sortedRows.length > CSV_ROW_LIMIT) {
-      const ok = window.confirm(
-        `O CSV terá ${sortedRows.length.toLocaleString('pt-BR')} linhas (limite recomendado: ${CSV_ROW_LIMIT.toLocaleString('pt-BR')}).\n\nGerar mesmo assim?`,
-      );
+      const ok = await confirmCsv({
+        title: `CSV com ${sortedRows.length.toLocaleString('pt-BR')} linhas`,
+        description: `Este relatório tem ${sortedRows.length.toLocaleString('pt-BR')} registros (limite recomendado: ${CSV_ROW_LIMIT.toLocaleString('pt-BR')}). O arquivo pode ser grande. Deseja continuar?`,
+        confirmLabel: 'Gerar CSV',
+      });
       if (!ok) return;
     }
     exportarParaCsv({
@@ -99,11 +105,15 @@ export function useRelatorioExport({
     }
     if (isExporting) return;
     if (sortedRows.length > PDF_ROW_LIMIT) {
-      const ok = window.confirm(
-        `O PDF é limitado a ${PDF_ROW_LIMIT} linhas e este relatório tem ${sortedRows.length.toLocaleString('pt-BR')} registros.\n\n` +
-          `Apenas as primeiras ${PDF_ROW_LIMIT} serão impressas. Para o relatório completo prefira exportar em Excel.\n\nDeseja continuar com o PDF resumido?`,
-      );
-      if (!ok) return;
+      const ok = await confirmPdf({
+        title: `PDF parcial — ${sortedRows.length.toLocaleString('pt-BR')} registros`,
+        description: `O PDF exibe no máximo ${PDF_ROW_LIMIT} linhas. Este relatório tem ${sortedRows.length.toLocaleString('pt-BR')} registros — ${(sortedRows.length - PDF_ROW_LIMIT).toLocaleString('pt-BR')} não serão incluídos. Para o relatório completo, use Excel.`,
+        confirmLabel: 'Gerar PDF parcial',
+      });
+      if (!ok) {
+        void handleExportXlsx();
+        return;
+      }
     }
     // 9.5 — MB-05: feedback de progresso em fases.
     const tid = toast.loading('Preparando dados...', { description: exportScopeDescription });
@@ -143,10 +153,11 @@ export function useRelatorioExport({
     }
     if (isExporting) return;
     if (sortedRows.length > XLSX_ROW_LIMIT) {
-      const ok = window.confirm(
-        `O Excel terá ${sortedRows.length.toLocaleString('pt-BR')} linhas (limite recomendado: ${XLSX_ROW_LIMIT.toLocaleString('pt-BR')}).\n\n` +
-          `Arquivos muito grandes podem travar o navegador durante a geração. Continuar?`,
-      );
+      const ok = await confirmXlsx({
+        title: `Excel com ${sortedRows.length.toLocaleString('pt-BR')} linhas`,
+        description: `Este arquivo Excel terá ${sortedRows.length.toLocaleString('pt-BR')} linhas (limite recomendado: ${XLSX_ROW_LIMIT.toLocaleString('pt-BR')}). Pode demorar para abrir em computadores mais lentos.`,
+        confirmLabel: 'Gerar Excel',
+      });
       if (!ok) return;
     }
     // 9.5 — MB-05: feedback de progresso em fases.
@@ -187,5 +198,12 @@ export function useRelatorioExport({
     PDF_ROW_LIMIT,
     XLSX_ROW_LIMIT,
     CSV_ROW_LIMIT,
+    confirmDialogs: (
+      <>
+        {dialogCsv}
+        {dialogPdf}
+        {dialogXlsx}
+      </>
+    ),
   };
 }

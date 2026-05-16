@@ -1,6 +1,7 @@
 import { Hash } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SummaryCard } from '@/components/SummaryCard';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface RelatorioKpiCard {
   title: string;
@@ -53,16 +54,33 @@ export function RelatorioKpiGrid({
       )}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {cards.map((kpi) => (
-          <SummaryCard
-            key={kpi.title}
-            title={kpi.title}
-            value={kpi.value}
-            icon={kpi.icon ?? Hash}
-            variationType="neutral"
-            variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
-            variant={kpi.variant}
-            density={compactDensity ? 'compact' : 'default'}
-          />
+          <div key={kpi.title} className="relative">
+            <SummaryCard
+              title={kpi.title}
+              value={kpi.value}
+              icon={kpi.icon ?? Hash}
+              variationType="neutral"
+              variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
+              variant={kpi.variant}
+              density={compactDensity ? 'compact' : 'default'}
+            />
+            {hasLocalFiltersApplied && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    aria-label="KPI reflete universo total; tabela aplica filtros locais"
+                    className="absolute top-2 right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning/15 text-warning-foreground text-[11px] font-bold border border-warning/40 cursor-help"
+                  >
+                    !
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  KPI reflete o universo total ({rowsCount} registros).
+                  A tabela exibe {visibleCount} registros após filtros locais.
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         ))}
       </div>
     </>

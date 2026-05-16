@@ -53,6 +53,8 @@ interface RelatorioBodyProps {
   handleExportPdf: () => void;
   handleExportXlsx: () => void;
   handleExportCsv: () => void;
+  /** Item 3 — layout do conjunto chart+tabela no desktop. */
+  layout?: 'stacked' | 'side-by-side';
 }
 
 export function RelatorioBody(props: RelatorioBodyProps) {
@@ -65,7 +67,30 @@ export function RelatorioBody(props: RelatorioBodyProps) {
     handleClearAllFilters, handleChartDrillDown,
     tableExpanded, setTableExpanded,
     isExporting, PDF_ROW_LIMIT, handleExportPdf, handleExportXlsx, handleExportCsv,
+    layout = 'stacked',
   } = props;
+
+  // Item 3 — layout side-by-side só faz sentido no desktop e quando há gráfico.
+  const isSideBySide = !isMobile && layout === 'side-by-side' && !!resultado?.chartData?.length && !isDreReport;
+  // Item 11 — relatórios grandes ganham Collapsible também no desktop.
+  const isLargeReport = !isMobile && sortedRows.length > 100;
+
+  // Tabela desktop (com possível Collapsible para grandes relatórios).
+  const desktopTable = (
+    <>
+      <DataTable
+        columns={visibleColumnsWithActions}
+        data={sortedRows}
+        loading={isLoading}
+        moduleKey={`relatorios-${tipo}`}
+        onRowClick={handleRowClick}
+        emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
+        emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
+        {...mobileTableProps}
+      />
+      <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
+    </>
+  );
 
   return (
     <>
@@ -98,7 +123,7 @@ export function RelatorioBody(props: RelatorioBodyProps) {
       </div>
 
       {/* Resultado: tabela + chart */}
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className={isSideBySide ? 'grid gap-6 xl:grid-cols-[2fr_1fr]' : 'grid gap-6'}>
         <Card>
           <CardHeader className="pb-3 hidden md:block">
             <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
@@ -164,20 +189,27 @@ export function RelatorioBody(props: RelatorioBodyProps) {
                       <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
                     </CollapsibleContent>
                   </Collapsible>
+                ) : isLargeReport ? (
+                  <Collapsible open={tableExpanded} onOpenChange={setTableExpanded}>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-3 border-b text-sm font-medium hover:bg-muted/50"
+                        aria-label={tableExpanded ? 'Ocultar tabela' : 'Ver tabela completa'}
+                      >
+                        <span>
+                          {tableExpanded ? 'Ocultar tabela' : 'Ver tabela completa'}
+                          <span className="ml-1 text-muted-foreground">({sortedRows.length} registros)</span>
+                        </span>
+                        <ChevronDown className={cn('h-4 w-4 transition-transform text-muted-foreground', tableExpanded && 'rotate-180')} />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {desktopTable}
+                    </CollapsibleContent>
+                  </Collapsible>
                 ) : (
-                  <>
-                    <DataTable
-                      columns={visibleColumnsWithActions}
-                      data={sortedRows}
-                      loading={isLoading}
-                      moduleKey={`relatorios-${tipo}`}
-                      onRowClick={handleRowClick}
-                      emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
-                      emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
-                      {...mobileTableProps}
-                    />
-                    <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
-                  </>
+                  desktopTable
                 )}
               </>
             )}
@@ -199,7 +231,22 @@ export function RelatorioBody(props: RelatorioBodyProps) {
           </CardContent>
         </Card>
 
-        {/* Chart desktop */}
+        {/* Chart desktop — exibido como coluna lateral apenas em side-by-side. */}
+        {isSideBySide && (
+          <div className="hidden md:block">
+            <RelatorioChart
+              chartData={resultado?.chartData ?? []}
+              chartType={selectedMeta.chartType ?? 'bar'}
+              isQuantityReport={isQtyReport}
+              contextLabel={semantics?.periodAxisLabel ? `Resumo por ${semantics.periodAxisLabel}` : undefined}
+              importance={selectedMeta.chartType === 'pie' ? 'central' : 'complementar'}
+              onDataPointClick={handleChartDrillDown}
+            />
+          </div>
+        )}
+      </div>
+      {/* Chart desktop (stacked) — exibido abaixo da tabela quando layout = 'stacked'. */}
+      {!isMobile && !isSideBySide && !isDreReport && (
         <div className="hidden md:block">
           <RelatorioChart
             chartData={resultado?.chartData ?? []}
@@ -210,7 +257,7 @@ export function RelatorioBody(props: RelatorioBodyProps) {
             onDataPointClick={handleChartDrillDown}
           />
         </div>
-      </div>
+      )}
 
       {/* Mobile sticky footer com Exportar */}
       <div className="md:hidden sticky bottom-0 -mx-4 px-4 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)] z-20">
