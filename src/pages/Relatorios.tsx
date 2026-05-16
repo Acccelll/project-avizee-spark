@@ -499,6 +499,9 @@ export default function Relatorios() {
           isQuantityReport={isQtyReport}
           footerCols={footerCols}
           customBody={isDreReport ? <DreTable rows={sortedRows as unknown as DreRow[]} /> : undefined}
+          isTruncated={!isDreReport && sortedRows.length > PDF_ROW_LIMIT}
+          totalRowsOriginal={sortedRows.length}
+          pdfRowLimit={PDF_ROW_LIMIT}
         />
       </PreviewModal>
     </>
