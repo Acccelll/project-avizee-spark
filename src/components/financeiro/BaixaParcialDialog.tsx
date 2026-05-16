@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ContaBancaria {
   id: string;
@@ -69,6 +70,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [loadingBaixas, setLoadingBaixas] = useState(false);
   const [showEncargos, setShowEncargos] = useState(false);
   const registrarBaixa = useRegistrarBaixa();
+  const isMobile = useIsMobile();
+  const [historicoOpen, setHistoricoOpen] = useState(false);
 
   const saldoAtual = lancamento
     ? (lancamento.saldo_restante != null ? Number(lancamento.saldo_restante) : Number(lancamento.valor))
@@ -214,9 +217,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
             </div>
 
             {/* Previous baixas */}
-            {baixasAnteriores.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Baixas Anteriores</span>
+            {baixasAnteriores.length > 0 && (() => {
+              const tabela = (
                 <div className="rounded-lg border overflow-hidden">
                   <table className="w-full text-xs">
                     <thead>
@@ -239,8 +241,25 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              );
+              if (isMobile) {
+                return (
+                  <Collapsible open={historicoOpen} onOpenChange={setHistoricoOpen}>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", historicoOpen && "rotate-180")} />
+                      {historicoOpen ? "Ocultar baixas anteriores" : `Ver baixas anteriores (${baixasAnteriores.length})`}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">{tabela}</CollapsibleContent>
+                  </Collapsible>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Baixas Anteriores</span>
+                  {tabela}
+                </div>
+              );
+            })()}
 
             {/* Form */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
