@@ -167,7 +167,7 @@ export default function FiscalDashboard() {
                 icon={Receipt}
                 density="compact"
                 onClick={() => navigate(`/fiscal/saida?status_sefaz=autorizada`)}
-                ariaLabel="Ver NF-e autorizadas"
+                aria-label="Ver NF-e autorizadas"
               />
               <SummaryCard
                 title="Rejeitadas"
@@ -176,7 +176,7 @@ export default function FiscalDashboard() {
                 icon={FileWarning}
                 density="compact"
                 onClick={() => navigate(`/fiscal/saida?status_sefaz=rejeitada`)}
-                ariaLabel="Ver NF-e rejeitadas"
+                aria-label="Ver NF-e rejeitadas"
               />
               <SummaryCard
                 title="Canceladas"
@@ -185,7 +185,7 @@ export default function FiscalDashboard() {
                 icon={AlertTriangle}
                 density="compact"
                 onClick={() => navigate(`/fiscal/saida?status_sefaz=cancelada_sefaz`)}
-                ariaLabel="Ver NF-e canceladas"
+                aria-label="Ver NF-e canceladas"
               />
               <SummaryCard
                 title="Pendentes / rascunho"
@@ -194,7 +194,7 @@ export default function FiscalDashboard() {
                 icon={TrendingUp}
                 density="compact"
                 onClick={() => navigate(`/fiscal/saida?status=rascunho,pendente`)}
-                ariaLabel="Ver NF-e pendentes"
+                aria-label="Ver NF-e pendentes"
               />
             </div>
           </section>
@@ -213,7 +213,7 @@ export default function FiscalDashboard() {
                 icon={Inbox}
                 density="compact"
                 onClick={() => navigate(`/fiscal/entrada`)}
-                ariaLabel="Ver NF-e de entrada"
+                aria-label="Ver NF-e de entrada"
               />
               <SummaryCard
                 title="Sem manifestação"
@@ -222,7 +222,7 @@ export default function FiscalDashboard() {
                 icon={AlertTriangle}
                 density="compact"
                 onClick={() => navigate(`/fiscal/distdfe-historico`)}
-                ariaLabel="Ver histórico DistDF-e sem manifestação"
+                aria-label="Ver histórico DistDF-e sem manifestação"
               />
               <SummaryCard
                 title="Ciência / Confirmadas"
@@ -231,7 +231,7 @@ export default function FiscalDashboard() {
                 icon={ShieldCheck}
                 density="compact"
                 onClick={() => navigate(`/fiscal/entrada`)}
-                ariaLabel="Ver NF-e com ciência"
+                aria-label="Ver NF-e com ciência"
               />
               <SummaryCard
                 title="Desconhecidas / Não realizadas"
