@@ -26,7 +26,6 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { notifyError } from "@/utils/errorMessages";
 import {
   canConfirmFiscal,
@@ -915,39 +914,10 @@ export function NotaFiscalDrawer({
       tabs={[
         { value: "resumo", label: "Resumo", content: tabResumo },
         { value: "itens", label: `Itens (${items.length})`, content: tabItens },
-        ...(isMobile
-          ? [
-              {
-                value: "mais",
-                label: "Mais",
-                content: (
-                  <Accordion type="multiple" defaultValue={["fiscal"]} className="w-full">
-                    <AccordionItem value="fiscal">
-                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Fiscal</AccordionTrigger>
-                      <AccordionContent>{tabFiscal}</AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="arquivos">
-                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Arquivos</AccordionTrigger>
-                      <AccordionContent>{tabArquivos}</AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="eventos">
-                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Eventos ({eventos.length})</AccordionTrigger>
-                      <AccordionContent>{tabEventos}</AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="vinculos">
-                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Vínculos</AccordionTrigger>
-                      <AccordionContent>{tabVinculos}</AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                ),
-              },
-            ]
-          : [
-              { value: "fiscal", label: "Fiscal", content: tabFiscal },
-              { value: "arquivos", label: "Arquivos", content: tabArquivos },
-              { value: "eventos", label: `Eventos (${eventos.length})`, content: tabEventos },
-              { value: "vinculos", label: "Vínculos", content: tabVinculos },
-            ]),
+        { value: "fiscal", label: "Fiscal", content: tabFiscal },
+        { value: "arquivos", label: "Arquivos", content: tabArquivos },
+        { value: "eventos", label: `Eventos (${eventos.length})`, content: tabEventos },
+        { value: "vinculos", label: "Vínculos", content: tabVinculos },
       ]}
       footer={
         isMobile ? (

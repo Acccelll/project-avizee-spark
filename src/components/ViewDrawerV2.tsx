@@ -84,8 +84,8 @@ export function ViewDrawerV2({
   // Tabs styling per variant
   const tabsListClass =
     variant === "view"
-      ? "w-full justify-start mb-4 h-9"
-      : "w-full justify-start mb-4 h-10 bg-muted/60";
+      ? "w-full justify-start mb-4 h-9 overflow-x-auto scrollbar-hide tabs-fade-mask"
+      : "w-full justify-start mb-4 h-10 bg-muted/60 overflow-x-auto scrollbar-hide tabs-fade-mask";
   const tabsTriggerClass =
     variant === "view"
       ? "text-xs"

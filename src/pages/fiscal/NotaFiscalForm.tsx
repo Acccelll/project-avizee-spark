@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Lock, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ChevronDown, Lock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FiscalSefazStatusBadge,
@@ -54,11 +60,25 @@ export default function NotaFiscalFormPage() {
   });
 
   const { isAdmin } = useIsAdmin();
+  const isMobile = useIsMobile();
 
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
   const [statusErp, setStatusErp] = useState<string | null>(null);
   const [nfRow, setNfRow] = useState<NotaFiscal | null>(null);
   const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
+  const [sefazOpen, setSefazOpen] = useState(!isMobile);
+  const [isDirty, setIsDirty] = useState(false);
+  const initialFormRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fnf.loading) return;
+    const serialized = JSON.stringify(fnf.form);
+    if (initialFormRef.current === null) {
+      initialFormRef.current = serialized;
+      return;
+    }
+    setIsDirty(serialized !== initialFormRef.current);
+  }, [fnf.form, fnf.loading]);
 
   useEffect(() => {
     if (isCreate) return;
@@ -125,11 +145,9 @@ export default function NotaFiscalFormPage() {
         <Alert>
           <Lock className="h-4 w-4" />
           <AlertTitle>Somente leitura</AlertTitle>
-          <AlertDescription>
-            Esta NF-e está{" "}
-            <Badge variant="secondary" className="mx-1">
-              {statusSefaz}
-            </Badge>
+          <AlertDescription className="flex items-center flex-wrap gap-1">
+            Esta NF-e está
+            {statusSefaz && <FiscalSefazStatusBadge status={statusSefaz} />}
             na SEFAZ. Para alterar, utilize Cancelar/Inutilizar pela tela de
             Fiscal e emita uma nova nota.
           </AlertDescription>
@@ -163,31 +181,42 @@ export default function NotaFiscalFormPage() {
         </CardHeader>
         <CardContent>
           {!isCreate && nfRow && (
-            <div className="mb-4 rounded-lg border bg-muted/30 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Ações SEFAZ
-              </p>
-              <SefazAcoesPanel
-                nf={nfRow}
-                buildNFeData={buildNFeDataFromDb}
-                buildDanfeData={buildDanfeDataFromDb}
-              />
-              {nfRow.tipo === "entrada" && (
-                <div className="mt-3 border-t pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Pedido de Compra
-                  </p>
-                  <PedidoCompraLinker
-                    notaFiscalId={nfRow.id}
-                    fornecedorId={nfRow.fornecedor_id}
-                    pedidoCompraIdAtual={(nfRow as { pedido_compra_id?: string | null }).pedido_compra_id ?? null}
-                    disabled={readOnly}
-                    nfValorTotal={nfRow.valor_total}
-                    nfDataEmissao={nfRow.data_emissao}
-                  />
-                </div>
-              )}
-            </div>
+            <Collapsible
+              open={sefazOpen}
+              onOpenChange={setSefazOpen}
+              className="mb-4 rounded-lg border bg-muted/30"
+            >
+              <CollapsibleTrigger className="flex w-full items-center justify-between p-3 text-left">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ações SEFAZ
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${sefazOpen ? "rotate-180" : ""}`}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-3 pb-3">
+                <SefazAcoesPanel
+                  nf={nfRow}
+                  buildNFeData={buildNFeDataFromDb}
+                  buildDanfeData={buildDanfeDataFromDb}
+                />
+                {nfRow.tipo === "entrada" && (
+                  <div className="mt-3 border-t pt-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Pedido de Compra
+                    </p>
+                    <PedidoCompraLinker
+                      notaFiscalId={nfRow.id}
+                      fornecedorId={nfRow.fornecedor_id}
+                      pedidoCompraIdAtual={(nfRow as { pedido_compra_id?: string | null }).pedido_compra_id ?? null}
+                      disabled={readOnly}
+                      nfValorTotal={nfRow.valor_total}
+                      nfDataEmissao={nfRow.data_emissao}
+                    />
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           )}
           {fnf.loading ? (
             <div className="space-y-3">
@@ -230,14 +259,36 @@ export default function NotaFiscalFormPage() {
                 />
               </fieldset>
               {!readOnly && (
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => navigate("/fiscal")}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={fnf.saving}>
-                    {fnf.saving ? "Salvando..." : "Salvar NF-e"}
-                  </Button>
-                </div>
+                <>
+                  {/* Desktop: botões inline */}
+                  <div className="hidden md:flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => navigate("/fiscal")}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={fnf.saving}>
+                      {fnf.saving ? "Salvando..." : "Salvar NF-e"}
+                    </Button>
+                  </div>
+                  {/* Mobile: spacer + sticky footer */}
+                  {(isDirty || isCreate) && (
+                    <>
+                      <div className="md:hidden h-20" aria-hidden />
+                      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="min-h-11"
+                          onClick={() => navigate("/fiscal")}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button type="submit" disabled={fnf.saving} className="flex-1 min-h-11">
+                          {fnf.saving ? "Salvando..." : isCreate ? "Criar NF-e" : "Salvar alterações"}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </form>
           )}

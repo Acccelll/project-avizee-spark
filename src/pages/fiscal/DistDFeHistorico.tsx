@@ -279,7 +279,8 @@ export default function DistDFeHistorico() {
                         {(d.detalhes ?? []).length === 0 ? (
                           <div className="text-xs text-muted-foreground py-2">Sem detalhes por CNPJ.</div>
                         ) : (
-                          <table className="w-full text-xs mt-2">
+                          <div className="overflow-x-auto -mx-4 px-4">
+                          <table className="w-full text-xs mt-2 min-w-[600px]">
                             <thead className="text-muted-foreground">
                               <tr className="text-left">
                                 <th className="py-1">CNPJ</th>
@@ -307,6 +308,7 @@ export default function DistDFeHistorico() {
                               ))}
                             </tbody>
                           </table>
+                          </div>
                         )}
                       </div>
                     )}
