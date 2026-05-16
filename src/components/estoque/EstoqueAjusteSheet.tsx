@@ -7,10 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 import { useAjustarEstoque } from "@/pages/estoque/hooks/useAjustarEstoque";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -42,6 +44,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
   const produtosCrud = useSupabaseCrud<ProdutoRow>({ table: "produtos" });
   const ajustar = useAjustarEstoque();
   const saving = ajustar.isPending;
+  const isMobile = useIsMobile();
 
   const [form, setForm] = useState({
     produto_id: "",
@@ -51,6 +54,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
     categoria_ajuste: "correcao_inventario",
   });
   const [produtoSelectorOpen, setProdutoSelectorOpen] = useState(false);
+  const [drawerSelectorOpen, setDrawerSelectorOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
 
@@ -140,6 +144,72 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
             {/* Produto */}
             <div className="space-y-2">
               <Label>Produto *</Label>
+              {isMobile ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={drawerSelectorOpen}
+                    className="w-full justify-between font-normal h-11 text-left"
+                    onClick={() => setDrawerSelectorOpen(true)}
+                  >
+                    {produtoSelecionado ? (
+                      <span className="truncate flex items-center gap-2">
+                        <span className="font-medium">{produtoSelecionado.nome}{formatVariacoesSuffix((produtoSelecionado as { variacoes?: unknown }).variacoes)}</span>
+                        {produtoSelecionado.sku && (
+                          <span className="text-muted-foreground font-mono text-xs">({produtoSelecionado.sku})</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Selecione o produto...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Button>
+                  <Drawer open={drawerSelectorOpen} onOpenChange={setDrawerSelectorOpen}>
+                    <DrawerContent className="max-h-[88vh]">
+                      <DrawerHeader className="px-4 pt-4 pb-2">
+                        <DrawerTitle>Selecionar produto</DrawerTitle>
+                      </DrawerHeader>
+                      <div className="px-2 pb-4 overflow-hidden">
+                        <Command>
+                          <CommandInput placeholder="Buscar por nome, SKU ou código..." />
+                          <CommandList className="max-h-[60vh]">
+                            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {produtosCrud.data.filter((p) => p.ativo !== false).map((p) => (
+                                <CommandItem
+                                  key={p.id}
+                                  value={[p.nome, formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes), p.sku, p.codigo_interno].filter(Boolean).join(" ")}
+                                  onSelect={() => {
+                                    setForm((f) => ({ ...f, produto_id: p.id }));
+                                    setDrawerSelectorOpen(false);
+                                  }}
+                                  className={cn("gap-2 cursor-pointer py-3", form.produto_id === p.id && "bg-primary/5")}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
+                                      <span className="text-[11px] text-muted-foreground">{p.unidade_medida || "UN"}</span>
+                                    </div>
+                                  </div>
+                                  <span className={cn(
+                                    "text-xs font-mono font-semibold shrink-0",
+                                    Number(p.estoque_atual) <= 0 ? "text-destructive" : "text-success",
+                                  )}>
+                                    {formatNumber(p.estoque_atual)} {p.unidade_medida || "UN"}
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </div>
+                    </DrawerContent>
+                  </Drawer>
+                </>
+              ) : (
               <Popover open={produtoSelectorOpen} onOpenChange={setProdutoSelectorOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -200,6 +270,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                   </Command>
                 </PopoverContent>
               </Popover>
+              )}
             </div>
 
             {/* Tipo */}

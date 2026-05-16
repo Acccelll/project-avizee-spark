@@ -32,7 +32,7 @@ import type { TableRow } from "@/types/domain";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
-  ArrowRight, History,
+  ArrowRight, History, Eye,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -135,6 +135,17 @@ const Estoque = () => {
     setAjusteSheetTipo(tipo);
     setAjusteSheetOpen(true);
   };
+
+  // Mobile: a aba "Ajuste Manual" abre o EstoqueAjusteSheet (bottom-sheet)
+  // em vez do formulário completo, que é otimizado para desktop.
+  useEffect(() => {
+    if (isMobile && activeTab === "ajuste") {
+      setActiveTab("saldos");
+      setAjusteSheetProdutoId(null);
+      setAjusteSheetTipo("ajuste");
+      setAjusteSheetOpen(true);
+    }
+  }, [isMobile, activeTab]);
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
@@ -623,6 +634,21 @@ const Estoque = () => {
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
               mobileStatusKey="situacao"
               mobileIdentifierKey="estoque_atual"
+              mobileInlineActions={(p: ProdutoPosicao) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPosicao(p);
+                    setPosicaoDrawerOpen(true);
+                  }}
+                  aria-label="Ver posição e histórico do produto"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
               rowAccent={(p) => {
                 const sit = getSituacao(p as ProdutoPosicao);
                 if (sit === 'zerado') return 'destructive';
@@ -970,7 +996,7 @@ const Estoque = () => {
                 </form>
 
                 {/* Coluna direita: histórico recente */}
-                <aside className="lg:col-span-1">
+                <aside className="lg:col-span-1 hidden lg:block">
                   <Card className="lg:sticky lg:top-4">
                     <CardContent className="pt-5 space-y-3">
                       <div className="flex items-center gap-2 mb-1">

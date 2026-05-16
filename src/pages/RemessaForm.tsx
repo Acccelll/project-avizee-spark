@@ -31,7 +31,7 @@ import {
 } from "@/services/logistica/lookups.service";
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
-import { Save, Truck, Plus } from "lucide-react";
+import { Save, Truck, Plus, Printer } from "lucide-react";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
@@ -109,6 +109,7 @@ export default function RemessaFormPage() {
   const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([]);
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscal[]>([]);
   const [quickAddTranspOpen, setQuickAddTranspOpen] = useState(false);
+  const etiquetaRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadLookups = async () => {
@@ -212,6 +213,20 @@ export default function RemessaFormPage() {
           <Truck className="h-5 w-5 text-primary" />
           {isNew ? "Nova Remessa" : "Editar Remessa"}
         </span>
+      }
+      actions={
+        !isNew && id ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="md:hidden gap-1.5"
+            onClick={() => etiquetaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          >
+            <Printer className="h-4 w-4" />
+            Etiqueta
+          </Button>
+        ) : undefined
       }
     >
 
@@ -385,13 +400,15 @@ export default function RemessaFormPage() {
             </Card>
 
             {!isNew && id && (
-              <EtiquetaCorreiosCard
-                remessaId={id}
-                tipoRemessa={form.tipo_remessa}
-                servico={form.servico}
-                peso={form.peso}
-                clienteId={form.cliente_id}
-              />
+              <div ref={etiquetaRef}>
+                <EtiquetaCorreiosCard
+                  remessaId={id}
+                  tipoRemessa={form.tipo_remessa}
+                  servico={form.servico}
+                  peso={form.peso}
+                  clienteId={form.cliente_id}
+                />
+              </div>
             )}
 
             <div className="hidden md:flex justify-end gap-3 pb-6">
@@ -404,24 +421,28 @@ export default function RemessaFormPage() {
               </Button>
             </div>
 
-            {/* Spacer mobile para não cobrir conteúdo com o footer sticky */}
-            {(isDirty || isNew) && <div className="h-24 md:hidden" aria-hidden />}
+            {/* Spacer mobile — sempre presente para não cobrir o conteúdo com o footer sticky elevado acima do MobileBottomNav. */}
+            <div className="h-40 md:hidden" aria-hidden />
 
-            {/* Footer sticky mobile — sempre visível em new; em edit só quando dirty */}
-            {(isDirty || isNew) && (
-              <div
-                className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex flex-col-reverse gap-2"
-                style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+            {/* Footer sticky mobile — sempre visível; Salvar fica desabilitado quando não há alterações. */}
+            <div
+              className="md:hidden fixed inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex flex-col-reverse gap-2"
+              style={{
+                bottom: "calc(var(--mobile-nav-height, 4rem) + env(safe-area-inset-bottom))",
+              }}
+            >
+              <Button type="button" variant="outline" onClick={handleCancel} className="w-full min-h-11">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving || (!isNew && !isDirty)}
+                className="w-full min-h-11"
               >
-                <Button type="button" variant="outline" onClick={handleCancel} className="w-full min-h-11">
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isSaving} className="w-full min-h-11">
-                  <Save className="h-4 w-4 mr-1.5" />
-                  {isSaving ? "Salvando..." : isNew ? "Criar Remessa" : "Salvar Alterações"}
-                </Button>
-              </div>
-            )}
+                <Save className="h-4 w-4 mr-1.5" />
+                {isSaving ? "Salvando..." : isNew ? "Criar Remessa" : "Salvar Alterações"}
+              </Button>
+            </div>
           </form>
         )}
       {confirmDialog}

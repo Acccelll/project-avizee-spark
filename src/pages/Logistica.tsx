@@ -72,6 +72,7 @@ import {
   imprimirEtiquetasA4,
   type RemessaEtiqueta,
 } from "@/services/logistica/prepostagem.service";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
@@ -878,6 +879,17 @@ export default function Logistica() {
               )}
               mobileStatusKey="status_logistico"
               mobileIdentifierKey="cliente"
+              mobileInlineActions={(item: Entrega) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={(e) => { e.stopPropagation(); setSelectedEntrega(item); }}
+                  aria-label="Ver detalhes da entrega"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
               mobilePrimaryAction={(item) => {
                 if (!item.codigo_rastreio) return null;
                 return (
@@ -934,6 +946,17 @@ export default function Logistica() {
               )}
               mobileStatusKey="status_logistico"
               mobileIdentifierKey="fornecedor"
+              mobileInlineActions={(item: Recebimento) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={(e) => { e.stopPropagation(); setSelectedRecebimento(item); }}
+                  aria-label="Ver detalhes do recebimento"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
               mobilePrimaryAction={(item) => {
                 if (!canEdit || item.status_logistico === "recebido") return null;
                 return (
@@ -1043,6 +1066,30 @@ export default function Logistica() {
               moduleKey="logistica-remessas"
               mobileStatusKey="status_transporte"
               mobileIdentifierKey="cliente_id"
+              mobileInlineActions={(r: Remessa) => (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={(e) => { e.stopPropagation(); openViewRemessa(r); }}
+                    aria-label="Ver detalhes da remessa"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {canEdit && !["entregue", "devolvido", "cancelado"].includes(r.status_transporte ?? "") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/remessas/${r.id}`); }}
+                      aria-label="Editar remessa"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
               mobilePrimaryAction={(r) => {
                 if (!r.codigo_rastreio) return null;
                 return (
@@ -1062,6 +1109,10 @@ export default function Logistica() {
           </TabsContent>
         </Tabs>
       </ModulePage>
+
+      {canEdit && activeTab === "remessas" && (
+        <MobileQuickAddFAB onClick={() => navigate("/remessas/new")} label="Nova remessa" />
+      )}
 
       {/* Entrega Drawer */}
       <EntregaDrawer open={!!selectedEntrega} onClose={() => setSelectedEntrega(null)} entrega={selectedEntrega} />
