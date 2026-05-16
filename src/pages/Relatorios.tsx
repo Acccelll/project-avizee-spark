@@ -463,11 +463,13 @@ export default function Relatorios() {
                 handleExportPdf={handleExportPdf}
                 handleExportXlsx={handleExportXlsx}
                 handleExportCsv={handleExportCsv}
+                layout={layout}
               />
             </>
           )}
         </div>
       </ModulePage>
+      {confirmDialogs}
 
       <PreviewModal
         open={previewOpen}
