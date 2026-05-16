@@ -316,6 +316,8 @@ export default function Relatorios() {
       }}
       onAplicar={(params) => setSearchParams(new URLSearchParams(params))}
       onRemover={removerFavorito}
+      isNearLimit={isNearLimit}
+      maxFavoritos={maxFavoritos}
     />
   );
 
