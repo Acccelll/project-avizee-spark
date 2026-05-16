@@ -1287,11 +1287,33 @@ const Fiscal = () => {
       label: "Chave de Acesso",
       hidden: true,
       render: (n: NotaFiscal) =>
-        n.chave_acesso
-          ? <span className="font-mono text-xs text-muted-foreground">
-              {n.chave_acesso.length > 12 ? `${n.chave_acesso.slice(0, 8)}…${n.chave_acesso.slice(-4)}` : n.chave_acesso}
-            </span>
-          : <span className="text-muted-foreground">—</span>,
+        n.chave_acesso ? (
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="font-mono text-xs text-muted-foreground cursor-help">
+                    {n.chave_acesso.length > 12 ? `${n.chave_acesso.slice(0, 8)}…${n.chave_acesso.slice(-4)}` : n.chave_acesso}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="font-mono text-xs">{n.chave_acesso}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <button
+              type="button"
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(n.chave_acesso!);
+                toast.success("Chave copiada");
+              }}
+              aria-label="Copiar chave de acesso"
+              title="Copiar chave de acesso"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          </div>
+        ) : <span className="text-muted-foreground">—</span>,
     },
     {
       key: "ov",
