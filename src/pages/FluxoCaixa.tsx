@@ -587,13 +587,24 @@ const FluxoCaixa = () => {
                   <CardTitle className="text-base">Saldo Acumulado — Previsto vs Realizado</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
+                  <div className={cn(isMobile ? "h-56" : "h-64")}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 11 }}
+                          interval={isMobile ? "preserveStartEnd" : 0}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                          width={isMobile ? 40 : 50}
+                        />
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          trigger={isMobile ? "click" : "hover"}
+                        />
                         <Area type="monotone" dataKey="previsto" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.15)" strokeWidth={2} name="Previsto" />
                         <Area type="monotone" dataKey="realizado" stroke="hsl(var(--success))" fill="hsl(var(--success) / 0.15)" strokeWidth={2} name="Realizado" />
                       </AreaChart>
@@ -831,7 +842,7 @@ const FluxoCaixa = () => {
             <div className="space-y-2">
               <Label>Tipo <span className="text-destructive">*</span></Label>
               <Select value={form.tipo} onValueChange={v => setForm({ ...form, tipo: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11 md:h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="receber">A Receber (entrada)</SelectItem>
                   <SelectItem value="pagar">A Pagar (saída)</SelectItem>
@@ -841,7 +852,7 @@ const FluxoCaixa = () => {
             <div className="space-y-2">
               <Label>Status <span className="text-destructive">*</span></Label>
               <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11 md:h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="aberto">Aberto (a vencer)</SelectItem>
                   <SelectItem value="pago">Pago / Baixado</SelectItem>
@@ -856,6 +867,7 @@ const FluxoCaixa = () => {
               onChange={e => setForm({ ...form, descricao: e.target.value })}
               placeholder="Ex: Pagamento de fornecedor, recebimento de cliente..."
               maxLength={200}
+              className="h-11 md:h-9"
             />
           </div>
           {form.tipo === "receber" && (
@@ -894,18 +906,19 @@ const FluxoCaixa = () => {
               <CurrencyInput
                 value={form.valor}
                 onChange={(v) => setForm({ ...form, valor: v })}
+                className="h-11 md:h-9"
               />
             </div>
             <div className="space-y-2">
               <Label>Vencimento <span className="text-destructive">*</span></Label>
-              <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} required />
+              <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} required className="h-11 md:h-9" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
               <Select value={form.forma_pagamento || "__none__"} onValueChange={v => setForm({ ...form, forma_pagamento: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectTrigger className="h-11 md:h-9"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Não informado</SelectItem>
                   <SelectItem value="dinheiro">Dinheiro</SelectItem>
@@ -921,7 +934,7 @@ const FluxoCaixa = () => {
             <div className="space-y-2">
               <Label>Conta Bancária{form.status === "pago" && <span className="text-destructive"> *</span>}</Label>
               <Select value={form.conta_bancaria_id || "__none__"} onValueChange={v => setForm({ ...form, conta_bancaria_id: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Selecionar conta..." /></SelectTrigger>
+                <SelectTrigger className="h-11 md:h-9"><SelectValue placeholder="Selecionar conta..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Não vinculado</SelectItem>
                   {contasBancarias.map(c => (
