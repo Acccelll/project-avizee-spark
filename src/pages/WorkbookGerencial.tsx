@@ -128,7 +128,7 @@ export default function WorkbookGerencial() {
               size="sm"
               onClick={handleExportCsv}
               disabled={loadingGeracoes || geracoes.length === 0}
-              className="h-11 sm:h-9"
+              className="hidden md:inline-flex h-11 sm:h-9"
             >
               <Download className="h-4 w-4 mr-1" />
               Exportar CSV

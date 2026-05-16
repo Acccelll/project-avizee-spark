@@ -259,8 +259,11 @@ export function RelatorioBody(props: RelatorioBodyProps) {
         </div>
       )}
 
-      {/* Mobile sticky footer com Exportar */}
-      <div className="md:hidden sticky bottom-0 -mx-4 px-4 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)] z-20">
+      {/* Mobile sticky-like footer: usar fixed para sobrepor o MobileBottomNav (z-40). */}
+      <div
+        className="md:hidden fixed left-0 right-0 px-4 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)] z-50"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+      >
         <ExportMenu
           recordCount={sortedRows.length}
           columnCount={visibleColumns.length}
@@ -273,6 +276,8 @@ export function RelatorioBody(props: RelatorioBodyProps) {
           fullWidth
         />
       </div>
+      {/* Spacer para compensar footer fixo (~60px) + MobileBottomNav (~64px). */}
+      <div className="md:hidden h-32" aria-hidden="true" />
     </>
   );
 }

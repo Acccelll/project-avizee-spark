@@ -86,6 +86,9 @@ export function RelatorioCatalogo({ onSelect, recentes = [] }: RelatorioCatalogo
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar relatório..."
@@ -171,7 +174,7 @@ export function RelatorioCatalogo({ onSelect, recentes = [] }: RelatorioCatalogo
         {showPrioritized && (
           <div>
             <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
-            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
               {prioritized.map((card) => (
                 <button
                   key={card.id}
@@ -241,7 +244,7 @@ export function RelatorioCatalogo({ onSelect, recentes = [] }: RelatorioCatalogo
                 <group.icon className="h-4 w-4 text-muted-foreground" />
                 {group.title}
               </p>
-              <div className="grid gap-2 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-2 grid-cols-2 md:grid-cols-2 xl:grid-cols-4">
                 {group.items.map((card) => (
                   <button
                     key={card.id}

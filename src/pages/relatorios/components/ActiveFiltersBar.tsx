@@ -9,6 +9,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Filter } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export interface ActiveFilterChip {
   id: string;
@@ -27,11 +28,24 @@ export interface ActiveFiltersBarProps {
 }
 
 export function ActiveFiltersBar({ chips, recordCount, onClearAll }: ActiveFiltersBarProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const check = () => setHasOverflow(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [chips, recordCount]);
+
   if (!chips.length && recordCount == null) return null;
 
   return (
-    <div className="border-b bg-muted/30 text-xs">
-      <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto md:flex-wrap scrollbar-thin">
+    <div className="relative border-b bg-muted/30 text-xs">
+      <div ref={scrollRef} className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto md:flex-wrap scrollbar-thin">
         {chips.length > 0 && (
         <>
           <Filter className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -75,6 +89,12 @@ export function ActiveFiltersBar({ chips, recordCount, onClearAll }: ActiveFilte
         </span>
         )}
       </div>
+      {hasOverflow && (
+        <div
+          className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-muted/80 to-transparent md:hidden"
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }

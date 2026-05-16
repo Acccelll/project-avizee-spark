@@ -103,6 +103,7 @@ export function RelatorioMobileToolbar({
               clientes={clientes}
               fornecedores={fornecedores}
               grupos={grupos}
+              layout="stacked"
               semantics={{
                 statusMeaning: semantics?.statusMeaning,
                 typeMeaning: semantics?.typeMeaning,
@@ -125,7 +126,7 @@ export function RelatorioMobileToolbar({
           </div>
         </SheetContent>
       </Sheet>
-      {exportMenu}
+      <div className="flex-1 [&>*]:w-full">{exportMenu}</div>
       <Button
         variant="outline"
         size="icon"

@@ -25,6 +25,7 @@ import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import type { ChartType } from "@/config/relatoriosConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface ChartDataPoint {
   name: string;
@@ -78,6 +79,7 @@ export function RelatorioChart({
 }: RelatorioChartProps) {
   const usePie = chartType === "pie";
   const useLine = chartType === "line";
+  const isMobile = useIsMobile();
   const formatValue = (v: number) =>
     isQuantityReport ? formatNumber(v) : formatCurrency(v);
 
@@ -123,11 +125,11 @@ export function RelatorioChart({
                 Mostrando os {TOP_N - 1} maiores · {truncated} agrupados em "Outros".
               </p>
             )}
-            <div className="h-56 min-h-[224px] w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={200}>
+            <div className="h-44 min-h-[176px] md:h-56 md:min-h-[224px] w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={isMobile ? 160 : 200}>
                 {useLine ? (
                   <LineChart data={chartData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={isMobile ? 'preserveStartEnd' : 0} />
                     <YAxis hide />
                     <Tooltip formatter={(v: number) => formatValue(v)} />
                     <Line
@@ -165,7 +167,7 @@ export function RelatorioChart({
                   </PieChart>
                 ) : (
                   <BarChart data={chartDataView}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={chartDataView.length > 8 ? 'preserveStartEnd' : 0} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={isMobile || chartDataView.length > 8 ? 'preserveStartEnd' : 0} />
                     <YAxis hide />
                     <Tooltip formatter={(v: number) => formatValue(v)} />
                     <Bar
