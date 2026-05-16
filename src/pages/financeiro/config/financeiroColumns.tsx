@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
 import { displayDescricao } from "@/lib/displayLancamento";
-import { getOrigemLabel } from "@/lib/financeiro";
+import { getOrigemLabel, FORMA_PAGAMENTO_LABELS, normalizeFormaPagamento } from "@/lib/financeiro";
 import { PrazoChip } from "@/components/financeiro/PrazoChip";
 
 /**
@@ -188,8 +188,12 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
     {
       key: "forma_pagamento",
       label: "Forma Pgto",
-      render: (l: Lancamento) =>
-        l.forma_pagamento ? <span className="text-xs">{l.forma_pagamento}</span> : <span className="text-muted-foreground text-xs">—</span>,
+      render: (l: Lancamento) => {
+        if (!l.forma_pagamento) return <span className="text-muted-foreground text-xs">—</span>;
+        const canon = normalizeFormaPagamento(l.forma_pagamento);
+        const label = canon ? FORMA_PAGAMENTO_LABELS[canon] : l.forma_pagamento;
+        return <span className="text-xs">{label}</span>;
+      },
     },
     {
       key: "conta_bancaria",
