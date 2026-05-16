@@ -72,16 +72,18 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
     letterSpacing: "0.14em",
     fontWeight: 600,
     color: MUTED,
-    lineHeight: 1.2,
+    lineHeight: 1.5,
+    paddingBottom: "1px",
   };
   const valueStyle: React.CSSProperties = {
     fontSize: "10.5px",
     fontWeight: 500,
     color: INK,
-    lineHeight: 1.3,
+    lineHeight: 1.6,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    paddingBottom: "2px",
   };
 
   // Componente Field stacked (label + valor)
