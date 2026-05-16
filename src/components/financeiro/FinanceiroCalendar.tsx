@@ -29,10 +29,15 @@ interface Lancamento {
 interface Props {
   data: Lancamento[];
   onBaixaSuccess?: () => void;
+  initialMonth?: Date;
 }
 
-export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
+export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [month, setMonth] = useState<Date | undefined>(initialMonth);
+  // Sincroniza quando o filtro de período externo muda.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useState(() => { if (initialMonth) setMonth(initialMonth); });
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
@@ -161,6 +166,8 @@ export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
             mode="single"
             selected={selectedDate}
             onSelect={handleSelectDate}
+            month={month}
+            onMonthChange={setMonth}
             className={cn("p-3 pointer-events-auto")}
             modifiers={modifiers}
             modifiersClassNames={{
