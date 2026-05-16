@@ -9,6 +9,8 @@ import { processarBaixaLote, type BaixaItemOverride } from "@/services/financeir
 import { Pencil, Check, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ContaBancaria {
   id: string;
@@ -238,7 +240,13 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
                     );
                   }
                   return (
-                    <tr key={l.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
+                    <tr
+                      key={l.id}
+                      className={cn(
+                        idx % 2 === 0 ? "bg-muted/20" : "",
+                        editingId !== null && editingId !== l.id && "opacity-60",
+                      )}
+                    >
                       <td className="px-3 py-2 text-xs">
                         <div className="flex items-center gap-1.5">
                           {hasOverride && <Check className="h-3 w-3 text-primary shrink-0" aria-label="Personalizado" />}
@@ -253,12 +261,29 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs">{l.tipo === "receber" ? l.clientes?.nome_razao_social : l.fornecedores?.nome_razao_social || "—"}</td>
-                      <td className="px-3 py-2 text-xs font-mono text-right font-semibold">{formatCurrency(Number(l.valor))}</td>
+                      <td className="px-3 py-2 text-xs font-mono text-right font-semibold">
+                        {ovr?.valor_pago != null ? (
+                          <span className="flex items-center justify-end gap-1.5">
+                            <span className="line-through text-muted-foreground/70">
+                              {formatCurrency(Number(l.saldo_restante ?? l.valor))}
+                            </span>
+                            <span className="text-primary font-bold">{formatCurrency(ovr.valor_pago)}</span>
+                          </span>
+                        ) : (
+                          formatCurrency(Number(l.valor))
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-xs text-right">{new Date(l.data_vencimento).toLocaleDateString("pt-BR")}</td>
                       <td className="px-3 py-2 text-xs text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button type="button" size="sm" variant="ghost" className="h-6 px-2"
-                            onClick={() => startEdit(l)} aria-label="Editar este título">
+                            onClick={() => {
+                              if (editingId !== null && editingId !== l.id) {
+                                toast.warning("Confirme ou descarte a edição atual antes de editar outro item.");
+                                return;
+                              }
+                              startEdit(l);
+                            }} aria-label="Editar este título">
                             <Pencil className="h-3 w-3" />
                           </Button>
                           {hasOverride && (
