@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -154,79 +155,114 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
           </AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-      <Button
-        size="sm"
-        variant="default"
-        className="gap-1.5"
-        disabled={!podeTransmitir || acoes.pending}
-        onClick={handleTransmitir}
-      >
-        {acoes.pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-        Transmitir SEFAZ
-      </Button>
+      <div className="space-y-3">
+        {/* ── Grupo 1: Envio para SEFAZ ── */}
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Envio para SEFAZ</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {certificadoAusente ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 border-warning/40 text-warning hover:bg-warning/10"
+                      onClick={() => navigate("/administracao?tab=fiscal")}
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" /> Configurar certificado
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Certificado digital A1 não encontrado. Clique para configurar antes de transmitir.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                size="sm"
+                variant="default"
+                className="gap-1.5"
+                disabled={!podeTransmitir || acoes.pending}
+                onClick={handleTransmitir}
+              >
+                {acoes.pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Transmitir SEFAZ
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={!podeConsultar || acoes.pending}
+              onClick={() => acoes.consultar(nf)}
+            >
+              <Search className="h-3.5 w-3.5" /> Consultar status
+            </Button>
+          </div>
+        </div>
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        disabled={!podeConsultar || acoes.pending}
-        onClick={() => acoes.consultar(nf)}
-      >
-        <Search className="h-3.5 w-3.5" /> Consultar
-      </Button>
+        {/* ── Grupo 2: Documento ── */}
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Documento</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1.5"
+              disabled={!podeDanfe || gerandoDanfe}
+              onClick={handleDanfe}
+            >
+              {gerandoDanfe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+              DANFE
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={!podeEnviarEmail || enviandoEmail}
+              onClick={handleAbrirEmail}
+            >
+              {enviandoEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+              Enviar por e-mail
+            </Button>
+          </div>
+        </div>
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive"
-        disabled={!podeCancelar || acoes.pending}
-        onClick={() => setCancelOpen(true)}
-      >
-        <Ban className="h-3.5 w-3.5" /> Cancelar SEFAZ
-      </Button>
-
-      <Button
-        size="sm"
-        variant="secondary"
-        className="gap-1.5"
-        disabled={!podeDanfe || gerandoDanfe}
-        onClick={handleDanfe}
-      >
-        {gerandoDanfe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-        DANFE PDF
-      </Button>
-
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        disabled={!podeEnviarEmail || enviandoEmail}
-        onClick={handleAbrirEmail}
-      >
-        {enviandoEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-        Enviar por e-mail
-      </Button>
-
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        disabled={!podeCce}
-        onClick={() => setCceOpen(true)}
-      >
-        <FileText className="h-3.5 w-3.5" /> Carta de Correção
-      </Button>
-
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        disabled={!podeDevolucao}
-        onClick={() => navigate(`/faturamento/emitir?refNFeId=${nf.id}&finalidade=4`)}
-      >
-        <RotateCcw className="h-3.5 w-3.5" /> Nova Devolução
-      </Button>
+        {/* ── Grupo 3: Correções e Cancelamento ── */}
+        {(podeCce || podeCancelar || podeDevolucao) && (
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Correções</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {podeCce && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCceOpen(true)}>
+                  <FileText className="h-3.5 w-3.5" /> Carta de Correção
+                </Button>
+              )}
+              {podeDevolucao && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => navigate(`/faturamento/emitir?refNFeId=${nf.id}&finalidade=4`)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Nova Devolução
+                </Button>
+              )}
+              {podeCancelar && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive"
+                  disabled={acoes.pending}
+                  onClick={() => setCancelOpen(true)}
+                >
+                  <Ban className="h-3.5 w-3.5" /> Cancelar SEFAZ
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
       <SefazRetornoModal
         aberto={acoes.modalAberto}

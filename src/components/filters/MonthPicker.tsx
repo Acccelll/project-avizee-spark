@@ -131,6 +131,21 @@ export function MonthPicker({ value, onChange, label, yearsBack = 3, className }
               );
             })}
           </div>
+          {(() => {
+            const currentYM = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+            if (value === currentYM) return null;
+            return (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full h-8 text-xs text-primary hover:text-primary"
+                onClick={() => onChange(currentYM)}
+              >
+                Este mês ({MESES[currentMonth - 1]}/{String(currentYear).slice(-2)})
+              </Button>
+            );
+          })()}
           {hasValue && (
             <Button
               type="button"

@@ -10,6 +10,7 @@ import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosS
 import { formatCurrency } from "@/lib/format";
 import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
 import type {
   FornecedorRefMin,
@@ -84,6 +85,9 @@ export function NfeFormBody(props: NfeFormBodyProps) {
     [contasContabeis],
   );
 
+  const chaveDigits = String(form.chave_acesso || "").replace(/\D/g, "");
+  const chaveInvalid = chaveDigits.length > 0 && chaveDigits.length !== 44;
+
   return (
     <div className="space-y-5">
       {xmlOriginInfo && traducaoLinhasCount > 0 && (
@@ -97,6 +101,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           </Button>
         </div>
       )}
+      <SectionHeader title="Identificação" />
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="space-y-2"><Label>Tipo</Label>
           <Select value={String(form.tipo)} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent></Select>
@@ -108,7 +113,35 @@ export function NfeFormBody(props: NfeFormBodyProps) {
         <div className="space-y-2"><Label>Série</Label><Input value={String(form.serie)} onChange={(e) => setForm({ ...form, serie: e.target.value })} /></div>
         <div className="space-y-2"><Label>Data Emissão</Label><Input type="date" value={String(form.data_emissao)} onChange={(e) => setForm({ ...form, data_emissao: e.target.value })} /></div>
       </div>
-      <div className="col-span-2 space-y-2"><Label>Chave de Acesso</Label><Input value={String(form.chave_acesso)} onChange={(e) => setForm({ ...form, chave_acesso: e.target.value })} className="font-mono text-xs" /></div>
+      <div className="col-span-2 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Chave de Acesso</Label>
+          {chaveDigits.length > 0 && (
+            <span className={cn("text-[11px] font-mono", chaveDigits.length === 44 ? "text-success" : "text-destructive")}>
+              {chaveDigits.length}/44 {chaveDigits.length === 44 ? "✓" : "✗"}
+            </span>
+          )}
+        </div>
+        <Input
+          value={chaveDigits}
+          onChange={(e) => {
+            const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 44);
+            setForm({ ...form, chave_acesso: onlyDigits });
+          }}
+          inputMode="numeric"
+          maxLength={44}
+          placeholder="44 dígitos numéricos"
+          className={cn("font-mono text-xs", chaveInvalid && "border-destructive focus-visible:ring-destructive")}
+        />
+        {chaveInvalid && (
+          <p className="text-[11px] text-destructive">
+            {44 - chaveDigits.length > 0
+              ? `Faltam ${44 - chaveDigits.length} dígitos`
+              : `Excede o limite em ${chaveDigits.length - 44} dígitos`}
+          </p>
+        )}
+      </div>
+      <SectionHeader title="Partes" />
       <div className="bg-accent/30 rounded-lg p-4 space-y-3">
         {form.tipo === "entrada" ? (
           <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
@@ -121,6 +154,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           <Select value={String(form.ordem_venda_id || "none")} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
         </div>
       )}
+      <SectionHeader title="Itens" />
       <ItemsGrid
         items={items}
         onChange={setItems}
@@ -147,10 +181,13 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           </div>
         </div>
       )}
+      <SectionHeader title="Tributos" />
       <FiscalImpostosSection
         values={form}
         onChange={(key, value) => setForm({ ...form, [key]: value })}
+        modelo={String(form.modelo_documento || "55")}
       />
+      <SectionHeader title="Pagamento" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
           <Select value={String(form.forma_pagamento)} onValueChange={(v) => setForm({ ...form, forma_pagamento: v, cartao_id: v === "cartao_credito" ? form.cartao_id : "" })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto_dda">Boleto/DDA</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
@@ -173,10 +210,26 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           <Select value={String(form.condicao_pagamento)} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
         </div>
         {form.condicao_pagamento === "a_prazo" && <div className="space-y-2"><Label>Nº Parcelas</Label><Input type="number" min={1} max={48} value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} /></div>}
-        <div className="space-y-2 flex items-end gap-4">
-          <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={Boolean(form.movimenta_estoque)} onChange={(e) => setForm({ ...form, movimenta_estoque: e.target.checked })} className="rounded" />Mov. Estoque</label>
-          <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={Boolean(form.gera_financeiro)} onChange={(e) => setForm({ ...form, gera_financeiro: e.target.checked })} className="rounded" />Gera Financeiro</label>
-        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-6 rounded-lg border bg-muted/20 px-3 py-2.5">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={Boolean(form.movimenta_estoque)}
+            onChange={(e) => setForm({ ...form, movimenta_estoque: e.target.checked })}
+            className="h-4 w-4 rounded"
+          />
+          Movimenta Estoque
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={Boolean(form.gera_financeiro)}
+            onChange={(e) => setForm({ ...form, gera_financeiro: e.target.checked })}
+            className="h-4 w-4 rounded"
+          />
+          Gera Financeiro
+        </label>
       </div>
       {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && (
         <ParcelasFiscalEditor
@@ -219,6 +272,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           />
         </div>
       )}
+      <SectionHeader title="Revisão" />
       <div className="bg-accent/50 rounded-lg p-4 space-y-2">
         <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Produtos:</span><span className="font-mono font-semibold">{formatCurrency(valorProdutos)}</span></div>
         {Number(form.frete_valor || 0) > 0 && <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Frete:</span><span className="font-mono">{formatCurrency(Number(form.frete_valor))}</span></div>}
@@ -229,6 +283,15 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       </div>
       {!form.gera_financeiro && <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">⚠️ "Gera Financeiro" está desmarcado — esta NF <strong>não</strong> gerará lançamentos financeiros ao ser confirmada.</div>}
       <div className="space-y-2"><Label>Observações</Label><Textarea value={String(form.observacoes)} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex items-baseline gap-2 pb-1 border-b">
+      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }
