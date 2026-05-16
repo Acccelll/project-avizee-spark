@@ -5,7 +5,6 @@ import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -53,7 +52,6 @@ import {
 } from "@/services/logistica/lookups.service";
 import { notifyError } from "@/utils/errorMessages";
 import {
-  ENTREGA_STATUS_ORDER,
   ENTREGA_STATUS_META,
   ENTREGA_TERMINAL,
   RECEBIMENTO_STATUS_META,
@@ -83,6 +81,21 @@ type RemessaEvento = Tables<"remessa_eventos">;
 const remessaStatusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
 const MULTI_REMESSA_STATUS_MESSAGE =
   "Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.";
+
+/**
+ * Próxima transição contextual no fluxo linear de uma entrega.
+ * Retorna null se já está em estado terminal ou sem progressão definida.
+ */
+function getProximaTransicaoEntrega(statusAtual: string): { value: string; label: string; Icon: typeof Truck } | null {
+  const mapa: Record<string, { value: string; label: string; Icon: typeof Truck }> = {
+    aguardando_separacao: { value: "em_separacao", label: "Iniciar separação", Icon: Package },
+    em_separacao:        { value: "separado",      label: "Marcar separado",   Icon: CheckCheck },
+    separado:            { value: "aguardando_expedicao", label: "Aguardando expedição", Icon: Clock },
+    aguardando_expedicao:{ value: "em_transporte", label: "Em transporte",     Icon: Truck },
+    em_transporte:       { value: "entregue",      label: "Marcar entregue",   Icon: CheckCheck },
+  };
+  return mapa[statusAtual] ?? null;
+}
 
 function isAtrasadoEntrega(e: Entrega): boolean {
   if (!e.previsao_entrega || ENTREGA_TERMINAL.has(e.status_logistico)) return false;
@@ -564,6 +577,14 @@ export default function Logistica() {
     { key: "cliente", label: "Cliente", sortable: true, render: (item: Entrega) => <span className="font-medium text-sm">{item.cliente}</span> },
     { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" || !item.transportadora ? <MissingChip label="Sem transportadora" /> : <span className="text-sm">{item.transportadora}</span> },
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Entrega) => {
+      if (updatingEntregaId === item.id) {
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Atualizando...
+          </span>
+        );
+      }
       const cfg = getEntregaStatusCfg(item.status_logistico);
       const atrasado = isAtrasadoEntrega(item);
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasada</Badge>}{item.exibicao_remessas === "multipla" && <span className="text-[10px] text-muted-foreground">status reflete última remessa</span>}</span>);
@@ -579,19 +600,6 @@ export default function Logistica() {
     { key: "peso_total", label: "Peso", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.peso_total || 0)} kg</span> },
     { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <MissingChip label="Sem previsão" /> },
     { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <MissingChip label="Sem rastreio" /> },
-    { key: "status_select", label: "Atualizar status", sortable: false, hidden: !canEdit, render: (item: Entrega) => (
-      canEdit ? (
-        <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
-          <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla" || updatingEntregaId === item.id || ENTREGA_TERMINAL.has(item.status_logistico)}><SelectValue /></SelectTrigger>
-            <SelectContent>{ENTREGA_STATUS_ORDER.map((s) => <SelectItem key={s} value={s} disabled={ENTREGA_TERMINAL.has(item.status_logistico) || (item.exibicao_remessas === "multipla" && s !== item.status_logistico)}>{ENTREGA_STATUS_META[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
-          </Select>
-          {item.exibicao_remessas === "multipla" && (
-            <span className="text-[10px] text-muted-foreground">via Remessas</span>
-          )}
-        </div>
-      ) : null
-    )},
   ];
 
   const recebimentosColumns = [
@@ -838,6 +846,33 @@ export default function Logistica() {
                     <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs" onClick={(e) => { e.stopPropagation(); abrirRastreioEntrega(item); }} title="Rastrear">
                       <Search className="h-3.5 w-3.5" />Rastrear
                     </Button>
+                  )}
+                  {canEdit && !ENTREGA_TERMINAL.has(item.status_logistico) && item.exibicao_remessas !== "multipla" && (() => {
+                    const next = getProximaTransicaoEntrega(item.status_logistico);
+                    if (!next) return null;
+                    const isUpdating = updatingEntregaId === item.id;
+                    const NextIcon = next.Icon;
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-xs"
+                        disabled={isUpdating}
+                        onClick={(e) => { e.stopPropagation(); updateEntregaStatus(item, next.value); }}
+                        title={`Avançar para: ${next.label}`}
+                      >
+                        {isUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <NextIcon className="h-3.5 w-3.5" />}
+                        {next.label}
+                      </Button>
+                    );
+                  })()}
+                  {canEdit && item.exibicao_remessas === "multipla" && !ENTREGA_TERMINAL.has(item.status_logistico) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-[10px] text-muted-foreground italic px-1">Via Remessas</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{MULTI_REMESSA_STATUS_MESSAGE}</TooltipContent>
+                    </Tooltip>
                   )}
                 </>
               )}

@@ -225,7 +225,17 @@ export default function RemessaFormPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo de Remessa *</Label>
-                    <Select value={form.tipo_remessa} onValueChange={(v) => setF({ tipo_remessa: v })}>
+                    <Select
+                      value={form.tipo_remessa}
+                      onValueChange={(v) =>
+                        setF({
+                          tipo_remessa: v,
+                          // Limpa o vínculo que ficou irrelevante para o novo tipo.
+                          ordem_venda_id: v === "recebimento" ? "" : form.ordem_venda_id,
+                          pedido_compra_id: v === "entrega" ? "" : form.pedido_compra_id,
+                        })
+                      }
+                    >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entrega">Entrega (Saída)</SelectItem>
@@ -328,30 +338,34 @@ export default function RemessaFormPage() {
               <CardHeader><CardTitle className="text-base">Vínculos Operacionais</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Pedido de Venda</Label>
-                    <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setF({ ordem_venda_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {ordensVenda.map((ov) => (
-                          <SelectItem key={ov.id} value={ov.id}>{ov.numero}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Pedido de Compra</Label>
-                    <Select value={form.pedido_compra_id || "none"} onValueChange={(v) => setF({ pedido_compra_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {pedidosCompra.map((pc) => (
-                          <SelectItem key={pc.id} value={pc.id}>{pc.numero}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {form.tipo_remessa === "entrega" && (
+                    <div className="space-y-2">
+                      <Label>Pedido de Venda</Label>
+                      <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setF({ ordem_venda_id: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {ordensVenda.map((ov) => (
+                            <SelectItem key={ov.id} value={ov.id}>{ov.numero}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {form.tipo_remessa === "recebimento" && (
+                    <div className="space-y-2">
+                      <Label>Pedido de Compra</Label>
+                      <Select value={form.pedido_compra_id || "none"} onValueChange={(v) => setF({ pedido_compra_id: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {pedidosCompra.map((pc) => (
+                            <SelectItem key={pc.id} value={pc.id}>{pc.numero}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2 col-span-2 sm:col-span-1">
                     <Label>Nota Fiscal</Label>
                     <Select value={form.nota_fiscal_id || "none"} onValueChange={(v) => setF({ nota_fiscal_id: v === "none" ? "" : v })}>
