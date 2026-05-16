@@ -766,7 +766,9 @@ export default function Auditoria() {
               </div>
             </ViewSection>
 
-            <DiffViewer payload={selected.payload} acao={selected.tipo_acao} />
+            <div className="max-h-[420px] overflow-y-auto rounded-md border bg-muted/20 p-2">
+              <DiffViewer payload={selected.payload} acao={selected.tipo_acao} />
+            </div>
           </div>
         )}
       </ViewDrawerV2>
