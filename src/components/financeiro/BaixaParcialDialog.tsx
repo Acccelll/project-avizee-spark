@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
 import { fetchBaixasAtivasDoLancamento } from "@/services/financeiro";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 
 interface ContaBancaria {
   id: string;
@@ -63,6 +67,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [saving, setSaving] = useState(false);
   const [baixasAnteriores, setBaixasAnteriores] = useState<Baixa[]>([]);
   const [loadingBaixas, setLoadingBaixas] = useState(false);
+  const [showEncargos, setShowEncargos] = useState(false);
   const registrarBaixa = useRegistrarBaixa();
 
   const saldoAtual = lancamento
@@ -77,6 +82,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     : false;
 
   const isExcessivo = valorPago + abatimento > saldoAtual + 0.01;
+  const hasEncargos = desconto > 0 || juros > 0 || multa > 0 || abatimento > 0;
 
   const lancamentoId = lancamento?.id;
   const lancamentoSaldo = lancamento
@@ -240,7 +246,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Valor a Pagar *</Label>
-                <Input type="number" inputMode="decimal" step="0.01" min={0} max={saldoAtual} value={valorPago} onChange={(e) => setValorPago(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
+                <CurrencyInput value={valorPago} onChange={setValorPago} max={saldoAtual} className="h-11 sm:h-10" />
                 <div className="flex flex-wrap gap-1 pt-0.5">
                   <button
                     type="button"
@@ -270,22 +276,6 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                     Limpar
                   </button>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Desconto</Label>
-                <Input type="number" inputMode="decimal" step="0.01" min={0} value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Juros</Label>
-                <Input type="number" inputMode="decimal" step="0.01" min={0} value={juros} onChange={(e) => setJuros(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Multa</Label>
-                <Input type="number" inputMode="decimal" step="0.01" min={0} value={multa} onChange={(e) => setMulta(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Abatimento</Label>
-                <Input type="number" inputMode="decimal" step="0.01" min={0} value={abatimento} onChange={(e) => setAbatimento(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Data de Baixa *</Label>
@@ -340,6 +330,39 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                 </div>
               )}
             </div>
+
+            {/* Encargos colapsáveis */}
+            <Collapsible open={showEncargos || hasEncargos} onOpenChange={setShowEncargos}>
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", (showEncargos || hasEncargos) && "rotate-180")} />
+                {showEncargos || hasEncargos
+                  ? "Ocultar encargos"
+                  : "Incluir encargos (desconto, juros, multa, abatimento)"}
+                {hasEncargos && (
+                  <Badge variant="outline" className="text-[10px] border-warning/40 text-warning bg-warning/5">
+                    ● com encargos
+                  </Badge>
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Desconto</Label>
+                  <CurrencyInput value={desconto} onChange={setDesconto} className="h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Juros</Label>
+                  <CurrencyInput value={juros} onChange={setJuros} className="h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Multa</Label>
+                  <CurrencyInput value={multa} onChange={setMulta} className="h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Abatimento</Label>
+                  <CurrencyInput value={abatimento} onChange={setAbatimento} className="h-10" />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             <div className="space-y-1.5">
               <Label className="text-xs">Observações</Label>
