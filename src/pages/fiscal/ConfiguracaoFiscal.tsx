@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Form,
   FormField,
@@ -46,6 +48,7 @@ const configuracaoSchema = z.object({
 type FormData = z.infer<typeof configuracaoSchema>;
 
 export default function ConfiguracaoFiscal() {
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
@@ -152,6 +155,14 @@ export default function ConfiguracaoFiscal() {
     <div className="space-y-6 p-6">
       {confirmDialog}
       <h1 className="text-2xl font-bold">Configuração Fiscal</h1>
+      {isMobile && (
+        <Alert className="border-warning/30 bg-warning/5">
+          <Monitor className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-xs text-warning">
+            A configuração fiscal é mais confortável no desktop, especialmente para upload de certificados e preenchimento de dados SEFAZ.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="max-w-2xl">
         <Form {...form}>
