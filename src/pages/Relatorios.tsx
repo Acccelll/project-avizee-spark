@@ -86,7 +86,10 @@ export default function Relatorios() {
 
   const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
-  const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
+  const { favoritos, salvar: salvarFavorito, remover: removerFavorito, isNearLimit, maxFavoritos } = useRelatoriosFavoritos();
+
+  const { layout, toggleLayout } = useRelatorioLayout();
+  const { recentes, registrar: registrarRecente } = useRelatorioRecentes();
 
   const { grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
   // Resolve labels apenas para os ids selecionados (sem pré-carregar listas inteiras).
