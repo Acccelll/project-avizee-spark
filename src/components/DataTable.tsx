@@ -291,6 +291,14 @@ export function DataTable<T extends Record<string, any>>({
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
+  // Mobile: ao long-press num card com `selectable`, ativa modo de seleção em lote.
+  // Enquanto ativo, taps simples toggleiam a seleção em vez de abrir a linha.
+  const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
+  useEffect(() => {
+    if (mobileSelectionMode && selectedIds.length === 0) {
+      setMobileSelectionMode(false);
+    }
+  }, [mobileSelectionMode, selectedIds.length]);
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
   // Estado local do checkbox dentro do dialog: só é persistido em localStorage no Confirmar.
   const [pendingSkipPref, setPendingSkipPref] = useState(false);
