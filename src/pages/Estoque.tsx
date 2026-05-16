@@ -35,6 +35,7 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
   ArrowRight, History,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { cn } from "@/lib/utils";
 import { getOrigemConfigFull, getTipoMovConfig, tipoMovConfig, origemConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -123,6 +124,7 @@ const Estoque = () => {
   const [ajusteSheetTipo, setAjusteSheetTipo] = useState<"entrada" | "saida" | "ajuste">("entrada");
   const { can } = useCan();
   const canAjustar = can("estoque:editar");
+  const { confirm: confirmSaldoNegativo, dialog: saldoNegativoDialog } = useConfirmDialog();
 
   const abrirAjusteRapido = (produtoId: string, tipo: "entrada" | "saida" | "ajuste" = "entrada") => {
     if (!canAjustar) {
@@ -271,9 +273,13 @@ const Estoque = () => {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
       const saldo = Number(produto?.estoque_atual ?? 0);
       if (form.quantidade > saldo) {
-        const ok = window.confirm(
-          `A saída deixará o saldo negativo (${formatNumber(saldo - form.quantidade)}). Deseja prosseguir?`,
-        );
+        const delta = formatNumber(saldo - form.quantidade);
+        const ok = await confirmSaldoNegativo({
+          title: "Saída com saldo negativo",
+          description: `Esta saída de ${formatNumber(form.quantidade)} un. resultará em saldo ${delta}. Isso pode gerar inconsistência no inventário. Deseja prosseguir mesmo assim?`,
+          confirmLabel: "Confirmar saída",
+          confirmVariant: "destructive",
+        });
         if (!ok) return;
       }
     }
@@ -485,7 +491,7 @@ const Estoque = () => {
               title="Itens em Estoque"
               value={formatNumber(kpis.totalItens)}
               icon={Package}
-              variation="produtos ativos"
+              variation="Posição atual"
               variationType="neutral"
               onClick={() => { setActiveTab("saldos"); setSituacaoFilters([]); }}
             />
@@ -548,7 +554,16 @@ const Estoque = () => {
                     </button>
                   </div>
                 ))}
-                {abaixoMinimo.length > 8 && <span className="text-xs text-muted-foreground">+{abaixoMinimo.length - 8} mais</span>}
+                {abaixoMinimo.length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("saldos"); setSituacaoFilters(["critico"]); }}
+                    className="text-xs text-destructive hover:underline font-medium underline-offset-2 inline-flex items-center gap-1 px-2"
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                    +{abaixoMinimo.length - 8} mais — ver todos
+                  </button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -812,6 +827,26 @@ const Estoque = () => {
                       inputMode="decimal"
                       required
                     />
+                    {form.tipo === "ajuste" && form.produto_id && (() => {
+                      const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
+                      if (!produto) return null;
+                      const saldoAtual = Number(produto.estoque_atual ?? 0);
+                      const delta = form.quantidade - saldoAtual;
+                      const deltaStr = delta >= 0 ? `+${formatNumber(delta)}` : formatNumber(delta);
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
+                          <span>Atual: <span className="font-semibold tabular-nums">{formatNumber(saldoAtual)}</span></span>
+                          <ArrowRight className="h-3 w-3" />
+                          <span>Novo: <span className="font-semibold tabular-nums">{formatNumber(form.quantidade)}</span></span>
+                          <span className={cn(
+                            "font-semibold tabular-nums",
+                            delta > 0 ? "text-success" : delta < 0 ? "text-destructive" : "text-muted-foreground",
+                          )}>
+                            ({deltaStr})
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1063,6 +1098,7 @@ const Estoque = () => {
         produtoId={ajusteSheetProdutoId}
         tipoInicial={ajusteSheetTipo}
       />
+      {saldoNegativoDialog}
     </>
   );
 };
