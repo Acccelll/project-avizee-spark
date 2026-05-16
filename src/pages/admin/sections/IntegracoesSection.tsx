@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
+import { useReportDirty } from "@/contexts/AdminDirtyContext";
 import { CertificadoUploader } from "@/components/fiscal/CertificadoUploader";
 
 const DEFAULTS = {
@@ -28,12 +29,14 @@ const DEFAULTS = {
 };
 
 export function IntegracoesSection() {
-  const { values, lastSaved, save, isSaving } = useSectionConfig("integracoes", DEFAULTS);
+  const { values, lastSaved, save, isSaving, computeIsDirty } = useSectionConfig("integracoes", DEFAULTS);
   const [draft, setDraft] = useState(values);
 
   useEffect(() => {
     setDraft(values);
   }, [values]);
+
+  useReportDirty(computeIsDirty(draft));
 
   const update = <K extends keyof typeof DEFAULTS>(key: K, value: (typeof DEFAULTS)[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
