@@ -157,8 +157,40 @@ export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
                 variant="noResults"
                 icon={SearchX}
                 title="Nenhum relatório encontrado"
-                description={`Nenhum resultado para "${search}". Tente outro termo.`}
+                description={
+                  normalizedSearch
+                    ? `Nenhum resultado para "${search}". Tente outro termo.`
+                    : 'Nenhum relatório nesta categoria.'
+                }
                 className="py-8"
+                action={
+                  (activeCategory !== 'all' || normalizedSearch) ? (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {activeCategory !== 'all' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setActiveCategory('all')}
+                          className="gap-1.5 text-xs"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Limpar categoria
+                        </Button>
+                      )}
+                      {normalizedSearch && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSearch('')}
+                          className="gap-1.5 text-xs"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Limpar busca
+                        </Button>
+                      )}
+                    </div>
+                  ) : undefined
+                }
               />
             </div>
           )}
