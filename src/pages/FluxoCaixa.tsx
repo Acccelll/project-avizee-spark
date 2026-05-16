@@ -551,9 +551,20 @@ const FluxoCaixa = () => {
         {hasNegativeRisk && (
           <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2 text-destructive text-sm">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span className="font-medium">
-              Atenção: o saldo previsto ficará negativo em algum período. Considere antecipar recebíveis ou postergar pagamentos.
+            <span className="font-medium flex-1">
+              Atenção: o saldo previsto ficará negativo
+              {diaCritico ? ` a partir de ${diaCritico}` : ""}. Considere antecipar recebíveis ou postergar pagamentos.
             </span>
+            {diaCritico && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => setViewMode("movimentos")}
+              >
+                Ver movimentos
+              </Button>
+            )}
           </div>
         )}
 
