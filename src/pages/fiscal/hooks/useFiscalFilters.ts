@@ -20,6 +20,13 @@ const origemLabels: Record<string, string> = {
   xml_importado: "Importação XML",
 };
 
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split("-");
+  if (!y || !m) return ym;
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+}
+
 export interface NotaFiscalFilterInput {
   tipo: string;
   id?: string;
@@ -134,11 +141,17 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
 
   const activeFilterChips = useMemo(() => {
     const chips: FilterChip[] = [];
-    if (emissaoMes) {
-      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
-    }
-    if (vencimentoMes) {
-      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
+    if (emissaoMes && vencimentoMes) {
+      chips.push({
+        key: "meses",
+        label: "Período",
+        value: [`${emissaoMes}|${vencimentoMes}`],
+        displayValue: `Emissão ${formatMonthLabel(emissaoMes)} · Venc. ${formatMonthLabel(vencimentoMes)}`,
+      });
+    } else if (emissaoMes) {
+      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: formatMonthLabel(emissaoMes) });
+    } else if (vencimentoMes) {
+      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: formatMonthLabel(vencimentoMes) });
     }
     tipoFilters.forEach((f) =>
       chips.push({
@@ -193,6 +206,7 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
 
   const removeFilter = useCallback((key: string, value?: string) => {
     if (!value) return;
+    if (key === "meses") { setEmissaoMes(""); setVencimentoMes(""); return; }
     if (key === "emissao_mes") setEmissaoMes("");
     if (key === "vencimento_mes") setVencimentoMes("");
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
