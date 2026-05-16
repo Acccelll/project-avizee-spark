@@ -126,7 +126,7 @@ export function RelatorioMobileToolbar({
           </div>
         </SheetContent>
       </Sheet>
-      {exportMenu}
+      <div className="flex-1 [&>*]:w-full">{exportMenu}</div>
       <Button
         variant="outline"
         size="icon"
