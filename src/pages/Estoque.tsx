@@ -135,6 +135,17 @@ const Estoque = () => {
     setAjusteSheetTipo(tipo);
     setAjusteSheetOpen(true);
   };
+
+  // Mobile: a aba "Ajuste Manual" abre o EstoqueAjusteSheet (bottom-sheet)
+  // em vez do formulário completo, que é otimizado para desktop.
+  useEffect(() => {
+    if (isMobile && activeTab === "ajuste") {
+      setActiveTab("saldos");
+      setAjusteSheetProdutoId(null);
+      setAjusteSheetTipo("ajuste");
+      setAjusteSheetOpen(true);
+    }
+  }, [isMobile, activeTab]);
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
