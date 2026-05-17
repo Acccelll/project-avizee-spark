@@ -99,7 +99,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 flex">
+    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/40 flex">
       <AuthBrandingPanel />
       <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm animate-fade-in">
@@ -161,6 +161,8 @@ export default function Login() {
                 onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: undefined })); setServerError(null); }}
                 className={`pl-9 h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="email"
+                inputMode="email"
+                enterKeyHint="next"
                 autoFocus
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "email-error" : undefined}
@@ -194,6 +196,7 @@ export default function Login() {
                 onChange={(e) => { setPassword(e.target.value); setErrors((prev) => ({ ...prev, password: undefined })); setServerError(null); }}
                 className={`pl-9 pr-11 h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="current-password"
+                enterKeyHint="done"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
               />

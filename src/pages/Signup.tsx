@@ -159,7 +159,7 @@ export default function Signup() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <img
           src={branding.logoUrl}
           alt={branding.marcaTexto || "ERP"}
@@ -181,7 +181,8 @@ export default function Signup() {
             <Button
               type="button"
               variant="outline"
-              className="gap-2"
+              size="lg"
+              className="gap-2 w-full"
               onClick={handleResend}
               disabled={resending || resendCooldown > 0}
             >
@@ -191,7 +192,7 @@ export default function Signup() {
                 : resending ? "Reenviando..." : "Reenviar e-mail de confirmação"}
             </Button>
             <Link to="/login">
-              <Button variant="ghost" className="w-full">Voltar ao Login</Button>
+              <Button variant="ghost" size="lg" className="w-full">Voltar ao Login</Button>
             </Link>
           </div>
         </div>
@@ -201,7 +202,7 @@ export default function Signup() {
 
   if (blockedByInvite) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <img
           src={branding.logoUrl}
           alt={branding.marcaTexto || "ERP"}
@@ -224,7 +225,7 @@ export default function Signup() {
               {ADMIN_EMAIL}
             </a>
             <Link to="/login">
-              <Button variant="outline" className="gap-2 w-full">Voltar ao Login</Button>
+              <Button variant="outline" size="lg" className="gap-2 w-full">Voltar ao Login</Button>
             </Link>
           </div>
         </div>
@@ -233,9 +234,9 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex">
       <AuthBrandingPanel />
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8 lg:hidden">
           <img
@@ -296,8 +297,9 @@ export default function Signup() {
                 placeholder="Seu nome completo"
                 value={nome}
                 onChange={(e) => { setNome(e.target.value); setErrors((p) => ({ ...p, nome: undefined })); }}
-                className={`pl-9 ${errors.nome ? "border-destructive" : ""}`}
+                className={`pl-9 h-11 ${errors.nome ? "border-destructive" : ""}`}
                 autoComplete="name"
+                enterKeyHint="next"
                 autoFocus
                 aria-invalid={!!errors.nome}
                 aria-describedby={errors.nome ? "nome-error" : undefined}
@@ -320,8 +322,10 @@ export default function Signup() {
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
-                className={`pl-9 ${errors.email ? "border-destructive" : ""}`}
+                className={`pl-9 h-11 ${errors.email ? "border-destructive" : ""}`}
                 autoComplete="email"
+                inputMode="email"
+                enterKeyHint="next"
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "email-error" : undefined}
               />
@@ -343,15 +347,16 @@ export default function Signup() {
                 placeholder="Mínimo 8 caracteres com letras e número"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); setServerError(null); }}
-                className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                className={`pl-9 pr-11 h-11 ${errors.password ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                enterKeyHint="next"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-r-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 tabIndex={0}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
@@ -377,15 +382,16 @@ export default function Signup() {
                 placeholder="Repita a senha"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => ({ ...p, confirm: undefined })); }}
-                className={`pl-9 pr-10 ${errors.confirm ? "border-destructive" : ""}`}
+                className={`pl-9 pr-11 h-11 ${errors.confirm ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                enterKeyHint="done"
                 aria-invalid={!!errors.confirm}
                 aria-describedby={errors.confirm ? "confirm-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-r-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 tabIndex={0}
                 aria-label={showConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
               >
@@ -416,7 +422,7 @@ export default function Signup() {
             )}
           </div>
 
-          <Button type="submit" className="w-full gap-2" disabled={loading}>
+          <Button type="submit" size="lg" className="w-full gap-2" disabled={loading}>
             <UserPlus className="w-4 h-4" />
             {loading ? "Criando..." : "Criar Conta"}
           </Button>

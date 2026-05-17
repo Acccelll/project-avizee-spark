@@ -119,7 +119,7 @@ export default function AuthConfirm() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <img
@@ -142,14 +142,14 @@ export default function AuthConfirm() {
               </Alert>
               {type === "recovery" && (
                 <Link to="/forgot-password">
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button variant="outline" size="lg" className="w-full gap-2">
                     <KeyRound className="h-4 w-4" /> Solicitar novo link de recuperação
                   </Button>
                 </Link>
               )}
               {type === "signup" && (
                 <Link to="/signup">
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button variant="outline" size="lg" className="w-full gap-2">
                     <UserPlus className="h-4 w-4" /> Voltar ao cadastro para reenviar confirmação
                   </Button>
                 </Link>
@@ -159,23 +159,22 @@ export default function AuthConfirm() {
                   href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent("Solicitação de novo convite — AviZee ERP")}`}
                   className="block"
                 >
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button variant="outline" size="lg" className="w-full gap-2">
                     <Mail className="h-4 w-4" /> Solicitar novo convite
                   </Button>
                 </a>
               )}
               {(type === "email_change" || type === "email") && (
                 <Link to="/configuracoes">
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button variant="outline" size="lg" className="w-full gap-2">
                     <Settings className="h-4 w-4" /> Ir para configurações de segurança
                   </Button>
                 </Link>
               )}
-              <Link
-                to="/login"
-                className="flex items-center justify-center gap-1 text-sm text-primary hover:underline"
-              >
-                <ArrowLeft className="h-3 w-3" /> Voltar ao Login
+              <Link to="/login" className="block">
+                <Button variant="ghost" size="lg" className="w-full gap-2">
+                  <ArrowLeft className="h-4 w-4" /> Voltar ao Login
+                </Button>
               </Link>
             </>
           ) : (
@@ -191,6 +190,7 @@ export default function AuthConfirm() {
                 type="button"
                 onClick={handleConfirm}
                 disabled={(!tokenHash && !(rawToken && emailParam)) || submitting}
+                size="lg"
                 className="w-full gap-2"
               >
                 {submitting ? (
@@ -203,11 +203,10 @@ export default function AuthConfirm() {
                   </>
                 )}
               </Button>
-              <Link
-                to="/login"
-                className="flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-primary"
-              >
-                <ArrowLeft className="h-3 w-3" /> Cancelar
+              <Link to="/login" className="block">
+                <Button variant="ghost" size="lg" className="w-full gap-2">
+                  <ArrowLeft className="h-4 w-4" /> Cancelar
+                </Button>
               </Link>
             </>
           )}
