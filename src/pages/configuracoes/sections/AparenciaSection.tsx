@@ -1,4 +1,5 @@
-import { ArrowUpRight, Moon, RotateCcw, Settings, Sun } from 'lucide-react';
+import { ArrowUpRight, Check, Moon, RotateCcw, Settings, Sun } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ export function AparenciaSection({ isAdmin }: Props) {
   const help = useHelpProgress();
   const corPrimaria = branding.corPrimaria || '#6b0d0d';
   const corSecundaria = branding.corSecundaria || '#b85b2d';
+  const [fontPreview, setFontPreview] = useState<number>(ap.fontScale);
+  const [previousFontScale, setPreviousFontScale] = useState<number | null>(null);
 
   // Conteúdo de cada grupo isolado para reuso entre Accordion (mobile) e layout linear (desktop).
   const grupoAparencia = (
@@ -73,12 +76,26 @@ export function AparenciaSection({ isAdmin }: Props) {
         </div>
       </div>
       <div className="rounded-lg border bg-card px-4 py-3">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Prévia rápida</p>
-        <div className="flex items-center gap-2 flex-wrap text-sm">
-          <Badge variant="outline">Tema: {ap.theme === 'dark' ? 'Escuro' : ap.theme === 'light' ? 'Claro' : 'Sistema'}</Badge>
-          <Badge variant="outline">Densidade: {ap.densidade === 'compacta' ? 'Compacta' : 'Confortável'}</Badge>
-          <Badge variant="outline">Fonte: {ap.fontScale}px</Badge>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Prévia de layout</p>
+        <div className="space-y-1 rounded-md border bg-background overflow-hidden">
+          {['Fornecedor ABC', 'Distribuidora XYZ', 'Empresa Modelo'].map((name, i) => (
+            <div
+              key={name}
+              className={cn(
+                'flex items-center justify-between border-b last:border-b-0',
+                ap.densidade === 'compacta' ? 'px-3 py-1.5 text-xs' : 'px-4 py-3 text-sm',
+              )}
+            >
+              <span className="truncate">{name}</span>
+              <span className="tabular-nums text-muted-foreground">
+                R$ {(1200 * (i + 1)).toLocaleString('pt-BR')},00
+              </span>
+            </div>
+          ))}
         </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Espaçamento: {ap.densidade === 'compacta' ? 'Compacto' : 'Confortável'} · Fonte: {ap.fontScale}px
+        </p>
       </div>
     </div>
   );
@@ -88,25 +105,52 @@ export function AparenciaSection({ isAdmin }: Props) {
       <div className="flex items-center justify-between">
         <Label>Tamanho da fonte</Label>
         <span className="text-sm text-muted-foreground tabular-nums">
-          {getFontLabel(ap.fontScale)} ({ap.fontScale}px)
+          {getFontLabel(fontPreview)} ({fontPreview}px)
         </span>
       </div>
       <Slider
         min={16}
         max={22}
         step={1}
-        value={[ap.fontScale]}
-        aria-label={`Tamanho da fonte: ${getFontLabel(ap.fontScale)} (${ap.fontScale}px)`}
-        onValueChange={async ([value]) => {
-          await ap.saveFontScale(value);
-          document.documentElement.style.setProperty('--base-font-size', `${value}px`);
-          ap.markSaved();
+        value={[fontPreview]}
+        aria-label={`Tamanho da fonte: ${getFontLabel(fontPreview)} (${fontPreview}px)`}
+        onValueChange={([value]) => setFontPreview(value)}
+        onValueCommit={async ([value]) => {
+          if (value !== ap.fontScale) {
+            setPreviousFontScale(ap.fontScale);
+            await ap.saveFontScale(value);
+            document.documentElement.style.setProperty('--base-font-size', `${value}px`);
+            ap.markSaved();
+          }
         }}
         className="py-2"
       />
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>Padrão</span><span>Médio</span><span>Grande</span><span>Máximo</span>
       </div>
+      <div
+        className="rounded-md border bg-muted/30 px-3 py-2 text-foreground"
+        style={{ fontSize: `${fontPreview}px`, lineHeight: 1.4 }}
+      >
+        Aa — Texto de amostra ({fontPreview}px): "Pedido #1234 — Cliente ABC"
+      </div>
+      {previousFontScale !== null && previousFontScale !== ap.fontScale && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={async () => {
+            await ap.saveFontScale(previousFontScale);
+            document.documentElement.style.setProperty('--base-font-size', `${previousFontScale}px`);
+            setFontPreview(previousFontScale);
+            setPreviousFontScale(null);
+            ap.markSaved();
+          }}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Desfazer (voltar para {previousFontScale}px)
+        </Button>
+      )}
     </div>
   );
 
@@ -160,13 +204,66 @@ export function AparenciaSection({ isAdmin }: Props) {
     </div>
   );
 
+  const SIDEBAR_MODE_OPTIONS: Array<{ mode: SidebarMode; title: string; desc: string; preview: React.ReactNode }> = [
+    {
+      mode: 'dynamic',
+      title: 'Dinâmico',
+      desc: 'Recolhido por padrão; expande no hover.',
+      preview: (
+        <svg viewBox="0 0 120 70" className="w-full h-16" aria-hidden="true">
+          <rect x="0" y="0" width="18" height="70" rx="2" className="fill-muted" />
+          <rect x="5" y="8" width="8" height="3" className="fill-muted-foreground/60" />
+          <rect x="5" y="18" width="8" height="3" className="fill-muted-foreground/60" />
+          <rect x="5" y="28" width="8" height="3" className="fill-muted-foreground/60" />
+          <rect x="5" y="38" width="8" height="3" className="fill-muted-foreground/60" />
+          <rect x="24" y="6" width="60" height="4" rx="1" className="fill-muted-foreground/40" />
+          <rect x="24" y="16" width="90" height="3" rx="1" className="fill-muted-foreground/25" />
+          <rect x="24" y="24" width="80" height="3" rx="1" className="fill-muted-foreground/25" />
+          <path d="M18 35 L24 32 L24 38 Z" className="fill-primary" />
+        </svg>
+      ),
+    },
+    {
+      mode: 'fixed-expanded',
+      title: 'Sempre expandido',
+      desc: 'Largura fixa de 240px.',
+      preview: (
+        <svg viewBox="0 0 120 70" className="w-full h-16" aria-hidden="true">
+          <rect x="0" y="0" width="42" height="70" rx="2" className="fill-muted" />
+          <rect x="5" y="8" width="3" height="3" className="fill-muted-foreground/60" />
+          <rect x="11" y="8" width="26" height="3" className="fill-muted-foreground/60" />
+          <rect x="5" y="18" width="3" height="3" className="fill-muted-foreground/60" />
+          <rect x="11" y="18" width="26" height="3" className="fill-muted-foreground/60" />
+          <rect x="5" y="28" width="3" height="3" className="fill-muted-foreground/60" />
+          <rect x="11" y="28" width="26" height="3" className="fill-muted-foreground/60" />
+          <rect x="48" y="6" width="50" height="4" rx="1" className="fill-muted-foreground/40" />
+          <rect x="48" y="16" width="66" height="3" rx="1" className="fill-muted-foreground/25" />
+        </svg>
+      ),
+    },
+    {
+      mode: 'fixed-collapsed',
+      title: 'Sempre recolhido',
+      desc: 'Apenas ícones (72px).',
+      preview: (
+        <svg viewBox="0 0 120 70" className="w-full h-16" aria-hidden="true">
+          <rect x="0" y="0" width="14" height="70" rx="2" className="fill-muted" />
+          <rect x="4" y="8" width="6" height="3" className="fill-muted-foreground/60" />
+          <rect x="4" y="18" width="6" height="3" className="fill-muted-foreground/60" />
+          <rect x="4" y="28" width="6" height="3" className="fill-muted-foreground/60" />
+          <rect x="4" y="38" width="6" height="3" className="fill-muted-foreground/60" />
+          <rect x="20" y="6" width="80" height="4" rx="1" className="fill-muted-foreground/40" />
+          <rect x="20" y="16" width="95" height="3" rx="1" className="fill-muted-foreground/25" />
+          <rect x="20" y="24" width="90" height="3" rx="1" className="fill-muted-foreground/25" />
+          <rect x="20" y="32" width="92" height="3" rx="1" className="fill-muted-foreground/25" />
+        </svg>
+      ),
+    },
+  ];
+
   const grupoMenuLateral = (
     <div className="grid gap-3 md:grid-cols-3">
-      {([
-        { mode: 'dynamic' as SidebarMode, title: 'Dinâmico', desc: 'Recolhido por padrão; expande no hover.' },
-        { mode: 'fixed-expanded' as SidebarMode, title: 'Sempre expandido', desc: 'Largura fixa de 240px.' },
-        { mode: 'fixed-collapsed' as SidebarMode, title: 'Sempre recolhido', desc: 'Apenas ícones (72px).' },
-      ]).map((opt) => {
+      {SIDEBAR_MODE_OPTIONS.map((opt) => {
         const active = ap.sidebarMode === opt.mode;
         return (
           <button
@@ -178,12 +275,22 @@ export function AparenciaSection({ isAdmin }: Props) {
               ap.markSaved();
             }}
             className={cn(
-              'rounded-lg border p-3 text-left transition-colors min-h-11',
+              'rounded-lg border p-3 text-left transition-colors min-h-11 space-y-2',
               active ? 'border-primary bg-primary/5' : 'hover:bg-accent/30',
             )}
           >
-            <p className="text-sm font-medium">{opt.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+            <div className="relative rounded-md border bg-background p-1.5">
+              {opt.preview}
+              {active && (
+                <span className="absolute top-1 right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="h-3 w-3" />
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium">{opt.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+            </div>
           </button>
         );
       })}
