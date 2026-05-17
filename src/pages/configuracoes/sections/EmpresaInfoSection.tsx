@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Building2, Mail, Shield } from 'lucide-react';
+import { ArrowUpRight, Building2, Copy, Mail, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -218,16 +219,29 @@ export function EmpresaInfoSection({ isAdmin }: Props) {
                   {admins.map((a) => (
                     <li key={a.id}>
                       {a.email ? (
-                        <a
-                          href={`mailto:${a.email}`}
-                          className="flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 min-h-11 hover:bg-accent/30 transition-colors"
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm text-foreground truncate">{a.nome || 'Administrador'}</span>
-                            <span className="block text-xs text-primary truncate">{a.email}</span>
-                          </span>
-                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </a>
+                        <div className="flex items-stretch gap-2 rounded-md border bg-card overflow-hidden">
+                          <a
+                            href={`mailto:${a.email}`}
+                            className="flex flex-1 items-center gap-2 px-3 py-2 min-h-11 hover:bg-accent/30 transition-colors min-w-0"
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm text-foreground truncate">{a.nome || 'Administrador'}</span>
+                              <span className="block text-xs text-primary truncate">{a.email}</span>
+                            </span>
+                            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(a.email ?? '');
+                              toast.success('E-mail copiado');
+                            }}
+                            aria-label={`Copiar e-mail de ${a.nome || 'administrador'}`}
+                            className="inline-flex items-center justify-center min-h-11 min-w-11 border-l text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 px-3 py-2 text-sm">
                           <span className="text-foreground">{a.nome || 'Administrador'}</span>
