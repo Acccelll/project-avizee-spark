@@ -51,7 +51,6 @@ export default function Login() {
     if (!email.trim()) newErrors.email = "Informe seu e-mail";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "E-mail inválido";
     if (!password) newErrors.password = "Informe sua senha";
-    else if (password.length < 6) newErrors.password = "Mínimo 6 caracteres";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
