@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Calendar, Globe, Image as ImageIcon, Info, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
+import { Building2, Calendar, ChevronDown, Globe, Image as ImageIcon, Info, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +16,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { notifyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
 import { useReportDirty } from "@/contexts/AdminDirtyContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { uploadDbavizeeImage } from "@/services/storage.service";
 
 const DEFAULT_FORM = {
@@ -63,6 +65,11 @@ export function EmpresaSection() {
   const { empresaConfig, isLoading: empresaLoading, handleSave: saveEmpresa, isSaving: empresaSaving } =
     useEmpresaConfig();
   const { config: geralAux, handleSave: saveGeral, isSaving: geralSaving } = useAppConfig("geral");
+  const isMobile = useIsMobile();
+  const [brandingOpen, setBrandingOpen] = useState(false);
+  useEffect(() => {
+    setBrandingOpen(!isMobile);
+  }, [isMobile]);
 
   const [draft, setDraft] = useState(DEFAULT_FORM);
   const [baseline, setBaseline] = useState(DEFAULT_FORM);
@@ -212,6 +219,10 @@ export function EmpresaSection() {
           />
         </div>
         {!valid && value && <p className="text-[11px] text-destructive">Formato inválido. Use #RRGGBB</p>}
+        <p className="text-[11px] text-muted-foreground sm:hidden flex items-start gap-1">
+          <Info className="h-3 w-3 mt-0.5 shrink-0" />
+          Toque na amostra para escolher visualmente, ou digite o código hexadecimal diretamente.
+        </p>
         <p className="text-[11px] text-muted-foreground">{description}</p>
       </div>
     );
