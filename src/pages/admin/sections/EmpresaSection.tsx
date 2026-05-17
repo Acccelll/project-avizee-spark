@@ -364,16 +364,26 @@ export function EmpresaSection() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <ImageIcon className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
-              <div>
-                <CardTitle>Identidade visual</CardTitle>
-                <CardDescription>Logo e cores aplicadas no cabeçalho do sistema, PDFs e documentos comerciais.</CardDescription>
+          <Collapsible open={brandingOpen} onOpenChange={setBrandingOpen}>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <ImageIcon className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <CardTitle>Identidade visual</CardTitle>
+                    <CardDescription>Logo e cores aplicadas no cabeçalho do sistema, PDFs e documentos comerciais.</CardDescription>
+                  </div>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="sm:hidden shrink-0 gap-1 min-h-9">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", brandingOpen && "rotate-180")} />
+                    {brandingOpen ? "Ocultar" : "Expandir"}
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            </CardHeader>
+            <CollapsibleContent>
+            <CardContent className="space-y-6">
             <div className="space-y-3">
               <Label>Logo da empresa</Label>
               {draft.logoUrl && (
@@ -457,7 +467,9 @@ export function EmpresaSection() {
               {renderColorField("Cor primária", "corPrimaria", "Cor principal aplicada em botões e destaques.")}
               {renderColorField("Cor secundária", "corSecundaria", "Cor complementar usada em gradientes e elementos visuais.")}
             </div>
-          </CardContent>
+            </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
 
         <Card>
