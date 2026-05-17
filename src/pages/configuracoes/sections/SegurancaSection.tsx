@@ -1,6 +1,7 @@
 import {
   AlertCircle, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Shield, ShieldCheck,
 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +12,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
 } from '@/components/ui/drawer';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -29,6 +32,7 @@ export function SegurancaSection() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [praticasOpen, setPraticasOpen] = useState<boolean>(!cp.changedAt);
 
   const pwdStrength = getPasswordStrength(cp.newPassword);
   const pwdCriteria = getPasswordCriteriaWithMatch(cp.newPassword, cp.confirmPassword);
@@ -88,7 +92,7 @@ export function SegurancaSection() {
               </span>
             </div>
           )}
-          {cp.changedAt && (
+          {cp.changedAt && !cp.currentPassword && !cp.newPassword && !cp.confirmPassword && (
             <div className="flex items-center gap-2 text-sm text-success pt-1">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>
@@ -295,18 +299,24 @@ export function SegurancaSection() {
           </AccordionItem>
         </Accordion>
       </div>
-      <div className="hidden md:flex items-start gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">Boas práticas de segurança</p>
-          <ul className="space-y-0.5 text-xs">
-            <li>• Use uma senha única, diferente das usadas em outros serviços.</li>
-            <li>• Evite senhas óbvias como datas de nascimento ou sequências simples.</li>
-            <li>• Não compartilhe sua senha com outras pessoas.</li>
-            <li>• Em caso de suspeita de acesso não autorizado, altere a senha imediatamente.</li>
-          </ul>
-        </div>
-      </div>
+      <Collapsible open={praticasOpen} onOpenChange={setPraticasOpen} className="hidden md:block">
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
+          <span className="flex items-center gap-2 font-medium text-foreground">
+            <Info className="h-4 w-4" /> Boas práticas de segurança
+          </span>
+          <ChevronDown className={cn('h-4 w-4 transition-transform', praticasOpen && 'rotate-180')} />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="rounded-lg border border-dashed border-t-0 bg-muted/30 px-4 py-3 text-sm text-muted-foreground -mt-px rounded-t-none">
+            <ul className="space-y-0.5 text-xs pl-6">
+              <li>• Use uma senha única, diferente das usadas em outros serviços.</li>
+              <li>• Evite senhas óbvias como datas de nascimento ou sequências simples.</li>
+              <li>• Não compartilhe sua senha com outras pessoas.</li>
+              <li>• Em caso de suspeita de acesso não autorizado, altere a senha imediatamente.</li>
+            </ul>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* 2FA — placeholder até a implementação real (Supabase MFA). Oculto no mobile. */}
       <Card className="hidden md:block">
@@ -379,24 +389,16 @@ export function SegurancaSection() {
           </DrawerContent>
         </Drawer>
       ) : (
-        <AlertDialog open={cp.showSignOutOthers} onOpenChange={cp.setShowSignOutOthers}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Encerrar sessões em outros dispositivos?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={cp.signingOutOthers}>Manter sessões</AlertDialogCancel>
-              <AlertDialogAction onClick={cp.signOutOthers} disabled={cp.signingOutOthers}>
-                {cp.signingOutOthers ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Encerrando...</>
-                ) : 'Encerrar outras sessões'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDialog
+          open={cp.showSignOutOthers}
+          onClose={() => cp.setShowSignOutOthers(false)}
+          onConfirm={cp.signOutOthers}
+          title="Encerrar sessões em outros dispositivos?"
+          description="Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa."
+          confirmLabel={cp.signingOutOthers ? 'Encerrando...' : 'Encerrar outras sessões'}
+          confirmVariant="default"
+          loading={cp.signingOutOthers}
+        />
       )}
     </div>
   );
