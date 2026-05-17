@@ -5,11 +5,15 @@
 
 import { useEffect, useState } from "react";
 import { ArrowBigUp } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function CapsLockIndicator() {
+  const isMobile = useIsMobile();
   const [capsOn, setCapsOn] = useState(false);
 
   useEffect(() => {
+    // Teclados virtuais (iOS/Android) não expõem CapsLock — listener inútil no mobile.
+    if (isMobile) return;
     const handler = (e: KeyboardEvent) => {
       const state = e.getModifierState && e.getModifierState("CapsLock");
       setCapsOn(Boolean(state));
@@ -20,9 +24,9 @@ export function CapsLockIndicator() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("keyup", handler);
     };
-  }, []);
+  }, [isMobile]);
 
-  if (!capsOn) return null;
+  if (isMobile || !capsOn) return null;
 
   return (
     <p
