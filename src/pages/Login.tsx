@@ -12,6 +12,7 @@ import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 import { ADMIN_EMAIL } from "@/constants/app";
 import { useBranding } from "@/hooks/useBranding";
+import { AuthBrandingPanel } from "./auth/AuthBrandingPanel";
 
 const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL as string | undefined;
 const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD as string | undefined;
@@ -98,10 +99,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 flex">
+      <AuthBrandingPanel />
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm animate-fade-in">
-        {/* Header */}
-        <div className="text-center mb-10">
+        {/* Header — logo só abaixo de lg: (no desktop, o painel lateral já mostra) */}
+        <div className="text-center mb-10 lg:hidden">
           <img
             src={branding.logoUrl}
             alt={branding.marcaTexto || "ERP"}
@@ -123,6 +126,12 @@ export default function Login() {
           <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
             Acesso restrito ao sistema corporativo
           </p>
+        </div>
+
+        {/* Header desktop */}
+        <div className="hidden lg:block mb-8">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Acessar sistema</h1>
+          <p className="text-muted-foreground text-sm mt-2">Acesso restrito ao sistema corporativo</p>
         </div>
 
         {/* Form card */}
@@ -166,7 +175,15 @@ export default function Login() {
 
           {/* Senha */}
           <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-primary hover:underline underline-offset-4 font-medium"
+              >
+                Esqueceu sua senha?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -219,16 +236,6 @@ export default function Login() {
             )}
           </Button>
 
-          {/* Esqueceu a senha — abaixo do CTA principal, mais visível */}
-          <div className="text-center">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-primary hover:underline underline-offset-4 font-medium transition-colors inline-flex items-center gap-1"
-            >
-              Esqueceu sua senha?
-            </Link>
-          </div>
-
           {showDevButton && (
             <Button
               type="button"
@@ -256,6 +263,7 @@ export default function Login() {
             © {new Date().getFullYear()} AviZee ERP — Todos os direitos reservados
           </p>
         </div>
+      </div>
       </div>
     </div>
   );
