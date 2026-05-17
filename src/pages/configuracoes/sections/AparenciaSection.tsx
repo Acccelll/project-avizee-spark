@@ -190,6 +190,45 @@ export function AparenciaSection({ isAdmin }: Props) {
     </div>
   );
 
+  const grupoMenuLateralMobile = (
+    <div className="space-y-2">
+      <Label>Comportamento do menu</Label>
+      <Select
+        value={ap.sidebarMode}
+        onValueChange={async (v) => {
+          await ap.saveSidebarMode(v as SidebarMode);
+          await ap.saveMenuCompacto(v !== 'fixed-expanded');
+          ap.markSaved();
+        }}
+      >
+        <SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="dynamic">
+            <span className="flex flex-col items-start">
+              <span className="text-sm font-medium">Dinâmico</span>
+              <span className="text-xs text-muted-foreground">Recolhido por padrão; expande no hover</span>
+            </span>
+          </SelectItem>
+          <SelectItem value="fixed-expanded">
+            <span className="flex flex-col items-start">
+              <span className="text-sm font-medium">Sempre expandido</span>
+              <span className="text-xs text-muted-foreground">Largura fixa de 240px</span>
+            </span>
+          </SelectItem>
+          <SelectItem value="fixed-collapsed">
+            <span className="flex flex-col items-start">
+              <span className="text-sm font-medium">Sempre recolhido</span>
+              <span className="text-xs text-muted-foreground">Apenas ícones (72px)</span>
+            </span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        Esta configuração afeta a navegação lateral em telas maiores.
+      </p>
+    </div>
+  );
+
   const grupoBranding = (
     <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3">
       {/* Mobile: linha compacta. Desktop: layout original. */}
@@ -315,15 +354,15 @@ export function AparenciaSection({ isAdmin }: Props) {
               <AccordionTrigger className="min-h-11 text-sm font-semibold">Sessão</AccordionTrigger>
               <AccordionContent>{grupoSessao}</AccordionContent>
             </AccordionItem>
+            <AccordionItem value="menu-lateral">
+              <AccordionTrigger className="min-h-11 text-sm font-semibold">Comportamento do menu lateral</AccordionTrigger>
+              <AccordionContent>{grupoMenuLateralMobile}</AccordionContent>
+            </AccordionItem>
             <AccordionItem value="branding">
               <AccordionTrigger className="min-h-11 text-sm font-semibold">Branding global</AccordionTrigger>
               <AccordionContent>{grupoBranding}</AccordionContent>
             </AccordionItem>
           </Accordion>
-
-          <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-            Configurações do menu lateral aplicam-se ao desktop e ficam disponíveis nessa interface.
-          </div>
 
           <div className="pt-2">{restaurar}</div>
         </CardContent>

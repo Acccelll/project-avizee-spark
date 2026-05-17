@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, Loader2, Lock, Mail, Save, Shield } from 'lucide-react';
+import { CalendarDays, Camera, Clock, Loader2, Lock, Mail, Save, Shield } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProfileForm } from '../hooks/useProfileForm';
@@ -26,9 +27,24 @@ export function MeuPerfilSection() {
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 shrink-0">
-              <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
-            </Avatar>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  disabled
+                  aria-label="Upload de foto de perfil — em breve"
+                  className="relative h-16 w-16 shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
+                >
+                  <Avatar className="h-16 w-16">
+                    <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="absolute bottom-0 right-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-background bg-muted text-muted-foreground">
+                    <Camera className="h-3 w-3" aria-hidden />
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Upload de foto de perfil — em breve</TooltipContent>
+            </Tooltip>
             <div className="min-w-0">
               <h3 className="text-lg font-semibold truncate">{nome || 'Usuário'}</h3>
               <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
@@ -225,8 +241,11 @@ export function MeuPerfilSection() {
       {/* Sticky save bar mobile — aparece quando dirty */}
       {isMobile && dirty && (
         <>
-          <div className="h-20" aria-hidden="true" />
-          <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]">
+          <div className="h-36" aria-hidden="true" />
+          <div
+            className="fixed left-0 right-0 z-50 border-t bg-background px-4 py-3 shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+          >
             <Button onClick={save} disabled={saving} className="w-full min-h-11 gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Salvar perfil

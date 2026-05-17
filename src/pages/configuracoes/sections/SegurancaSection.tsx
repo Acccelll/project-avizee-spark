@@ -11,6 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
+} from '@/components/ui/drawer';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -271,8 +274,6 @@ export function SegurancaSection() {
             )}
           </div>
 
-          {/* Mobile: spacer para o sticky bar não cobrir conteúdo */}
-          {isMobile && cp.currentPassword && <div className="h-20" aria-hidden="true" />}
         </CardContent>
       </Card>
 
@@ -307,8 +308,8 @@ export function SegurancaSection() {
         </div>
       </div>
 
-      {/* 2FA — placeholder até a implementação real (Supabase MFA). */}
-      <Card>
+      {/* 2FA — placeholder até a implementação real (Supabase MFA). Oculto no mobile. */}
+      <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" />
@@ -326,43 +327,77 @@ export function SegurancaSection() {
         </CardContent>
       </Card>
 
-      {/* Sticky save bar mobile — aparece quando há senha atual digitada */}
-      {isMobile && cp.currentPassword && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]">
-          <Button
-            onClick={cp.change}
-            disabled={cp.changing || !canSubmit}
-            className="w-full min-h-11 gap-2"
+      {/* Sticky save bar mobile — aparece quando qualquer campo de senha foi preenchido */}
+      {isMobile && (cp.currentPassword || cp.newPassword || cp.confirmPassword) && (
+        <>
+          <div className="h-36" aria-hidden="true" />
+          <div
+            className="fixed left-0 right-0 z-50 border-t bg-background px-4 py-3 shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
           >
-            {cp.changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            {cp.changing ? 'Alterando...' : 'Alterar senha'}
-          </Button>
-          {!canSubmit && (
-            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
-              {!cp.currentPassword ? 'Informe a senha atual.' : 'Atenda aos critérios acima.'}
-            </p>
-          )}
-        </div>
+            <Button
+              onClick={cp.change}
+              disabled={cp.changing || !canSubmit}
+              className="w-full min-h-11 gap-2"
+            >
+              {cp.changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {cp.changing ? 'Alterando...' : 'Alterar senha'}
+            </Button>
+            {!canSubmit && (
+              <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+                {!cp.currentPassword
+                  ? 'Informe a senha atual para continuar.'
+                  : !allCriteriaMet || !strongEnough
+                  ? 'A nova senha não atende aos critérios.'
+                  : 'Confirme a nova senha acima.'}
+              </p>
+            )}
+          </div>
+        </>
       )}
 
-      <AlertDialog open={cp.showSignOutOthers} onOpenChange={cp.setShowSignOutOthers}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Encerrar sessões em outros dispositivos?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cp.signingOutOthers}>Manter sessões</AlertDialogCancel>
-            <AlertDialogAction onClick={cp.signOutOthers} disabled={cp.signingOutOthers}>
-              {cp.signingOutOthers ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Encerrando...</>
-              ) : 'Encerrar outras sessões'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isMobile ? (
+        <Drawer open={cp.showSignOutOthers} onOpenChange={cp.setShowSignOutOthers}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Encerrar sessões em outros dispositivos?</DrawerTitle>
+              <DrawerDescription>
+                Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
+              </DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter>
+              <Button onClick={cp.signOutOthers} disabled={cp.signingOutOthers} className="min-h-11 gap-2">
+                {cp.signingOutOthers ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {cp.signingOutOthers ? 'Encerrando...' : 'Encerrar outras sessões'}
+              </Button>
+              <DrawerClose asChild>
+                <Button variant="outline" className="min-h-11" disabled={cp.signingOutOthers}>
+                  Manter sessões
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <AlertDialog open={cp.showSignOutOthers} onOpenChange={cp.setShowSignOutOthers}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Encerrar sessões em outros dispositivos?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cp.signingOutOthers}>Manter sessões</AlertDialogCancel>
+              <AlertDialogAction onClick={cp.signOutOthers} disabled={cp.signingOutOthers}>
+                {cp.signingOutOthers ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Encerrando...</>
+                ) : 'Encerrar outras sessões'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
