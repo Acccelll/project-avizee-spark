@@ -1,4 +1,5 @@
-import { CalendarDays, Camera, Clock, Loader2, Lock, Mail, Save, Shield } from 'lucide-react';
+import { CalendarDays, Camera, Check, Clock, Loader2, Lock, Mail, Save, Shield } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,12 @@ export function MeuPerfilSection() {
   const { user, roles } = useAuth();
   const { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save, validationError } = useProfileForm();
   const isMobile = useIsMobile();
+  const [justSaved, setJustSaved] = useState(false);
+  const handleSave = useCallback(async () => {
+    await save();
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+  }, [save]);
 
   const initials = nome.trim()
     ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -133,9 +140,19 @@ export function MeuPerfilSection() {
                 ? `Último salvamento: ${savedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
                 : 'Sem alterações salvas nesta sessão.'}
             </p>
-            <Button onClick={save} disabled={saving || !dirty} className="gap-2">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {dirty ? 'Salvar perfil' : 'Perfil atualizado'}
+            <Button
+              onClick={handleSave}
+              disabled={saving || (!dirty && !justSaved)}
+              className={cn('gap-2', justSaved && 'bg-success text-success-foreground hover:bg-success/90')}
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : justSaved ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saving ? 'Salvando...' : justSaved ? 'Salvo!' : dirty ? 'Salvar perfil' : 'Perfil atualizado'}
             </Button>
           </div>
           {/* Mobile: status compacto inline; o botão real fica em sticky bar abaixo */}
@@ -246,7 +263,7 @@ export function MeuPerfilSection() {
             className="fixed left-0 right-0 z-50 border-t bg-background px-4 py-3 shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
           >
-            <Button onClick={save} disabled={saving} className="w-full min-h-11 gap-2">
+            <Button onClick={handleSave} disabled={saving} className="w-full min-h-11 gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Salvar perfil
             </Button>
