@@ -576,18 +576,33 @@ export function UserFormModal({
               )}
             </div>
 
-            <PermissionMatrix
-              allow={form.extra_permissions}
-              deny={form.denied_permissions}
-              inheritedPermissions={inheritedPermissions}
-              onChange={({ allow: nextAllow, deny: nextDeny }) =>
-                setForm((f) => ({
-                  ...f,
-                  extra_permissions: nextAllow,
-                  denied_permissions: nextDeny,
-                }))
-              }
-            />
+            {isMobile && !isEdit ? (
+              <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Permissões do perfil aplicadas
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O usuário receberá as permissões padrão do perfil{' '}
+                  <strong>{ROLE_LABELS[form.role_padrao] ?? form.role_padrao}</strong>.
+                  Para adicionar exceções individuais, edite o usuário pelo computador
+                  após a criação.
+                </p>
+              </div>
+            ) : (
+              <PermissionMatrix
+                allow={form.extra_permissions}
+                deny={form.denied_permissions}
+                inheritedPermissions={inheritedPermissions}
+                onChange={({ allow: nextAllow, deny: nextDeny }) =>
+                  setForm((f) => ({
+                    ...f,
+                    extra_permissions: nextAllow,
+                    denied_permissions: nextDeny,
+                  }))
+                }
+              />
+            )}
           </div>
 
           {/* Bloco 4 — Auditoria (edit only) */}
