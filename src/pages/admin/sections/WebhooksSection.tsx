@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle, CheckCircle2, Clock, Copy, Loader2, Plug, Plus,
-  RefreshCw, RotateCcw, Send, Trash2, XCircle,
+  Pencil, RefreshCw, RotateCcw, Send, Trash2, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useWebhookDeliveries, useWebhookEndpoints, useWebhookMetrics, useWebhookMutations,
 } from "@/pages/admin/hooks/useWebhooks";
@@ -56,6 +57,7 @@ export function WebhooksSection() {
   const [filterEndpoint, setFilterEndpoint] = useState<string | undefined>(undefined);
   const deliveries = useWebhookDeliveries({ endpointId: filterEndpoint });
   const m = useWebhookMutations();
+  const isMobile = useIsMobile();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<WebhookEndpoint | null>(null);
@@ -95,11 +97,11 @@ export function WebhooksSection() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => m.dispatch.mutate()} disabled={m.dispatch.isPending}>
               {m.dispatch.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              <span className="ml-1.5 hidden sm:inline">Disparar agora</span>
+              <span className="ml-1.5">Disparar agora</span>
             </Button>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Novo endpoint</span>
+              <span className="ml-1.5">Novo endpoint</span>
             </Button>
           </div>
         </CardHeader>
@@ -107,8 +109,64 @@ export function WebhooksSection() {
           {endpoints.isLoading ? (
             <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
           ) : endpoints.data && endpoints.data.length > 0 ? (
+            isMobile ? (
+              <div className="space-y-2">
+                {endpoints.data.map((ep) => (
+                  <div key={ep.id} className="rounded-md border p-3 space-y-2 bg-background">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">{ep.nome}</p>
+                          <Badge variant={ep.ativo ? "default" : "outline"} className="text-[10px] shrink-0">
+                            {ep.ativo ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono truncate" title={ep.url}>{ep.url}</p>
+                      </div>
+                      <Switch
+                        checked={ep.ativo}
+                        onCheckedChange={(v) => m.update.mutate({ id: ep.id, patch: { ativo: v } })}
+                        aria-label={`${ep.ativo ? "Desativar" : "Ativar"} ${ep.nome}`}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {ep.eventos.slice(0, 4).map((e) => (
+                        <Badge key={e} variant="secondary" className="text-[10px]">{e}</Badge>
+                      ))}
+                      {ep.eventos.length > 4 && <Badge variant="outline" className="text-[10px]">+{ep.eventos.length - 4}</Badge>}
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-green-600">{ep.total_sucesso} ✓</span>
+                        <span className="text-muted-foreground"> · </span>
+                        <span className="text-destructive">{ep.total_falha} ✗</span>
+                        <span className="text-muted-foreground"> · {formatRel(ep.ultimo_disparo_em)}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditing(ep)} aria-label="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-9 w-9"
+                          aria-label="Rotacionar segredo"
+                          onClick={async () => {
+                            const r = await m.rotate.mutateAsync(ep.id);
+                            setSecretReveal({ secret: r.secret, nome: ep.nome });
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" aria-label="Remover" onClick={() => handleDelete(ep)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
@@ -179,6 +237,7 @@ export function WebhooksSection() {
                 </TableBody>
               </Table>
             </div>
+            )
           ) : (
             <div className="text-center py-8 text-sm text-muted-foreground">
               Nenhum webhook configurado. Crie um para começar a receber eventos.
@@ -212,7 +271,7 @@ export function WebhooksSection() {
             <Skeleton className="h-20 w-full" />
           ) : deliveries.data && deliveries.data.length > 0 ? (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Quando</TableHead>

@@ -12,6 +12,7 @@
  * via Auth Hooks for implementada.
  */
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowRight, History, ShieldAlert, UserMinus, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessoesMetricas } from "@/pages/admin/hooks/useSessoesMetricas";
 import { useEventosAdminTimeline } from "@/pages/admin/hooks/useEventosAdminTimeline";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 async function fetchUsuariosAdministrativos(): Promise<number> {
   const { count, error } = await supabase
@@ -43,6 +45,8 @@ async function fetchEventosAdmin24h(): Promise<number> {
 
 export function DashboardAdmin() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [selectedBar, setSelectedBar] = useState<{ dia: string; total: number } | null>(null);
   const sessoes = useSessoesMetricas();
   const timeline = useEventosAdminTimeline();
 
@@ -156,12 +160,19 @@ export function DashboardAdmin() {
             <div className="flex h-24 items-end gap-1.5">
               {buckets.map((b) => {
                 const heightPct = (b.total / maxBucket) * 100;
+                const isSelected = selectedBar?.dia === b.dia;
                 return (
                   <div key={b.dia} className="flex flex-1 flex-col items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => navigate(`/auditoria?periodo=7d&data=${b.dia}`)}
-                      className="w-full rounded-sm bg-primary/70 hover:bg-primary transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={() => {
+                        if (isMobile) {
+                          setSelectedBar(isSelected ? null : b);
+                        } else {
+                          navigate(`/auditoria?periodo=7d&data=${b.dia}`);
+                        }
+                      }}
+                      className={`w-full rounded-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "bg-primary" : "bg-primary/70 hover:bg-primary"}`}
                       style={{ height: `${Math.max(heightPct, 4)}%` }}
                       title={`${b.dia}: ${b.total} eventos — clique para abrir auditoria`}
                       aria-label={`Ver ${b.total} eventos de ${b.dia}`}
@@ -173,6 +184,24 @@ export function DashboardAdmin() {
                 );
               })}
             </div>
+            {isMobile && selectedBar && (
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                <span className="font-medium capitalize">
+                  {new Date(selectedBar.dia + "T12:00:00").toLocaleDateString("pt-BR", {
+                    weekday: "short", day: "numeric", month: "short",
+                  })}
+                </span>
+                <span className="text-muted-foreground">{selectedBar.total} eventos</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={() => navigate(`/auditoria?periodo=7d&data=${selectedBar.dia}`)}
+                >
+                  Abrir <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Calendar, Globe, Image as ImageIcon, Info, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
+import { Building2, Calendar, ChevronDown, Globe, Image as ImageIcon, Info, Loader2, Mail, MapPin, Phone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +16,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { notifyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
 import { useReportDirty } from "@/contexts/AdminDirtyContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { uploadDbavizeeImage } from "@/services/storage.service";
 
 const DEFAULT_FORM = {
@@ -63,6 +65,11 @@ export function EmpresaSection() {
   const { empresaConfig, isLoading: empresaLoading, handleSave: saveEmpresa, isSaving: empresaSaving } =
     useEmpresaConfig();
   const { config: geralAux, handleSave: saveGeral, isSaving: geralSaving } = useAppConfig("geral");
+  const isMobile = useIsMobile();
+  const [brandingOpen, setBrandingOpen] = useState(false);
+  useEffect(() => {
+    setBrandingOpen(!isMobile);
+  }, [isMobile]);
 
   const [draft, setDraft] = useState(DEFAULT_FORM);
   const [baseline, setBaseline] = useState(DEFAULT_FORM);
@@ -212,6 +219,10 @@ export function EmpresaSection() {
           />
         </div>
         {!valid && value && <p className="text-[11px] text-destructive">Formato inválido. Use #RRGGBB</p>}
+        <p className="text-[11px] text-muted-foreground sm:hidden flex items-start gap-1">
+          <Info className="h-3 w-3 mt-0.5 shrink-0" />
+          Toque na amostra para escolher visualmente, ou digite o código hexadecimal diretamente.
+        </p>
         <p className="text-[11px] text-muted-foreground">{description}</p>
       </div>
     );
@@ -353,16 +364,26 @@ export function EmpresaSection() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <ImageIcon className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
-              <div>
-                <CardTitle>Identidade visual</CardTitle>
-                <CardDescription>Logo e cores aplicadas no cabeçalho do sistema, PDFs e documentos comerciais.</CardDescription>
+          <Collapsible open={brandingOpen} onOpenChange={setBrandingOpen}>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <ImageIcon className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <CardTitle>Identidade visual</CardTitle>
+                    <CardDescription>Logo e cores aplicadas no cabeçalho do sistema, PDFs e documentos comerciais.</CardDescription>
+                  </div>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="sm:hidden shrink-0 gap-1 min-h-9">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", brandingOpen && "rotate-180")} />
+                    {brandingOpen ? "Ocultar" : "Expandir"}
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            </CardHeader>
+            <CollapsibleContent>
+            <CardContent className="space-y-6">
             <div className="space-y-3">
               <Label>Logo da empresa</Label>
               {draft.logoUrl && (
@@ -446,7 +467,9 @@ export function EmpresaSection() {
               {renderColorField("Cor primária", "corPrimaria", "Cor principal aplicada em botões e destaques.")}
               {renderColorField("Cor secundária", "corSecundaria", "Cor complementar usada em gradientes e elementos visuais.")}
             </div>
-          </CardContent>
+            </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
 
         <Card>
