@@ -12,8 +12,8 @@
  * (`UsuariosTab`); este modal é puro do ponto de vista de estado global.
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +85,26 @@ export function UserFormModal({
     tempPassword: string;
     recoveryLink?: string | null;
   } | null>(null);
+
+  // Snapshot do formulário ao abrir, para detectar alterações em qualquer passo.
+  const initialFormRef = useRef<UserFormData | null>(null);
+  useEffect(() => {
+    if (open) {
+      // Captura snapshot na próxima tick, depois que `useEffect [open,user]` aplicar setForm.
+      const id = setTimeout(() => {
+        initialFormRef.current = { ...form };
+      }, 0);
+      return () => clearTimeout(id);
+    }
+    initialFormRef.current = null;
+  }, [open, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formIsDirty = useMemo(
+    () =>
+      !!initialFormRef.current &&
+      JSON.stringify(form) !== JSON.stringify(initialFormRef.current),
+    [form],
+  );
 
   const inheritedPermissions = useMemo(
     () => {
@@ -265,10 +285,12 @@ export function UserFormModal({
 
   const title = isEdit ? `Editar usuário — ${user?.nome}` : 'Novo usuário';
 
-  // Stepper mobile: 4 passos (Auditoria só aparece em edit; em create vira 3 passos).
-  const totalSteps = isEdit ? 4 : 3;
+  // Stepper mobile: 4 passos em edit desktop; no mobile edit Auditoria some (read-only não justifica passo extra).
+  const totalSteps = isEdit ? (isMobile ? 3 : 4) : 3;
   const stepLabels = isEdit
-    ? ['Dados', 'Status', 'Acesso', 'Auditoria']
+    ? isMobile
+      ? ['Dados', 'Status', 'Acesso']
+      : ['Dados', 'Status', 'Acesso', 'Auditoria']
     : ['Dados', 'Status', 'Acesso'];
   const isLastStep = mobileStep === totalSteps - 1;
   const isFirstStep = mobileStep === 0;
@@ -290,6 +312,18 @@ export function UserFormModal({
           </>
         )}
       </Button>
+      {/* Salvar disponível em qualquer passo quando há alterações. */}
+      {formIsDirty && !isLastStep && (
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          variant="secondary"
+          className="min-h-11 gap-2"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Salvar
+        </Button>
+      )}
       {isLastStep ? (
         <Button
           onClick={handleSave}
