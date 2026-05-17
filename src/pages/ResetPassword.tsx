@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useBranding } from "@/hooks/useBranding";
 import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import { validatePassword } from "@/lib/passwordPolicy";
+import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -21,8 +22,27 @@ export default function ResetPassword() {
   const [othersDone, setOthersDone] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
+  const [countdown, setCountdown] = useState(5);
+  const countdownRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const branding = useBranding();
+
+  useEffect(() => {
+    if (!success) return;
+    countdownRef.current = window.setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          if (countdownRef.current) window.clearInterval(countdownRef.current);
+          navigate("/", { replace: true });
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => {
+      if (countdownRef.current) window.clearInterval(countdownRef.current);
+    };
+  }, [success, navigate]);
 
   useEffect(() => {
     // Fluxo novo (preferido): o usuário chega aqui já autenticado por
@@ -178,6 +198,10 @@ export default function ResetPassword() {
   };
 
   const handleSignOutOthers = async () => {
+    if (countdownRef.current) {
+      window.clearInterval(countdownRef.current);
+      setCountdown(0);
+    }
     setSigningOutOthers(true);
     const { error } = await supabase.auth.signOut({ scope: 'others' });
     if (error) {
@@ -191,17 +215,13 @@ export default function ResetPassword() {
   };
 
   if (checkingSession) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Validando link...</p>
-      </div>
-    );
+    return <AuthLoadingScreen mode="restoring" label="Validando link de recuperação" />;
   }
 
   if (success) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card border rounded-xl p-8 max-w-md text-center shadow-sm">
+        <div className="bg-card border rounded-xl p-8 max-w-sm w-full text-center shadow-sm">
           <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="h-7 w-7 text-success" />
           </div>
@@ -226,6 +246,11 @@ export default function ResetPassword() {
               <ShieldCheck className="h-4 w-4" /> Acessar o sistema
             </Button>
           </div>
+          {countdown > 0 && (
+            <p className="text-xs text-muted-foreground mt-4">
+              Redirecionando automaticamente em {countdown}s...
+            </p>
+          )}
           <p className="text-[11px] text-muted-foreground mt-4 leading-snug">
             Recomendamos encerrar sessões em outros dispositivos como precaução de segurança.
           </p>
@@ -236,7 +261,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Nova Senha</h1>
