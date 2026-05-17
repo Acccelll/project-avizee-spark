@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert, AlertCircle, Send } from "lucide-react";
+import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert, AlertCircle, Send, Check, X } from "lucide-react";
 import { ADMIN_EMAIL, INVITE_ONLY } from "@/constants/app";
 import { useBranding } from "@/hooks/useBranding";
 import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import { validatePassword } from "@/lib/passwordPolicy";
+import { AuthBrandingPanel } from "./auth/AuthBrandingPanel";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -22,6 +23,7 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<{ nome?: string; email?: string; password?: string; confirm?: string }>({});
@@ -157,8 +159,13 @@ export default function Signup() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card border rounded-xl p-8 max-w-md text-center shadow-sm">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <img
+          src={branding.logoUrl}
+          alt={branding.marcaTexto || "ERP"}
+          className="h-14 mb-6 object-contain"
+        />
+        <div className="bg-card border rounded-xl p-8 max-w-md w-full text-center shadow-sm">
           <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="h-7 w-7 text-success" />
           </div>
@@ -194,8 +201,13 @@ export default function Signup() {
 
   if (blockedByInvite) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card border rounded-xl p-8 max-w-md text-center shadow-sm">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <img
+          src={branding.logoUrl}
+          alt={branding.marcaTexto || "ERP"}
+          className="h-14 mb-6 object-contain"
+        />
+        <div className="bg-card border rounded-xl p-8 max-w-md w-full text-center shadow-sm">
           <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
             <ShieldAlert className="h-7 w-7 text-warning" />
           </div>
@@ -221,9 +233,11 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex">
+      <AuthBrandingPanel />
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 lg:hidden">
           <img
             src={branding.logoUrl}
             alt={branding.marcaTexto || "ERP"}
@@ -236,6 +250,11 @@ export default function Signup() {
           />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
           <p className="text-muted-foreground text-sm mt-1">Cadastre-se no sistema</p>
+        </div>
+
+        <div className="hidden lg:block mb-8">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Criar Conta</h1>
+          <p className="text-muted-foreground text-sm mt-2">Cadastre-se no sistema</p>
         </div>
 
         {INVITE_ONLY && inviteToken && (
@@ -354,19 +373,45 @@ export default function Signup() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="confirmPassword"
-                type={showPassword ? "text" : "password"}
+                type={showConfirm ? "text" : "password"}
                 placeholder="Repita a senha"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => ({ ...p, confirm: undefined })); }}
-                className={`pl-9 ${errors.confirm ? "border-destructive" : ""}`}
+                className={`pl-9 pr-10 ${errors.confirm ? "border-destructive" : ""}`}
                 autoComplete="new-password"
                 aria-invalid={!!errors.confirm}
                 aria-describedby={errors.confirm ? "confirm-error" : undefined}
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={0}
+                aria-label={showConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
             {errors.confirm && (
               <p id="confirm-error" role="alert" className="text-xs text-destructive">
                 {errors.confirm}
+              </p>
+            )}
+            {confirmPassword && !errors.confirm && (
+              <p
+                className={`text-xs flex items-center gap-1 ${
+                  confirmPassword === password ? "text-success" : "text-destructive"
+                }`}
+              >
+                {confirmPassword === password ? (
+                  <>
+                    <Check className="h-3 w-3" /> Senhas coincidem
+                  </>
+                ) : (
+                  <>
+                    <X className="h-3 w-3" /> As senhas não coincidem
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -387,6 +432,7 @@ export default function Signup() {
         <p className="text-center text-xs text-muted-foreground mt-6">
           © {new Date().getFullYear()} AviZee ERP
         </p>
+      </div>
       </div>
     </div>
   );
