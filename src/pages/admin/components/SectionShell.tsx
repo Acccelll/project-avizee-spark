@@ -39,7 +39,7 @@ export function SectionShell({
       })}`
     : "Ainda não há atualização registrada para esta seção.";
   return (
-    <div className={cn("space-y-4", showSaveBar && "max-sm:pb-24")}>
+    <div className={cn("space-y-4", showSaveBar && "max-sm:pb-40")}>
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base">{title}</CardTitle>
@@ -62,8 +62,8 @@ export function SectionShell({
               {saveCta}
             </Button>
           </div>
-          {/* Mobile: barra fixed bottom com safe-area */}
-          <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_hsl(var(--background))]">
+          {/* Mobile: barra fixed bottom acima do MobileBottomNav (z-40, h-16) com safe-area */}
+          <div className="sm:hidden fixed inset-x-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_hsl(var(--background))]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}>
             <Button
               onClick={onSave}
               disabled={isSaving}
