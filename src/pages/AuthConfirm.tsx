@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ShieldCheck, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { ShieldCheck, AlertCircle, ArrowLeft, Loader2, Mail, UserPlus, KeyRound, Settings } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+import { ADMIN_EMAIL } from "@/constants/app";
 
 /**
  * Página intersticial de confirmação de e-mail (`/auth/confirm`).
@@ -139,13 +140,37 @@ export default function AuthConfirm() {
                   {error}
                 </AlertDescription>
               </Alert>
-              {type === "recovery" ? (
+              {type === "recovery" && (
                 <Link to="/forgot-password">
                   <Button variant="outline" className="w-full gap-2">
-                    Solicitar novo link
+                    <KeyRound className="h-4 w-4" /> Solicitar novo link de recuperação
                   </Button>
                 </Link>
-              ) : null}
+              )}
+              {type === "signup" && (
+                <Link to="/signup">
+                  <Button variant="outline" className="w-full gap-2">
+                    <UserPlus className="h-4 w-4" /> Voltar ao cadastro para reenviar confirmação
+                  </Button>
+                </Link>
+              )}
+              {type === "invite" && (
+                <a
+                  href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent("Solicitação de novo convite — AviZee ERP")}`}
+                  className="block"
+                >
+                  <Button variant="outline" className="w-full gap-2">
+                    <Mail className="h-4 w-4" /> Solicitar novo convite
+                  </Button>
+                </a>
+              )}
+              {(type === "email_change" || type === "email") && (
+                <Link to="/configuracoes">
+                  <Button variant="outline" className="w-full gap-2">
+                    <Settings className="h-4 w-4" /> Ir para configurações de segurança
+                  </Button>
+                </Link>
+              )}
               <Link
                 to="/login"
                 className="flex items-center justify-center gap-1 text-sm text-primary hover:underline"
@@ -158,9 +183,8 @@ export default function AuthConfirm() {
               <div className="flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success-foreground">
                 <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-success" />
                 <p className="leading-snug">
-                  <span className="font-semibold">Confirmação humana exigida:</span>{" "}
-                  esta etapa garante que apenas você (e não filtros automáticos do
-                  seu provedor de e-mail) consuma o link enviado.
+                  Confirme abaixo para garantir que foi você quem clicou no link —
+                  isso protege sua conta de acessos indesejados.
                 </p>
               </div>
               <Button
