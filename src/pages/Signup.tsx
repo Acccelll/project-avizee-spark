@@ -159,7 +159,7 @@ export default function Signup() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <img
           src={branding.logoUrl}
           alt={branding.marcaTexto || "ERP"}
@@ -181,7 +181,8 @@ export default function Signup() {
             <Button
               type="button"
               variant="outline"
-              className="gap-2"
+              size="lg"
+              className="gap-2 w-full"
               onClick={handleResend}
               disabled={resending || resendCooldown > 0}
             >
@@ -191,7 +192,7 @@ export default function Signup() {
                 : resending ? "Reenviando..." : "Reenviar e-mail de confirmação"}
             </Button>
             <Link to="/login">
-              <Button variant="ghost" className="w-full">Voltar ao Login</Button>
+              <Button variant="ghost" size="lg" className="w-full">Voltar ao Login</Button>
             </Link>
           </div>
         </div>
@@ -201,7 +202,7 @@ export default function Signup() {
 
   if (blockedByInvite) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col items-center justify-center p-4">
         <img
           src={branding.logoUrl}
           alt={branding.marcaTexto || "ERP"}
@@ -224,7 +225,7 @@ export default function Signup() {
               {ADMIN_EMAIL}
             </a>
             <Link to="/login">
-              <Button variant="outline" className="gap-2 w-full">Voltar ao Login</Button>
+              <Button variant="outline" size="lg" className="gap-2 w-full">Voltar ao Login</Button>
             </Link>
           </div>
         </div>
@@ -233,9 +234,9 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex">
       <AuthBrandingPanel />
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8 lg:hidden">
           <img
