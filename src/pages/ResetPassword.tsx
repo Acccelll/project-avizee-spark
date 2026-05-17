@@ -220,7 +220,7 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex items-center justify-center p-4">
         <div className="bg-card border rounded-xl p-8 max-w-sm w-full text-center shadow-sm">
           <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="h-7 w-7 text-success" />
@@ -260,7 +260,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
@@ -287,15 +287,17 @@ export default function ResetPassword() {
                 placeholder="Mínimo 8 caracteres com letras e número"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
-                className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                className={`pl-9 pr-11 h-11 ${errors.password ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                enterKeyHint="next"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
+                className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-r-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                tabIndex={0}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -315,14 +317,15 @@ export default function ResetPassword() {
                 placeholder="Repita a nova senha"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => ({ ...p, confirm: undefined })); }}
-                className={`pl-9 ${errors.confirm ? "border-destructive" : ""}`}
+                className={`pl-9 h-11 ${errors.confirm ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                enterKeyHint="done"
               />
             </div>
             {errors.confirm && <p className="text-xs text-destructive">{errors.confirm}</p>}
           </div>
 
-          <Button type="submit" className="w-full gap-2" disabled={loading}>
+          <Button type="submit" size="lg" className="w-full gap-2" disabled={loading}>
             <ShieldCheck className="w-4 h-4" />
             {loading ? "Salvando..." : "Redefinir Senha"}
           </Button>
