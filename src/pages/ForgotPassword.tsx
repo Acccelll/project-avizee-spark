@@ -88,7 +88,7 @@ export default function ForgotPassword() {
 
   if (sent) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
         <div className="w-full max-w-sm">
           <div className="text-center mb-6">
             <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
@@ -108,7 +108,8 @@ export default function ForgotPassword() {
               <Button
                 type="button"
                 variant="outline"
-                className="gap-2"
+                size="lg"
+                className="gap-2 w-full"
                 onClick={handleResend}
                 disabled={resending || resendCooldown > 0}
               >
@@ -118,7 +119,7 @@ export default function ForgotPassword() {
                   : resending ? "Reenviando..." : "Reenviar link de recuperação"}
               </Button>
               <Link to="/login">
-                <Button variant="ghost" className="w-full gap-2">
+                <Button variant="ghost" size="lg" className="w-full gap-2">
                   <ArrowLeft className="h-4 w-4" /> Voltar ao Login
                 </Button>
               </Link>
@@ -130,7 +131,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
@@ -155,15 +156,17 @@ export default function ForgotPassword() {
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(""); setServerError(null); }}
-                className={`pl-9 ${error ? "border-destructive" : ""}`}
+                className={`pl-9 h-11 ${error ? "border-destructive" : ""}`}
                 autoComplete="email"
+                inputMode="email"
+                enterKeyHint="send"
                 autoFocus
               />
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
 
-          <Button type="submit" className="w-full gap-2" disabled={loading}>
+          <Button type="submit" size="lg" className="w-full gap-2" disabled={loading}>
             <Send className="w-4 h-4" />
             {loading ? "Enviando..." : "Enviar link de recuperação"}
           </Button>
