@@ -16,7 +16,8 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Info, Smartphone, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Info, Smartphone, X } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   ACTION_LABELS,
   ERP_RESOURCES,
@@ -29,6 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { resourceLabel } from './_shared';
 
 interface PermissionMatrixProps {
@@ -129,6 +131,23 @@ export function PermissionMatrix({
             A edição da matriz de permissões é otimizada para telas maiores.
             No mobile você pode <strong>visualizar</strong> as permissões;
             para conceder/revogar exceções, abra esta tela em desktop.
+            <div className="mt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5"
+                onClick={() => {
+                  navigator.clipboard
+                    .writeText(window.location.href)
+                    .then(() => toast.success('Link copiado! Cole no seu computador para editar.'))
+                    .catch(() => toast.error('Não foi possível copiar o link.'));
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copiar link desta seção
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
