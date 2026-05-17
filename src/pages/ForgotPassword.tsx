@@ -131,7 +131,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Recuperar Senha</h1>
