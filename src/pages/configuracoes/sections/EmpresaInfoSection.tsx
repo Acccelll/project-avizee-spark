@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Building2, Copy, Mail, Shield } from 'lucide-react';
+import { ArrowUpRight, Building2, Copy, Mail, Shield, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +110,30 @@ export function EmpresaInfoSection({ isAdmin }: Props) {
             <Skeleton className="h-5 w-1/2" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
+          </div>
+        ) : (!empresa?.razao_social && !empresa?.cnpj && !empresa?.nome_fantasia) ? (
+          <div className="rounded-lg border border-dashed bg-muted/30 px-6 py-10 text-center space-y-4">
+            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Dados da empresa não configurados</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                {isAdmin
+                  ? 'Configure os dados cadastrais da empresa antes de compartilhar informações com clientes.'
+                  : 'Solicite a um administrador que configure os dados da empresa.'}
+              </p>
+            </div>
+            {isAdmin ? (
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to="/administracao?tab=empresa">
+                  Configurar empresa
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Fale com um administrador para configurar os dados da empresa.
+              </p>
+            )}
           </div>
         ) : (
           <>
