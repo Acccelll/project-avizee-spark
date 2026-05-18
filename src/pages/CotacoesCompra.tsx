@@ -43,6 +43,7 @@ export default function CotacoesCompra() {
     handleSubmit, addLocalItem, updateLocalItem, removeLocalItem,
     handleAddProposal, handleSelectProposal, handleDeleteProposal,
     handleSendForApproval, handleApprove, handleReject, handleCancel, gerarPedido,
+    setSelected,
     produtoOptions, fornecedorOptions,
   } = useCotacoesCompra();
 
