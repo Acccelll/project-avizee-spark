@@ -99,6 +99,10 @@ export default function PedidosCompra() {
             variationType={ctx.kpis.aguardando > 0 ? "negative" : "positive"}
             variant={ctx.kpis.aguardando > 0 ? "warning" : undefined}
             variation="em andamento"
+            onClick={ctx.kpis.aguardando > 0
+              ? () => filters.setRecebimentoFilters(["aguardando", "parcial"])
+              : undefined}
+            aria-label="Filtrar pedidos aguardando ou em recebimento parcial"
           />
           <SummaryCard
             title="Recebidos"
