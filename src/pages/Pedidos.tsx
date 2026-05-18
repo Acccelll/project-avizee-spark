@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { FileOutput, AlertTriangle, MoreVertical, Eye } from "lucide-react";
+import { FileOutput, AlertTriangle, MoreVertical, Eye, Loader2 } from "lucide-react";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -157,7 +157,8 @@ const Pedidos = () => {
         .from("ordens_venda")
         .select("*, clientes(nome_razao_social), orcamentos(id, numero)")
         .eq("ativo", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
       if (error) {
         notifyError(error);
         throw error;
@@ -368,6 +369,9 @@ const Pedidos = () => {
     if (key === "dataFim") setDataFim("");
   };
 
+  // Item 8: KPIs refletem o subconjunto filtrado; sinaliza ao usuário quando há filtros ativos.
+  const hasActiveFilters = activeFilters.length > 0;
+
   const statusOptions: MultiSelectOption[] = Object.entries(statusPedido).map(([k, v]) => ({ label: v.label, value: k }));
   const faturamentoOptions: MultiSelectOption[] = Object.entries(statusFaturamentoLabels).map(([k, v]) => ({ label: v, value: k }));
   const clienteOptions: MultiSelectOption[] = clientesList.map(c => ({ label: c.nome_razao_social, value: c.id }));
@@ -502,7 +506,24 @@ const Pedidos = () => {
             value={formatNumber(kpis.aguardandoFat)}
             icon={FileOutput}
             variationType="positive"
-            variation={kpis.aguardandoFat > 0 ? "prontos para gerar NF" : "nenhum pendente"}
+            variation={
+              hasActiveFilters
+                ? "no filtro atual"
+                : kpis.aguardandoFat > 0
+                  ? "prontos para gerar NF"
+                  : "nenhum pendente"
+            }
+            active={
+              statusFilters.length === 2 &&
+              statusFilters.includes("aprovada") &&
+              statusFilters.includes("separado")
+            }
+            onClick={
+              kpis.aguardandoFat > 0
+                ? () => setStatusFilters(["aprovada", "separado"])
+                : undefined
+            }
+            aria-label="Filtrar pedidos aguardando faturamento"
           />
           {kpis.atrasados === 0 && kpis.semPrazo > 0 ? (
             <SummaryCard
@@ -512,7 +533,12 @@ const Pedidos = () => {
               icon={AlertTriangle}
               variant="warning"
               variationType="neutral"
-              variation="aguardando definição"
+              variation={hasActiveFilters ? "no filtro atual" : "aguardando definição"}
+              active={prazoFilters.length === 1 && prazoFilters[0] === "sem_prazo"}
+              onClick={
+                kpis.semPrazo > 0 ? () => setPrazoFilters(["sem_prazo"]) : undefined
+              }
+              aria-label="Filtrar pedidos sem prazo"
             />
           ) : (
             <SummaryCard
@@ -521,7 +547,18 @@ const Pedidos = () => {
               value={formatNumber(kpis.atrasados)}
               icon={AlertTriangle}
               variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const}
-              variation={kpis.atrasados > 0 ? "fora do prazo" : "no prazo"}
+              variation={
+                hasActiveFilters
+                  ? "no filtro atual"
+                  : kpis.atrasados > 0
+                    ? "fora do prazo"
+                    : "no prazo"
+              }
+              active={prazoFilters.length === 1 && prazoFilters[0] === "atrasado"}
+              onClick={
+                kpis.atrasados > 0 ? () => setPrazoFilters(["atrasado"]) : undefined
+              }
+              aria-label="Filtrar pedidos atrasados"
             />
           )}
         </div>
@@ -585,11 +622,15 @@ const Pedidos = () => {
               <Button
                 size="sm"
                 variant="default"
-                className="h-7 px-2 text-xs gap-1"
+                className="h-9 px-3 text-xs gap-1"
                 disabled={stockCheckPending || generatingNfId === p.id}
                 onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
               >
-                <FileOutput className="w-3 h-3" />
+                {(stockCheckPending && !generatingNfId) || generatingNfId === p.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <FileOutput className="w-3 h-3" />
+                )}
                 {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
               </Button>
             ) : null
@@ -664,11 +705,17 @@ const Pedidos = () => {
           const pedido = data.find(o => o.id === generatingNfId);
           if (pedido) handleGenerateNF(pedido);
         }}
-        title="Gerar Nota Fiscal"
+        title={
+          insufficientStock.length > 0
+            ? "⚠ Estoque insuficiente — gerar NF mesmo assim?"
+            : nfChecklist.length > 0
+              ? "Pendências fiscais detectadas"
+              : "Gerar Nota Fiscal"
+        }
         description={insufficientStock.length > 0
-          ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque insuficiente. A NF pode gerar saldo negativo no estoque. Deseja continuar?`
+          ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque abaixo do necessário. Gerar a NF resultará em saldo negativo no estoque.`
           : nfChecklist.length > 0
-            ? `Antes de gerar a NF do pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}, revise as pendências fiscais abaixo. Você ainda pode prosseguir.`
+            ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} tem pendências fiscais. Você ainda pode prosseguir.`
             : `Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
         confirmLabel={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "Gerar NF assim mesmo" : "Gerar NF"}
         confirmVariant={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "destructive" : "default"}

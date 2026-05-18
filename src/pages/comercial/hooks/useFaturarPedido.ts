@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
@@ -21,6 +22,7 @@ export type FaturarPedidoInput = string;
  */
 export function useFaturarPedido() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation<FaturarPedidoResult, Error, FaturarPedidoInput>({
     mutationFn: (pedidoId) => faturarPedido(pedidoId),
@@ -28,7 +30,15 @@ export function useFaturarPedido() {
       INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: [key] });
       });
-      toast.success(`NF ${result.nfNumero} gerada com sucesso!`);
+      toast.success(`NF ${result.nfNumero} gerada com sucesso!`, {
+        duration: 8000,
+        action: result.nfId
+          ? {
+              label: "Ver NF",
+              onClick: () => navigate(`/fiscal?id=${result.nfId}`),
+            }
+          : undefined,
+      });
     },
     onError: (err: Error) => {
       // BK-02: tratar contenda de lock de numeração da NF com mensagem específica.

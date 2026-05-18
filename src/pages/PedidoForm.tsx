@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Save, AlertTriangle } from "lucide-react";
+import { Save, AlertTriangle, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -16,6 +18,21 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+
+const SCOPE_COLLAPSED_KEY = "pedido-form-scope-collapsed";
+
+const addDias = (dataBase: string, dias: number): string => {
+  const d = new Date(dataBase + "T12:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+};
+
+const diffDias = (dataInicio: string, dataFim: string): number => {
+  const d1 = new Date(dataInicio + "T12:00:00");
+  const d2 = new Date(dataFim + "T12:00:00");
+  return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 /**
  * Status operacionais editáveis manualmente. Estados terminais alcançados via
@@ -55,17 +72,29 @@ interface PedidoRecord {
   observacoes: string | null;
   valor_total: number | null;
   clientes?: { nome_razao_social: string } | null;
-  orcamentos?: { numero: string } | null;
+  orcamentos?: { id: string; numero: string } | null;
 }
 
 const PedidoForm = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { pushView } = useRelationalNavigation();
   const [loading, setLoading] = useState(true);
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
   const { confirm, dialog } = useConfirmDialog();
   const salvarPedido = useSalvarPedido();
   const saving = salvarPedido.isPending;
+  const [scopeOpen, setScopeOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SCOPE_COLLAPSED_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
+  const handleScopeToggle = (open: boolean) => {
+    setScopeOpen(open);
+    try { localStorage.setItem(SCOPE_COLLAPSED_KEY, String(!open)); } catch { /* noop */ }
+  };
   const { form, updateForm, reset, markPristine, isDirty } = useEditDirtyForm<PedidoEditForm>({
     status: "",
     po_number: "",
@@ -82,7 +111,7 @@ const PedidoForm = () => {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(id, numero)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
@@ -163,7 +192,33 @@ const PedidoForm = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
+    return (
+      <div className="p-6 space-y-5 max-w-3xl mx-auto">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-2 min-w-0 flex-1">
+            <Skeleton className="h-7 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-9 w-36" />
+          </div>
+        </div>
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-xl border p-5 space-y-3">
+            <Skeleton className="h-5 w-40" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (!pedido) return null;
@@ -220,12 +275,24 @@ const PedidoForm = () => {
           <StatusBadge status={pedido.status || "pendente"} label={getPedidoStatusLabel(pedido.status)} />
         </div>
 
-        <div className="rounded-xl border bg-muted/20 px-4 py-3">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (orçamento e faturamento) são controlados pelo fluxo comercial/fiscal.
-          </p>
-        </div>
+        <Collapsible open={scopeOpen} onOpenChange={handleScopeToggle}>
+          <div className="rounded-xl border bg-muted/20 px-4 py-3">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${scopeOpen ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <p className="text-sm text-muted-foreground mt-2">
+                Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (orçamento e faturamento) são controlados pelo fluxo comercial/fiscal.
+              </p>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="rounded-lg border bg-card p-3">
@@ -236,9 +303,27 @@ const PedidoForm = () => {
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cliente</p>
             <p className="text-sm truncate">{pedido.clientes?.nome_razao_social || "—"}</p>
           </div>
-          <div className="rounded-lg border bg-card p-3">
+          <div
+            className={`rounded-lg border bg-card p-3 ${pedido.orcamentos?.id ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+            onClick={() => {
+              if (pedido.orcamentos?.id) pushView("orcamento", pedido.orcamentos.id);
+            }}
+            role={pedido.orcamentos?.id ? "button" : undefined}
+            tabIndex={pedido.orcamentos?.id ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (pedido.orcamentos?.id && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                pushView("orcamento", pedido.orcamentos.id);
+              }
+            }}
+          >
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Orçamento origem</p>
-            <p className="font-mono text-sm">{pedido.orcamentos?.numero || "—"}</p>
+            <p className="font-mono text-sm flex items-center gap-1">
+              {pedido.orcamentos?.numero || "—"}
+              {pedido.orcamentos?.id && (
+                <span className="text-primary text-xs" aria-hidden>↗</span>
+              )}
+            </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Valor total</p>
@@ -277,7 +362,19 @@ const PedidoForm = () => {
               <Input
                 type="date"
                 value={form.data_prometida_despacho}
-                onChange={(e) => set("data_prometida_despacho", e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  const emissao = pedido?.data_emissao;
+                  if (newDate && emissao) {
+                    const dias = diffDias(emissao, newDate);
+                    updateForm({
+                      data_prometida_despacho: newDate,
+                      prazo_despacho_dias: dias > 0 ? String(dias) : "",
+                    } as Partial<PedidoEditForm>);
+                  } else {
+                    set("data_prometida_despacho", newDate);
+                  }
+                }}
               />
             </div>
             <div className="space-y-1.5">
@@ -286,10 +383,27 @@ const PedidoForm = () => {
                 type="number"
                 min={0}
                 value={form.prazo_despacho_dias}
-                onChange={(e) => set("prazo_despacho_dias", e.target.value)}
+                onChange={(e) => {
+                  const dias = e.target.value;
+                  const emissao = pedido?.data_emissao;
+                  if (dias && emissao) {
+                    const novaData = addDias(emissao, Number(dias));
+                    updateForm({
+                      prazo_despacho_dias: dias,
+                      data_prometida_despacho: novaData,
+                    } as Partial<PedidoEditForm>);
+                  } else {
+                    set("prazo_despacho_dias", dias);
+                  }
+                }}
                 placeholder="Ex: 5"
               />
             </div>
+            {form.prazo_despacho_dias && form.data_prometida_despacho && pedido?.data_emissao && (
+              <p className="md:col-span-2 text-xs text-muted-foreground -mt-2">
+                Despacho em {form.prazo_despacho_dias} dia{Number(form.prazo_despacho_dias) !== 1 ? "s" : ""} após a emissão ({formatDate(pedido.data_emissao)}).
+              </p>
+            )}
           </div>
         </div>
 
