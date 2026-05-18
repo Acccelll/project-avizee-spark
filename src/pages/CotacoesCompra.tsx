@@ -139,8 +139,26 @@ export default function CotacoesCompra() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total" shortTitle="Total" value={formatNumber(kpis.total)} icon={ShoppingCart} variationType="neutral" variation="cotações" />
           <SummaryCard title="Em Cotação" shortTitle="Em cotação" value={formatNumber(kpis.emCotacao)} icon={Clock} variationType="neutral" variation="abertas ou em análise" />
-          <SummaryCard title="Sem propostas" shortTitle="Sem propostas" value={formatNumber(kpis.semPropostas)} icon={AlertCircle} variationType={kpis.semPropostas > 0 ? "negative" : "positive"} variation={kpis.semPropostas > 0 ? "adicionar proposta" : "tudo em dia"} />
-          <SummaryCard title="Aguardando Aprovação" shortTitle="Aprovação" value={formatNumber(kpis.aguardandoAprovacao)} icon={FileSearch} variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "neutral"} variation="pendentes de decisão" />
+          <SummaryCard
+            title="Sem propostas"
+            shortTitle="Sem propostas"
+            value={formatNumber(kpis.semPropostas)}
+            icon={AlertCircle}
+            variationType={kpis.semPropostas > 0 ? "negative" : "positive"}
+            variation={kpis.semPropostas > 0 ? "adicionar proposta" : "tudo em dia"}
+            onClick={kpis.semPropostas > 0 ? () => setStatusFilters(["aberta"]) : undefined}
+            aria-label="Filtrar cotações abertas sem propostas"
+          />
+          <SummaryCard
+            title="Aguardando Aprovação"
+            shortTitle="Aprovação"
+            value={formatNumber(kpis.aguardandoAprovacao)}
+            icon={FileSearch}
+            variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "neutral"}
+            variation="pendentes de decisão"
+            onClick={kpis.aguardandoAprovacao > 0 ? () => setStatusFilters(["aguardando_aprovacao"]) : undefined}
+            aria-label="Filtrar cotações aguardando aprovação"
+          />
         </div>
 
         <CotacaoCompraFilters
