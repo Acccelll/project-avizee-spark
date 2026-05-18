@@ -22,7 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Upload, CheckCircle, XCircle, Shuffle, AlertTriangle,
-  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown,
+  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown, Loader2,
 } from "lucide-react";
 import {
   calcularScoreConciliacao,
@@ -1162,6 +1162,59 @@ export default function Conciliacao() {
           </div>
         )}
       </ModulePage>
+
+      {matches.length > 0 && (
+        <div className="fixed bottom-4 inset-x-4 md:inset-x-auto md:right-6 md:left-[18rem] z-40">
+          <div className="rounded-xl border bg-card/95 backdrop-blur shadow-lg p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <CheckCheck className="w-5 h-5 text-success shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {matches.length} {matches.length === 1 ? "par pronto" : "pares prontos"} para confirmar
+                </p>
+                {(() => {
+                  const divergentes = lancamentosComStatus.filter(
+                    (l) => l.statusConciliacao === "divergente",
+                  ).length;
+                  if (divergentes > 0 || semParOFX > 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        {divergentes > 0 && `${divergentes} divergente${divergentes > 1 ? "s" : ""}`}
+                        {divergentes > 0 && semParOFX > 0 && " · "}
+                        {semParOFX > 0 && `${semParOFX} do OFX sem correspondência`}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setMatches([])}
+                disabled={confirming}
+              >
+                Descartar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmarConciliacao}
+                disabled={confirming}
+                className="gap-1.5"
+              >
+                {confirming ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                Confirmar {matches.length} {matches.length === 1 ? "par" : "pares"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom-sheet mobile: vincular lançamento ao extrato OFX (filtrado por valor±data) */}
       <Sheet open={vincularOpen} onOpenChange={setVincularOpen}>
