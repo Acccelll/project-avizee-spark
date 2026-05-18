@@ -61,7 +61,7 @@ export function PageShell({
 
   return (
     <div className={cn('space-y-5', widthClass, className)}>
-      <header className="flex flex-col gap-3 border-b border-border/50 pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <header className="sticky top-0 z-30 -mx-3 flex flex-col gap-3 border-b border-border/50 bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:pb-4 sm:bg-transparent sm:backdrop-blur-none sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           {backTo !== undefined && (
             <Button
@@ -81,7 +81,7 @@ export function PageShell({
               {badge && <span className="shrink-0 inline-flex">{badge}</span>}
             </div>
             {subtitle && (
-              <p className="mt-0.5 text-sm text-muted-foreground truncate">{subtitle}</p>
+              <p className="mt-0.5 hidden text-sm text-muted-foreground truncate sm:block">{subtitle}</p>
             )}
           </div>
         </div>
