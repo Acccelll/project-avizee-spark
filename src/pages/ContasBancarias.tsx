@@ -510,8 +510,21 @@ const ContasBancarias = () => {
         summaryCards={
           <>
             <SummaryCard title="Total de Contas" value={String(contas.length)} icon={Building2} />
-            <SummaryCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} variant="success" />
-            <SummaryCard title="Inativas" value={String(contasInativas)} icon={Ban} />
+            <SummaryCard
+              title="Ativas"
+              value={String(contasAtivas.length)}
+              icon={CheckCircle}
+              variant="success"
+              onClick={() => setStatusFilters(["ativo"])}
+              active={statusFilters.length === 1 && statusFilters[0] === "ativo"}
+            />
+            <SummaryCard
+              title="Inativas"
+              value={String(contasInativas)}
+              icon={Ban}
+              onClick={contasInativas > 0 ? () => setStatusFilters(["inativo"]) : undefined}
+              active={statusFilters.length === 1 && statusFilters[0] === "inativo"}
+            />
             <SummaryCard
               title="Saldo Total"
               value={formatCurrency(saldoTotal)}
