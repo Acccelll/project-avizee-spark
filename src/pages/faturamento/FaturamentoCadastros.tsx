@@ -806,7 +806,7 @@ export default function FaturamentoCadastros() {
   return (
     <ModulePage
       title="Cadastros do Faturamento"
-      subtitle="Naturezas de operação, matriz fiscal e transportadoras (Onda 2)"
+      subtitle="Naturezas de operação e matriz fiscal (Onda 2)"
     >
       <Tabs value={tab} onValueChange={handleTab}>
         <TabsList className="grid w-full grid-cols-2 sm:w-auto">
