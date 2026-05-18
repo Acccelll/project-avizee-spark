@@ -1563,7 +1563,7 @@ export default function EmitirNFeWizard() {
     >
       <FormProvider {...form}>
         <div className="space-y-4">
-          <Stepper current={step} />
+          <Stepper current={step} onStepClick={(n) => setStep(n)} />
 
           {step === 0 && <Step1Identificacao />}
           {step === 1 && <Step2Destinatario />}
