@@ -693,38 +693,7 @@ const ContasBancarias = () => {
         </form>
       </FormModal>
 
-      <AlertDialog open={confirmInactivate} onOpenChange={setConfirmInactivate}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-warning" />
-              Confirmar inativação da conta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">Confirmar inativação</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="px-6 pb-2 space-y-2 text-sm">
-            <p>A conta <strong>{selected?.descricao}</strong> ({selected?.bancos?.nome ?? "—"}) está vinculada a:</p>
-            <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
-              {inUseCounts.lancamentos > 0 && <li>{inUseCounts.lancamentos} lançamento(s) financeiro(s)</li>}
-              {inUseCounts.baixas > 0 && <li>{inUseCounts.baixas} baixa(s) registrada(s)</li>}
-              {inUseCounts.caixaMovs > 0 && <li>{inUseCounts.caixaMovs} movimento(s) de caixa</li>}
-            </ul>
-            <p className="font-medium text-foreground">
-              Deseja realmente inativar esta conta? Os vínculos existentes não serão removidos,
-              mas a conta deixará de aparecer para novos lançamentos.
-            </p>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmInactivate(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => { await persistUpdate(); setConfirmInactivate(false); }}
-              className="bg-warning hover:bg-warning text-white"
-            >
-              Confirmar inativação
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {inactivateDialog}
 
       <ContaBancariaDrawer
         open={drawerOpen}
