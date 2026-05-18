@@ -188,7 +188,7 @@ export default function PedidoCompraForm() {
       fornecedor_id: form.fornecedor_id,
       data_pedido: form.data_pedido,
       data_entrega_prevista: form.data_entrega_prevista || null,
-      data_entrega_real: form.data_entrega_real || null,
+      // data_entrega_real é preenchida apenas via RegistrarRecebimentoDialog.
       frete_valor: Number(form.frete_valor || 0),
       condicao_pagamento: form.condicao_pagamento || null,
       status: form.status,
