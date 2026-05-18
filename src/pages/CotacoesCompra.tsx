@@ -43,6 +43,7 @@ export default function CotacoesCompra() {
     handleSubmit, addLocalItem, updateLocalItem, removeLocalItem,
     handleAddProposal, handleSelectProposal, handleDeleteProposal,
     handleSendForApproval, handleApprove, handleReject, handleCancel, gerarPedido,
+    setSelected,
     produtoOptions, fornecedorOptions,
   } = useCotacoesCompra();
 
@@ -193,6 +194,11 @@ export default function CotacoesCompra() {
           summaries={summaries}
           onView={openView}
           onEdit={openEdit}
+          onApprove={(c) => {
+            setSelected(c);
+            // Aguarda próximo tick para garantir setSelected antes do handleApprove ler.
+            setTimeout(() => { handleApprove(); }, 0);
+          }}
         />
       </ModulePage>
 

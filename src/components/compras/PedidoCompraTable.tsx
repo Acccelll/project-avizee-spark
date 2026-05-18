@@ -2,9 +2,11 @@ import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RowActions } from "@/components/list/RowActions";
 import {
+  Pencil,
   PackageCheck,
   SendHorizontal,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import type { PedidoCompra } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
@@ -65,6 +67,7 @@ export function PedidoCompraTable({
       key: "id",
       label: "Nº Pedido",
       sortable: true,
+      mobilePrimary: true,
       render: (p: PedidoCompra) => (
         <span className="font-mono text-xs font-semibold text-primary">{pedidoNumero(p)}</span>
       ),
@@ -72,6 +75,7 @@ export function PedidoCompraTable({
     {
       key: "fornecedor",
       label: "Fornecedor",
+      mobileCard: true,
       render: (p: PedidoCompra) => (
         <span className="font-medium text-sm">{p.fornecedores?.nome_razao_social || "—"}</span>
       ),
@@ -85,6 +89,7 @@ export function PedidoCompraTable({
     {
       key: "data_entrega_prevista",
       label: "Entrega Prevista",
+      mobileCard: true,
       render: (p: PedidoCompra) => (
         <EntregaCell dataEntrega={p.data_entrega_prevista} status={p.status} />
       ),
@@ -101,6 +106,7 @@ export function PedidoCompraTable({
       key: "valor_total",
       label: "Total",
       sortable: true,
+      mobileCard: true,
       render: (p: PedidoCompra) => (
         <span className="font-semibold font-mono text-sm">{formatCurrency(Number(p.valor_total || 0))}</span>
       ),
@@ -152,6 +158,55 @@ export function PedidoCompraTable({
       showColumnToggle={true}
       onView={onView}
       onEdit={onEdit}
+      mobilePrimaryAction={(p: PedidoCompra) => {
+        const status = canonicalPedidoStatus(p.status);
+        const canSend = status === "aprovado";
+        const canReceive = pedidoCanReceive(status);
+        if (canSend) {
+          return (
+            <Button
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={(e) => { e.stopPropagation(); sendLock.run(() => onSend(p)); }}
+              disabled={sendLock.pending}
+            >
+              <SendHorizontal className="h-3.5 w-3.5" />
+              Enviar ao fornecedor
+            </Button>
+          );
+        }
+        if (canReceive) {
+          return (
+            <Button
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={(e) => { e.stopPropagation(); receiveLock.run(() => onReceive(p)); }}
+              disabled={receiveLock.pending}
+            >
+              <PackageCheck className="h-3.5 w-3.5" />
+              Registrar recebimento
+            </Button>
+          );
+        }
+        return null;
+      }}
+      mobileInlineActions={(p: PedidoCompra) => {
+        const status = canonicalPedidoStatus(p.status);
+        const isEditable = ["rascunho", "aprovado"].includes(status);
+        if (!isEditable) return null;
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            onClick={(e) => { e.stopPropagation(); onEdit(p); }}
+            aria-label={`Editar pedido ${pedidoNumero(p)}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Editar
+          </Button>
+        );
+      }}
       rowExtraActions={(p: PedidoCompra) => {
         const status = canonicalPedidoStatus(p.status);
         const canSend = status === "aprovado";
