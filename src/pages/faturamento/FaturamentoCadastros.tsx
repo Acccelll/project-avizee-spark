@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   saveNaturezaOperacao,
@@ -35,7 +35,7 @@ import { useCan } from "@/hooks/useCan";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { notifyError } from "@/utils/errorMessages";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 /**
  * /faturamento/cadastros — Onda 2.
@@ -43,8 +43,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
  * Transportadoras tem cadastro próprio em outro lugar (atalho).
  */
 
-type CadastroTab = "naturezas" | "matriz" | "transportadoras";
-const VALID: CadastroTab[] = ["naturezas", "matriz", "transportadoras"];
+type CadastroTab = "naturezas" | "matriz";
+const VALID: CadastroTab[] = ["naturezas", "matriz"];
 
 // ---------------- Naturezas de Operação ----------------
 
@@ -461,6 +461,15 @@ function MatrizTab() {
     },
   });
 
+  // Regra ativa com menor número de prioridade = alta prioridade (top).
+  const regraTopPrioridade = useMemo(
+    () =>
+      (regras ?? [])
+        .filter((r) => r.ativo)
+        .sort((a, b) => a.prioridade - b.prioridade)[0],
+    [regras],
+  );
+
   const form = useForm<MatrizForm>({
     resolver: zodResolver(matrizSchema),
     defaultValues: {
@@ -640,6 +649,12 @@ function MatrizTab() {
                           </Button>
                         </div>
                       )}
+                      {regraTopPrioridade?.id === m.id && (
+                        <Badge variant="outline" className="ml-2 gap-1 border-primary/40 text-primary">
+                          <Star className="h-3 w-3 fill-primary" />
+                          Alta prioridade
+                        </Badge>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -788,29 +803,6 @@ function MatrizTab() {
   );
 }
 
-// ---------------- Transportadoras (atalho) ----------------
-
-function TransportadorasTab() {
-  const navigate = useNavigate();
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Truck className="h-4 w-4" /> Transportadoras
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Transportadoras são gerenciadas dentro do módulo de Logística.
-        </p>
-        <Button variant="outline" onClick={() => navigate("/logistica?tab=transportadoras")}>
-          Abrir cadastro de transportadoras
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ---------------- Página ----------------
 
 export default function FaturamentoCadastros() {
@@ -829,18 +821,15 @@ export default function FaturamentoCadastros() {
   return (
     <ModulePage
       title="Cadastros do Faturamento"
-      subtitle="Naturezas de operação, matriz fiscal e transportadoras (Onda 2)"
+      subtitle="Naturezas de operação e matriz fiscal (Onda 2)"
     >
       <Tabs value={tab} onValueChange={handleTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto">
           <TabsTrigger value="naturezas" className="gap-2">
             <ScrollText className="h-4 w-4" /> Naturezas
           </TabsTrigger>
           <TabsTrigger value="matriz" className="gap-2">
             <Calculator className="h-4 w-4" /> Matriz Fiscal
-          </TabsTrigger>
-          <TabsTrigger value="transportadoras" className="gap-2">
-            <Truck className="h-4 w-4" /> Transportadoras
           </TabsTrigger>
         </TabsList>
         <TabsContent value="naturezas" className="mt-4">
@@ -848,9 +837,6 @@ export default function FaturamentoCadastros() {
         </TabsContent>
         <TabsContent value="matriz" className="mt-4">
           <MatrizTab />
-        </TabsContent>
-        <TabsContent value="transportadoras" className="mt-4">
-          <TransportadorasTab />
         </TabsContent>
       </Tabs>
     </ModulePage>

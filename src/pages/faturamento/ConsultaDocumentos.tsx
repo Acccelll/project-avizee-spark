@@ -13,7 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, Copy, Search } from "lucide-react";
+import { Eye, FilePlus2, Search } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -217,24 +223,40 @@ export function ConsultaDocumentos() {
                     </td>
                     <td className="px-2 py-2 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="Ver detalhe"
-                          onClick={() => navigate(`/fiscal/${d.id}`)}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        {d.tipo === "saida" && d.status_sefaz === "autorizada" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title="Emitir NF-e similar (devolução/complementar)"
-                            onClick={() => navigate(`/faturamento/emitir?refNFeId=${d.id}`)}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label="Ver detalhe"
+                                onClick={() => navigate(`/fiscal/${d.id}`)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ver detalhe</TooltipContent>
+                          </Tooltip>
+                          {d.tipo === "saida" && d.status_sefaz === "autorizada" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  aria-label="Emitir NF-e similar"
+                                  onClick={() =>
+                                    navigate(`/faturamento/emitir?refNFeId=${d.id}`)
+                                  }
+                                >
+                                  <FilePlus2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Emitir NF-e similar (devolução/complementar)
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </TooltipProvider>
                       </div>
                     </td>
                   </tr>

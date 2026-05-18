@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Send,
   PackageCheck,
@@ -9,7 +10,15 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCan } from "@/hooks/useCan";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Hub do módulo Faturamento.
@@ -70,6 +79,21 @@ export default function FaturamentoIndex() {
   const navigate = useNavigate();
   const { can } = useCan();
 
+  // Count do backlog para badge visual no card correspondente.
+  const { data: backlogCount } = useQuery({
+    queryKey: ["faturamento-backlog-count-hub"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("ordens_venda")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .in("status_faturamento", ["pendente", "parcial"])
+        .in("status", ["aprovado", "em_separacao", "separado", "em_producao"]);
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
+
   return (
     <div className="container mx-auto p-6 max-w-5xl space-y-6">
       <header className="space-y-1">
@@ -83,6 +107,21 @@ export default function FaturamentoIndex() {
         {CARDS.map((card) => {
           const allowed = can(`faturamento_fiscal:${card.action}` as never);
           const Icon = card.icon;
+          const showBacklogBadge =
+            card.path === "/faturamento/backlog" &&
+            typeof backlogCount === "number" &&
+            backlogCount > 0;
+          const buttonEl = (
+            <Button
+              variant="secondary"
+              className="w-full justify-between"
+              disabled={!allowed}
+              onClick={() => navigate(card.path)}
+            >
+              {allowed ? card.cta : "Sem permissão"}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          );
           return (
             <Card key={card.path} className="flex flex-col">
               <CardHeader>
@@ -90,20 +129,30 @@ export default function FaturamentoIndex() {
                   <div className="rounded-md bg-primary/10 p-2 text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <CardTitle className="text-base">{card.title}</CardTitle>
+                  <CardTitle className="text-base flex-1">{card.title}</CardTitle>
+                  {showBacklogBadge && (
+                    <Badge variant="destructive">{backlogCount}</Badge>
+                  )}
                 </div>
                 <CardDescription className="pt-2">{card.description}</CardDescription>
               </CardHeader>
               <CardContent className="mt-auto">
-                <Button
-                  variant="secondary"
-                  className="w-full justify-between"
-                  disabled={!allowed}
-                  onClick={() => navigate(card.path)}
-                >
-                  {allowed ? card.cta : "Sem permissão"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                {allowed ? (
+                  buttonEl
+                ) : (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="block w-full">{buttonEl}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Permissão necessária:{" "}
+                        <code>faturamento_fiscal:{card.action}</code>.
+                        Solicite ao administrador do sistema.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </CardContent>
             </Card>
           );
