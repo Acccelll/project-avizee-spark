@@ -295,6 +295,23 @@ export default function OrcamentoForm() {
     if (previewOpen) setPreviewZoom(0);
   }, [previewFullscreen, previewOpen]);
 
+  const ensurePdfFontsReady = useCallback(async () => {
+    if (typeof document === "undefined" || !("fonts" in document)) return;
+
+    try {
+      await Promise.all([
+        document.fonts.load("400 16px Montserrat"),
+        document.fonts.load("500 16px Montserrat"),
+        document.fonts.load("600 16px Montserrat"),
+        document.fonts.load("700 16px Montserrat"),
+        document.fonts.load("800 16px Montserrat"),
+        document.fonts.ready,
+      ]);
+    } catch {
+      // Não bloqueia a exportação se a API de fontes falhar.
+    }
+  }, []);
+
   const {
     register,
     control,
@@ -959,6 +976,7 @@ export default function OrcamentoForm() {
       const node = offscreenPdfRef.current;
       if (!node) return;
       try {
+        await ensurePdfFontsReady();
         const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
           import("html2canvas"),
           import("jspdf"),
@@ -990,6 +1008,7 @@ export default function OrcamentoForm() {
         try {
           const node = offscreenPdfRef.current;
           if (!node) return resolve(null);
+          await ensurePdfFontsReady();
           const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
             import("html2canvas"),
             import("jspdf"),
