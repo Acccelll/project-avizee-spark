@@ -32,11 +32,13 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -69,6 +71,7 @@ const emptyForm: CartaoForm = {
 const BANDEIRAS = ["Visa", "Mastercard", "Elo", "Amex", "Hipercard", "Outras"];
 
 export default function CartoesCredito() {
+  const isMobile = useIsMobile();
   const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [loading, setLoading] = useState(true);
@@ -301,6 +304,7 @@ export default function CartoesCredito() {
       key: "nome",
       label: "Cartão",
       sortable: true,
+      mobilePrimary: true,
       render: (c: CartaoCredito) => (
         <div className="flex items-center gap-2">
           <CreditCard className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -317,6 +321,7 @@ export default function CartoesCredito() {
     {
       key: "banco",
       label: "Banco",
+      mobileCard: true,
       render: (c: CartaoCredito) => (
         <span className="text-sm">{c.bancos?.nome || "—"}</span>
       ),
@@ -324,6 +329,7 @@ export default function CartoesCredito() {
     {
       key: "ciclo",
       label: "Fechamento / Vencimento",
+      mobileCard: true,
       render: (c: CartaoCredito) => (
         <span className="font-mono text-xs">
           dia {c.dia_fechamento} / dia {c.dia_vencimento}
@@ -334,6 +340,7 @@ export default function CartoesCredito() {
       key: "limite",
       label: "Limite",
       sortable: true,
+      mobileCard: true,
       render: (c: CartaoCredito) => (
         <span className="font-mono text-sm">{formatCurrency(Number(c.limite || 0))}</span>
       ),
@@ -426,6 +433,37 @@ export default function CartoesCredito() {
           }
           mobileIdentifierKey="nome"
           mobileStatusKey="ativo"
+          mobilePrimaryAction={(c: CartaoCredito) =>
+            c.ativo ? (
+              <Button
+                size="sm"
+                className="h-11 w-full gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFaturasList(c);
+                }}
+              >
+                <Receipt className="w-4 h-4" />
+                Ver faturas
+              </Button>
+            ) : null
+          }
+          mobileInlineActions={(c: CartaoCredito) =>
+            c.ativo ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFatura(c);
+                }}
+              >
+                <FileText className="w-4 h-4" />
+                Gerar
+              </Button>
+            ) : null
+          }
           emptyTitle="Nenhum cartão cadastrado"
           emptyDescription="Cadastre um cartão para gerar faturas e amarrar lançamentos."
         />
@@ -452,24 +490,31 @@ export default function CartoesCredito() {
               A operação é idempotente — pode ser repetida; o título será atualizado se ainda estiver em aberto.
             </p>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setFaturaOpen(false)}>Cancelar</Button>
-            <Button onClick={handleGerarFatura} disabled={faturaSaving}>
-              {faturaSaving ? "Gerando..." : "Gerar fatura"}
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setFaturaOpen(false)}
+              className="max-sm:h-11 max-sm:w-full"
+            >
+              Cancelar
             </Button>
-          </div>
+            <Button
+              onClick={handleGerarFatura}
+              disabled={faturaSaving}
+              className="max-sm:h-11 max-sm:w-full gap-2"
+            >
+              {faturaSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
+              ) : (
+                <><FileText className="h-4 w-4" /> Gerar fatura</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={faturasListOpen} onOpenChange={(o) => !o && setFaturasListOpen(false)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Faturas — {faturasListCartao?.nome}</DialogTitle>
-            <DialogDescription>
-              Ciclo: dia {faturasListCartao?.dia_fechamento} (fechamento) / dia {faturasListCartao?.dia_vencimento} (vencimento).
-            </DialogDescription>
-          </DialogHeader>
-          {faturasLoading ? (
+      {(() => {
+        const faturasBody = faturasLoading ? (
             <div className="space-y-2 py-2">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-md" />
@@ -531,9 +576,31 @@ export default function CartoesCredito() {
                 </div>
               ))}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        );
+        const titulo = `Faturas — ${faturasListCartao?.nome ?? ""}`;
+        const descricao = `Ciclo: dia ${faturasListCartao?.dia_fechamento} (fechamento) / dia ${faturasListCartao?.dia_vencimento} (vencimento).`;
+        return isMobile ? (
+          <Sheet open={faturasListOpen} onOpenChange={(o) => !o && setFaturasListOpen(false)}>
+            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader className="text-left">
+                <SheetTitle>{titulo}</SheetTitle>
+                <SheetDescription>{descricao}</SheetDescription>
+              </SheetHeader>
+              <div className="mt-3">{faturasBody}</div>
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <Dialog open={faturasListOpen} onOpenChange={(o) => !o && setFaturasListOpen(false)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{titulo}</DialogTitle>
+                <DialogDescription>{descricao}</DialogDescription>
+              </DialogHeader>
+              {faturasBody}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <Dialog open={!!baixaFatura} onOpenChange={(o) => !o && setBaixaFatura(null)}>
         <DialogContent className="max-w-lg">

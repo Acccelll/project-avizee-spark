@@ -579,7 +579,7 @@ const ContasBancarias = () => {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 text-xs gap-1"
+                    className="h-9 text-xs gap-1"
                     onClick={() => openEditByBancoId(b.id)}
                   >
                     <Link2 className="w-3 h-3" />
