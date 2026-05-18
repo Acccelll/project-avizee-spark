@@ -26,7 +26,7 @@ interface Props {
  * Template de orçamento — versão "Marca AviZee" (refinada, A4).
  * Paleta: brand.primary #b2592c · brand.secondary #690500 · ink #1B1411 ·
  *         muted #8A7E73 · rule #E4DCD2 · softRule #EFE9E0 · tintDeep #F6EADD.
- * Tipografia: Montserrat (sans) + JetBrains Mono (números/códigos/documentos).
+ * Tipografia: Montserrat em todo o documento (textos e números, com tabular-nums em colunas numéricas).
  */
 export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   numero, data, cliente, items, totalProdutos, desconto, impostoSt, impostoIpi,
