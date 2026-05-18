@@ -136,6 +136,22 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
         );
       },
     },
+    {
+      key: "fornecedor_aprovado",
+      label: "Fornecedor aprovado",
+      render: (c: CotacaoCompra) => {
+        const status = canonicalCotacaoStatus(c.status);
+        if (!["aprovada", "convertida"].includes(status)) return null;
+        const nome = summaries[c.id]?.vencedor_nome;
+        if (!nome) return <span className="text-muted-foreground/60 text-xs">—</span>;
+        return (
+          <span className="inline-flex items-center gap-1 text-xs">
+            <Trophy className="h-3 w-3 text-success" />
+            <span className="truncate max-w-[180px]">{nome}</span>
+          </span>
+        );
+      },
+    },
   ];
 
   return (

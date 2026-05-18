@@ -1,6 +1,5 @@
 
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -23,9 +22,12 @@ import { useCotacoesEnrichment } from "@/hooks/compras/useCotacoesEnrichment";
 import { useCotacaoPropostas } from "@/hooks/compras/useCotacaoPropostas";
 
 export function useCotacoesCompra() {
-  const navigate = useNavigate();
   const gerarPedidoCompra = useGerarPedidoCompra();
   const queryClient = useQueryClient();
+  // Paginação: lista client-side. Supabase aplica LIMIT 1000 implícito;
+  // volume atual de cotações é < 500. Quando ultrapassar, migrar para
+  // paginação server-side via `useSupabaseCrud({ pageSize })` no padrão
+  // de `useNotasFiscaisPaged` (Fiscal).
   const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",
@@ -315,8 +317,9 @@ export function useCotacoesCompra() {
       });
       setDrawerOpen(false);
       fetchData();
-      // CTA pós-conversão: leva direto para o pedido recém-criado (não para a lista).
-      navigate(`/pedidos-compra/${result.pedidoId}`);
+      // Navegação para o pedido fica a cargo da ação "Ver pedido" no toast
+      // emitido por `useGerarPedidoCompra` — deixa o usuário no contexto da lista.
+      void result;
     } catch (err: unknown) {
       console.error("[gerarPedido]", err);
       // toast já emitido pelo hook

@@ -3,6 +3,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Input } from "@/components/ui/input";
 import { FILTER_W_MD, FILTER_W_LG, FILTER_W_DATE } from "@/components/list/filterTokens";
+import { VALIDADE_FILTER_DIAS } from "./useCotacaoCompraFilters";
 
 interface CotacaoCompraFiltersProps {
   searchTerm: string;
@@ -73,7 +74,7 @@ export function CotacaoCompraFilters({
       <MultiSelect
         options={[
           { value: "vencidas", label: "Vencidas" },
-          { value: "vencendo", label: "Vencendo (≤7d)" },
+          { value: "vencendo", label: `Vencendo (≤${VALIDADE_FILTER_DIAS}d)` },
           { value: "sem_validade", label: "Sem validade" },
         ]}
         selected={validadeFilter ? [validadeFilter] : []}

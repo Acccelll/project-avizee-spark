@@ -13,9 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Info } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -186,7 +188,8 @@ export default function PedidoCompraForm() {
       fornecedor_id: form.fornecedor_id,
       data_pedido: form.data_pedido,
       data_entrega_prevista: form.data_entrega_prevista || null,
-      data_entrega_real: form.data_entrega_real || null,
+      // data_entrega_real só muda via RegistrarRecebimentoDialog; aqui preservamos o valor atual.
+      data_entrega_real: pedido.data_entrega_real || null,
       frete_valor: Number(form.frete_valor || 0),
       condicao_pagamento: form.condicao_pagamento || null,
       status: form.status,
@@ -220,8 +223,28 @@ export default function PedidoCompraForm() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-36" />
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-lg border bg-card p-5 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </div>
+        ))}
+        <div className="rounded-lg border bg-card p-5 space-y-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </div>
     );
   }
@@ -296,26 +319,44 @@ export default function PedidoCompraForm() {
             </div>
             <div className="space-y-2">
               <Label>Status do Pedido</Label>
-              {/* Only allow non-terminal, non-workflow statuses to be set via form */}
-              <Select
-                value={form.status}
-                onValueChange={(v) => updateForm({ ...form, status: v })}
-                disabled={isTerminal}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(["rascunho", "aprovado"] as const).map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {statusPedidoCompra[value]?.label ?? value}
-                    </SelectItem>
-                  ))}
-                  {!["rascunho", "aprovado"].includes(form.status) && (
-                    <SelectItem value={form.status} disabled>
-                      {pedidoStatusLabelMap[canonicalPedidoStatus(form.status)] ?? form.status}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              {(() => {
+                const isWorkflowStatus = !["rascunho", "aprovado"].includes(form.status);
+                const selectEl = (
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => updateForm({ ...form, status: v })}
+                    disabled={isTerminal || isWorkflowStatus}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(["rascunho", "aprovado"] as const).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {statusPedidoCompra[value]?.label ?? value}
+                        </SelectItem>
+                      ))}
+                      {isWorkflowStatus && (
+                        <SelectItem value={form.status} disabled>
+                          {pedidoStatusLabelMap[canonicalPedidoStatus(form.status)] ?? form.status}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                );
+                if (!isWorkflowStatus) return selectEl;
+                return (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>{selectEl}</div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        Status controlado pelo fluxo do pedido. Use as ações disponíveis
+                        (Enviar, Receber, Cancelar) para alterar.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -371,13 +412,17 @@ export default function PedidoCompraForm() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Data de Entrega Real</Label>
-              <Input
-                type="date"
-                value={form.data_entrega_real}
-                onChange={(e) => updateForm({ ...form, data_entrega_real: e.target.value })}
-                disabled={isTerminal}
-              />
+              <Label>Data de Recebimento</Label>
+              {form.data_entrega_real ? (
+                <div className="flex h-10 items-center rounded-md border border-dashed bg-muted/40 px-3 text-sm text-foreground">
+                  {formatDate(form.data_entrega_real)}
+                </div>
+              ) : (
+                <div className="flex h-10 items-center gap-1.5 rounded-md border border-dashed bg-muted/20 px-3 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Preenchida automaticamente ao registrar recebimento
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -403,16 +448,10 @@ export default function PedidoCompraForm() {
           />
         </div>
 
-        <div className="flex justify-between">
+        <div className="flex justify-start">
           <Button variant="outline" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar para Pedidos
           </Button>
-          {!isTerminal && (
-            <Button onClick={handleSave} disabled={saving || !!dataEntregaError} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          )}
         </div>
       {confirmDialog}
     </PageShell>
