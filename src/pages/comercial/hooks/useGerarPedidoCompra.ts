@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
@@ -20,6 +21,7 @@ interface CotacaoCompraBase {
  */
 export function useGerarPedidoCompra() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation<GerarPedidoCompraResult, Error, CotacaoCompraBase>({
     mutationFn: (cotacao) =>
@@ -28,7 +30,13 @@ export function useGerarPedidoCompra() {
       INVALIDATION_KEYS.geracaoPedidoCompra.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: [key] });
       });
-      toast.success(`Pedido de compra ${result.pedidoNumero} gerado!`);
+      toast.success(`Pedido ${result.pedidoNumero} criado com sucesso`, {
+        action: {
+          label: "Ver pedido",
+          onClick: () => navigate(`/pedidos-compra/${result.pedidoId}`),
+        },
+        duration: 6000,
+      });
     },
     onError: (err: Error) => {
       notifyError(err);
