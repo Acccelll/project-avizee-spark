@@ -64,7 +64,8 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   const mono: React.CSSProperties = {
     fontFamily: "'JetBrains Mono', ui-monospace, monospace",
     fontVariantNumeric: "tabular-nums",
-    fontFeatureSettings: '"tnum"',
+    // "zero" 0 desativa o zero pontilhado padrão da JetBrains Mono
+    fontFeatureSettings: '"tnum", "zero" 0',
   };
   const labelStyle: React.CSSProperties = {
     fontSize: "8.5px",
