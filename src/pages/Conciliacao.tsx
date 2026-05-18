@@ -22,7 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Upload, CheckCircle, XCircle, Shuffle, AlertTriangle,
-  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown,
+  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown, Loader2,
 } from "lucide-react";
 import {
   calcularScoreConciliacao,
@@ -645,14 +645,38 @@ export default function Conciliacao() {
 
             {extratoItems.length > 0 && lancamentos.length > 0 && (
               <>
-                <Button onClick={handleAutoMatch} variant="secondary" size="sm">
-                  <Shuffle className="w-4 h-4 mr-2" />
-                  Match Automático
-                </Button>
-                <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
-                  <CheckCheck className="w-4 h-4 mr-2" />
-                  Conciliação Automática
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
+                        <CheckCheck className="w-4 h-4 mr-2" />
+                        Conciliar Automaticamente
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-xs leading-relaxed">
+                        Usa score de similaridade (valor, data, descrição) para parear lançamentos
+                        com alta confiança ≥ 90%. Recomendado para a maioria dos casos.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handleAutoMatch} variant="secondary" size="sm">
+                        <Shuffle className="w-4 h-4 mr-2" />
+                        Match por Valor
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-xs leading-relaxed">
+                        Pareamento simples por valor exato (±R$0,01) e data próxima (±3 dias).
+                        Use se a conciliação automática não encontrar todos os pares.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </>
             )}
             <Button
@@ -677,6 +701,7 @@ export default function Conciliacao() {
         </div>
 
         {/* ── SUMMARY CARDS ────────────────────────────────────────────────── */}
+        {selectedConta ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard
             title="Conciliados"
@@ -707,6 +732,30 @@ export default function Conciliacao() {
             icon={Landmark}
           />
         </div>
+        ) : (
+          <div className="rounded-xl border bg-muted/10 p-8 mb-6 text-center">
+            <Landmark className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+            <h3 className="text-base font-semibold">Configure a conciliação bancária</h3>
+            <p className="text-sm text-muted-foreground mt-1 mb-5">
+              Siga as etapas para conferir seus lançamentos financeiros com o extrato do banco.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto text-left">
+              {[
+                ["1", "Selecione a conta"],
+                ["2", "Escolha o período"],
+                ["3", "Importe o OFX"],
+                ["4", "Concilie"],
+              ].map(([n, label]) => (
+                <div key={n} className="rounded-lg border bg-card p-3 flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                    {n}
+                  </span>
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── FILTER BAR + DATATABLE ───────────────────────────────────────── */}
         {/* Eixo de filtragem (Fase 3 — query híbrida baixa + vencimento) */}
@@ -997,7 +1046,7 @@ export default function Conciliacao() {
                                 value={match?.lancamentoId || ""}
                                 onValueChange={(val) => handleManualMatch(item.id, val)}
                               >
-                                <SelectTrigger className="h-7 text-xs">
+                                <SelectTrigger className="h-9 text-xs">
                                   <SelectValue placeholder="Vincular lançamento..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1113,6 +1162,59 @@ export default function Conciliacao() {
           </div>
         )}
       </ModulePage>
+
+      {matches.length > 0 && (
+        <div className="fixed bottom-4 inset-x-4 md:inset-x-auto md:right-6 md:left-[18rem] z-40">
+          <div className="rounded-xl border bg-card/95 backdrop-blur shadow-lg p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <CheckCheck className="w-5 h-5 text-success shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {matches.length} {matches.length === 1 ? "par pronto" : "pares prontos"} para confirmar
+                </p>
+                {(() => {
+                  const divergentes = lancamentosComStatus.filter(
+                    (l) => l.statusConciliacao === "divergente",
+                  ).length;
+                  if (divergentes > 0 || semParOFX > 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        {divergentes > 0 && `${divergentes} divergente${divergentes > 1 ? "s" : ""}`}
+                        {divergentes > 0 && semParOFX > 0 && " · "}
+                        {semParOFX > 0 && `${semParOFX} do OFX sem correspondência`}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setMatches([])}
+                disabled={confirming}
+              >
+                Descartar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmarConciliacao}
+                disabled={confirming}
+                className="gap-1.5"
+              >
+                {confirming ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                Confirmar {matches.length} {matches.length === 1 ? "par" : "pares"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom-sheet mobile: vincular lançamento ao extrato OFX (filtrado por valor±data) */}
       <Sheet open={vincularOpen} onOpenChange={setVincularOpen}>

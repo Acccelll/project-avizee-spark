@@ -18,16 +18,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
@@ -45,7 +35,7 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
-  Wallet, Landmark, AlertTriangle, ShieldAlert,
+  Wallet, Landmark, AlertTriangle,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
 } from "lucide-react";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
@@ -209,8 +199,8 @@ const ContasBancarias = () => {
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<ContaBancariaForm>(emptyContaForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const { confirm: confirmInactivate, dialog: inactivateDialog } = useConfirmDialog();
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
-  const [confirmInactivate, setConfirmInactivate] = useState(false);
   const { isAdmin } = useIsAdmin();
   const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
 
@@ -421,7 +411,15 @@ const ContasBancarias = () => {
     if (mode === "edit" && selected) {
       const willDeactivate = !form.ativo && selected.ativo;
       const inUse = inUseCounts.lancamentos > 0 || inUseCounts.baixas > 0 || inUseCounts.caixaMovs > 0;
-      if (willDeactivate && inUse) { setConfirmInactivate(true); return; }
+      if (willDeactivate && inUse) {
+        const ok = await confirmInactivate({
+          title: "Inativar conta com uso operacional?",
+          description: `Esta conta possui ${inUseCounts.lancamentos} lançamento${inUseCounts.lancamentos !== 1 ? "s" : ""}, ${inUseCounts.baixas} baixa${inUseCounts.baixas !== 1 ? "s" : ""} e ${inUseCounts.caixaMovs} movimentação${inUseCounts.caixaMovs !== 1 ? "ões" : ""} vinculadas. Inativar a conta não apaga esses registros, mas impede novas movimentações.`,
+          confirmLabel: "Inativar mesmo assim",
+          confirmVariant: "destructive",
+        });
+        if (!ok) return;
+      }
       await persistUpdate();
     } else {
       await persistCreate();
@@ -443,7 +441,7 @@ const ContasBancarias = () => {
 
   const columns = [
     {
-      key: "descricao", label: "Conta Bancária", sortable: true,
+      key: "descricao", label: "Conta Bancária", sortable: true, mobilePrimary: true,
       render: (c: ContaBancaria) => (
         <div className="flex items-center gap-2">
           <Landmark className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -479,7 +477,7 @@ const ContasBancarias = () => {
         : <span className="text-xs text-muted-foreground">—</span>,
     },
     {
-      key: "saldo", label: "Saldo Atual", sortable: true,
+      key: "saldo", label: "Saldo Atual", sortable: true, mobileCard: true,
       render: (c: ContaBancaria) => (
         <span className={`font-semibold font-mono text-sm ${Number(c.saldo_atual || 0) >= 0 ? "text-success" : "text-destructive"}`}>
           {formatCurrency(Number(c.saldo_atual || 0))}
@@ -512,8 +510,21 @@ const ContasBancarias = () => {
         summaryCards={
           <>
             <SummaryCard title="Total de Contas" value={String(contas.length)} icon={Building2} />
-            <SummaryCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} variant="success" />
-            <SummaryCard title="Inativas" value={String(contasInativas)} icon={Ban} />
+            <SummaryCard
+              title="Ativas"
+              value={String(contasAtivas.length)}
+              icon={CheckCircle}
+              variant="success"
+              onClick={() => setStatusFilters(["ativo"])}
+              active={statusFilters.length === 1 && statusFilters[0] === "ativo"}
+            />
+            <SummaryCard
+              title="Inativas"
+              value={String(contasInativas)}
+              icon={Ban}
+              onClick={contasInativas > 0 ? () => setStatusFilters(["inativo"]) : undefined}
+              active={statusFilters.length === 1 && statusFilters[0] === "inativo"}
+            />
             <SummaryCard
               title="Saldo Total"
               value={formatCurrency(saldoTotal)}
@@ -646,8 +657,30 @@ const ContasBancarias = () => {
             <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => updateForm({ agencia: e.target.value })} /></div>
             <div className="space-y-2"><Label>Conta</Label><Input value={form.conta} onChange={e => updateForm({ conta: e.target.value })} /></div>
             <div className="space-y-2"><Label>Titular</Label><Input value={form.titular} onChange={e => updateForm({ titular: e.target.value })} /></div>
-            {mode === "create" && (
-              <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => updateForm({ saldo_atual: Number(e.target.value) })} /></div>
+            {mode === "create" ? (
+              <div className="space-y-2">
+                <Label>Saldo Inicial</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.saldo_atual}
+                  onChange={(e) => updateForm({ saldo_atual: Number(e.target.value) })}
+                  placeholder="0,00"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Informe o saldo da conta na data de cadastro. Movimentações futuras atualizarão este valor.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Saldo Atual (calculado)</Label>
+                <div className="h-10 rounded-md border bg-muted/40 px-3 flex items-center">
+                  <span className={`font-mono font-semibold ${Number(selected?.saldo_atual || 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(Number(selected?.saldo_atual || 0))}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Atualizado pelos lançamentos.</p>
+              </div>
             )}
           </div>
           <div className="space-y-2">
@@ -695,38 +728,7 @@ const ContasBancarias = () => {
         </form>
       </FormModal>
 
-      <AlertDialog open={confirmInactivate} onOpenChange={setConfirmInactivate}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-warning" />
-              Confirmar inativação da conta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">Confirmar inativação</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="px-6 pb-2 space-y-2 text-sm">
-            <p>A conta <strong>{selected?.descricao}</strong> ({selected?.bancos?.nome ?? "—"}) está vinculada a:</p>
-            <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
-              {inUseCounts.lancamentos > 0 && <li>{inUseCounts.lancamentos} lançamento(s) financeiro(s)</li>}
-              {inUseCounts.baixas > 0 && <li>{inUseCounts.baixas} baixa(s) registrada(s)</li>}
-              {inUseCounts.caixaMovs > 0 && <li>{inUseCounts.caixaMovs} movimento(s) de caixa</li>}
-            </ul>
-            <p className="font-medium text-foreground">
-              Deseja realmente inativar esta conta? Os vínculos existentes não serão removidos,
-              mas a conta deixará de aparecer para novos lançamentos.
-            </p>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmInactivate(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => { await persistUpdate(); setConfirmInactivate(false); }}
-              className="bg-warning hover:bg-warning text-white"
-            >
-              Confirmar inativação
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {inactivateDialog}
 
       <ContaBancariaDrawer
         open={drawerOpen}

@@ -34,6 +34,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { Trash2 } from "lucide-react";
@@ -469,7 +470,11 @@ export default function CartoesCredito() {
             </DialogDescription>
           </DialogHeader>
           {faturasLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
+            <div className="space-y-2 py-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-md" />
+              ))}
+            </div>
           ) : faturasList.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma fatura encontrada.</p>
           ) : (
@@ -709,6 +714,24 @@ export default function CartoesCredito() {
                 required
               />
             </div>
+            {form.dia_fechamento > 0 && form.dia_vencimento > 0 && (
+              <div className="col-span-2 -mt-1">
+                {(() => {
+                  const diasPagamento = form.dia_vencimento > form.dia_fechamento
+                    ? form.dia_vencimento - form.dia_fechamento
+                    : (31 - form.dia_fechamento) + form.dia_vencimento;
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      Ciclo: fatura fecha <strong>dia {form.dia_fechamento}</strong> → vence{' '}
+                      <strong>dia {form.dia_vencimento}</strong> do mês seguinte ({diasPagamento}d para pagamento).
+                      {diasPagamento < 5 && (
+                        <span className="text-warning ml-1">⚠ Prazo muito curto.</span>
+                      )}
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
             <div className="space-y-2 col-span-2">
               <Label>Observações</Label>
               <Textarea
