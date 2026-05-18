@@ -63,8 +63,10 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   // Tipografia helpers — projeto inteiro usa Montserrat (inclusive PDF).
   // Para colunas/valores numéricos, herdamos Montserrat e ativamos tabular-nums.
   const mono: React.CSSProperties = {
+    fontFamily: "'Montserrat', 'Inter', system-ui, sans-serif",
     fontVariantNumeric: "tabular-nums",
-    fontFeatureSettings: '"tnum"',
+    fontFeatureSettings: '"tnum" 1, "zero" 0',
+    lineHeight: 1.15,
   };
   const labelStyle: React.CSSProperties = {
     fontSize: "8.5px",
