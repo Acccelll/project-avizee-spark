@@ -193,7 +193,11 @@ export default function CotacoesCompra() {
           summaries={summaries}
           onView={openView}
           onEdit={openEdit}
-          onApprove={handleApprove}
+          onApprove={(c) => {
+            setSelected(c);
+            // Aguarda próximo tick para garantir setSelected antes do handleApprove ler.
+            setTimeout(() => { handleApprove(); }, 0);
+          }}
         />
       </ModulePage>
 
