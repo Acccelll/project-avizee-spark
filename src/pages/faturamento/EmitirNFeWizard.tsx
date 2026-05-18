@@ -1623,9 +1623,14 @@ export default function EmitirNFeWizard() {
             <Button variant="outline" onClick={prev} disabled={step === 0} className="gap-2">
               <ArrowLeft className="h-4 w-4" /> Anterior
             </Button>
-            <span className="text-sm text-muted-foreground">
-              Total parcial: <strong className="tabular-nums">{formatCurrency(totalNF)}</strong>
-            </span>
+            {totalNF > 0 && step >= 2 ? (
+              <span className="text-sm text-muted-foreground">
+                {step === 4 ? "Total da NF-e: " : "Valor estimado: "}
+                <strong className="tabular-nums">{formatCurrency(totalNF)}</strong>
+              </span>
+            ) : (
+              <span />
+            )}
             {step < STEPS.length - 1 ? (
               <Button onClick={next} className="gap-2">
                 Próximo <ArrowRight className="h-4 w-4" />
