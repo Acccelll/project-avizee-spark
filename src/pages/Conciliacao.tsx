@@ -40,6 +40,14 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Info, CalendarPlus, FileUp } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -78,6 +86,7 @@ const origemOptions: MultiSelectOption[] = [
 
 export default function Conciliacao() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
   const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
@@ -588,12 +597,12 @@ export default function Conciliacao() {
       >
         {/* ── TOP CONTROLS: conta + period + import ─────────────────────────── */}
         <div className="flex flex-wrap gap-3 mb-5 items-end">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
               <Landmark className="w-3 h-3" />Conta Bancária
             </label>
             <Select value={selectedConta} onValueChange={handleContaChange}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-full sm:w-64">
                 <SelectValue placeholder="Selecionar conta..." />
               </SelectTrigger>
               <SelectContent>
@@ -625,7 +634,7 @@ export default function Conciliacao() {
             />
           </div>
 
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto items-center">
             <input
               ref={fileInputRef}
               type="file"
@@ -643,7 +652,7 @@ export default function Conciliacao() {
               {uploading ? "Importando..." : "Importar OFX"}
             </Button>
 
-            {extratoItems.length > 0 && lancamentos.length > 0 && (
+            {!isMobile && extratoItems.length > 0 && lancamentos.length > 0 && (
               <>
                 <TooltipProvider>
                   <Tooltip>
@@ -679,24 +688,65 @@ export default function Conciliacao() {
                 </TooltipProvider>
               </>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                const rows = filteredData.map((l) => ({
-                  Descrição: l.descricao,
-                  Tipo: l.tipo,
-                  "Vencimento": l.data_vencimento,
-                  "Valor (R$)": Number(l.valor),
-                  Status: l.status ?? "",
-                  Conciliação: l.statusConciliacao,
-                }));
-                await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
-              }}
-            >
-              <FileDown className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            {!isMobile && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const rows = filteredData.map((l) => ({
+                    Descrição: l.descricao,
+                    Tipo: l.tipo,
+                    "Vencimento": l.data_vencimento,
+                    "Valor (R$)": Number(l.valor),
+                    Status: l.status ?? "",
+                    Conciliação: l.statusConciliacao,
+                  }));
+                  await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
+                }}
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Exportar
+              </Button>
+            )}
+            {isMobile && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="Mais ações">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {extratoItems.length > 0 && lancamentos.length > 0 && (
+                    <>
+                      <DropdownMenuItem onSelect={() => handleConciliacaoAutomatica()}>
+                        <CheckCheck className="w-4 h-4 mr-2" />
+                        Conciliar Automaticamente
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleAutoMatch()}>
+                        <Shuffle className="w-4 h-4 mr-2" />
+                        Match por Valor
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      const rows = filteredData.map((l) => ({
+                        Descrição: l.descricao,
+                        Tipo: l.tipo,
+                        Vencimento: l.data_vencimento,
+                        "Valor (R$)": Number(l.valor),
+                        Status: l.status ?? "",
+                        Conciliação: l.statusConciliacao,
+                      }));
+                      await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
+                    }}
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Exportar Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
