@@ -227,7 +227,7 @@ function NaturezasTab() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[480px]">
               <thead className="text-left text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 px-2">Código</th>
@@ -594,7 +594,7 @@ function MatrizTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[720px]">
               <thead className="text-left text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 px-2">Nome</th>
