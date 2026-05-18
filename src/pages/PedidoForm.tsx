@@ -275,12 +275,24 @@ const PedidoForm = () => {
           <StatusBadge status={pedido.status || "pendente"} label={getPedidoStatusLabel(pedido.status)} />
         </div>
 
-        <div className="rounded-xl border bg-muted/20 px-4 py-3">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (orçamento e faturamento) são controlados pelo fluxo comercial/fiscal.
-          </p>
-        </div>
+        <Collapsible open={scopeOpen} onOpenChange={handleScopeToggle}>
+          <div className="rounded-xl border bg-muted/20 px-4 py-3">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${scopeOpen ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <p className="text-sm text-muted-foreground mt-2">
+                Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (orçamento e faturamento) são controlados pelo fluxo comercial/fiscal.
+              </p>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="rounded-lg border bg-card p-3">
@@ -291,9 +303,27 @@ const PedidoForm = () => {
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cliente</p>
             <p className="text-sm truncate">{pedido.clientes?.nome_razao_social || "—"}</p>
           </div>
-          <div className="rounded-lg border bg-card p-3">
+          <div
+            className={`rounded-lg border bg-card p-3 ${pedido.orcamentos?.id ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+            onClick={() => {
+              if (pedido.orcamentos?.id) pushView("orcamento", pedido.orcamentos.id);
+            }}
+            role={pedido.orcamentos?.id ? "button" : undefined}
+            tabIndex={pedido.orcamentos?.id ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (pedido.orcamentos?.id && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                pushView("orcamento", pedido.orcamentos.id);
+              }
+            }}
+          >
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Orçamento origem</p>
-            <p className="font-mono text-sm">{pedido.orcamentos?.numero || "—"}</p>
+            <p className="font-mono text-sm flex items-center gap-1">
+              {pedido.orcamentos?.numero || "—"}
+              {pedido.orcamentos?.id && (
+                <span className="text-primary text-xs" aria-hidden>↗</span>
+              )}
+            </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Valor total</p>
