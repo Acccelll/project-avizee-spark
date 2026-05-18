@@ -95,7 +95,7 @@ export default function FaturamentoIndex() {
   });
 
   return (
-    <div className="container mx-auto p-6 max-w-5xl space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 max-w-5xl space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Faturamento</h1>
         <p className="text-sm text-muted-foreground">
