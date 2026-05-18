@@ -1,6 +1,5 @@
 
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -23,7 +22,6 @@ import { useCotacoesEnrichment } from "@/hooks/compras/useCotacoesEnrichment";
 import { useCotacaoPropostas } from "@/hooks/compras/useCotacaoPropostas";
 
 export function useCotacoesCompra() {
-  const navigate = useNavigate();
   const gerarPedidoCompra = useGerarPedidoCompra();
   const queryClient = useQueryClient();
   const { data, loading, fetchData, remove } = useSupabaseCrud({
