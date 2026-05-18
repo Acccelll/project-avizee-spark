@@ -1021,6 +1021,19 @@ function Step4Transporte() {
         {modal !== "9" && (
           <>
             <TransportadoraPicker />
+            <div className="sm:col-span-2 -mt-2">
+              <p className="text-xs text-muted-foreground">
+                Transportadora não encontrada?{" "}
+                <a
+                  href="/logistica?tab=transportadoras"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-medium"
+                >
+                  Cadastrar nova transportadora →
+                </a>
+              </p>
+            </div>
             <div className="space-y-1">
               <Label>Placa do veículo</Label>
               <Input
