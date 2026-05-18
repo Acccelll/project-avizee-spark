@@ -19,6 +19,7 @@ import {
   Package,
   Truck,
   ListChecks,
+  Loader2,
 } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,13 +155,20 @@ const FORMA_PAGAMENTO = [
 
 // ============ Stepper ============
 
-function Stepper({ current }: { current: number }) {
+function Stepper({
+  current,
+  onStepClick,
+}: {
+  current: number;
+  onStepClick: (n: number) => void;
+}) {
   return (
     <div className="flex w-full overflow-x-auto pb-2">
       {STEPS.map((s, i) => {
         const Icon = s.icon;
         const done = i < current;
         const active = i === current;
+        const isClickable = done;
         return (
           <div key={s.key} className="flex items-center min-w-fit">
             <div className="flex items-center gap-2">
@@ -170,7 +178,23 @@ function Stepper({ current }: { current: number }) {
                   done && "bg-success text-success-foreground border-success",
                   active && "bg-primary text-primary-foreground border-primary",
                   !done && !active && "bg-muted text-muted-foreground",
+                  isClickable && "cursor-pointer hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary/40",
                 )}
+                onClick={isClickable ? () => onStepClick(i) : undefined}
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onKeyDown={
+                  isClickable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onStepClick(i);
+                        }
+                      }
+                    : undefined
+                }
+                aria-label={isClickable ? `Voltar para ${s.label}` : undefined}
+                title={isClickable ? `Voltar para ${s.label}` : undefined}
               >
                 {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
               </div>
