@@ -5,6 +5,9 @@ import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { formatDate } from "@/lib/format";
 import type { CotacaoCompra, CotacaoSummary } from "./cotacaoCompraTypes";
 
+/** Intervalo (em dias) usado pelo filtro "Vencendo" da validade. */
+export const VALIDADE_FILTER_DIAS = 7;
+
 export function useCotacaoCompraFilters(
   data: CotacaoCompra[],
   statusLabels: Record<string, string>,
@@ -48,7 +51,7 @@ export function useCotacaoCompraFilters(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const in7d = new Date(today);
-    in7d.setDate(in7d.getDate() + 7);
+    in7d.setDate(in7d.getDate() + VALIDADE_FILTER_DIAS);
     return data.filter((c) => {
       if (statusFilters.length > 0 && !statusFilters.includes(c.status)) return false;
       if (fornecedorFilters.length > 0) {
@@ -119,7 +122,7 @@ export function useCotacaoCompraFilters(
     if (validadeFilter) {
       const labelMap: Record<string, string> = {
         vencidas: "Vencidas",
-        vencendo: "Vencendo (≤7d)",
+        vencendo: `Vencendo (≤${VALIDADE_FILTER_DIAS}d)`,
         sem_validade: "Sem validade",
       };
       chips.push({
