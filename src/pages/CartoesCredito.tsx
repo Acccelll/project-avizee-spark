@@ -470,7 +470,11 @@ export default function CartoesCredito() {
             </DialogDescription>
           </DialogHeader>
           {faturasLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
+            <div className="space-y-2 py-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-md" />
+              ))}
+            </div>
           ) : faturasList.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma fatura encontrada.</p>
           ) : (
