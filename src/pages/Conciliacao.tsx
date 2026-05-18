@@ -645,14 +645,38 @@ export default function Conciliacao() {
 
             {extratoItems.length > 0 && lancamentos.length > 0 && (
               <>
-                <Button onClick={handleAutoMatch} variant="secondary" size="sm">
-                  <Shuffle className="w-4 h-4 mr-2" />
-                  Match Automático
-                </Button>
-                <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
-                  <CheckCheck className="w-4 h-4 mr-2" />
-                  Conciliação Automática
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
+                        <CheckCheck className="w-4 h-4 mr-2" />
+                        Conciliar Automaticamente
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-xs leading-relaxed">
+                        Usa score de similaridade (valor, data, descrição) para parear lançamentos
+                        com alta confiança ≥ 90%. Recomendado para a maioria dos casos.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handleAutoMatch} variant="secondary" size="sm">
+                        <Shuffle className="w-4 h-4 mr-2" />
+                        Match por Valor
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-xs leading-relaxed">
+                        Pareamento simples por valor exato (±R$0,01) e data próxima (±3 dias).
+                        Use se a conciliação automática não encontrar todos os pares.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </>
             )}
             <Button
