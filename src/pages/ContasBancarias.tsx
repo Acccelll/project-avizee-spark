@@ -644,8 +644,30 @@ const ContasBancarias = () => {
             <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => updateForm({ agencia: e.target.value })} /></div>
             <div className="space-y-2"><Label>Conta</Label><Input value={form.conta} onChange={e => updateForm({ conta: e.target.value })} /></div>
             <div className="space-y-2"><Label>Titular</Label><Input value={form.titular} onChange={e => updateForm({ titular: e.target.value })} /></div>
-            {mode === "create" && (
-              <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => updateForm({ saldo_atual: Number(e.target.value) })} /></div>
+            {mode === "create" ? (
+              <div className="space-y-2">
+                <Label>Saldo Inicial</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.saldo_atual}
+                  onChange={(e) => updateForm({ saldo_atual: Number(e.target.value) })}
+                  placeholder="0,00"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Informe o saldo da conta na data de cadastro. Movimentações futuras atualizarão este valor.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Saldo Atual (calculado)</Label>
+                <div className="h-10 rounded-md border bg-muted/40 px-3 flex items-center">
+                  <span className={`font-mono font-semibold ${Number(selected?.saldo_atual || 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(Number(selected?.saldo_atual || 0))}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Atualizado pelos lançamentos.</p>
+              </div>
             )}
           </div>
           <div className="space-y-2">
