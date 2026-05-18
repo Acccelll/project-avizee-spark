@@ -43,8 +43,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
  * Transportadoras tem cadastro próprio em outro lugar (atalho).
  */
 
-type CadastroTab = "naturezas" | "matriz" | "transportadoras";
-const VALID: CadastroTab[] = ["naturezas", "matriz", "transportadoras"];
+type CadastroTab = "naturezas" | "matriz";
+const VALID: CadastroTab[] = ["naturezas", "matriz"];
 
 // ---------------- Naturezas de Operação ----------------
 
