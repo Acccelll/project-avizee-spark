@@ -18,16 +18,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
@@ -45,7 +35,7 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
-  Wallet, Landmark, AlertTriangle, ShieldAlert,
+  Wallet, Landmark, AlertTriangle,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
 } from "lucide-react";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
@@ -209,8 +199,8 @@ const ContasBancarias = () => {
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<ContaBancariaForm>(emptyContaForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const { confirm: confirmInactivate, dialog: inactivateDialog } = useConfirmDialog();
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
-  const [confirmInactivate, setConfirmInactivate] = useState(false);
   const { isAdmin } = useIsAdmin();
   const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
 
@@ -421,7 +411,15 @@ const ContasBancarias = () => {
     if (mode === "edit" && selected) {
       const willDeactivate = !form.ativo && selected.ativo;
       const inUse = inUseCounts.lancamentos > 0 || inUseCounts.baixas > 0 || inUseCounts.caixaMovs > 0;
-      if (willDeactivate && inUse) { setConfirmInactivate(true); return; }
+      if (willDeactivate && inUse) {
+        const ok = await confirmInactivate({
+          title: "Inativar conta com uso operacional?",
+          description: `Esta conta possui ${inUseCounts.lancamentos} lançamento${inUseCounts.lancamentos !== 1 ? "s" : ""}, ${inUseCounts.baixas} baixa${inUseCounts.baixas !== 1 ? "s" : ""} e ${inUseCounts.caixaMovs} movimentação${inUseCounts.caixaMovs !== 1 ? "ões" : ""} vinculadas. Inativar a conta não apaga esses registros, mas impede novas movimentações.`,
+          confirmLabel: "Inativar mesmo assim",
+          confirmVariant: "destructive",
+        });
+        if (!ok) return;
+      }
       await persistUpdate();
     } else {
       await persistCreate();
