@@ -163,7 +163,8 @@ function Stepper({
   onStepClick: (n: number) => void;
 }) {
   return (
-    <div className="flex w-full overflow-x-auto pb-2">
+    <div>
+      <div className="flex w-full overflow-x-auto pb-1">
       {STEPS.map((s, i) => {
         const Icon = s.icon;
         const done = i < current;
@@ -213,6 +214,10 @@ function Stepper({
           </div>
         );
       })}
+      </div>
+      <p className="text-sm font-medium text-center text-foreground mt-1 sm:hidden">
+        Passo {current + 1}/{STEPS.length} — {STEPS[current].label}
+      </p>
     </div>
   );
 }
