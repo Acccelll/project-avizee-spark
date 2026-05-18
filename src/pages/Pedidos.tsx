@@ -644,7 +644,7 @@ const Pedidos = () => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-10 w-10 p-0"
+                  className="h-11 w-11 p-0"
                   onClick={(e) => { e.stopPropagation(); handleView(p); }}
                   aria-label="Ver detalhes do pedido"
                 >
@@ -655,7 +655,7 @@ const Pedidos = () => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-10 w-10 p-0"
+                    className="h-11 w-11 p-0"
                     onClick={(e) => e.stopPropagation()}
                     aria-label="Mais ações"
                   >

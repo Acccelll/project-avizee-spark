@@ -19,6 +19,11 @@ interface FormTabsListProps {
   className?: string;
   /** Sticky abaixo do header do modal. */
   sticky?: boolean;
+  /**
+   * Máximo de tabs antes de usar scroll horizontal no mobile em vez de accordion.
+   * Default: 5. Quando tabs.length > maxAccordionTabs, usa scroll horizontal compacto.
+   */
+  maxAccordionTabs?: number;
 }
 
 /**
@@ -29,10 +34,51 @@ interface FormTabsListProps {
  * contagem alinhado à direita. Mantém a semântica nativa do Radix Tabs (TabsTrigger),
  * apenas troca o layout horizontal por vertical full-width.
  */
-export function FormTabsList({ tabs, className, sticky = false }: FormTabsListProps) {
+export function FormTabsList({
+  tabs,
+  className,
+  sticky = false,
+  maxAccordionTabs = 5,
+}: FormTabsListProps) {
   const isMobile = useIsMobile();
+  const useHorizontalScroll = isMobile && tabs.length > maxAccordionTabs;
 
   if (isMobile) {
+    if (useHorizontalScroll) {
+      return (
+        <TabsList
+          className={cn(
+            "h-auto w-full justify-start gap-1 overflow-x-auto bg-muted/50 p-1 flex-nowrap scrollbar-hide",
+            sticky && "sticky top-0 z-10",
+            className,
+          )}
+        >
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                disabled={tab.disabled}
+                className="h-9 shrink-0 gap-1.5 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                <span>{tab.label}</span>
+                {typeof tab.count === "number" && tab.count > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-medium"
+                  >
+                    {tab.count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      );
+    }
+
     return (
       <TabsList
         className={cn(
@@ -43,6 +89,7 @@ export function FormTabsList({ tabs, className, sticky = false }: FormTabsListPr
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isEmpty = tab.count === 0;
           return (
             <TabsTrigger
               key={tab.value}
@@ -52,6 +99,7 @@ export function FormTabsList({ tabs, className, sticky = false }: FormTabsListPr
                 "group h-11 w-full justify-start gap-2 rounded-lg border bg-card px-3 text-sm font-medium",
                 "data-[state=active]:bg-primary/10 data-[state=active]:border-primary/40 data-[state=active]:text-foreground",
                 "data-[state=inactive]:text-muted-foreground",
+                isEmpty && "opacity-70",
               )}
             >
               {Icon && <Icon className="h-4 w-4 shrink-0" />}
@@ -60,6 +108,11 @@ export function FormTabsList({ tabs, className, sticky = false }: FormTabsListPr
                 <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[11px] font-semibold">
                   {tab.count}
                 </Badge>
+              )}
+              {isEmpty && (
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                  vazio
+                </span>
               )}
               <ChevronDown
                 className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=active]:rotate-180"

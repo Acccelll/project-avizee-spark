@@ -319,7 +319,13 @@ export function OrdemVendaView({ id }: Props) {
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={locked("generate_nf")}>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-9 md:h-8 gap-1.5 text-xs"
+            onClick={() => setGenerateNfOpen(true)}
+            disabled={locked("generate_nf")}
+          >
             <FileOutput className="h-3.5 w-3.5" />
             {selected.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
           </Button>
@@ -344,8 +350,8 @@ export function OrdemVendaView({ id }: Props) {
         {/* Mobile: dropdown único com ações secundárias. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-8 w-8 md:hidden" aria-label="Mais ações">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button variant="outline" size="icon" className="h-10 w-10 md:hidden" aria-label="Mais ações">
+              <MoreHorizontal className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -518,6 +524,7 @@ export function OrdemVendaView({ id }: Props) {
               : []),
             { value: "vinculos", label: "Vínculos" },
           ]}
+          maxAccordionTabs={4}
         />
 
         {/* ── Resumo ─────────────────────────────────────── */}

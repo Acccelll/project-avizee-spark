@@ -386,24 +386,29 @@ export function PedidoEditModal({ open, pedidoId, onClose, onSaved }: Props) {
             )}
           </div>
 
-          <div className="border-t bg-card px-5 py-3 flex items-center gap-2 flex-wrap"
-               style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
-            {isDirty ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-warning mr-auto">
+          <div
+            className="border-t bg-card px-5 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+          >
+            {isDirty && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-warning sm:mr-auto">
                 <span className="w-2 h-2 rounded-full bg-warning animate-pulse" aria-hidden />
                 Alterações não salvas
               </span>
-            ) : (
-              <span className="text-xs text-muted-foreground mr-auto">Nenhuma alteração para salvar</span>
             )}
-            <div className="ml-auto flex items-center gap-2">
-              <Button variant="outline" onClick={handleClose} disabled={saving}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:ml-auto">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                disabled={saving}
+                className="max-sm:h-11 max-sm:w-full"
+              >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving || loading || !isDirty || validation.length > 0}
-                className="gap-2"
+                className="gap-2 max-sm:h-11 max-sm:w-full"
               >
                 <Save className="w-4 h-4" />
                 {saving ? "Salvando..." : "Salvar alterações"}
