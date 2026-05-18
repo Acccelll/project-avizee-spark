@@ -1022,6 +1022,7 @@ export default function Conciliacao() {
                                 onValueChange={(val) => handleManualMatch(item.id, val)}
                               >
                                 <SelectTrigger className="h-7 text-xs">
+                                </SelectTrigger>
                                   <SelectValue placeholder="Vincular lançamento..." />
                                 </SelectTrigger>
                                 <SelectContent>
