@@ -810,6 +810,15 @@ function Step3Itens() {
     0,
   );
 
+  // Itens sem CFOP definido — geralmente indica ausência de regra na Matriz
+  // Fiscal para a UF de destino. Reavalia a cada change do formulário.
+  const itensSemCfop = fields.filter(
+    (_, i) => {
+      const cfop = getValues(`itens.${i}.cfop`);
+      return !cfop || !/^\d{4}$/.test(String(cfop));
+    },
+  );
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -863,6 +872,26 @@ function Step3Itens() {
             <span className="text-muted-foreground mr-2">Total dos itens:</span>
             <span className="font-semibold tabular-nums">{formatCurrency(totalItens)}</span>
           </div>
+        )}
+        {itensSemCfop.length > 0 && (
+          <Alert variant="default" className="border-warning/50 text-warning-foreground">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>{itensSemCfop.length}</strong> item(ns) sem CFOP definido.{" "}
+              Isso ocorre quando não há regra na{" "}
+              <button
+                type="button"
+                className="underline font-medium"
+                onClick={() =>
+                  window.open("/faturamento/cadastros?tab=matriz", "_blank")
+                }
+              >
+                Matriz Fiscal
+              </button>{" "}
+              para a UF de destino deste cliente. Configure a regra ou preencha
+              o CFOP manualmente em cada item.
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
     </Card>
