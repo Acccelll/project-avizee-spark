@@ -80,7 +80,6 @@ export function CotacaoCompraFilters({
         selected={validadeFilter ? [validadeFilter] : []}
         onChange={(v) => onValidadeChange(v[v.length - 1] ?? "")}
         placeholder="Validade"
-        title={`"Vencendo" considera os próximos ${VALIDADE_FILTER_DIAS} dias.`}
         className={FILTER_W_MD}
       />
       <div className="flex items-center gap-2">
