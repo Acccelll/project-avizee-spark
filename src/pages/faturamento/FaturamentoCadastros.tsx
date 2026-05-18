@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   saveNaturezaOperacao,
@@ -35,7 +35,7 @@ import { useCan } from "@/hooks/useCan";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { notifyError } from "@/utils/errorMessages";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 /**
  * /faturamento/cadastros — Onda 2.
