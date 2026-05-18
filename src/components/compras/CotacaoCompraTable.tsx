@@ -13,9 +13,10 @@ interface CotacaoCompraTableProps {
   summaries: Record<string, CotacaoSummary>;
   onView: (c: CotacaoCompra) => void;
   onEdit: (c: CotacaoCompra) => void;
+  onApprove?: (c: CotacaoCompra) => void;
 }
 
-export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }: CotacaoCompraTableProps) {
+export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, onApprove }: CotacaoCompraTableProps) {
   const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const getNextAction = (c: CotacaoCompra): { label: string; show: boolean } => {
     const s = summaries[c.id];
@@ -166,6 +167,19 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
       mobileStatusKey="status"
       mobileLabeledDetails
       mobilePrimaryAction={(c) => {
+        const status = canonicalCotacaoStatus(c.status);
+        if (status === "aguardando_aprovacao" && onApprove) {
+          return (
+            <Button
+              size="sm"
+              className="w-full gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+              onClick={(e) => { e.stopPropagation(); onApprove(c); }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Aprovar cotação
+            </Button>
+          );
+        }
         const a = getNextAction(c);
         if (!a.show) return null;
         return (
