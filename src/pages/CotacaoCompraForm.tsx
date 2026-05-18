@@ -29,6 +29,7 @@ import { CotacaoCompraPropostasPanel } from "@/components/compras/CotacaoCompraP
 import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItensTable";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
@@ -300,8 +301,28 @@ export default function CotacaoCompraForm() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-36" />
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-lg border bg-card p-5 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </div>
+        ))}
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
       </div>
     );
   }
@@ -421,7 +442,7 @@ export default function CotacaoCompraForm() {
         {isTerminal && viewItems.length > 0 && (
           <div className="rounded-lg border bg-card p-5 space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens</p>
-            <CotacaoCompraItensTable items={viewItems} />
+            <CotacaoCompraItensTable items={viewItems} propostas={viewPropostas} />
           </div>
         )}
 
