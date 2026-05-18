@@ -20,7 +20,7 @@ export default {
       fontFamily: {
         inter: ['Montserrat', 'Inter', 'sans-serif'],
         sans: ['Montserrat', 'Inter', 'sans-serif'],
-        mono: ['Roboto Mono', 'monospace'],
+        mono: ['Montserrat', 'Inter', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
