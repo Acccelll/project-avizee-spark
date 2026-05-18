@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { CheckCircle2, Clock, ShoppingCart } from "lucide-react";
@@ -19,6 +19,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
 import { pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useComprasRealtime } from "@/hooks/useComprasRealtime";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
@@ -26,6 +27,8 @@ export default function PedidosCompra() {
   const ctx = usePedidosCompra();
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
+  const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [recebDialog, setRecebDialog] = useState<{ id: string; numero: string } | null>(null);
   // Aprovar/Cancelar/Rejeitar pedido de compra requer permissão explícita; admin
   // mantém acesso total. Mantemos a prop `isAdmin` no Drawer para evitar refactor
@@ -139,7 +142,13 @@ export default function PedidosCompra() {
           loading={ctx.loading}
           statusLabels={statusLabels}
           onView={ctx.openView}
-          onEdit={ctx.openEdit}
+          onEdit={(p) => {
+            if (isMobile) {
+              navigate(`/pedidos-compra/${p.id}`);
+            } else {
+              ctx.openEdit(p);
+            }
+          }}
           onSend={ctx.marcarEnviado}
           onReceive={(p) => setRecebDialog({ id: String(p.id), numero: pedidoNumero(p) })}
         />
