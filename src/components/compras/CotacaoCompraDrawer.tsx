@@ -297,7 +297,7 @@ export function CotacaoCompraDrawer({
               {
                 value: "itens",
                 label: `Itens (${viewItems.length})`,
-                content: <CotacaoCompraItensTable items={viewItems} />,
+                content: <CotacaoCompraItensTable items={viewItems} propostas={viewPropostas} />,
               },
               /* Propostas */
               {
