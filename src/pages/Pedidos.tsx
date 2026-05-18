@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { FileOutput, AlertTriangle, MoreVertical, Eye } from "lucide-react";
+import { FileOutput, AlertTriangle, MoreVertical, Eye, Loader2 } from "lucide-react";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -157,7 +157,8 @@ const Pedidos = () => {
         .from("ordens_venda")
         .select("*, clientes(nome_razao_social), orcamentos(id, numero)")
         .eq("ativo", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
       if (error) {
         notifyError(error);
         throw error;
