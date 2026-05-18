@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Save, AlertTriangle } from "lucide-react";
+import { Save, AlertTriangle, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -16,6 +18,21 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+
+const SCOPE_COLLAPSED_KEY = "pedido-form-scope-collapsed";
+
+const addDias = (dataBase: string, dias: number): string => {
+  const d = new Date(dataBase + "T12:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+};
+
+const diffDias = (dataInicio: string, dataFim: string): number => {
+  const d1 = new Date(dataInicio + "T12:00:00");
+  const d2 = new Date(dataFim + "T12:00:00");
+  return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 /**
  * Status operacionais editáveis manualmente. Estados terminais alcançados via
@@ -55,17 +72,29 @@ interface PedidoRecord {
   observacoes: string | null;
   valor_total: number | null;
   clientes?: { nome_razao_social: string } | null;
-  orcamentos?: { numero: string } | null;
+  orcamentos?: { id: string; numero: string } | null;
 }
 
 const PedidoForm = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { pushView } = useRelationalNavigation();
   const [loading, setLoading] = useState(true);
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
   const { confirm, dialog } = useConfirmDialog();
   const salvarPedido = useSalvarPedido();
   const saving = salvarPedido.isPending;
+  const [scopeOpen, setScopeOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SCOPE_COLLAPSED_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
+  const handleScopeToggle = (open: boolean) => {
+    setScopeOpen(open);
+    try { localStorage.setItem(SCOPE_COLLAPSED_KEY, String(!open)); } catch { /* noop */ }
+  };
   const { form, updateForm, reset, markPristine, isDirty } = useEditDirtyForm<PedidoEditForm>({
     status: "",
     po_number: "",
@@ -82,7 +111,7 @@ const PedidoForm = () => {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(id, numero)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
