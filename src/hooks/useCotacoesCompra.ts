@@ -24,6 +24,10 @@ import { useCotacaoPropostas } from "@/hooks/compras/useCotacaoPropostas";
 export function useCotacoesCompra() {
   const gerarPedidoCompra = useGerarPedidoCompra();
   const queryClient = useQueryClient();
+  // Paginação: lista client-side. Supabase aplica LIMIT 1000 implícito;
+  // volume atual de cotações é < 500. Quando ultrapassar, migrar para
+  // paginação server-side via `useSupabaseCrud({ pageSize })` no padrão
+  // de `useNotasFiscaisPaged` (Fiscal).
   const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",

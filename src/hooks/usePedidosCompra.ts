@@ -149,6 +149,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     isLoading: loading,
     refetch: refetchPedidos,
   } = useQuery({
+    // Paginação: lista client-side via `pcs.listPedidosCompra()`. Supabase aplica
+    // LIMIT 1000 implícito. Quando o volume crescer (>500), migrar para paginação
+    // server-side seguindo o padrão de `useNotasFiscaisPaged` (Fiscal).
     queryKey: ["pedidos_compra"],
     queryFn: async () => (await pcs.listPedidosCompra()) as PedidoCompra[],
     select: (data) => data.map((pedido) => ({
