@@ -369,6 +369,9 @@ const Pedidos = () => {
     if (key === "dataFim") setDataFim("");
   };
 
+  // Item 8: KPIs refletem o subconjunto filtrado; sinaliza ao usuário quando há filtros ativos.
+  const hasActiveFilters = activeFilters.length > 0;
+
   const statusOptions: MultiSelectOption[] = Object.entries(statusPedido).map(([k, v]) => ({ label: v.label, value: k }));
   const faturamentoOptions: MultiSelectOption[] = Object.entries(statusFaturamentoLabels).map(([k, v]) => ({ label: v, value: k }));
   const clienteOptions: MultiSelectOption[] = clientesList.map(c => ({ label: c.nome_razao_social, value: c.id }));
