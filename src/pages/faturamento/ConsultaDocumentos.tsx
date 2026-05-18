@@ -192,7 +192,7 @@ export function ConsultaDocumentos() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[560px]">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="px-2 py-2 text-left">Nº / Série</th>
