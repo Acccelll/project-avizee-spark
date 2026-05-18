@@ -701,6 +701,7 @@ export default function Conciliacao() {
         </div>
 
         {/* ── SUMMARY CARDS ────────────────────────────────────────────────── */}
+        {selectedConta ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard
             title="Conciliados"
@@ -731,6 +732,30 @@ export default function Conciliacao() {
             icon={Landmark}
           />
         </div>
+        ) : (
+          <div className="rounded-xl border bg-muted/10 p-8 mb-6 text-center">
+            <Landmark className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+            <h3 className="text-base font-semibold">Configure a conciliação bancária</h3>
+            <p className="text-sm text-muted-foreground mt-1 mb-5">
+              Siga as etapas para conferir seus lançamentos financeiros com o extrato do banco.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto text-left">
+              {[
+                ["1", "Selecione a conta"],
+                ["2", "Escolha o período"],
+                ["3", "Importe o OFX"],
+                ["4", "Concilie"],
+              ].map(([n, label]) => (
+                <div key={n} className="rounded-lg border bg-card p-3 flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                    {n}
+                  </span>
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── FILTER BAR + DATATABLE ───────────────────────────────────────── */}
         {/* Eixo de filtragem (Fase 3 — query híbrida baixa + vencimento) */}
