@@ -362,7 +362,19 @@ const PedidoForm = () => {
               <Input
                 type="date"
                 value={form.data_prometida_despacho}
-                onChange={(e) => set("data_prometida_despacho", e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  const emissao = pedido?.data_emissao;
+                  if (newDate && emissao) {
+                    const dias = diffDias(emissao, newDate);
+                    updateForm({
+                      data_prometida_despacho: newDate,
+                      prazo_despacho_dias: dias > 0 ? String(dias) : "",
+                    } as Partial<PedidoEditForm>);
+                  } else {
+                    set("data_prometida_despacho", newDate);
+                  }
+                }}
               />
             </div>
             <div className="space-y-1.5">
@@ -371,10 +383,27 @@ const PedidoForm = () => {
                 type="number"
                 min={0}
                 value={form.prazo_despacho_dias}
-                onChange={(e) => set("prazo_despacho_dias", e.target.value)}
+                onChange={(e) => {
+                  const dias = e.target.value;
+                  const emissao = pedido?.data_emissao;
+                  if (dias && emissao) {
+                    const novaData = addDias(emissao, Number(dias));
+                    updateForm({
+                      prazo_despacho_dias: dias,
+                      data_prometida_despacho: novaData,
+                    } as Partial<PedidoEditForm>);
+                  } else {
+                    set("prazo_despacho_dias", dias);
+                  }
+                }}
                 placeholder="Ex: 5"
               />
             </div>
+            {form.prazo_despacho_dias && form.data_prometida_despacho && pedido?.data_emissao && (
+              <p className="md:col-span-2 text-xs text-muted-foreground -mt-2">
+                Despacho em {form.prazo_despacho_dias} dia{Number(form.prazo_despacho_dias) !== 1 ? "s" : ""} após a emissão ({formatDate(pedido.data_emissao)}).
+              </p>
+            )}
           </div>
         </div>
 
