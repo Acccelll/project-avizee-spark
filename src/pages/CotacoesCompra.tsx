@@ -193,6 +193,7 @@ export default function CotacoesCompra() {
           summaries={summaries}
           onView={openView}
           onEdit={openEdit}
+          onApprove={handleApprove}
         />
       </ModulePage>
 
