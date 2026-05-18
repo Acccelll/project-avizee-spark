@@ -26,7 +26,7 @@ interface Props {
  * Template de orçamento — versão "Marca AviZee" (refinada, A4).
  * Paleta: brand.primary #b2592c · brand.secondary #690500 · ink #1B1411 ·
  *         muted #8A7E73 · rule #E4DCD2 · softRule #EFE9E0 · tintDeep #F6EADD.
- * Tipografia: Montserrat (sans) + JetBrains Mono (números/códigos/documentos).
+ * Tipografia: Montserrat em todo o documento (textos e números, com tabular-nums em colunas numéricas).
  */
 export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   numero, data, cliente, items, totalProdutos, desconto, impostoSt, impostoIpi,
@@ -60,12 +60,11 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   const cnpjEmpresa = empresa?.cnpj || "53.078.538/0001-85";
   const foneEmpresa = empresa?.telefone || "(19) 99898-2930";
 
-  // Tipografia helpers
+  // Tipografia helpers — projeto inteiro usa Montserrat (inclusive PDF).
+  // Para colunas/valores numéricos, herdamos Montserrat e ativamos tabular-nums.
   const mono: React.CSSProperties = {
-    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
     fontVariantNumeric: "tabular-nums",
-    // "zero" 0 desativa o zero pontilhado padrão da JetBrains Mono
-    fontFeatureSettings: '"tnum", "zero" 0',
+    fontFeatureSettings: '"tnum"',
   };
   const labelStyle: React.CSSProperties = {
     fontSize: "8.5px",
