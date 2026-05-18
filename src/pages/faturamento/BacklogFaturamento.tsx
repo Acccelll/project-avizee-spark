@@ -187,6 +187,16 @@ export function BacklogFaturamento() {
         </div>
       </CardHeader>
       <CardContent>
+        {overLimit && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+            <div>
+              Exibindo os <strong>{query.data!.length}</strong> pedidos mais antigos.{" "}
+              <strong>{totalCount! - query.data!.length}</strong> pedido(s) adicionais não exibidos.
+              Use a busca para encontrar pedidos específicos.
+            </div>
+          </div>
+        )}
         {query.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -222,12 +232,16 @@ export function BacklogFaturamento() {
                     {ov.clientes?.nome_razao_social ?? "Sem cliente"} ·{" "}
                     {ov.itens_count} {ov.itens_count === 1 ? "item" : "itens"} ·{" "}
                     Aprovado {ov.data_aprovacao ? formatDate(ov.data_aprovacao) : "—"}
-                    {ov.data_prometida_despacho && (
-                      <>
-                        {" · "}Despacho prev. {formatDate(ov.data_prometida_despacho)}
-                      </>
-                    )}
                   </p>
+                  {ov.data_prometida_despacho && (
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Despacho:</span>
+                      <PrazoBadge
+                        dataPrazo={ov.data_prometida_despacho}
+                        status={ov.status ?? ""}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm tabular-nums font-semibold">
