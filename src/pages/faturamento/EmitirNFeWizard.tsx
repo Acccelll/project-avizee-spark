@@ -1661,25 +1661,32 @@ export default function EmitirNFeWizard() {
             <Step5Revisao totalNF={totalNF} onSalvarRascunho={salvarRascunho} saving={saving} />
           )}
 
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button variant="outline" onClick={prev} disabled={step === 0} className="gap-2">
-              <ArrowLeft className="h-4 w-4" /> Anterior
-            </Button>
-            {totalNF > 0 && step >= 2 ? (
-              <span className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
+            {totalNF > 0 && step >= 2 && (
+              <span className="text-sm text-muted-foreground text-center sm:order-2 sm:text-left">
                 {step === 4 ? "Total da NF-e: " : "Valor estimado: "}
-                <strong className="tabular-nums">{formatCurrency(totalNF)}</strong>
+                <strong className="tabular-nums text-foreground">
+                  {formatCurrency(totalNF)}
+                </strong>
               </span>
-            ) : (
-              <span />
             )}
-            {step < STEPS.length - 1 ? (
-              <Button onClick={next} className="gap-2">
-                Próximo <ArrowRight className="h-4 w-4" />
+            <div className="flex gap-2 sm:order-1">
+              <Button
+                variant="outline"
+                onClick={prev}
+                disabled={step === 0}
+                className="flex-1 sm:flex-none gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" /> Anterior
               </Button>
-            ) : (
-              <span />
-            )}
+              {step < STEPS.length - 1 ? (
+                <Button onClick={next} className="flex-1 sm:flex-none gap-2">
+                  Próximo <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <span className="flex-1 sm:hidden" />
+              )}
+            </div>
           </div>
         </div>
       </FormProvider>
