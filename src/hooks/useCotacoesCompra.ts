@@ -315,8 +315,9 @@ export function useCotacoesCompra() {
       });
       setDrawerOpen(false);
       fetchData();
-      // CTA pós-conversão: leva direto para o pedido recém-criado (não para a lista).
-      navigate(`/pedidos-compra/${result.pedidoId}`);
+      // Navegação para o pedido fica a cargo da ação "Ver pedido" no toast
+      // emitido por `useGerarPedidoCompra` — deixa o usuário no contexto da lista.
+      void result;
     } catch (err: unknown) {
       console.error("[gerarPedido]", err);
       // toast já emitido pelo hook
