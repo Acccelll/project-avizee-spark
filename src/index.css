@@ -318,7 +318,9 @@
   }
 
   .mono {
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "zero" 0;
   }
 
   .heading-large {
