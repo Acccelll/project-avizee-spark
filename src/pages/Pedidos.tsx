@@ -622,11 +622,15 @@ const Pedidos = () => {
               <Button
                 size="sm"
                 variant="default"
-                className="h-7 px-2 text-xs gap-1"
+                className="h-9 px-3 text-xs gap-1"
                 disabled={stockCheckPending || generatingNfId === p.id}
                 onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
               >
-                <FileOutput className="w-3 h-3" />
+                {(stockCheckPending && !generatingNfId) || generatingNfId === p.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <FileOutput className="w-3 h-3" />
+                )}
                 {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
               </Button>
             ) : null
