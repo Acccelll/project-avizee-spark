@@ -863,16 +863,16 @@ function Step3Itens() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base">Itens da nota</CardTitle>
-        <div className="flex gap-2">
+        <div className="flex gap-2 max-sm:w-full">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="max-sm:flex-1">
                 <Plus className="h-4 w-4 mr-1" /> Buscar produto
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[420px] p-0" align="end">
+            <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-0" align="end">
               <Command shouldFilter={false}>
                 <CommandInput value={busca} onValueChange={setBusca} placeholder="Código ou descrição…" />
                 <CommandList>
@@ -893,7 +893,7 @@ function Step3Itens() {
               </Command>
             </PopoverContent>
           </Popover>
-          <Button size="sm" variant="outline" onClick={adicionarVazio}>
+          <Button size="sm" variant="outline" onClick={adicionarVazio} className="max-sm:flex-1">
             <Plus className="h-4 w-4 mr-1" /> Item livre
           </Button>
         </div>
