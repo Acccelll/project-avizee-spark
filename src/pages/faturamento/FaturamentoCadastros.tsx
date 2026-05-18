@@ -788,29 +788,6 @@ function MatrizTab() {
   );
 }
 
-// ---------------- Transportadoras (atalho) ----------------
-
-function TransportadorasTab() {
-  const navigate = useNavigate();
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Truck className="h-4 w-4" /> Transportadoras
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Transportadoras são gerenciadas dentro do módulo de Logística.
-        </p>
-        <Button variant="outline" onClick={() => navigate("/logistica?tab=transportadoras")}>
-          Abrir cadastro de transportadoras
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ---------------- Página ----------------
 
 export default function FaturamentoCadastros() {
@@ -832,15 +809,12 @@ export default function FaturamentoCadastros() {
       subtitle="Naturezas de operação, matriz fiscal e transportadoras (Onda 2)"
     >
       <Tabs value={tab} onValueChange={handleTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto">
           <TabsTrigger value="naturezas" className="gap-2">
             <ScrollText className="h-4 w-4" /> Naturezas
           </TabsTrigger>
           <TabsTrigger value="matriz" className="gap-2">
             <Calculator className="h-4 w-4" /> Matriz Fiscal
-          </TabsTrigger>
-          <TabsTrigger value="transportadoras" className="gap-2">
-            <Truck className="h-4 w-4" /> Transportadoras
           </TabsTrigger>
         </TabsList>
         <TabsContent value="naturezas" className="mt-4">
@@ -848,9 +822,6 @@ export default function FaturamentoCadastros() {
         </TabsContent>
         <TabsContent value="matriz" className="mt-4">
           <MatrizTab />
-        </TabsContent>
-        <TabsContent value="transportadoras" className="mt-4">
-          <TransportadorasTab />
         </TabsContent>
       </Tabs>
     </ModulePage>
