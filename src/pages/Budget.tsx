@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCan } from '@/hooks/useCan';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import {
   listBudgetsMensais,
@@ -37,6 +38,7 @@ export default function Budget() {
   const qc = useQueryClient();
   const { can } = useCan();
   const canEdit = can('financeiro:editar');
+  const isMobile = useIsMobile();
 
   const now = new Date();
   const [competencia, setCompetencia] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
@@ -136,12 +138,12 @@ export default function Budget() {
           <CardContent className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-4">
             <div className="space-y-1">
               <Label>Competência</Label>
-              <Input type="month" value={competencia} onChange={(e) => setCompetencia(e.target.value)} />
+              <Input type="month" value={competencia} onChange={(e) => setCompetencia(e.target.value)} className="h-11" />
             </div>
             <div className="space-y-1">
               <Label>Categoria</Label>
               <Select value={categoria} onValueChange={(v) => setCategoria(v as BudgetCategoria)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIAS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
@@ -149,14 +151,14 @@ export default function Budget() {
             </div>
             <div className="space-y-1">
               <Label>Valor (R$)</Label>
-              <Input inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
+              <Input inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} className="h-11" />
             </div>
             <div className="space-y-1 sm:col-span-1">
               <Label>Observações</Label>
-              <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Opcional" />
+              <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Opcional" className="h-11" />
             </div>
             <div className="flex items-end">
-              <Button onClick={() => insertMutation.mutate()} disabled={insertMutation.isPending} className="w-full">
+              <Button onClick={() => insertMutation.mutate()} disabled={insertMutation.isPending} className="w-full h-11">
                 <Plus className="h-4 w-4 mr-1" /> Adicionar
               </Button>
             </div>
@@ -182,7 +184,77 @@ export default function Budget() {
               {filteredRows.length} entr{filteredRows.length === 1 ? 'ada' : 'adas'} em {anoFiltro}
             </span>
           </div>
-          <Table>
+          {isMobile ? (
+            <div className="space-y-2">
+              {isLoading && (
+                <p className="text-sm text-center text-muted-foreground py-4">Carregando...</p>
+              )}
+              {!isLoading && filteredRows.length === 0 && (
+                <p className="text-sm text-center text-muted-foreground py-4">
+                  Nenhum budget cadastrado em {anoFiltro}.
+                </p>
+              )}
+              {filteredRows.map((r) => {
+                const orcado = Number(r.valor || 0);
+                const realizado = getRealizado(r.competencia, r.categoria);
+                const pct = orcado > 0 ? Math.min((realizado / orcado) * 100, 100) : 0;
+                const isOver = realizado > orcado;
+                return (
+                  <div key={r.id} className="rounded-lg border bg-card p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold leading-tight">{r.competencia.slice(0, 7)}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {CATEGORIAS.find((c) => c.value === r.categoria)?.label ?? r.categoria}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-muted-foreground">Orçado</p>
+                        <p className="font-semibold tabular-nums">{formatBrl(orcado)}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Realizado</span>
+                        <span className={`tabular-nums font-medium ${isOver ? 'text-destructive' : ''}`}>
+                          {formatBrl(realizado)} · {pct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${isOver ? 'bg-destructive' : pct >= 90 ? 'bg-warning' : 'bg-success'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                    {r.observacoes && (
+                      <p className="text-xs text-muted-foreground">{r.observacoes}</p>
+                    )}
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full h-11 text-destructive hover:text-destructive justify-center"
+                        onClick={() => deleteMutation.mutate(r.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+              {filteredRows.length > 0 && (
+                <div className="flex items-center justify-between rounded-lg border-2 bg-muted/30 px-3 py-2 font-semibold">
+                  <span>Total</span>
+                  <span className="tabular-nums">{formatBrl(total)}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Competência</TableHead>
@@ -244,7 +316,9 @@ export default function Budget() {
                 </TableRow>
               )}
             </TableBody>
-          </Table>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </ModulePage>
