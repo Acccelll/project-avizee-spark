@@ -636,69 +636,106 @@ function ItemRow({ index, onRemove }: { index: number; onRemove: () => void }) {
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-12">
-        <div className="sm:col-span-5 space-y-1">
-          <Label className="text-xs">Descrição *</Label>
-          <Input {...register(`itens.${index}.descricao`)} />
-        </div>
-        <div className="sm:col-span-2 space-y-1">
+      {/* Grupo 1: Descrição em linha cheia */}
+      <div className="space-y-1">
+        <Label className="text-xs">Descrição *</Label>
+        <Input {...register(`itens.${index}.descricao`)} />
+        {itemErrors?.descricao && (
+          <p className="text-xs text-destructive">{itemErrors.descricao.message}</p>
+        )}
+      </div>
+
+      {/* Grupo 2: Códigos fiscais — 2 col mobile, 4 col desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="space-y-1">
           <Label className="text-xs">NCM *</Label>
-          <Input {...register(`itens.${index}.ncm`)} maxLength={8} placeholder="00000000" />
-          {itemErrors?.ncm && <p className="text-xs text-destructive">{itemErrors.ncm.message}</p>}
+          <Input
+            {...register(`itens.${index}.ncm`)}
+            inputMode="numeric"
+            maxLength={8}
+            placeholder="00000000"
+          />
+          {itemErrors?.ncm && (
+            <p className="text-xs text-destructive">{itemErrors.ncm.message}</p>
+          )}
         </div>
-        <div className="sm:col-span-2 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">CFOP *</Label>
-          <Input {...register(`itens.${index}.cfop`)} maxLength={4} placeholder="5102" />
+          <Input
+            {...register(`itens.${index}.cfop`)}
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="5102"
+          />
+          {itemErrors?.cfop && (
+            <p className="text-xs text-destructive">{itemErrors.cfop.message}</p>
+          )}
         </div>
-        <div className="sm:col-span-2 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">CST/CSOSN *</Label>
           <Input {...register(`itens.${index}.cst`)} maxLength={3} />
         </div>
-        <div className="sm:col-span-1 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">UN</Label>
           <Input {...register(`itens.${index}.unidade`)} maxLength={6} />
         </div>
+      </div>
 
-        <div className="sm:col-span-2 space-y-1">
+      {/* Grupo 3: Quantidade / valores — 3 col */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1">
           <Label className="text-xs">Qtd *</Label>
           <Input
             type="number"
+            inputMode="decimal"
             step="0.0001"
             {...register(`itens.${index}.quantidade`, { onChange: () => setTimeout(recalc, 0) })}
           />
         </div>
-        <div className="sm:col-span-2 space-y-1">
-          <Label className="text-xs">Vlr unitário *</Label>
+        <div className="space-y-1">
+          <Label className="text-xs">Vlr unit. *</Label>
           <Input
             type="number"
+            inputMode="decimal"
             step="0.01"
             {...register(`itens.${index}.valor_unitario`, { onChange: () => setTimeout(recalc, 0) })}
           />
         </div>
-        <div className="sm:col-span-2 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">Total</Label>
-          <Input value={Number(item.valor_total || 0).toFixed(2)} readOnly className="bg-muted" />
+          <Input
+            value={Number(item.valor_total || 0).toFixed(2)}
+            readOnly
+            className="bg-muted text-right tabular-nums"
+          />
         </div>
-        <div className="sm:col-span-2 space-y-1">
+      </div>
+
+      {/* Grupo 4: Tributos — 3 col */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1">
           <Label className="text-xs">ICMS %</Label>
           <Input
             type="number"
+            inputMode="decimal"
             step="0.01"
             {...register(`itens.${index}.icms_aliquota`, { onChange: () => setTimeout(recalc, 0) })}
           />
         </div>
-        <div className="sm:col-span-2 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">PIS %</Label>
           <Input
             type="number"
+            inputMode="decimal"
             step="0.0001"
             {...register(`itens.${index}.pis_aliquota`, { onChange: () => setTimeout(recalc, 0) })}
           />
         </div>
-        <div className="sm:col-span-2 space-y-1">
+        <div className="space-y-1">
           <Label className="text-xs">COFINS %</Label>
           <Input
             type="number"
+            inputMode="decimal"
             step="0.0001"
             {...register(`itens.${index}.cofins_aliquota`, { onChange: () => setTimeout(recalc, 0) })}
           />
