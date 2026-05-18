@@ -441,7 +441,7 @@ const ContasBancarias = () => {
 
   const columns = [
     {
-      key: "descricao", label: "Conta Bancária", sortable: true,
+      key: "descricao", label: "Conta Bancária", sortable: true, mobilePrimary: true,
       render: (c: ContaBancaria) => (
         <div className="flex items-center gap-2">
           <Landmark className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -477,7 +477,7 @@ const ContasBancarias = () => {
         : <span className="text-xs text-muted-foreground">—</span>,
     },
     {
-      key: "saldo", label: "Saldo Atual", sortable: true,
+      key: "saldo", label: "Saldo Atual", sortable: true, mobileCard: true,
       render: (c: ContaBancaria) => (
         <span className={`font-semibold font-mono text-sm ${Number(c.saldo_atual || 0) >= 0 ? "text-success" : "text-destructive"}`}>
           {formatCurrency(Number(c.saldo_atual || 0))}
