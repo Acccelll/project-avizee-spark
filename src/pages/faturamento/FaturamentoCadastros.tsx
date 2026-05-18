@@ -461,6 +461,15 @@ function MatrizTab() {
     },
   });
 
+  // Regra ativa com menor número de prioridade = alta prioridade (top).
+  const regraTopPrioridade = useMemo(
+    () =>
+      (regras ?? [])
+        .filter((r) => r.ativo)
+        .sort((a, b) => a.prioridade - b.prioridade)[0],
+    [regras],
+  );
+
   const form = useForm<MatrizForm>({
     resolver: zodResolver(matrizSchema),
     defaultValues: {
@@ -639,6 +648,12 @@ function MatrizTab() {
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>
+                      )}
+                      {regraTopPrioridade?.id === m.id && (
+                        <Badge variant="outline" className="ml-2 gap-1 border-primary/40 text-primary">
+                          <Star className="h-3 w-3 fill-primary" />
+                          Alta prioridade
+                        </Badge>
                       )}
                     </td>
                   </tr>
