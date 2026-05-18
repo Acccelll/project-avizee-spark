@@ -13,11 +13,13 @@ import {
   PackageX,
   RefreshCw,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
+import { PrazoBadge } from "@/components/PrazoBadge";
 
 /**
  * Backlog OV → NF-e (Onda 4).
@@ -117,6 +119,27 @@ export function BacklogFaturamento() {
     [query.data],
   );
 
+  // Contagem total para indicar quando o limit(100) está sendo atingido.
+  const countQuery = useQuery({
+    queryKey: ["faturamento-backlog-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("ordens_venda")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .in("status_faturamento", ["pendente", "parcial"])
+        .in("status", ["aprovado", "em_separacao", "separado", "em_producao"]);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+  const totalCount = countQuery.data;
+  const overLimit =
+    typeof totalCount === "number" &&
+    !!query.data &&
+    totalCount > query.data.length;
+
   const faturar = (ov: BacklogOV) => {
     navigate(`/faturamento/emitir?ovId=${ov.id}`);
   };
@@ -131,7 +154,11 @@ export function BacklogFaturamento() {
             {query.data && (
               <>
                 {" — "}
-                <strong>{query.data.length}</strong> pedido(s),{" "}
+                Exibindo <strong>{query.data.length}</strong>
+                {typeof totalCount === "number" && totalCount > query.data.length && (
+                  <> de <strong>{totalCount}</strong></>
+                )}
+                {" pedido(s) · "}
                 <strong>{formatCurrency(totalBacklog)}</strong>
               </>
             )}
