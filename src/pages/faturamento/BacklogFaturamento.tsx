@@ -244,14 +244,14 @@ export function BacklogFaturamento() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm tabular-nums font-semibold">
+                  <span className="hidden sm:inline text-sm tabular-nums font-semibold">
                     {formatCurrency(Number(ov.valor_total ?? 0))}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => navigate(`/pedidos?id=${ov.id}`)}
-                    className="gap-1"
+                    className="gap-1 max-sm:h-11 max-sm:flex-1"
                   >
                     Ver <ArrowRight className="h-3 w-3" />
                   </Button>
@@ -259,10 +259,16 @@ export function BacklogFaturamento() {
                     size="sm"
                     onClick={() => faturar(ov)}
                     disabled={ov.itens_count === 0}
-                    className="gap-1"
+                    className="gap-1 max-sm:h-11 max-sm:flex-1"
                   >
                     <Send className="h-3 w-3" /> Faturar
                   </Button>
+                </div>
+                <div className="flex items-center justify-between sm:hidden">
+                  <span className="text-xs text-muted-foreground">Total</span>
+                  <span className="text-sm tabular-nums font-semibold">
+                    {formatCurrency(Number(ov.valor_total ?? 0))}
+                  </span>
                 </div>
               </li>
             ))}
