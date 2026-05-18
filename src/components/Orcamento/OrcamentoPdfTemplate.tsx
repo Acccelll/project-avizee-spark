@@ -119,7 +119,7 @@ export const OrcamentoPdfTemplate = forwardRef<HTMLDivElement, Props>(({
         {/* Coluna 3: Orçamento / Data */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ flex: 1, textAlign: "center", fontSize: "11px", fontWeight: 700, padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>Orçamento</div>
-          <div style={{ flex: 1, textAlign: "center", fontSize: "13px", fontFamily: "'Roboto Mono', monospace", fontWeight: 400, padding: "4px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{numeroDisplay}</div>
+          <div style={{ flex: 1, textAlign: "center", fontSize: "13px", fontVariantNumeric: "tabular-nums", fontWeight: 400, padding: "4px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{numeroDisplay}</div>
           <div style={{ flex: 1, textAlign: "center", fontSize: "11px", fontWeight: 700, padding: "4px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>Data</div>
           <div style={{ flex: 1, textAlign: "center", fontSize: "11px", padding: "4px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{formatDate(data)}</div>
         </div>
@@ -168,13 +168,13 @@ export const OrcamentoPdfTemplate = forwardRef<HTMLDivElement, Props>(({
         <tbody>
           {realItems.map((item, idx) => (
             <tr key={`r-${idx}`}>
-              <td style={{ padding: "3px 8px", fontFamily: "'Roboto Mono', monospace" }}>{item.codigo_snapshot}</td>
+              <td style={{ padding: "3px 8px", fontVariantNumeric: "tabular-nums" }}>{item.codigo_snapshot}</td>
               <td style={{ padding: "3px 8px" }}>{item.descricao_snapshot}</td>
               <td style={{ padding: "3px 8px", textAlign: "center" }}>{item.variacao}</td>
-              <td style={{ padding: "3px 8px", textAlign: "center", fontFamily: "'Roboto Mono', monospace" }}>{item.quantidade || ""}</td>
+              <td style={{ padding: "3px 8px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{item.quantidade || ""}</td>
               <td style={{ padding: "3px 8px", textAlign: "center" }}>{item.unidade}</td>
-              <td style={{ padding: "3px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
-              <td style={{ padding: "3px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
+              <td style={{ padding: "3px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
+              <td style={{ padding: "3px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
             </tr>
           ))}
           {Array.from({ length: emptyRows }).map((_, idx) => (
@@ -199,12 +199,12 @@ export const OrcamentoPdfTemplate = forwardRef<HTMLDivElement, Props>(({
             ].map((cell) => (
               <td key={cell.label} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", verticalAlign: "middle", width: "12%" }}>
                 <div style={{ fontSize: "9.5px", fontWeight: 600, color: "#444", marginBottom: "2px", whiteSpace: "nowrap" }}>{cell.label}</div>
-                <div style={{ fontSize: "11px", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", whiteSpace: "nowrap" }}>{cell.value}</div>
+                <div style={{ fontSize: "11px", fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{cell.value}</div>
               </td>
             ))}
             <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "center", verticalAlign: "middle", backgroundColor: ORANGE, color: "#fff", width: "16%" }}>
               <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "2px", color: "#fff" }}>Valor Total</div>
-              <div style={{ fontSize: "14px", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", color: "#fff", whiteSpace: "nowrap" }}>{fmtMoney(valorTotal)}</div>
+              <div style={{ fontSize: "14px", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#fff", whiteSpace: "nowrap" }}>{fmtMoney(valorTotal)}</div>
             </td>
           </tr>
         </tbody>
