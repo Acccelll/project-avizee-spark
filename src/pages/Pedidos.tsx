@@ -503,7 +503,24 @@ const Pedidos = () => {
             value={formatNumber(kpis.aguardandoFat)}
             icon={FileOutput}
             variationType="positive"
-            variation={kpis.aguardandoFat > 0 ? "prontos para gerar NF" : "nenhum pendente"}
+            variation={
+              hasActiveFilters
+                ? "no filtro atual"
+                : kpis.aguardandoFat > 0
+                  ? "prontos para gerar NF"
+                  : "nenhum pendente"
+            }
+            active={
+              statusFilters.length === 2 &&
+              statusFilters.includes("aprovada") &&
+              statusFilters.includes("separado")
+            }
+            onClick={
+              kpis.aguardandoFat > 0
+                ? () => setStatusFilters(["aprovada", "separado"])
+                : undefined
+            }
+            aria-label="Filtrar pedidos aguardando faturamento"
           />
           {kpis.atrasados === 0 && kpis.semPrazo > 0 ? (
             <SummaryCard
@@ -513,7 +530,12 @@ const Pedidos = () => {
               icon={AlertTriangle}
               variant="warning"
               variationType="neutral"
-              variation="aguardando definição"
+              variation={hasActiveFilters ? "no filtro atual" : "aguardando definição"}
+              active={prazoFilters.length === 1 && prazoFilters[0] === "sem_prazo"}
+              onClick={
+                kpis.semPrazo > 0 ? () => setPrazoFilters(["sem_prazo"]) : undefined
+              }
+              aria-label="Filtrar pedidos sem prazo"
             />
           ) : (
             <SummaryCard
@@ -522,7 +544,18 @@ const Pedidos = () => {
               value={formatNumber(kpis.atrasados)}
               icon={AlertTriangle}
               variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const}
-              variation={kpis.atrasados > 0 ? "fora do prazo" : "no prazo"}
+              variation={
+                hasActiveFilters
+                  ? "no filtro atual"
+                  : kpis.atrasados > 0
+                    ? "fora do prazo"
+                    : "no prazo"
+              }
+              active={prazoFilters.length === 1 && prazoFilters[0] === "atrasado"}
+              onClick={
+                kpis.atrasados > 0 ? () => setPrazoFilters(["atrasado"]) : undefined
+              }
+              aria-label="Filtrar pedidos atrasados"
             />
           )}
         </div>
