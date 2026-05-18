@@ -705,11 +705,17 @@ const Pedidos = () => {
           const pedido = data.find(o => o.id === generatingNfId);
           if (pedido) handleGenerateNF(pedido);
         }}
-        title="Gerar Nota Fiscal"
+        title={
+          insufficientStock.length > 0
+            ? "⚠ Estoque insuficiente — gerar NF mesmo assim?"
+            : nfChecklist.length > 0
+              ? "Pendências fiscais detectadas"
+              : "Gerar Nota Fiscal"
+        }
         description={insufficientStock.length > 0
-          ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque insuficiente. A NF pode gerar saldo negativo no estoque. Deseja continuar?`
+          ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque abaixo do necessário. Gerar a NF resultará em saldo negativo no estoque.`
           : nfChecklist.length > 0
-            ? `Antes de gerar a NF do pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}, revise as pendências fiscais abaixo. Você ainda pode prosseguir.`
+            ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} tem pendências fiscais. Você ainda pode prosseguir.`
             : `Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
         confirmLabel={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "Gerar NF assim mesmo" : "Gerar NF"}
         confirmVariant={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "destructive" : "default"}
