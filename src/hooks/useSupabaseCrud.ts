@@ -224,10 +224,15 @@ export function useSupabaseCrud<R = any>({
           throw error;
         }
         const rows = (result ?? []) as R[];
+        const knownTotal = count ?? null;
+        const hasMore =
+          knownTotal != null
+            ? (effectivePage + 1) * pageSize < knownTotal
+            : rows.length === pageSize;
         return {
           rows,
-          totalCount: count ?? null,
-          hasMore: rows.length === pageSize,
+          totalCount: knownTotal,
+          hasMore,
           truncated: false,
         };
       }
