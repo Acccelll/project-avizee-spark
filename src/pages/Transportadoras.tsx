@@ -16,6 +16,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
@@ -501,8 +502,10 @@ export default function Transportadoras() {
     if (key === "contato") setContatoFilters(contatoFilters.filter(v => v !== value));
   };
 
-  const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
-  const summarySemPrazo = useMemo(() => data.filter(t => !t.prazo_medio).length, [data]);
+  const summaryAtivos = useTableCount("transportadoras", { ativo: true }).data ?? 0;
+  const summarySemPrazo = useTableCount("transportadoras", { prazo_medio: { is: null } }).data ?? 0;
+  // "Sem contato" — telefone IS NULL e email IS NULL. useTableCount não suporta
+  // composição AND complexa; aproximamos pela página corrente quando preciso.
   const summarySemContato = useMemo(() => data.filter(t => !t.telefone && !t.email).length, [data]);
 
   return (
