@@ -163,15 +163,15 @@ function ContasTreeView({ data, loading, onView, onEdit }: TreeViewProps) {
           {/* expand/collapse toggle */}
           <button
             type="button"
-            className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
             onClick={() => hasChildren && toggleExpand(conta.id)}
             aria-label={isExpanded ? "Recolher" : "Expandir"}
             tabIndex={hasChildren ? 0 : -1}
             style={{ visibility: hasChildren ? "visible" : "hidden" }}
           >
             {isExpanded
-              ? <ChevronDown className="w-3.5 h-3.5" />
-              : <ChevronRight className="w-3.5 h-3.5" />
+              ? <ChevronDown className="w-4 h-4" />
+              : <ChevronRight className="w-4 h-4" />
             }
           </button>
 
@@ -215,15 +215,15 @@ function ContasTreeView({ data, loading, onView, onEdit }: TreeViewProps) {
           <StatusBadge status={conta.ativo ? "ativo" : "inativo"} />
 
           {/* actions (hidden until hover) */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost" size="icon" className="h-7 w-7"
+                  variant="ghost" size="icon" className="h-8 w-8 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => onView(conta)}
-                  aria-label="Visualizar"
+                  aria-label={`Visualizar ${conta.descricao}`}
                 >
-                  <Eye className="w-3.5 h-3.5" />
+                  <Eye className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Visualizar detalhes</TooltipContent>
@@ -231,11 +231,11 @@ function ContasTreeView({ data, loading, onView, onEdit }: TreeViewProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost" size="icon" className="h-7 w-7"
+                  variant="ghost" size="icon" className="h-8 w-8 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => onEdit(conta)}
-                  aria-label="Editar"
+                  aria-label={`Editar ${conta.descricao}`}
                 >
-                  <Edit className="w-3.5 h-3.5" />
+                  <Edit className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Editar</TooltipContent>
