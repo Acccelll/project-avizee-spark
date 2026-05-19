@@ -1,66 +1,75 @@
-# Correção: erro "Requested range not satisfiable" em grids paginados
+# Esconder seta de próxima página quando não há mais itens
 
 ## Diagnóstico
 
-O toast aparece em `Produtos` (e em qualquer tela que use `useSupabaseCrud` em modo paged) quando o usuário **digita uma busca ou muda filtro estando numa página > 1**.
+O print mostra um grid vazio ("Nenhum registro encontrado") após o usuário clicar em "próxima". Isso acontece por dois motivos combinados em `useSupabaseCrud` + `DataTable`:
 
-Sequência observada (vista no replay: 2 toasts seguidos em `/produtos?q=vr`):
+1. **`hasMore` falso-positivo** (`src/hooks/useSupabaseCrud.ts:230`)
+   `hasMore = rows.length === pageSize`. Quando a última página tem exatamente `pageSize` linhas (ex.: 100 itens com pageSize=50 → página 1 com 50 e nenhuma próxima), `hasMore` continua `true` e a seta permanece habilitada. Clicar leva a uma página vazia.
 
-1. Estado atual: `page = 2`, `searchTerm = ""`, `pageSize = 50` → range `(100, 149)`.
-2. Usuário digita `vr` → `searchTerm` muda.
-3. Em `src/hooks/useSupabaseCrud.ts` o `queryKey` é recomputado **com o novo `searchTerm` e o `page=2` antigo** (linhas 144–147).
-4. React Query dispara a request com `range(100, 149)`, mas a busca `vr` retorna ~5 produtos. PostgREST devolve **HTTP 416 "Requested range not satisfiable"** → toast de erro.
-5. Só **depois** do render, o `useEffect` das linhas 151–155 chama `setPage(0)`.
-6. Re-render dispara nova query com `page=0` → sucesso e lista carrega ("No record found" ou resultado).
+2. **Seta sempre renderizada, apenas desabilitada** (`DataTable.tsx:998` e `1164`)
+   Mesmo nos casos em que `disabled` fecharia, a seta fica visível e o usuário tenta clicar. A solicitação do usuário é **ocultar** a seta, não apenas desabilitá-la.
 
-O segundo toast vem do StrictMode/refetch duplo ou de uma segunda mudança de tecla. Não é PostgREST instável — é race entre `setPage(0)` (efeito) e `queryKey` (síncrono).
+## Mudanças
 
-## Correção
+### 1. `src/hooks/useSupabaseCrud.ts` — corrigir `hasMore`
 
-Tornar o reset de página **síncrono** dentro do render do hook, antes de compor o `queryKey`, usando `useRef` para detectar mudança nas deps de filtro/busca/ordem.
-
-### Mudança única em `src/hooks/useSupabaseCrud.ts`
-
-Substituir o `useEffect` reset (linhas 149–155) por um clamp síncrono:
+Trocar:
 
 ```ts
-// Reset síncrono: quando filtros/busca/ordem mudam em modo paged,
-// força page=0 no MESMO render — evita pedir range inexistente
-// (HTTP 416) na primeira query disparada com filtro novo + page antigo.
-const filterDepsKey = `${filterKey}|${dateRangeKey}|${statusKey}|${orFiltersKey}|${searchTerm}|${orderBy}|${ascending}`;
-const lastDepsRef = useRef(filterDepsKey);
-let effectivePage = page;
-if (effectiveMode === "paged" && lastDepsRef.current !== filterDepsKey) {
-  lastDepsRef.current = filterDepsKey;
-  if (page !== 0) {
-    effectivePage = 0;
-    // Agenda atualização do state para o próximo tick — o render atual
-    // já usa effectivePage=0, evitando a query intermediária.
-    queueMicrotask(() => setPage(0));
-  }
-}
+hasMore: rows.length === pageSize,
 ```
 
-E trocar `page` por `effectivePage` em:
-- `queryKey` (linha 145)
-- `const from = page * pageSize` (linha 202)
+por uma checagem que prioriza `totalCount` quando disponível:
 
-Isso elimina a janela em que `queryKey` carrega `searchTerm` novo + `page` antigo.
+```ts
+const knownTotal = count ?? null;
+const hasMore =
+  knownTotal != null
+    ? (effectivePage + 1) * pageSize < knownTotal
+    : rows.length === pageSize;
+```
 
-### Defesa secundária
+Isso elimina o falso-positivo da última página cheia.
 
-Em `notifyError` (ou no `if (error)` do paged mode, linha 204), tratar especificamente o erro de range — quando `error.code === "PGRST103"` ou `message.includes("Requested range")`, **não** mostrar toast: significa apenas que a página foi pedida fora do total atual. Logar via `logger.warn` para rastreio.
+### 2. `src/components/DataTable.tsx` — ocultar setas quando não navegável
+
+No bloco mobile (linhas 995-999) e desktop (linhas 1161-1165), substituir a renderização incondicional dos botões `‹ ›` por renderização condicional:
+
+```tsx
+{serverPagination ? (
+  <div className="flex gap-1">
+    {effectivePage > 0 && (
+      <Button ... aria-label="Página anterior" onClick={() => goToPage(effectivePage - 1)}>
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+    )}
+    {(serverPagination.hasMore || effectivePage < totalPages - 1) && (
+      <Button ... aria-label="Próxima página" onClick={() => goToPage(effectivePage + 1)}>
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    )}
+  </div>
+) : ...}
+```
+
+Aplicar o mesmo padrão no ramo client-side (linhas 1005-1008), ocultando "anterior" quando `currentPage === 0` e "próxima" quando `currentPage >= totalPages - 1`.
+
+Também ajustar a condição `mobilePagerVisible` (linha 980) para esconder a barra inteira quando há só uma página e nenhuma seta apareceria — mantendo o `<div className="pb-24 md:pb-0" />` espaçador.
+
+### 3. Defesa: clamp de página fora de range
+
+Se ainda assim o consumidor pedir `page` além de `totalPages - 1` (ex.: deep link), o `useEffect` já existente em `useSupabaseCrud` reseta para 0. Adicionar o mesmo clamp no efeito (lá só dispara quando `paged` e `totalCount != null && page * pageSize >= totalCount`), evitando piscar página vazia. Sem novo estado — só estende a condição que já existe.
 
 ## Validação
 
-1. Em `/produtos`, paginar para a página 2.
-2. Digitar uma busca que retorne poucos resultados (ex.: `vr`).
-3. Esperado: lista filtrada aparece sem toast de erro.
-4. Verificar que continua resetando para página 0 (a UI de paginação volta a "1 de N").
-5. Smoke: rodar `vitest run src/hooks/__tests__/useSupabaseCrud.test.tsx`.
+1. `/produtos` com filtro que retorne exatamente múltiplo de `pageSize` (ex.: 50, 100): verificar que a seta "próxima" some na última página.
+2. Página única (poucos resultados): nenhuma seta visível, badge "1–N de N" continua.
+3. Página intermediária: ambas as setas visíveis.
+4. Rodar `bunx vitest run src/hooks/__tests__/useSupabaseCrud.test.tsx src/components/__tests__/DataTable.test.tsx`.
 
 ## Escopo
 
-- Arquivo único: `src/hooks/useSupabaseCrud.ts`.
-- Sem mudança em RPCs, schema, ou consumidores do hook.
-- Sem alteração visual.
+- `src/hooks/useSupabaseCrud.ts` — cálculo de `hasMore` + clamp no effect.
+- `src/components/DataTable.tsx` — render condicional das setas (mobile + desktop, server + client).
+- Sem mudança de API pública dos componentes, sem migrações.

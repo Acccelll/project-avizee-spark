@@ -224,10 +224,15 @@ export function useSupabaseCrud<R = any>({
           throw error;
         }
         const rows = (result ?? []) as R[];
+        const knownTotal = count ?? null;
+        const hasMore =
+          knownTotal != null
+            ? (effectivePage + 1) * pageSize < knownTotal
+            : rows.length === pageSize;
         return {
           rows,
-          totalCount: count ?? null,
-          hasMore: rows.length === pageSize,
+          totalCount: knownTotal,
+          hasMore,
           truncated: false,
         };
       }
@@ -276,6 +281,18 @@ export function useSupabaseCrud<R = any>({
   });
 
   const invalidateTable = () => queryClient.invalidateQueries({ queryKey: [table] });
+
+  // Defesa: se o consumidor pediu uma página fora do range (deep link ou
+  // shrink após mutação), reseta para 0 assim que o totalCount conhecido
+  // indicar que a página atual está vazia.
+  useEffect(() => {
+    if (effectiveMode !== "paged" || !pageSize) return;
+    const total = queryResult.data?.totalCount;
+    if (total == null) return;
+    if (page > 0 && page * pageSize >= total) {
+      setPage(0);
+    }
+  }, [queryResult.data?.totalCount, page, pageSize, effectiveMode]);
 
   const createMutation = useMutation({
     mutationFn: async (record: Partial<R>) => {
