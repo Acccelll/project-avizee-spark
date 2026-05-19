@@ -483,12 +483,22 @@ export default function Transportadoras() {
       key: "modalidade", label: "Modalidade", value: [f],
       displayValue: MODALIDADE_LABEL[f] || f,
     }));
+    prazoFilters.forEach(f => chips.push({
+      key: "prazo", label: "Prazo", value: [f],
+      displayValue: f === "sem_prazo" ? "Sem prazo médio" : f,
+    }));
+    contatoFilters.forEach(f => chips.push({
+      key: "contato", label: "Contato", value: [f],
+      displayValue: f === "sem_contato" ? "Sem contato" : f,
+    }));
     return chips;
-  }, [ativoFilters, modalidadeFilters]);
+  }, [ativoFilters, modalidadeFilters, prazoFilters, contatoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
     if (key === "modalidade") setModalidadeFilters(modalidadeFilters.filter(v => v !== value));
+    if (key === "prazo") setPrazoFilters(prazoFilters.filter(v => v !== value));
+    if (key === "contato") setContatoFilters(contatoFilters.filter(v => v !== value));
   };
 
   const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
@@ -503,10 +513,42 @@ export default function Transportadoras() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total" value={data.length} icon={Truck} />
-            <SummaryCard title="Ativas" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Sem prazo médio" shortTitle="Sem prazo" value={summarySemPrazo} icon={Clock} variant={summarySemPrazo > 0 ? "warning" : "default"} />
-            <SummaryCard title="Sem contato" shortTitle="Sem contato" value={summarySemContato} icon={PhoneOff} variant={summarySemContato > 0 ? "warning" : "default"} />
+            <SummaryCard
+              title="Total"
+              value={totalCount ?? data.length}
+              icon={Truck}
+              onClick={() => clearFilters(["ativo", "modalidade", "prazo", "contato"])}
+              aria-label="Mostrar todas as transportadoras"
+            />
+            <SummaryCard
+              title="Ativas"
+              value={summaryAtivos}
+              icon={UserCheck}
+              variant="success"
+              onClick={() => setAtivoFilters(ativoFilters.length === 1 && ativoFilters.includes("ativo") ? [] : ["ativo"])}
+              active={ativoFilters.length === 1 && ativoFilters.includes("ativo")}
+              aria-label="Filtrar transportadoras ativas"
+            />
+            <SummaryCard
+              title="Sem prazo médio"
+              shortTitle="Sem prazo"
+              value={summarySemPrazo}
+              icon={Clock}
+              variant={summarySemPrazo > 0 ? "warning" : "default"}
+              onClick={summarySemPrazo > 0 ? () => setPrazoFilters(prazoFilters.includes("sem_prazo") ? [] : ["sem_prazo"]) : undefined}
+              active={prazoFilters.includes("sem_prazo")}
+              aria-label="Filtrar transportadoras sem prazo médio"
+            />
+            <SummaryCard
+              title="Sem contato"
+              shortTitle="Sem contato"
+              value={summarySemContato}
+              icon={PhoneOff}
+              variant={summarySemContato > 0 ? "warning" : "default"}
+              onClick={summarySemContato > 0 ? () => setContatoFilters(contatoFilters.includes("sem_contato") ? [] : ["sem_contato"]) : undefined}
+              active={contatoFilters.includes("sem_contato")}
+              aria-label="Filtrar transportadoras sem contato cadastrado"
+            />
           </>
         }
       >
@@ -517,7 +559,7 @@ export default function Transportadoras() {
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "modalidade"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect
             options={ativoOptions}
