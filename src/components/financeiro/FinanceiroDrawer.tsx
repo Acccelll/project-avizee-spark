@@ -17,6 +17,7 @@ import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useCan } from "@/hooks/useCan";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { useEstornarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import {
@@ -102,6 +103,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   // Cancelar é operação reversível (status='cancelado'); separada de hard-delete,
   // que exige `financeiro:excluir` + admin via gate da própria RPC.
   const canPermCancelar = can("financeiro:cancelar");
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
   const estornarBaixa = useEstornarBaixa();
   const { confirm: confirmEstorno, dialog: estornoDialog } = useConfirmDestructive({
     verb: "Estornar",
@@ -116,7 +118,11 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
 
-  const canBaixa = canPermBaixar && effectiveStatus !== "pago" && effectiveStatus !== "cancelado";
+  // Admin/Financeiro podem registrar baixas adicionais mesmo em lançamentos
+  // pagos/cancelados (encargos retroativos, ajustes). RPC e UI tratam o caso.
+  const canBaixa =
+    canPermBaixar &&
+    (canEditAvancado || (effectiveStatus !== "pago" && effectiveStatus !== "cancelado"));
   const canEstorno = canPermBaixar && (effectiveStatus === "pago" || effectiveStatus === "parcial");
 
   const isCR = selected.tipo === "receber";
