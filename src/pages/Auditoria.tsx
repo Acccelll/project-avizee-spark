@@ -24,6 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { PeriodFilter } from "@/components/filters/PeriodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { periodToDateFrom } from "@/lib/periodFilter";
@@ -60,6 +63,8 @@ import {
   User,
   X,
   Info,
+  Eye,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 
