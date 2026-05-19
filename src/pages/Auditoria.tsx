@@ -510,6 +510,128 @@ export default function Auditoria() {
           </>
         }
         filters={
+          isMobile ? (
+            <div className="flex items-center gap-2 w-full">
+              <Select
+                value={criticidade}
+                onValueChange={(v) =>
+                  set({ criticidade: v === "todas" ? "" : v, page: 1 })
+                }
+              >
+                <SelectTrigger className="h-11 flex-1">
+                  <SelectValue placeholder="Criticidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Toda criticidade</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="h-11 gap-2 shrink-0">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filtros
+                    {advancedFiltersCount > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
+                        {advancedFiltersCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Filtros de Auditoria</SheetTitle>
+                  </SheetHeader>
+                  <div className="space-y-3 pt-4 pb-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Origem</Label>
+                      <Select value={origem} onValueChange={(v) => set({ origem: v === "todas" ? "" : v, page: 1 })}>
+                        <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas as origens</SelectItem>
+                          <SelectItem value="permission_audit">Governança</SelectItem>
+                          <SelectItem value="auditoria_logs">Operacional</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Entidade</Label>
+                      <Select value={entidade} onValueChange={(v) => set({ entidade: v === "todas" ? "" : v, page: 1 })}>
+                        <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="todas">Todas as entidades</SelectItem>
+                          {KNOWN_TABLES.map((t) => (
+                            <SelectItem key={t} value={t}>{getTableMeta(t).entidade}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Ação</Label>
+                      <Select value={tipoAcao} onValueChange={(v) => set({ tipo_acao: v === "todas" ? "" : v, page: 1 })}>
+                        <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="todas">Todas as ações</SelectItem>
+                          {KNOWN_ACOES.map((a) => (
+                            <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Ator</Label>
+                      <Select value={atorId} onValueChange={(v) => set({ ator: v === "todos" ? "" : v, page: 1 })}>
+                        <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="todos">Todos os atores</SelectItem>
+                          {profiles.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Alvo</Label>
+                      <Select value={targetUserId} onValueChange={(v) => set({ alvo: v === "todos" ? "" : v, page: 1 })}>
+                        <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="todos">Todos os alvos</SelectItem>
+                          {profiles.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">IP</Label>
+                      <Input
+                        value={ipAddress}
+                        onChange={(e) => set({ ip: e.target.value, page: 1 })}
+                        placeholder="Endereço IP"
+                        className="h-11 font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">ID do registro</Label>
+                      <Input
+                        value={registroId}
+                        onChange={(e) => set({ registro: e.target.value, page: 1 })}
+                        placeholder="UUID do registro"
+                        className="h-11 font-mono"
+                      />
+                    </div>
+                    {advancedFiltersCount > 0 && (
+                      <Button variant="ghost" className="w-full h-11" onClick={() => clear()}>
+                        Limpar todos os filtros
+                      </Button>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
             <Select
               value={origem}
@@ -640,6 +762,7 @@ export default function Auditoria() {
               Limpar filtros
             </Button>
           </div>
+          )
         }
         toolbarExtra={
           <div className="flex items-center gap-2">
