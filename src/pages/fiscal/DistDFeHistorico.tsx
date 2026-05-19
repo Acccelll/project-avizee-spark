@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, PlayCircle, Zap } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -134,11 +134,19 @@ export default function DistDFeHistorico() {
             Atualizar
           </Button>
           <Button onClick={() => void executarAgora("2")} disabled={running}>
-            <PlayCircle className="h-4 w-4 mr-2" />
+            {running ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <PlayCircle className="h-4 w-4 mr-2" />
+            )}
             {running ? "Executando..." : "Executar agora (Hom.)"}
           </Button>
           <Button variant="secondary" onClick={() => void executarAgora("1")} disabled={running}>
-            <PlayCircle className="h-4 w-4 mr-2" />
+            {running ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <PlayCircle className="h-4 w-4 mr-2" />
+            )}
             Produção
           </Button>
         </div>
@@ -218,7 +226,11 @@ export default function DistDFeHistorico() {
               }
             }}
           >
-            <Zap className="h-4 w-4 mr-2" />
+            {aplicandoLote ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
             {aplicandoLote ? "Aplicando..." : "Aplicar ciência em lote agora"}
           </Button>
         </CardContent>

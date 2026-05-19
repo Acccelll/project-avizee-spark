@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -136,23 +143,27 @@ export default function Cte() {
           onChange={(e) => setDataFim(e.target.value)}
           className="w-40"
         />
-        <select
-          value={statusFiltro}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        <Select
+          value={statusFiltro || "todos"}
+          onValueChange={(v) => setStatus(v === "todos" ? "" : v)}
         >
-          <option value="">Todos os status</option>
-          <option value="pendente">Pendente</option>
-          <option value="rascunho">Rascunho</option>
-          <option value="confirmada">Confirmada</option>
-          <option value="autorizada">Autorizada</option>
-          <option value="cancelada">Cancelada</option>
-          <option value="cancelada_sefaz">Cancelada SEFAZ</option>
-          <option value="rejeitada">Rejeitada</option>
-        </select>
+          <SelectTrigger className="w-[200px] h-9">
+            <SelectValue placeholder="Todos os status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="rascunho">Rascunho</SelectItem>
+            <SelectItem value="confirmada">Confirmada</SelectItem>
+            <SelectItem value="autorizada">Autorizada</SelectItem>
+            <SelectItem value="cancelada">Cancelada</SelectItem>
+            <SelectItem value="cancelada_sefaz">Cancelada SEFAZ</SelectItem>
+            <SelectItem value="rejeitada">Rejeitada</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
