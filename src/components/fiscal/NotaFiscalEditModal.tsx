@@ -94,7 +94,6 @@ interface NotaFiscalEditModalProps {
   setParcelasPlano?: (p: ParcelaPlano[]) => void;
   saving: boolean;
   onSubmit: (e: FormEvent) => void;
-  onSaveAndConfirm?: () => void;
   onCancelarRascunho?: () => void;
   fornecedores: FornecedorOpt[];
   clientes: ClienteOpt[];
@@ -199,7 +198,6 @@ export function NotaFiscalEditModal({
   setParcelasPlano,
   saving,
   onSubmit,
-  onSaveAndConfirm,
   onCancelarRascunho,
   fornecedores,
   clientes,
