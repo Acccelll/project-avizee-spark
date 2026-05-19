@@ -332,17 +332,28 @@ export default function MigracaoDados() {
   };
 
   const handleFinalize = async () => {
-    setIsConfirmOpen(true);
-  };
-
-  const onConfirmCarga = async () => {
-    setIsConfirmOpen(false);
-    const success = await finalizeImport(currentLoteId || undefined);
-    if (success) {
-      setIsImportModalOpen(false);
-      refreshLotes();
-      setActiveTab("lotes");
-    }
+    const total = Array.isArray(previewData) ? previewData.length : 0;
+    await confirmDestructive(
+      {
+        verb: "Confirmar",
+        entity: "carga de dados",
+        terminal: false,
+        sideEffects: [
+          `${total} registro(s) serão inseridos nas tabelas operacionais`,
+          "Registros duplicados serão sinalizados",
+          "Esta operação não pode ser desfeita automaticamente",
+        ],
+        confirmLabel: "Confirmar Carga",
+      },
+      async () => {
+        const success = await finalizeImport(currentLoteId || undefined);
+        if (success) {
+          setIsImportModalOpen(false);
+          refreshLotes();
+          setActiveTab("lotes");
+        }
+      },
+    );
   };
 
   const resetModal = () => {
