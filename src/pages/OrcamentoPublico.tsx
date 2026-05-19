@@ -555,6 +555,32 @@ export default function OrcamentoPublico() {
         </section>
 
         {/* AÇÕES */}
+        {isExpired && !actionDone && (
+          <section
+            id="orcamento-cta-section"
+            style={{
+              background: "#fff7ed",
+              borderRadius: 12,
+              border: `2px solid #fdba74`,
+              padding: "20px 24px",
+              display: "flex",
+              gap: 14,
+              alignItems: "flex-start",
+            }}
+          >
+            <XCircle className="h-7 w-7 shrink-0" style={{ color: "#c2410c" }} />
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "#9a3412", marginBottom: 4 }}>
+                Este orçamento expirou
+              </p>
+              <p style={{ fontSize: 13, color: "#7c2d12", lineHeight: 1.5 }}>
+                {data.validade ? <>Válido até <strong>{formatDate(data.validade)}</strong>. </> : null}
+                Entre em contato com o vendedor para receber uma nova proposta atualizada.
+              </p>
+            </div>
+          </section>
+        )}
+
         {!actionDone && !isExpired && !["aprovado", "rejeitado", "cancelado"].includes(data.status) && (
           <section id="orcamento-cta-section" style={{ background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, padding: "20px 24px", textAlign: "center" }}>
             <p style={{ fontSize: 13.5, color: "#3d3d3a", marginBottom: 16 }}>
