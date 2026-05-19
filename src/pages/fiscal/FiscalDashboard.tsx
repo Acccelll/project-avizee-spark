@@ -129,6 +129,7 @@ export default function FiscalDashboard() {
             size="sm"
             onClick={() => void refetch()}
             disabled={isFetching}
+            className="max-sm:h-11"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
             Atualizar
@@ -138,7 +139,7 @@ export default function FiscalDashboard() {
             size="sm"
             onClick={() => void handleExportPdf()}
             disabled={!data || exporting || isLoading}
-            className="hidden md:inline-flex"
+            className="hidden md:inline-flex max-sm:h-11"
           >
             <FileDown className={`h-4 w-4 mr-2 ${exporting ? "animate-pulse" : ""}`} />
             {exporting ? "Gerando…" : "Exportar PDF"}
@@ -251,12 +252,12 @@ export default function FiscalDashboard() {
             <h2 id="kpi-tributos" className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
               <Calculator className="h-4 w-4" /> Apuração no período (NF-e autorizadas)
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <SummaryCard title="ICMS" value={fmtBRL(data.tributos.icms)} density="compact" />
-              <SummaryCard title="ICMS-ST" value={fmtBRL(data.tributos.icmsSt)} density="compact" />
-              <SummaryCard title="IPI" value={fmtBRL(data.tributos.ipi)} density="compact" />
-              <SummaryCard title="PIS" value={fmtBRL(data.tributos.pis)} density="compact" />
-              <SummaryCard title="COFINS" value={fmtBRL(data.tributos.cofins)} density="compact" />
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:mx-0 md:grid-cols-5">
+              <div className="min-w-[160px] snap-start shrink-0 sm:min-w-0"><SummaryCard title="ICMS" value={fmtBRL(data.tributos.icms)} density="compact" /></div>
+              <div className="min-w-[160px] snap-start shrink-0 sm:min-w-0"><SummaryCard title="ICMS-ST" value={fmtBRL(data.tributos.icmsSt)} density="compact" /></div>
+              <div className="min-w-[160px] snap-start shrink-0 sm:min-w-0"><SummaryCard title="IPI" value={fmtBRL(data.tributos.ipi)} density="compact" /></div>
+              <div className="min-w-[160px] snap-start shrink-0 sm:min-w-0"><SummaryCard title="PIS" value={fmtBRL(data.tributos.pis)} density="compact" /></div>
+              <div className="min-w-[160px] snap-start shrink-0 sm:min-w-0"><SummaryCard title="COFINS" value={fmtBRL(data.tributos.cofins)} density="compact" /></div>
             </div>
           </section>
 
