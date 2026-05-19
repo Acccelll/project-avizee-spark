@@ -1520,9 +1520,9 @@ const Fiscal = () => {
                   size="sm"
                   className="w-full min-h-11 gap-2"
                   onClick={() => handleConfirmar(n)}
-                  aria-label={`Confirmar NF ${n.numero}`}
+                  aria-label={`Concluir lançamento da NF ${n.numero}`}
                 >
-                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                  <CheckCircle className="h-4 w-4" /> Concluir lançamento
                 </Button>
               );
             }
