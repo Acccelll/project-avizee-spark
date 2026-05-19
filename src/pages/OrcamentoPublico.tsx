@@ -586,10 +586,10 @@ export default function OrcamentoPublico() {
             <p style={{ fontSize: 13.5, color: "#3d3d3a", marginBottom: 16 }}>
               Revise os itens acima e confirme sua resposta:
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <div className="max-sm:flex-col" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
               <Button
                 size="lg"
-                className="gap-2"
+                className="gap-2 max-sm:w-full"
                 style={{ background: "#16a34a", color: "#fff", minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
                 onClick={() => { setComentario(""); setDialogAcao("aprovado"); }}
@@ -600,7 +600,7 @@ export default function OrcamentoPublico() {
               <Button
                 size="lg"
                 variant="outline"
-                className="gap-2"
+                className="gap-2 max-sm:w-full"
                 style={{ borderColor: WINE, color: WINE, minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
                 onClick={() => { setComentario(""); setDialogAcao("rejeitado"); }}
