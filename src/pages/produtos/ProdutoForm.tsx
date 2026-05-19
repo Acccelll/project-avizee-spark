@@ -26,6 +26,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
@@ -154,6 +156,21 @@ export default function ProdutoForm({
   const { isUnique: skuUnico, isLoading: skuChecking } = useFieldUnique(
     "produtos", "sku", form.sku || "", editingProduct?.id, { minLength: 2 },
   );
+
+  // CRT da empresa — usado no hint contextual de CSOSN vs CST (aba Fiscal).
+  const { data: empresaConf } = useQuery({
+    queryKey: ["empresa-config-crt"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("empresa_config")
+        .select("crt")
+        .limit(1)
+        .maybeSingle();
+      return data as { crt?: string | null } | null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const isSimplesNacional = empresaConf?.crt === "1" || empresaConf?.crt === "2";
 
   // Dialog: Nova Unidade
   const [novaUnidadeDialogOpen, setNovaUnidadeDialogOpen] = useState(false);
