@@ -1,84 +1,66 @@
-## Objetivo
+# Correção: erro "Requested range not satisfiable" em grids paginados
 
-Eliminar a etapa "Confirmar NF" como ação manual: ao **salvar** uma NF (qualquer origem — manual, XML, DistDFe), o ERP **confirma automaticamente** (movimenta estoque + gera financeiro) na mesma operação, desde que pré-requisitos estejam atendidos. Quando não for possível auto-confirmar (faltam condições financeiras), a NF fica em `pendente` com aviso explícito.
+## Diagnóstico
 
-Mudança puramente de fluxo de aplicação — não altera a RPC `confirmar_nota_fiscal` nem a máquina de estados subjacente.
+O toast aparece em `Produtos` (e em qualquer tela que use `useSupabaseCrud` em modo paged) quando o usuário **digita uma busca ou muda filtro estando numa página > 1**.
 
----
+Sequência observada (vista no replay: 2 toasts seguidos em `/produtos?q=vr`):
 
-## Comportamento alvo
+1. Estado atual: `page = 2`, `searchTerm = ""`, `pageSize = 50` → range `(100, 149)`.
+2. Usuário digita `vr` → `searchTerm` muda.
+3. Em `src/hooks/useSupabaseCrud.ts` o `queryKey` é recomputado **com o novo `searchTerm` e o `page=2` antigo** (linhas 144–147).
+4. React Query dispara a request com `range(100, 149)`, mas a busca `vr` retorna ~5 produtos. PostgREST devolve **HTTP 416 "Requested range not satisfiable"** → toast de erro.
+5. Só **depois** do render, o `useEffect` das linhas 151–155 chama `setPage(0)`.
+6. Re-render dispara nova query com `page=0` → sucesso e lista carrega ("No record found" ou resultado).
 
-**Salvar uma NF (modo create) executa em sequência:**
+O segundo toast vem do StrictMode/refetch duplo ou de uma segunda mudança de tecla. Não é PostgREST instável — é race entre `setPage(0)` (efeito) e `queryKey` (síncrono).
 
-1. Pré-validações (já existentes hoje no `handleSaveAndConfirm`):
-   - número, fornecedor (entrada) ou cliente (saída) obrigatórios
-   - todos os itens com `produto_id` vinculado
-   - totais consistentes
-2. `upsertNotaFiscalComItens` → grava cabeçalho + itens (status inicial `pendente`)
-3. Registro do evento fiscal (`importacao_xml` / `criacao`)
-4. **Geração de financeiro** (atual lógica do bloco linhas 902–1001):
-   - XML com duplicatas → `gerar_financeiro_nfe_entrada` / `gerar_financeiro_nfe_saida`
-   - Entrada manual com cartão → `gerar_financeiro_nfe_entrada` com plano de parcelas
-   - Casos restantes → tenta usar `forma_pagamento` + `condicao_pagamento` informados no editor; se ausentes, **não confirma**
-5. **Auto-confirmação** via `confirmar_nota_fiscal` (já hoje aplica estoque + financeiro pendente) — somente se o passo 4 ficou OK
-6. Toast unificado: "NF salva e confirmada — estoque e financeiro atualizados"
+## Correção
 
-**Quando NÃO auto-confirmar (fica `pendente`, sem estoque movimentado):**
+Tornar o reset de página **síncrono** dentro do render do hook, antes de compor o `queryKey`, usando `useRef` para detectar mudança nas deps de filtro/busca/ordem.
 
-- XML sem duplicatas E sem condição manual preenchida
-- Item sem produto vinculado (já bloqueia o salvar hoje)
-- Falha na RPC de financeiro
-- Em todos os casos: toast amarelo "NF salva como pendente — informe a condição financeira para concluir" + abre a NF editável
+### Mudança única em `src/hooks/useSupabaseCrud.ts`
 
-**DistDFe (caminho automático):**
+Substituir o `useEffect` reset (linhas 149–155) por um clamp síncrono:
 
-O hook `useAutoCienciaDistDFe` apenas faz manifestação de ciência. A criação da NF a partir do XML do DistDFe usa o mesmo `useNFeXmlImport` → cai no novo fluxo de salvar+confirmar. Sem mudanças adicionais necessárias ali.
+```ts
+// Reset síncrono: quando filtros/busca/ordem mudam em modo paged,
+// força page=0 no MESMO render — evita pedir range inexistente
+// (HTTP 416) na primeira query disparada com filtro novo + page antigo.
+const filterDepsKey = `${filterKey}|${dateRangeKey}|${statusKey}|${orFiltersKey}|${searchTerm}|${orderBy}|${ascending}`;
+const lastDepsRef = useRef(filterDepsKey);
+let effectivePage = page;
+if (effectiveMode === "paged" && lastDepsRef.current !== filterDepsKey) {
+  lastDepsRef.current = filterDepsKey;
+  if (page !== 0) {
+    effectivePage = 0;
+    // Agenda atualização do state para o próximo tick — o render atual
+    // já usa effectivePage=0, evitando a query intermediária.
+    queueMicrotask(() => setPage(0));
+  }
+}
+```
 
----
+E trocar `page` por `effectivePage` em:
+- `queryKey` (linha 145)
+- `const from = page * pageSize` (linha 202)
 
-## Mudanças de UI
+Isso elimina a janela em que `queryKey` carrega `searchTerm` novo + `page` antigo.
 
-**Esconder a ação manual "Confirmar NF" como CTA principal**, preservando-a apenas como fallback para NFs que ficaram `pendente`:
+### Defesa secundária
 
-- `src/pages/Fiscal.tsx` (linhas 1487–1495): botão "Confirmar NF" continua, mas só aparece quando `canConfirmFiscal(n.status)` E `n.status === 'pendente'` (já é o caso hoje — apenas trocamos o label para "Concluir lançamento" para reforçar que é exceção)
-- `src/components/fiscal/NotaFiscalEditModal.tsx`: botão "Salvar e Confirmar" some; permanece só "Salvar" (que agora já confirma)
-- `src/components/fiscal/NotaFiscalDrawer.tsx`: `canConfirmar` continua governando o botão; sem mudança de lógica
-- Toasts revistos para deixar claro o que aconteceu (confirmada vs. pendente)
+Em `notifyError` (ou no `if (error)` do paged mode, linha 204), tratar especificamente o erro de range — quando `error.code === "PGRST103"` ou `message.includes("Requested range")`, **não** mostrar toast: significa apenas que a página foi pedida fora do total atual. Logar via `logger.warn` para rastreio.
 
----
+## Validação
 
-## Arquivos a alterar
+1. Em `/produtos`, paginar para a página 2.
+2. Digitar uma busca que retorne poucos resultados (ex.: `vr`).
+3. Esperado: lista filtrada aparece sem toast de erro.
+4. Verificar que continua resetando para página 0 (a UI de paginação volta a "1 de N").
+5. Smoke: rodar `vitest run src/hooks/__tests__/useSupabaseCrud.test.tsx`.
 
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/Fiscal.tsx` | Em `handleSave` (modo `create`): após bloco de financeiro (l.902–1001), chamar `confirmarMutation.mutateAsync({ nfId, tipoDocumento })` quando financeiro foi gerado com sucesso OU a NF não precisa de financeiro (`gera_financeiro=false`). Caso contrário, manter `pendente` com toast warning. Remover `handleSaveAndConfirm` (linha 585) — vira código morto. Atualizar `INVALIDATION_KEYS.fiscalLifecycle` invalidate. |
-| `src/pages/Fiscal.tsx` | Botão "Confirmar NF" na lista (l.1487): renomear label para "Concluir lançamento" e ajustar tooltip ("NF pendente — informe a condição financeira para concluir"). |
-| `src/components/fiscal/NotaFiscalEditModal.tsx` | Remover botão "Salvar e Confirmar". |
-| `src/components/fiscal/NotaFiscalDrawer.tsx` | Sem mudança de lógica; eventualmente alinhar labels do drawer ao novo discurso ("Concluir lançamento"). |
-| `mem://features/faturamento-fiscal` (memória) | Anotar nova regra: "Salvar = confirmar; status `pendente` só persiste quando faltar condição financeira." |
+## Escopo
 
-**Não muda:**
-- RPCs `confirmar_nota_fiscal`, `gerar_financeiro_nfe_*`, `salvar_nota_fiscal`
-- Máquina de estados (`canConfirmFiscal`, `canEstornarFiscal`)
-- Lógica de estorno (continua manual, com motivo)
-- `useNFeXmlImport` (parser e match permanecem iguais)
-
----
-
-## Riscos & mitigação
-
-1. **NF importada via XML do DistDFe sem cadastro completo de fornecedor/produto** → segue a regra hoje: salvar falha. Mensagem clara.
-2. **Falha na geração de financeiro após NF gravada** → NF fica `pendente`, sem efeito de estoque. Botão "Concluir lançamento" permite retomar.
-3. **Usuário acostumado a clicar "Confirmar"** → label "Concluir lançamento" só aparece em pendentes; toasts explicam.
-4. **Testes de smoke fiscal** (`src/tests/integration/fluxo-fiscal.test.ts`) precisarão refletir o novo fluxo — incluir ajuste.
-
----
-
-## Itens de execução (ordem)
-
-1. Refatorar `handleSave` em `Fiscal.tsx`: extrair função `tryAutoConfirmar(nfId, financeiroOk)` e chamá-la ao final do bloco `create`.
-2. Remover `handleSaveAndConfirm` e o botão "Salvar e Confirmar" do `NotaFiscalEditModal`.
-3. Renomear botão "Confirmar NF" da lista para "Concluir lançamento" + ajustar tooltip e mensagem do dialog.
-4. Atualizar toasts e copy.
-5. Atualizar teste de fluxo fiscal.
-6. Atualizar memória `features/faturamento-fiscal`.
+- Arquivo único: `src/hooks/useSupabaseCrud.ts`.
+- Sem mudança em RPCs, schema, ou consumidores do hook.
+- Sem alteração visual.
