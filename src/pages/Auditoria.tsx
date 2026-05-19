@@ -674,7 +674,7 @@ export default function Auditoria() {
         {activeFilterChips.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
-              <ChipBadge
+              <Badge
                 key={chip.key}
                 variant="secondary"
                 className="gap-1.5 pl-2 pr-1 py-1 text-xs"
@@ -689,7 +689,7 @@ export default function Auditoria() {
                 >
                   <X className="h-3 w-3" />
                 </button>
-              </ChipBadge>
+              </Badge>
             ))}
             {activeFilterChips.length > 1 && (
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => clear()}>
