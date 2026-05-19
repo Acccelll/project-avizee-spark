@@ -306,3 +306,130 @@ function SectionHeader({ title, description }: { title: string; description?: st
     </div>
   );
 }
+
+interface RecorrenciaBlockProps {
+  form: Record<string, string | number | boolean>;
+  setForm: (next: Record<string, string | number | boolean>) => void;
+}
+
+function RecorrenciaBlock({ form, setForm }: RecorrenciaBlockProps) {
+  const recorrente = Boolean(form.recorrente);
+  const encerramento = String(form.recorrencia_encerramento || "indeterminado");
+  return (
+    <div className="rounded-lg border bg-muted/10 px-3 py-2.5 space-y-3">
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={recorrente}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              recorrente: e.target.checked,
+              recorrencia_periodicidade: form.recorrencia_periodicidade || "mensal",
+              recorrencia_encerramento: form.recorrencia_encerramento || "indeterminado",
+              recorrencia_data_inicio:
+                form.recorrencia_data_inicio || String(form.data_emissao || ""),
+              recorrencia_dia_vencimento:
+                form.recorrencia_dia_vencimento ||
+                Number(String(form.data_emissao || "").slice(8, 10)) ||
+                1,
+              condicao_pagamento: e.target.checked ? "a_vista" : form.condicao_pagamento,
+            })
+          }
+          className="h-4 w-4 rounded"
+        />
+        <span>Cobrança recorrente</span>
+        <span className="text-[11px] text-muted-foreground">
+          (assinatura / mensalidade — gera lançamentos a cada ciclo)
+        </span>
+      </label>
+      {recorrente && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Periodicidade</Label>
+            <Select
+              value={String(form.recorrencia_periodicidade || "mensal")}
+              onValueChange={(v) => setForm({ ...form, recorrencia_periodicidade: v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PERIODICIDADE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Dia do vencimento</Label>
+            <Input
+              type="number"
+              min={1}
+              max={31}
+              value={Number(form.recorrencia_dia_vencimento || 0) || ""}
+              onChange={(e) =>
+                setForm({ ...form, recorrencia_dia_vencimento: Number(e.target.value) })
+              }
+              disabled={form.forma_pagamento === "cartao_credito"}
+              placeholder={
+                form.forma_pagamento === "cartao_credito" ? "Fatura do cartão" : "1–31"
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Início</Label>
+            <Input
+              type="date"
+              value={String(form.recorrencia_data_inicio || "")}
+              onChange={(e) =>
+                setForm({ ...form, recorrencia_data_inicio: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Encerramento</Label>
+            <Select
+              value={encerramento}
+              onValueChange={(v) => setForm({ ...form, recorrencia_encerramento: v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="indeterminado">Indeterminado</SelectItem>
+                <SelectItem value="qtd">Qtd de ciclos</SelectItem>
+                <SelectItem value="data">Data fim</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {encerramento === "qtd" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Quantidade de ciclos</Label>
+              <Input
+                type="number"
+                min={1}
+                value={Number(form.recorrencia_qtd_ciclos || 0) || ""}
+                onChange={(e) =>
+                  setForm({ ...form, recorrencia_qtd_ciclos: Number(e.target.value) })
+                }
+              />
+            </div>
+          )}
+          {encerramento === "data" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Data fim</Label>
+              <Input
+                type="date"
+                value={String(form.recorrencia_data_fim || "")}
+                onChange={(e) =>
+                  setForm({ ...form, recorrencia_data_fim: e.target.value })
+                }
+              />
+            </div>
+          )}
+          <div className="col-span-2 md:col-span-4 text-[11px] text-muted-foreground">
+            Os lançamentos financeiros serão materializados automaticamente a cada
+            ciclo. Não serão criadas parcelas fixas para esta NF.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
