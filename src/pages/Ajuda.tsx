@@ -71,8 +71,13 @@ export default function Ajuda() {
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-3">{entry.summary}</p>
               </CardHeader>
-              <CardContent className="flex items-center gap-2 pt-0">
-                <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <CardContent className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 max-sm:h-11 max-sm:w-full sm:flex-1"
+                >
                   <Link to={entry.route}>
                     <BookOpen className="h-4 w-4" /> Abrir tela
                   </Link>
@@ -81,10 +86,10 @@ export default function Ajuda() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 max-sm:h-11 max-sm:w-full sm:flex-1"
                     onClick={() => startTour(entry)}
                   >
-                    <Play className="h-4 w-4" /> Tour
+                    <Play className="h-4 w-4" /> Tour ({entry.tour.length} passos)
                   </Button>
                 ) : null}
               </CardContent>
