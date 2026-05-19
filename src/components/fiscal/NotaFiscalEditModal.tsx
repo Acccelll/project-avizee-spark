@@ -312,6 +312,23 @@ export function NotaFiscalEditModal({
         </div>
 
         {/* ── Status Alert ──────────────────────────────────────────── */}
+        {privilegedOverride && (baseRules.isStructurallyLocked || baseRules.isFullyLocked) && (
+          <div className="rounded-lg border bg-destructive/5 border-destructive/30 p-3 flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-destructive">
+                Edição privilegiada — Admin/Financeiro
+              </p>
+              <p className="text-xs text-destructive/80 mt-0.5">
+                Esta NF está {baseRules.isFullyLocked ? "cancelada" : selected.status === "importada" ? "importada" : "confirmada"}
+                {statusSefaz === "autorizada" && " e autorizada na SEFAZ"}.
+                Alterações em itens, valores e pagamento <strong>estornam estoque e
+                lançamentos financeiros vinculados</strong> e regravam tudo após salvar.
+                Use Observações para registrar o motivo da correção.
+              </p>
+            </div>
+          </div>
+        )}
         {rules.isFullyLocked && (
           <div className="rounded-lg border bg-destructive/5 border-destructive/20 p-3 flex items-start gap-2">
             <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
