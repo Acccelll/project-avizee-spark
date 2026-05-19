@@ -10,6 +10,7 @@ const CartoesCredito = lazy(() => import("@/pages/CartoesCredito"));
 const FluxoCaixa = lazy(() => import("@/pages/FluxoCaixa"));
 const ContasContabeis = lazy(() => import("@/pages/ContasContabeis"));
 const Conciliacao = lazy(() => import("@/pages/Conciliacao"));
+const FinanceiroRecorrencias = lazy(() => import("@/pages/FinanceiroRecorrencias"));
 
 /**
  * Rotas do módulo Financeiro (Financeiro, Budget, Contas, Fluxo de caixa,
@@ -27,5 +28,6 @@ export const financeiroRoutes = (
     <Route path="/caixa" element={<Navigate to="/financeiro" replace />} />
     <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
     <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
+    <Route path="/financeiro/recorrencias" element={<PermissionRoute resource="financeiro"><LazyPage><FinanceiroRecorrencias /></LazyPage></PermissionRoute>} />
   </>
 );
