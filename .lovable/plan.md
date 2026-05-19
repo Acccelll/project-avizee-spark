@@ -1,91 +1,63 @@
+## Objetivo
 
-# Cobranças Recorrentes — Plano
+Remover o módulo dedicado `/financeiro/recorrencias` (página, rota, serviço, item de menu) e transformar **recorrência em uma opção do bloco de Pagamento da nota fiscal de entrada**. Ao marcar a opção, a nota deixa de gerar parcelas fixas e passa a gerar um **template de cobrança recorrente** que materializa automaticamente os lançamentos financeiros a cada ciclo.
 
-Objetivo: permitir cadastrar "assinaturas" (Netflix, hospedagem, SaaS, mensalidades a receber etc.) que geram **automaticamente** lançamentos em A Pagar / A Receber a cada ciclo, com vencimento correto inclusive quando pagas via cartão de crédito (segue a fatura do cartão).
+## Remoções (módulo standalone)
 
-## 1. Modelo de dados
+- `src/pages/FinanceiroRecorrencias.tsx` — deletar.
+- `src/services/recorrencias.service.ts` — deletar.
+- `src/routes/financeiro.routes.tsx` — remover rota `/financeiro/recorrencias`.
+- `src/lib/navigation.ts` — remover item "Cobranças Recorrentes" do grupo Financeiro.
+- `src/types/domain.ts` — remover tipos `FinanceiroRecorrencia*` (manter só o que for usado abaixo).
 
-Nova tabela `financeiro_recorrencias` (template — não é lançamento):
+A tabela `financeiro_recorrencias`, a RPC `gerar_lancamentos_recorrentes()` e o cron job **são mantidos** (já são exatamente a engine que precisamos). Apenas o ponto de criação passa a ser a NFe de entrada.
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid PK | |
-| `tipo` | text | `receber` \| `pagar` (chk_) |
-| `descricao` | text | "Netflix Premium" |
-| `valor` | numeric | valor padrão da parcela |
-| `periodicidade` | text | `mensal` \| `bimestral` \| `trimestral` \| `semestral` \| `anual` (chk_) |
-| `dia_vencimento` | int | 1–31 (para mensal/anual) |
-| `data_inicio` | date | primeiro ciclo |
-| `data_fim` | date null | opcional; null = indeterminado |
-| `proxima_geracao` | date | controlado pelo job |
-| `qtd_ciclos_max` | int null | opcional; encerra após N gerações |
-| `ciclos_gerados` | int default 0 | |
-| `status` | text | `ativa` \| `pausada` \| `encerrada` \| `cancelada` (chk_) |
-| `forma_pagamento` | text | enum canônico (`cartao_credito`, `debito_automatico`, `boleto_dda`…) |
-| `cartao_id` | uuid → cartoes_credito | quando cartão |
-| `cliente_id` / `fornecedor_id` | uuid | mutuamente exclusivos por `tipo` |
-| `conta_bancaria_id`, `conta_contabil_id`, `centro_custo_id` | uuid | herdados nos lançamentos |
-| `observacoes`, `ativo`, `created_at`, `updated_at`, `empresa_id` | | padrão |
+## Novo fluxo na Entrada de Nota Fiscal
 
-RLS espelhando `financeiro_lancamentos` (admin-only para delete; financeiro pode CRUD).
+`src/pages/fiscal/components/NfeFormBody.tsx` (seção **Pagamento**):
 
-Em `financeiro_lancamentos` adicionar `recorrencia_id uuid null` (FK) + `recorrencia_ciclo int null` — para rastrear origem e evitar duplicar.
+1. Adicionar checkbox **"Cobrança recorrente"** ao lado de "Movimenta Estoque / Gera Financeiro" (só habilitado quando `gera_financeiro` está ativo).
+2. Quando marcado, esconder os campos de **Condição** e **Nº Parcelas** e o `ParcelasFiscalEditor`, e exibir um bloco "Recorrência":
+   - Periodicidade: `mensal | bimestral | trimestral | semestral | anual` (default mensal).
+   - Dia de vencimento (1–31, default = dia do `data_emissao`; ignorado quando forma=cartão_credito, pois usa a fatura).
+   - Data de início (default = `data_emissao`).
+   - Encerramento: rádio `Indeterminado | Qtd ciclos | Data fim`.
+   - Resumo do "próximo vencimento" calculado (usando `cartao_fatura_para_data` quando cartão).
+3. Forma de pagamento aceita as mesmas opções existentes; o campo **Cartão** continua aparecendo para `cartao_credito` e o vencimento dos ciclos sai da fatura.
 
-## 2. Geração automática (RPC + cron)
+## Persistência ao salvar a NFe
 
-RPC `gerar_lancamentos_recorrentes()` (`security definer`, `search_path = public`):
-- Seleciona recorrências `status='ativa'` com `proxima_geracao <= current_date`.
-- Para cada uma:
-  - Calcula vencimento base = `proxima_geracao` (ajustado pelo `dia_vencimento`).
-  - Se `forma_pagamento='cartao_credito'` + `cartao_id`: resolve fatura via `cartao_fatura_para_data()` e usa o vencimento da fatura (mesma lógica já usada em `useFinanceiroActions`).
-  - Insere lançamento em `financeiro_lancamentos` com `recorrencia_id` + `recorrencia_ciclo` (idempotente via unique `(recorrencia_id, recorrencia_ciclo)`).
-  - Atualiza `proxima_geracao` += periodicidade; incrementa `ciclos_gerados`.
-  - Se atingiu `data_fim` ou `qtd_ciclos_max` → `status='encerrada'`.
+`src/pages/fiscal/hooks/useFiscalNotaForm.ts` (e/ou serviço de salvamento):
 
-Cron diário (pg_cron) chamando a RPC. Sem edge function necessária — tudo no banco.
+- Se `recorrente = true`:
+  - **Não** inserir parcelas em `financeiro_lancamentos` derivadas do `ParcelasFiscalEditor`.
+  - Inserir 1 linha em `financeiro_recorrencias` (tipo `pagar`, valor = total da NF, fornecedor = emitente, forma_pagamento/cartao_id replicados, conta_contabil/centro_custo herdados, `origem = 'nfe'`, `origem_id = nfe.id`, `proxima_geracao = data_inicio`, status `ativa`).
+  - Disparar a RPC `gerar_lancamentos_recorrentes(p_recorrencia_id := ...)` na sequência para já materializar o primeiro ciclo (em vez de esperar o cron).
+- Se `recorrente = false`: comportamento atual (parcelas fixas) — sem alteração.
 
-## 3. UI
+## Alterações de schema (mínimas)
 
-### Nova rota `/financeiro/recorrencias`
-- Reusa padrões V2: `DataTableV2` + `AdvancedFilterBar` (tipo, status, periodicidade, busca).
-- Colunas: Descrição, Tipo (pill), Valor, Periodicidade, Próx. geração, Forma/Cartão, Status (pill via `STATUS_VARIANT_MAP`).
-- Ações por linha: Editar, Pausar/Reativar, Encerrar (com motivo), Gerar agora (botão), Ver lançamentos vinculados.
+Migration:
 
-### Drawer/página de cadastro
-- Form com itens dinâmicos? Não — formulário simples → **ViewDrawerV2 + FormModal** (regra "Quando Drawer, Quando Página").
-- Campos agrupados em `FormSection`:
-  - **Identificação**: tipo (receber/pagar), descrição, cliente/fornecedor.
-  - **Valor & Ciclo**: valor, periodicidade, dia vencimento, data início, data fim opcional, qtd ciclos opcional.
-  - **Pagamento**: forma_pagamento (reusa `FORMA_PAGAMENTO_OPTIONS`); quando `cartao_credito` → select de cartão; hint "Vencimento dos lançamentos seguirá a fatura do cartão".
-  - **Contas/Rateio**: conta bancária, conta contábil, centro de custo, observações.
+- `ALTER TABLE financeiro_recorrencias ADD COLUMN origem text` (valores: `manual | nfe`) e `origem_id uuid` (FK lógica para `nfe_notas.id`), mais `chk_recorrencia_origem` em (`manual`, `nfe`).
+- Índice em `(origem, origem_id)` para auditoria/estorno.
+- Ajustar a RPC `gerar_lancamentos_recorrentes` para aceitar parâmetro opcional `p_recorrencia_id uuid` (gerar só aquela quando informado; senão mantém o varredor diário).
 
-### Integração no Financeiro existente
-- Em `/financeiro` (lista de lançamentos): badge "Recorrente" + tooltip linkando ao template quando `recorrencia_id != null`.
-- Filtro: "Apenas recorrentes".
-- Novo card no topo: "Próximas gerações (7 dias)".
+## Visualização da recorrência
 
-### Sidebar
-- Sub-item em "Financeiro" → "Recorrentes" (atrás de `can('financeiro','read')`).
+Sem nova tela. O acesso/auditoria fica:
 
-## 4. Edge cases
+- Na própria NFe (drawer/visualização): novo bloco "Cobrança recorrente" mostrando status, próximo vencimento, ciclos gerados e botão **Encerrar recorrência** (motivo obrigatório).
+- Em `/financeiro`: badge "Recorrente" no lançamento (já existe `recorrencia_id` na linha) e filtro "Origem: recorrência".
 
-- **Pausada**: job ignora; ao reativar, `proxima_geracao` salta para o próximo ciclo futuro (não gera retroativos por padrão; toast pergunta se deseja gerar atrasados).
-- **Alteração de valor**: aplica só nos próximos ciclos (não toca histórico).
-- **Cartão trocado**: novos ciclos resolvem fatura do novo cartão.
-- **Dia 31 em meses curtos**: clamp para último dia do mês.
-- **Exclusão**: soft via `status='cancelada'`; hard delete só admin e bloqueado se há lançamentos vinculados não estornados.
+## Permissões e regras
 
-## 5. Entregáveis (ordem)
+- Mesma permissão de criar NFe entrada cria/edita a recorrência atrelada.
+- Encerrar recorrência exige `financeiro:update` (igual ao atual).
+- Cancelar uma NFe com recorrência ativa: encerrar a recorrência automaticamente e manter os lançamentos já gerados (não estornar histórico).
 
-1. Migration: tabela `financeiro_recorrencias` + colunas em `financeiro_lancamentos` + RLS + RPC + cron.
-2. Service `recorrencias.service.ts` + tipos em `src/types/domain.ts`.
-3. Hook `useRecorrencias` (CRUD via `useSupabaseCrud`).
-4. Página `/financeiro/recorrencias` + Form + ações (pausar/reativar/encerrar/gerar agora).
-5. Badge "Recorrente" + filtro em `/financeiro`.
-6. Entrada no sidebar + help entry + memo `mem://features/cobrancas-recorrentes.md`.
+## Fora de escopo
 
-## 6. Não-objetivos (fora de escopo)
-
-- Geração a partir de pedidos/contratos do Comercial.
-- Cobrança automática via gateway (Stripe/Pagar.me) — apenas registro financeiro.
-- Notificação de cobrança ao cliente — pode ser fase 2 reaproveitando `process-email-queue`.
+- Origem a partir de Comercial/Pedido.
+- Notificações ao cliente / cobrança automática via gateway.
+- Edição em massa de ciclos passados.

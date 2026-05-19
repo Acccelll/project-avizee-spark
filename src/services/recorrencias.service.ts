@@ -94,6 +94,44 @@ export async function gerarRecorrenciaAgora(id: string): Promise<string | null> 
   return (data as string) || null;
 }
 
+/**
+ * Cria uma recorrência atrelada a uma NF-e (origem = 'nfe') e vincula a
+ * coluna `recorrencia_id` da própria NF-e. Em seguida materializa o
+ * primeiro ciclo via `gerar_lancamento_recorrencia_agora`.
+ */
+export async function criarRecorrenciaParaNfe(input: {
+  nfeId: string;
+  payload: Omit<RecorrenciaInsert, "origem" | "origem_id">;
+}): Promise<Recorrencia> {
+  const rec = await createRecorrencia({
+    ...input.payload,
+    origem: "nfe",
+    origem_id: input.nfeId,
+  } as RecorrenciaInsert);
+  const { error: upErr } = await supabase
+    .from("notas_fiscais")
+    .update({ recorrencia_id: rec.id })
+    .eq("id", input.nfeId);
+  if (upErr) throw upErr;
+  try {
+    await gerarRecorrenciaAgora(rec.id);
+  } catch {
+    // primeira geração é best-effort; o cron diário cobre.
+  }
+  return rec;
+}
+
+export async function getRecorrenciaDaNfe(nfeId: string): Promise<Recorrencia | null> {
+  const { data, error } = await supabase
+    .from("financeiro_recorrencias")
+    .select(SELECT_FULL)
+    .eq("origem", "nfe")
+    .eq("origem_id", nfeId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Recorrencia) || null;
+}
+
 /** Lista os lançamentos materializados por uma recorrência. */
 export async function listLancamentosDaRecorrencia(id: string) {
   const { data, error } = await supabase
