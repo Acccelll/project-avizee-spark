@@ -19,12 +19,20 @@ export default function Ajuda() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return entries;
-    return entries.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.summary.toLowerCase().includes(q) ||
-        e.sections.some((s) => s.heading.toLowerCase().includes(q) || s.body.toLowerCase().includes(q)),
-    );
+    const scored = entries
+      .map((e) => {
+        const titleHit = e.title.toLowerCase().includes(q);
+        const summaryHit = e.summary.toLowerCase().includes(q);
+        const sectionHits = e.sections.filter(
+          (s) => s.heading.toLowerCase().includes(q) || s.body.toLowerCase().includes(q),
+        ).length;
+        if (!titleHit && !summaryHit && sectionHits === 0) return null;
+        const score = (titleHit ? 10 : 0) + (summaryHit ? 5 : 0) + sectionHits;
+        return { entry: e, score };
+      })
+      .filter((x): x is { entry: typeof entries[number]; score: number } => x !== null)
+      .sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.entry);
   }, [entries, query]);
 
   return (
