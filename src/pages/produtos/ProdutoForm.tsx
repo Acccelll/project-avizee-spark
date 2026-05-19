@@ -619,18 +619,23 @@ export default function ProdutoForm({
                           return g?.sigla ? `${g.sigla}001` : "Ex: PROD-001";
                         })()}
                       />
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Gerar SKU automaticamente pela sigla do grupo" aria-label="Gerar SKU automaticamente"
-                        disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
-                        onClick={async () => {
-                          try {
-                            const next = await proximoSkuDoGrupo(form.grupo_id);
-                            setForm({ ...form, sku: next });
-                            toast.success(`SKU sugerido: ${next}`);
-                          } catch (err) { toast.error((err as Error).message); }
-                        }}>
-                        <Wand2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Gerar SKU automaticamente"
+                            disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
+                            onClick={async () => {
+                              try {
+                                const next = await proximoSkuDoGrupo(form.grupo_id);
+                                setForm({ ...form, sku: next });
+                                toast.success(`SKU sugerido: ${next}`);
+                              } catch (err) { toast.error((err as Error).message); }
+                            }}>
+                            <Wand2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Gerar SKU automaticamente pela sigla do grupo</TooltipContent>
+                      </Tooltip>
                     </div>
                     {skuChecking && form.sku && <p className="text-xs text-muted-foreground">Verificando SKU...</p>}
                     {!skuChecking && skuUnico === false && <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>}
@@ -663,21 +668,31 @@ export default function ProdutoForm({
                         </SelectContent>
                       </Select>
                       {form.grupo_id && (
-                        <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                          title="Editar sigla do grupo (usada para gerar SKU)" aria-label="Editar sigla do grupo"
-                          onClick={() => {
-                            const g = grupos.find(g => g.id === form.grupo_id);
-                            setSiglaInput(g?.sigla || "");
-                            setSiglaDialogOpen(true);
-                          }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                              aria-label="Editar sigla do grupo"
+                              onClick={() => {
+                                const g = grupos.find(g => g.id === form.grupo_id);
+                                setSiglaInput(g?.sigla || "");
+                                setSiglaDialogOpen(true);
+                              }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar sigla do grupo (usada para gerar SKU)</TooltipContent>
+                        </Tooltip>
                       )}
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Criar novo grupo de produto" aria-label="Criar novo grupo de produto"
-                        onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Criar novo grupo de produto"
+                            onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Criar novo grupo de produto</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -695,11 +710,16 @@ export default function ProdutoForm({
                             : UNIDADES_FALLBACK.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
                         </SelectContent>
                       </Select>
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Criar nova unidade de medida" aria-label="Criar nova unidade de medida"
-                        onClick={() => { setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" }); setNovaUnidadeDialogOpen(true); }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Criar nova unidade de medida"
+                            onClick={() => { setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" }); setNovaUnidadeDialogOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Criar nova unidade de medida</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                   <div className="space-y-2">
