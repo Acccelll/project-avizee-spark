@@ -330,6 +330,17 @@ export default function Auditoria() {
 
   const truncated = totalCount > rows.length && rows.length > 0;
 
+  // Item 4 — Filtros avançados ativos para contagem no botão Sheet (mobile).
+  const advancedFiltersCount = [
+    origem !== "todas",
+    entidade !== "todas",
+    tipoAcao !== "todas",
+    atorId !== "todos",
+    targetUserId !== "todos",
+    !!ipAddress,
+    !!registroId,
+  ].filter(Boolean).length;
+
   // ── Colunas ───────────────────────────────────────────────────────────────
 
   const columns = [
