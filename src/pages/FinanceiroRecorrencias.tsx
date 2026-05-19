@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Wallet, Play, Pause, StopCircle, Zap, Eye, Trash2, RefreshCw, Pencil } from "lucide-react";
+import { Wallet, Play, Pause, StopCircle, Zap, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
