@@ -23,16 +23,7 @@ import {
   AlertDescription,
   AlertTitle
 } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { useImportacaoCadastros } from "@/hooks/importacao/useImportacaoCadastros";
 import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
@@ -85,11 +76,11 @@ export default function MigracaoDados() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [activeTab, setActiveTab] = useState("overview");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [currentLoteId, setCurrentLoteId] = useState<string | null>(null);
   const [selectedLote, setSelectedLote] = useState<ImportacaoLote | null>(null);
   const [isReconciliacaoOpen, setIsReconciliacaoOpen] = useState(false);
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
 
   const { data: lotes, loading: loadingLotes, fetchData: refreshLotes } = useSupabaseCrud<ImportacaoLote>({
     table: "importacao_lotes",
@@ -139,6 +130,32 @@ export default function MigracaoDados() {
     const matchesStatus = statusFilter === "todos" || lote.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  // Item 7 — Mapa de dependências entre tipos de importação.
+  const DEPENDENCIES: Record<string, string[]> = {
+    estoque_inicial: ["produtos"],
+    faturamento: ["clientes", "produtos"],
+    financeiro: ["clientes", "fornecedores"],
+    compras_xml: ["fornecedores", "produtos"],
+    produtos_fornecedores: ["produtos", "fornecedores"],
+  };
+
+  const isDependencyMet = (tipo: string): boolean => {
+    const deps = DEPENDENCIES[tipo] ?? [];
+    if (deps.length === 0) return true;
+    return deps.every((dep) => lotes.some((l) => l.tipo === dep && l.status === "concluido"));
+  };
+
+  const dependencyBlock = (tipo: string): { isBlocked: boolean; blockReason?: string } => {
+    const deps = DEPENDENCIES[tipo] ?? [];
+    if (deps.length === 0) return { isBlocked: false };
+    if (isDependencyMet(tipo)) return { isBlocked: false };
+    const pending = deps.filter((dep) => !lotes.some((l) => l.tipo === dep && l.status === "concluido"));
+    return {
+      isBlocked: true,
+      blockReason: `Conclua primeiro: ${pending.join(", ")}`,
+    };
+  };
 
   // Compute per-type card status and summary from lotes data
   const cardInfoMap = useMemo(() => {
