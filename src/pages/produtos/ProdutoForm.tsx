@@ -1191,7 +1191,8 @@ export default function ProdutoForm({
               <Label>Código <span className="text-destructive">*</span></Label>
               <Input value={novaUnidadeForm.codigo}
                 onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, codigo: e.target.value.toUpperCase() }))}
-                placeholder="Ex: UN, KG, MT, CX" maxLength={10} autoFocus />
+                placeholder="Ex: UN, KG, MT, CX" maxLength={10} autoFocus
+                autoCapitalize="characters" inputMode="text" autoComplete="off" />
               <p className="text-[11px] text-muted-foreground">Código curto em maiúsculas. Ex: KG, MT, LT.</p>
             </div>
             <div className="space-y-1.5">
@@ -1206,9 +1207,11 @@ export default function ProdutoForm({
                 onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, sigla: e.target.value }))}
                 placeholder="Ex: kg, m, l" maxLength={10} />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setNovaUnidadeDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={savingNovaUnidade} className="gap-1.5">
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setNovaUnidadeDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
+              <Button type="submit" disabled={savingNovaUnidade} className="gap-1.5 max-sm:h-11 max-sm:w-full">
                 {savingNovaUnidade ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Criar Unidade
               </Button>
@@ -1233,9 +1236,12 @@ export default function ProdutoForm({
                 placeholder="Ex: AG" maxLength={4} autoFocus className="font-mono" />
               <p className="text-[11px] text-muted-foreground">2 a 4 caracteres (letras/números). Maiúsculas.</p>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setSiglaDialogOpen(false)}>Cancelar</Button>
-              <Button type="button" disabled={savingSigla || siglaInput.length < 2} className="gap-1.5"
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setSiglaDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
+              <Button type="button" disabled={savingSigla || siglaInput.length < 2}
+                className="gap-1.5 max-sm:h-11 max-sm:w-full"
                 onClick={async () => {
                   if (!form.grupo_id) return;
                   setSavingSigla(true);
@@ -1313,12 +1319,14 @@ export default function ProdutoForm({
               />
               <p className="text-[11px] text-muted-foreground">2 a 6 caracteres (letras/números). Maiúsculas.</p>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setNovoGrupoDialogOpen(false)}>Cancelar</Button>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setNovoGrupoDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
               <Button
                 type="submit"
                 disabled={savingNovoGrupo || !novoGrupoForm.nome.trim() || novoGrupoForm.sigla.length < 2}
-                className="gap-1.5"
+                className="gap-1.5 max-sm:h-11 max-sm:w-full"
               >
                 {savingNovoGrupo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Criar grupo
