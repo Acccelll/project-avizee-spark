@@ -843,9 +843,38 @@ const Fiscal = () => {
     setSaving(true);
     try {
       const savedTotal = totalNF || form.valor_total;
-      const planoParcelas = form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
+      const recorrente = Boolean((form as Record<string, unknown>).recorrente);
+      if (recorrente) {
+        if (form.tipo !== "entrada") {
+          toast.error("Cobrança recorrente disponível apenas para NF de entrada.");
+          setSaving(false);
+          return;
+        }
+        if (!(form as Record<string, unknown>).recorrencia_data_inicio) {
+          toast.error("Informe a data de início da recorrência.");
+          setSaving(false);
+          return;
+        }
+      }
+      const planoParcelas =
+        !recorrente && form.condicao_pagamento === "a_prazo" && parcelas > 1
+          ? parcelasPlano
+          : null;
       const chaveLimpa = (form.chave_acesso || "").replace(/\D/g, "");
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, chave_acesso: chaveLimpa.length === 44 ? chaveLimpa : null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
+      // Strip campos client-only de recorrência (não existem em notas_fiscais).
+      const formAny = form as Record<string, unknown>;
+      const {
+        recorrente: _r1,
+        recorrencia_periodicidade: _r2,
+        recorrencia_dia_vencimento: _r3,
+        recorrencia_data_inicio: _r4,
+        recorrencia_data_fim: _r5,
+        recorrencia_qtd_ciclos: _r6,
+        recorrencia_encerramento: _r7,
+        ...formForPayload
+      } = formAny;
+      void _r1; void _r2; void _r3; void _r4; void _r5; void _r6; void _r7;
+      const payload = { ...(formForPayload as typeof form), fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, chave_acesso: chaveLimpa.length === 44 ? chaveLimpa : null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
       const nfId = await upsertNotaFiscalComItens({
         mode: mode === "create" ? "create" : "edit",
         nfId: selected?.id,
@@ -862,6 +891,53 @@ const Fiscal = () => {
             : `NF ${form.numero} criada manualmente.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
+        // ── Cobrança recorrente: cria template e materializa o 1º ciclo.
+        // Cancela toda a geração tradicional de financeiro/parcelas/cartão.
+        if (recorrente) {
+          try {
+            const { criarRecorrenciaParaNfe } = await import("@/services/recorrencias.service");
+            const encerramento = String(formAny.recorrencia_encerramento || "indeterminado");
+            await criarRecorrenciaParaNfe({
+              nfeId: nfId,
+              payload: {
+                tipo: "pagar",
+                descricao: `NF ${form.numero} — recorrência`,
+                valor: savedTotal,
+                periodicidade: String(formAny.recorrencia_periodicidade || "mensal") as "mensal" | "bimestral" | "trimestral" | "semestral" | "anual",
+                dia_vencimento:
+                  form.forma_pagamento === "cartao_credito"
+                    ? null
+                    : (Number(formAny.recorrencia_dia_vencimento) || null),
+                data_inicio: String(formAny.recorrencia_data_inicio),
+                proxima_geracao: String(formAny.recorrencia_data_inicio),
+                data_fim: encerramento === "data" ? String(formAny.recorrencia_data_fim) : null,
+                qtd_ciclos_max: encerramento === "qtd" ? Number(formAny.recorrencia_qtd_ciclos) : null,
+                status: "ativa",
+                forma_pagamento: String(form.forma_pagamento || "") || null,
+                cartao_id: form.cartao_id || null,
+                fornecedor_id: form.fornecedor_id || null,
+                conta_contabil_id: form.conta_contabil_id || null,
+                observacoes: `Gerado a partir da NF ${form.numero}`,
+              },
+            });
+            toast.success("Recorrência criada — 1º ciclo lançado no financeiro.");
+            try {
+              await confirmarMutation.mutateAsync({
+                nfId,
+                tipoDocumento:
+                  ((form as unknown as { tipo_documento?: "nfe" | "nfse" | "cte" })
+                    .tipo_documento) ?? "nfe",
+              });
+              await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
+            } catch (confErr) {
+              logger.error("[fiscal] auto-confirmar NF recorrente:", confErr);
+            }
+          } catch (recErr) {
+            logger.error("[fiscal] criar recorrência da NF:", recErr);
+            toast.warning("NF salva, mas houve falha ao criar a recorrência. Verifique manualmente.");
+          }
+          setModalOpen(false); fetchData(); setSaving(false); return;
+        }
         // Pista para decisão de auto-confirmação ao final do bloco `create`.
         // `null` = ainda não avaliado; true = financeiro gerado/dispensado e
         // podemos confirmar; false = ficou pendência (manter status `pendente`).
