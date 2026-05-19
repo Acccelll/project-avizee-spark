@@ -1173,17 +1173,6 @@ export function NotaFiscalEditModal({
                   >
                     {saving ? "Salvando..." : "Salvar"}
                   </Button>
-                  {onSaveAndConfirm && (
-                    <Button
-                      type="button"
-                      className="gap-1.5"
-                      onClick={onSaveAndConfirm}
-                      disabled={saving}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {saving ? "Processando..." : "Salvar e Confirmar"}
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
