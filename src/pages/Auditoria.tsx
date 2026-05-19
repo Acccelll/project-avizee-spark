@@ -62,7 +62,6 @@ import {
   Info,
 } from "lucide-react";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { Badge as ChipBadge } from "@/components/ui/badge";
 
 interface Profile {
   id: string;
