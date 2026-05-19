@@ -100,6 +100,7 @@ const URL_SCHEMA = {
 
 export default function Auditoria() {
   const { value, set, clear } = useUrlListState({ schema: URL_SCHEMA });
+  const isMobile = useIsMobile();
 
   const period = (value.periodo || "30d") as Period;
   const origem = (value.origem || "todas") as
@@ -336,6 +337,7 @@ export default function Auditoria() {
       key: "created_at",
       label: "Data/Hora",
       sortable: true,
+      mobileCard: true,
       render: (r: AdminAuditRow) => (
         <span className="text-xs font-mono whitespace-nowrap">
           {r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "—"}
@@ -353,6 +355,7 @@ export default function Auditoria() {
     {
       key: "ator_id",
       label: "Ator",
+      mobileCard: true,
       render: (r: AdminAuditRow) => {
         const p = getProfile(r.ator_id);
         return p ? (
@@ -389,6 +392,7 @@ export default function Auditoria() {
     {
       key: "modulo",
       label: "Módulo",
+      mobileCard: true,
       render: (r: AdminAuditRow) => {
         const { modulo } = getTableMeta(r.entidade);
         return (
@@ -408,6 +412,7 @@ export default function Auditoria() {
     {
       key: "tipo_acao",
       label: "Ação",
+      mobilePrimary: true,
       render: (r: AdminAuditRow) => <ActionBadge acao={r.tipo_acao} />,
     },
     {
