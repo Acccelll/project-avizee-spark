@@ -12,6 +12,7 @@ import {
   registrarEventoFiscal,
 } from "@/services/fiscal.service";
 import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
+import { criarRecorrenciaParaNfe, type Periodicidade } from "@/services/recorrencias.service";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 import type { ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
@@ -260,6 +261,28 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
     if (form.forma_pagamento === "cartao_credito" && !form.cartao_id) {
       toast.error("Selecione o cartão de crédito."); return;
     }
+    const recorrente = Boolean(form.recorrente);
+    if (recorrente) {
+      if (form.tipo !== "entrada") {
+        toast.error("Cobrança recorrente disponível apenas para NF de entrada.");
+        return;
+      }
+      if (!form.recorrencia_data_inicio) {
+        toast.error("Informe a data de início da recorrência."); return;
+      }
+      if (
+        String(form.recorrencia_encerramento) === "qtd" &&
+        !Number(form.recorrencia_qtd_ciclos)
+      ) {
+        toast.error("Informe a quantidade de ciclos."); return;
+      }
+      if (
+        String(form.recorrencia_encerramento) === "data" &&
+        !form.recorrencia_data_fim
+      ) {
+        toast.error("Informe a data fim da recorrência."); return;
+      }
+    }
     const unlinked = items.filter((i) => !i.produto_id).length;
     if (unlinked > 0) {
       toast.error(`${unlinked} item(ns) sem produto vinculado.`); return;
@@ -268,9 +291,23 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
     try {
       const savedTotal = totalNF || form.valor_total;
       const planoParcelas =
-        form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
+        !recorrente && form.condicao_pagamento === "a_prazo" && parcelas > 1
+          ? parcelasPlano
+          : null;
+      // Strip campos de recorrência (não existem em notas_fiscais)
+      const {
+        recorrente: _r1,
+        recorrencia_periodicidade: _r2,
+        recorrencia_dia_vencimento: _r3,
+        recorrencia_data_inicio: _r4,
+        recorrencia_data_fim: _r5,
+        recorrencia_qtd_ciclos: _r6,
+        recorrencia_encerramento: _r7,
+        ...formForPayload
+      } = form;
+      void _r1; void _r2; void _r3; void _r4; void _r5; void _r6; void _r7;
       const payload = {
-        ...form,
+        ...formForPayload,
         fornecedor_id: form.fornecedor_id || null,
         cliente_id: form.cliente_id || null,
         ordem_venda_id: form.ordem_venda_id || null,
@@ -286,6 +323,34 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
         payload: payload as never,
         itemsBuilder: (id) => buildItemsPayload(id) as never,
       });
+      if (recorrente) {
+        const encerramento = String(form.recorrencia_encerramento || "indeterminado");
+        await criarRecorrenciaParaNfe({
+          nfeId: nfId,
+          payload: {
+            tipo: "pagar",
+            descricao: `NF ${form.numero} — recorrência`,
+            valor: savedTotal,
+            periodicidade:
+              (String(form.recorrencia_periodicidade || "mensal") as Periodicidade),
+            dia_vencimento:
+              form.forma_pagamento === "cartao_credito"
+                ? null
+                : (Number(form.recorrencia_dia_vencimento) || null),
+            data_inicio: String(form.recorrencia_data_inicio),
+            proxima_geracao: String(form.recorrencia_data_inicio),
+            data_fim: encerramento === "data" ? String(form.recorrencia_data_fim) : null,
+            qtd_ciclos_max:
+              encerramento === "qtd" ? Number(form.recorrencia_qtd_ciclos) : null,
+            status: "ativa",
+            forma_pagamento: String(form.forma_pagamento || "") || null,
+            cartao_id: form.cartao_id ? String(form.cartao_id) : null,
+            fornecedor_id: form.fornecedor_id ? String(form.fornecedor_id) : null,
+            conta_contabil_id: form.conta_contabil_id ? String(form.conta_contabil_id) : null,
+            observacoes: `Gerado a partir da NF ${form.numero}`,
+          },
+        });
+      }
       if (!notaId) {
         await registrarEventoFiscal({
           nota_fiscal_id: nfId,
