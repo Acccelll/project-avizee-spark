@@ -356,14 +356,15 @@ const GruposEconomicos = () => {
         observacoes: form.observacoes?.trim() || null,
         empresa_matriz_id: form.empresa_matriz_id || null,
       };
-      if (mode === "create") await create(payload);
       if (mode === "create") {
+        await create(payload);
         toast.success("Grupo econômico criado com sucesso", {
           action: { label: "Vincular clientes →", onClick: () => navigate("/clientes") },
           duration: 8000,
         });
+      } else if (selected) {
+        await update(selected.id, payload);
       }
-      else if (selected) await update(selected.id, payload);
       setModalOpen(false);
     } catch (err: unknown) {
       logger.error("[grupos-economicos] erro ao salvar:", err);
