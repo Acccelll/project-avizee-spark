@@ -13,7 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
 import { useTableCount } from "@/hooks/useTableCount";
@@ -605,6 +605,16 @@ export default function Transportadoras() {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            mobilePrimaryAction={(t) => (
+              <Button
+                size="sm"
+                className="h-11 w-full gap-2"
+                onClick={(e) => { e.stopPropagation(); openEdit(t); }}
+              >
+                <Pencil className="w-4 h-4" />
+                Editar transportadora
+              </Button>
+            )}
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
             serverPagination={{ page, setPage, totalCount, hasMore }}
