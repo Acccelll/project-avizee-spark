@@ -282,15 +282,17 @@ export function useSupabaseCrud<R = any>({
 
   const invalidateTable = () => queryClient.invalidateQueries({ queryKey: [table] });
 
-  // Defesa: se o consumidor pediu uma página fora do range (deep link ou
-  // shrink após mutação), reseta para 0 assim que o totalCount conhecido
-  // indicar que a página atual está vazia.
+  // Defesa: se o consumidor pediu uma página fora do range (deep link,
+  // shrink após mutação, mudança de filtro), navega para a última página
+  // válida em vez de jogar o usuário direto para a primeira — preserva
+  // contexto e evita sensação de "salto aleatório".
   useEffect(() => {
     if (effectiveMode !== "paged" || !pageSize) return;
     const total = queryResult.data?.totalCount;
     if (total == null) return;
     if (page > 0 && page * pageSize >= total) {
-      setPage(0);
+      const lastPage = total > 0 ? Math.max(0, Math.ceil(total / pageSize) - 1) : 0;
+      if (lastPage !== page) setPage(lastPage);
     }
   }, [queryResult.data?.totalCount, page, pageSize, effectiveMode]);
 
