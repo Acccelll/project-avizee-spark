@@ -94,7 +94,6 @@ interface NotaFiscalEditModalProps {
   setParcelasPlano?: (p: ParcelaPlano[]) => void;
   saving: boolean;
   onSubmit: (e: FormEvent) => void;
-  onSaveAndConfirm?: () => void;
   onCancelarRascunho?: () => void;
   fornecedores: FornecedorOpt[];
   clientes: ClienteOpt[];
@@ -199,7 +198,6 @@ export function NotaFiscalEditModal({
   setParcelasPlano,
   saving,
   onSubmit,
-  onSaveAndConfirm,
   onCancelarRascunho,
   fornecedores,
   clientes,
@@ -1175,17 +1173,6 @@ export function NotaFiscalEditModal({
                   >
                     {saving ? "Salvando..." : "Salvar"}
                   </Button>
-                  {onSaveAndConfirm && (
-                    <Button
-                      type="button"
-                      className="gap-1.5"
-                      onClick={onSaveAndConfirm}
-                      disabled={saving}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {saving ? "Processando..." : "Salvar e Confirmar"}
-                    </Button>
-                  )}
                 </div>
               </div>
             )}

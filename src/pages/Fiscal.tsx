@@ -462,9 +462,9 @@ const Fiscal = () => {
       return;
     }
     const ok = await confirm({
-      title: "Confirmar nota fiscal",
-      description: `Ao confirmar a NF ${nf.numero}, o ERP registrará efeitos operacionais (estoque) e financeiros conforme a configuração da nota.`,
-      confirmLabel: "Confirmar e processar",
+      title: "Concluir lançamento da NF",
+      description: `Concluir o lançamento da NF ${nf.numero}? O ERP movimentará estoque e gerará o financeiro conforme a configuração da nota. (Notas com condição financeira completa são concluídas automaticamente no salvar — esta ação é o fallback para pendências.)`,
+      confirmLabel: "Concluir lançamento",
       confirmVariant: "default",
     });
     if (!ok) return;
@@ -581,43 +581,6 @@ const Fiscal = () => {
       match_status: traducao ? (traducao.matchStatus || null) : null,
     };
   });
-
-  const handleSaveAndConfirm = async () => {
-    if (!form.numero) { toast.error("Número é obrigatório"); return; }
-    if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
-    if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
-    if (items.length === 0) { toast.error("Adicione ao menos um item antes de confirmar"); return; }
-    const unlinkedCount = items.filter(i => !i.produto_id).length;
-    if (unlinkedCount > 0) { toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens antes de confirmar.`); return; }
-    if (!selected) return;
-    setSaving(true);
-    try {
-      const savedTotal = totalNF || form.valor_total;
-      const payload = {
-        ...form,
-        fornecedor_id: form.fornecedor_id || null,
-        cliente_id: form.cliente_id || null,
-        ordem_venda_id: form.ordem_venda_id || null,
-        conta_contabil_id: form.conta_contabil_id || null,
-        valor_total: savedTotal,
-      };
-      await upsertNotaFiscalComItens({
-        mode: "edit",
-        nfId: selected.id,
-        payload: payload as never,
-        itemsBuilder: (nfId) => buildNfItemsPayload(nfId) as never,
-      });
-      const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarMutation.mutateAsync({ nfId: selected.id, tipoDocumento: (form as any).tipo_documento ?? (selected as any).tipo_documento ?? "nfe" });
-      toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
-      setModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      logger.error('[fiscal] salvar e confirmar NF:', err);
-      notifyError(err);
-    }
-    setSaving(false);
-  };
 
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = (
@@ -899,6 +862,11 @@ const Fiscal = () => {
             : `NF ${form.numero} criada manualmente.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
+        // Pista para decisão de auto-confirmação ao final do bloco `create`.
+        // `null` = ainda não avaliado; true = financeiro gerado/dispensado e
+        // podemos confirmar; false = ficou pendência (manter status `pendente`).
+        let financeiroOk: boolean | null = null;
+        let financeiroMotivo = "";
         // Geração de financeiro a partir das duplicatas do XML (NF-e de entrada).
         if (
           form.tipo === "entrada" &&
@@ -923,11 +891,14 @@ const Fiscal = () => {
             toast.success(
               `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Pagar.`,
             );
+            financeiroOk = true;
           } catch (rpcErr) {
             logger.error("[fiscal] gerar financeiro NFe:", rpcErr);
             toast.warning(
               "NF salva, mas houve falha ao gerar parcelas no financeiro. Lance manualmente.",
             );
+            financeiroOk = false;
+            financeiroMotivo = "falha ao gerar parcelas do XML";
           }
         } else if (
           form.tipo === "entrada" &&
@@ -935,6 +906,8 @@ const Fiscal = () => {
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+          financeiroOk = false;
+          financeiroMotivo = "XML sem duplicatas — informe forma/condição";
         } else if (
           form.tipo === "saida" &&
           form.origem === "xml_importado" &&
@@ -958,11 +931,14 @@ const Fiscal = () => {
             toast.success(
               `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Receber.`,
             );
+            financeiroOk = true;
           } catch (rpcErr) {
             logger.error("[fiscal] gerar financeiro NFe saida:", rpcErr);
             toast.warning(
               "NF salva, mas houve falha ao gerar parcelas a receber. Lance manualmente.",
             );
+            financeiroOk = false;
+            financeiroMotivo = "falha ao gerar parcelas a receber";
           }
         } else if (
           form.tipo === "saida" &&
@@ -970,6 +946,8 @@ const Fiscal = () => {
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas — informe a condição financeira manualmente.");
+          financeiroOk = false;
+          financeiroMotivo = "XML sem duplicatas — informe forma/condição";
         } else if (
           form.tipo === "entrada" &&
           form.gera_financeiro &&
@@ -994,10 +972,61 @@ const Fiscal = () => {
               form.cartao_id,
             );
             toast.success(`${duplicatas.length} parcela(s) lançada(s) na fatura do cartão.`);
+            financeiroOk = true;
           } catch (rpcErr) {
             logger.error("[fiscal] gerar financeiro cartao:", rpcErr);
             toast.warning("NF salva, mas houve falha ao gerar parcelas no cartão.");
+            financeiroOk = false;
+            financeiroMotivo = "falha ao gerar parcelas do cartão";
           }
+        }
+
+        // Avaliação dos casos que não caíram em nenhum branch acima:
+        // NF manual (sem XML, sem cartão) — a RPC `confirmar_nota_fiscal`
+        // gera o financeiro a partir de `condicao_pagamento`/`parcelas` do
+        // payload já gravado. Auto-confirmamos quando há condição clara.
+        if (financeiroOk === null) {
+          if (!form.gera_financeiro) {
+            financeiroOk = true; // NF dispensa financeiro
+          } else if (!form.forma_pagamento) {
+            financeiroOk = false;
+            financeiroMotivo = "forma de pagamento não informada";
+          } else if (form.condicao_pagamento === "a_vista") {
+            financeiroOk = true;
+          } else if (form.condicao_pagamento === "a_prazo") {
+            if (parcelas > 1 && parcelasPlano.length !== parcelas) {
+              financeiroOk = false;
+              financeiroMotivo = "plano de parcelas incompleto";
+            } else {
+              financeiroOk = true;
+            }
+          } else {
+            financeiroOk = false;
+            financeiroMotivo = "condição de pagamento não informada";
+          }
+        }
+
+        // Auto-confirmação: substitui o antigo botão "Confirmar NF".
+        if (financeiroOk) {
+          try {
+            await confirmarMutation.mutateAsync({
+              nfId,
+              tipoDocumento:
+                ((form as unknown as { tipo_documento?: "nfe" | "nfse" | "cte" })
+                  .tipo_documento) ?? "nfe",
+            });
+            toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
+            await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
+          } catch (confirmErr) {
+            logger.error("[fiscal] auto-confirmar NF:", confirmErr);
+            toast.warning(
+              "NF salva, mas a confirmação automática falhou. Use 'Concluir lançamento' para finalizar.",
+            );
+          }
+        } else {
+          toast.warning(
+            `NF salva como pendente — ${financeiroMotivo || "complete a condição financeira"} e use 'Concluir lançamento'.`,
+          );
         }
       } else if (selected) {
         await registrarEventoFiscal({
@@ -1006,8 +1035,9 @@ const Fiscal = () => {
           descricao: `NF ${form.numero} editada. Novo total: R$ ${savedTotal.toFixed(2)}.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
+        toast.success("Nota fiscal salva!");
       }
-      toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
+      setModalOpen(false); fetchData();
     } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); notifyError(err); }
     setSaving(false);
   };
@@ -1490,9 +1520,9 @@ const Fiscal = () => {
                   size="sm"
                   className="w-full min-h-11 gap-2"
                   onClick={() => handleConfirmar(n)}
-                  aria-label={`Confirmar NF ${n.numero}`}
+                  aria-label={`Concluir lançamento da NF ${n.numero}`}
                 >
-                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                  <CheckCircle className="h-4 w-4" /> Concluir lançamento
                 </Button>
               );
             }
@@ -1648,7 +1678,6 @@ const Fiscal = () => {
           setParcelasPlano={setParcelasPlano}
           saving={saving}
           onSubmit={handleSubmit}
-          onSaveAndConfirm={selected.status === "pendente" ? handleSaveAndConfirm : undefined}
           onCancelarRascunho={selected.status === "pendente" ? handleCancelarRascunho : undefined}
           fornecedores={fornecedoresCrud.data}
           clientes={clientesCrud.data}
