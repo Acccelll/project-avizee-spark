@@ -1678,7 +1678,6 @@ const Fiscal = () => {
           setParcelasPlano={setParcelasPlano}
           saving={saving}
           onSubmit={handleSubmit}
-          onSaveAndConfirm={selected.status === "pendente" ? handleSaveAndConfirm : undefined}
           onCancelarRascunho={selected.status === "pendente" ? handleCancelarRascunho : undefined}
           fornecedores={fornecedoresCrud.data}
           clientes={clientesCrud.data}
