@@ -462,9 +462,9 @@ const Fiscal = () => {
       return;
     }
     const ok = await confirm({
-      title: "Confirmar nota fiscal",
-      description: `Ao confirmar a NF ${nf.numero}, o ERP registrará efeitos operacionais (estoque) e financeiros conforme a configuração da nota.`,
-      confirmLabel: "Confirmar e processar",
+      title: "Concluir lançamento da NF",
+      description: `Concluir o lançamento da NF ${nf.numero}? O ERP movimentará estoque e gerará o financeiro conforme a configuração da nota. (Notas com condição financeira completa são concluídas automaticamente no salvar — esta ação é o fallback para pendências.)`,
+      confirmLabel: "Concluir lançamento",
       confirmVariant: "default",
     });
     if (!ok) return;
@@ -583,42 +583,6 @@ const Fiscal = () => {
   });
 
   const handleSaveAndConfirm = async () => {
-    if (!form.numero) { toast.error("Número é obrigatório"); return; }
-    if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
-    if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
-    if (items.length === 0) { toast.error("Adicione ao menos um item antes de confirmar"); return; }
-    const unlinkedCount = items.filter(i => !i.produto_id).length;
-    if (unlinkedCount > 0) { toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens antes de confirmar.`); return; }
-    if (!selected) return;
-    setSaving(true);
-    try {
-      const savedTotal = totalNF || form.valor_total;
-      const payload = {
-        ...form,
-        fornecedor_id: form.fornecedor_id || null,
-        cliente_id: form.cliente_id || null,
-        ordem_venda_id: form.ordem_venda_id || null,
-        conta_contabil_id: form.conta_contabil_id || null,
-        valor_total: savedTotal,
-      };
-      await upsertNotaFiscalComItens({
-        mode: "edit",
-        nfId: selected.id,
-        payload: payload as never,
-        itemsBuilder: (nfId) => buildNfItemsPayload(nfId) as never,
-      });
-      const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarMutation.mutateAsync({ nfId: selected.id, tipoDocumento: (form as any).tipo_documento ?? (selected as any).tipo_documento ?? "nfe" });
-      toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
-      setModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      logger.error('[fiscal] salvar e confirmar NF:', err);
-      notifyError(err);
-    }
-    setSaving(false);
-  };
-
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = (
     nfe: import("@/lib/nfeXmlParser").NFeData,
