@@ -12,6 +12,7 @@ import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
+import { PERIODICIDADE_OPTIONS } from "@/services/recorrencias.service";
 import type {
   FornecedorRefMin,
   ClienteRefMin,
@@ -231,7 +232,10 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           Gera Financeiro
         </label>
       </div>
-      {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && (
+      {form.gera_financeiro && (
+        <RecorrenciaBlock form={form} setForm={setForm} />
+      )}
+      {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && !form.recorrente && (
         <ParcelasFiscalEditor
           total={totalNF || Number(form.valor_total)}
           qtdParcelas={parcelas}
@@ -252,7 +256,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           }
         />
       )}
-      {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && form.condicao_pagamento === "a_vista" && (() => {
+      {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && form.condicao_pagamento === "a_vista" && !form.recorrente && (() => {
         const cartao = cartoes.find((c) => c.id === form.cartao_id);
         if (!cartao) return null;
         const previews = calcularFaturasParcelas(String(form.data_emissao), cartao.dia_fechamento, cartao.dia_vencimento, 1);
