@@ -931,7 +931,7 @@ export function NotaFiscalDrawer({
                     disabled={confirmarPending}
                     onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}
                   >
-                    <CheckCircle className="h-4 w-4" /> Confirmar NF
+                    <CheckCircle className="h-4 w-4" /> Concluir lançamento
                   </Button>
                 ) : (
                   <Button
@@ -1009,8 +1009,8 @@ export function NotaFiscalDrawer({
                 </Button>
               )}
               {canConfirmar && (
-                <Button size="sm" className="gap-2" disabled={confirmarPending} title="Confirmação operacional: cria impactos reais em estoque e financeiro" onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}>
-                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                <Button size="sm" className="gap-2" disabled={confirmarPending} title="Fallback para NFs pendentes: aplica estoque e gera o financeiro pela condição salva." onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}>
+                  <CheckCircle className="h-4 w-4" /> Concluir lançamento
                 </Button>
               )}
             </>
