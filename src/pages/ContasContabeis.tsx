@@ -300,6 +300,9 @@ const ContasContabeis = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<ContaContabil | null>(null);
   const [viewMode, setViewMode] = useState<"tree" | "flat">("tree");
+  const isMobile = useIsMobile();
+  // Em mobile, sempre força modo Lista (DataTable com cards) — Árvore não cabe bem.
+  const effectiveViewMode: "tree" | "flat" = isMobile ? "flat" : viewMode;
 
   // List-view filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -414,6 +417,7 @@ const ContasContabeis = () => {
       key: "codigo",
       label: "Código",
       sortable: true,
+      mobileCard: true,
       render: (c: ContaContabil) => {
         const isSintetica = !c.aceita_lancamento;
         return (
@@ -432,6 +436,7 @@ const ContasContabeis = () => {
       key: "descricao",
       label: "Descrição",
       sortable: true,
+      mobilePrimary: true,
       render: (c: ContaContabil) => (
         <span className={!c.aceita_lancamento ? "font-semibold" : ""}>{c.descricao}</span>
       ),
@@ -439,6 +444,7 @@ const ContasContabeis = () => {
     {
       key: "natureza",
       label: "Natureza",
+      mobileCard: true,
       render: (c: ContaContabil) => {
         const style = NATUREZA_STYLES[c.natureza?.toLowerCase()] ?? "border-border text-muted-foreground";
         return (
@@ -514,7 +520,7 @@ const ContasContabeis = () => {
 
   // Tab toggle (shared between both views)
   const viewToggle = (
-    <div className="flex gap-1 rounded-md border p-0.5 bg-muted/40">
+    <div className="hidden md:flex gap-1 rounded-md border p-0.5 bg-muted/40">
       <Button
         size="sm"
         variant={viewMode === "tree" ? "default" : "ghost"}
@@ -552,7 +558,7 @@ const ContasContabeis = () => {
         }
       >
         {/* ── Árvore: visão estrutural/hierárquica ─────────────────────── */}
-        {viewMode === "tree" && (
+        {effectiveViewMode === "tree" && (
           <>
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -573,7 +579,7 @@ const ContasContabeis = () => {
         )}
 
         {/* ── Lista: visão operacional/filtrável ───────────────────────── */}
-        {viewMode === "flat" && (
+        {effectiveViewMode === "flat" && (
           <>
             <AdvancedFilterBar
               searchValue={searchTerm}
@@ -626,6 +632,17 @@ const ContasContabeis = () => {
               onDelete={(c) => handleDelete(c)}
               mobileIdentifierKey="codigo"
               mobileStatusKey="ativo"
+              mobilePrimaryAction={(c) => (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-11 gap-1.5"
+                  onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar conta
+                </Button>
+              )}
               emptyTitle="Nenhuma conta encontrada"
               emptyDescription="Tente ajustar os filtros ou cadastre uma nova conta contábil."
             />
