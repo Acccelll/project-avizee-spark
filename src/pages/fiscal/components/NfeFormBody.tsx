@@ -242,20 +242,27 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           onPrimeiroVencimentoChange={setPrimeiroVencimento}
           onIntervaloChange={setIntervaloDias}
           onParcelasChange={setParcelasPlano}
+          cartao={
+            form.forma_pagamento === "cartao_credito" && form.cartao_id
+              ? (() => {
+                  const c = cartoes.find((x) => x.id === form.cartao_id);
+                  return c ? { dia_fechamento: c.dia_fechamento, dia_vencimento: c.dia_vencimento } : null;
+                })()
+              : null
+          }
         />
       )}
-      {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && (() => {
+      {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && form.condicao_pagamento === "a_vista" && (() => {
         const cartao = cartoes.find((c) => c.id === form.cartao_id);
         if (!cartao) return null;
-        const n = form.condicao_pagamento === "a_prazo" ? Math.max(parcelas, 1) : 1;
-        const previews = calcularFaturasParcelas(String(form.data_emissao), cartao.dia_fechamento, cartao.dia_vencimento, n);
+        const previews = calcularFaturasParcelas(String(form.data_emissao), cartao.dia_fechamento, cartao.dia_vencimento, 1);
         return (
           <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-            <p className="font-medium text-foreground">Faturas previstas para este cartão:</p>
+            <p className="font-medium text-foreground">Fatura prevista para este cartão:</p>
             <ul className="space-y-0.5 text-muted-foreground">
               {previews.map((p, i) => (
                 <li key={i}>
-                  Parcela {i + 1}/{n} — competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
+                  Competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
                 </li>
               ))}
             </ul>
