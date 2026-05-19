@@ -585,6 +585,7 @@ export default function ProdutoForm({
   );
 
   const formBody = (
+    <TooltipProvider delayDuration={300}>
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
@@ -758,6 +759,71 @@ export default function ProdutoForm({
                       : "Custo informado manualmente."}
                   </p>
                 </div>
+                {form.eh_composto && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-t pt-3">
+                      <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Composição do produto</h3>
+                      <Button type="button" size="sm" variant="outline" onClick={addComponent} className="gap-1">
+                        <Plus className="w-3 h-3" /> Componente
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">O custo é calculado automaticamente pela soma dos componentes.</p>
+                    {editComposicao.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum componente adicionado</p>}
+                    {editComposicao.map((comp, idx) => {
+                      const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
+                            <div className="space-y-1"><Label className="text-xs">Produto</Label>
+                              <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
+                                onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs">Qtd</Label>
+                              <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
+                                onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
+                            </div>
+                            <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
+                              <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
+                                {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                              </p>
+                            </div>
+                            <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
+                            Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                    {editComposicao.length > 0 && (
+                      <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">Custo Total Composto</span>
+                          <span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Margem (%)</Label>
+                            <Input type="number" step="1" value={margemLucro}
+                              onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Preço Sugerido</Label>
+                            <div className="h-9 flex items-center">
+                              <span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span>
+                              <Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0"
+                                onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>
+                                Usar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -969,6 +1035,14 @@ export default function ProdutoForm({
                     <Label>CST</Label>
                     <FiscalAutocomplete data={cstIcmsCodes} value={form.cst} onChange={(v) => setForm({ ...form, cst: v })} placeholder="Ex: 000" />
                     <p className="text-xs text-muted-foreground">Situação tributária do ICMS.</p>
+                    {isSimplesNacional && (
+                      <div className="rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5 flex items-start gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-muted-foreground">
+                          Empresa <strong>Simples Nacional</strong>: use <strong>CSOSN</strong> (ex.: 102, 400, 500) em vez de CST.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>CFOP Padrão</Label>
@@ -1082,69 +1156,6 @@ export default function ProdutoForm({
                 ))}
               </div>
 
-              {form.eh_composto && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-t pt-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Composição</h3>
-                    <Button type="button" size="sm" variant="outline" onClick={addComponent} className="gap-1"><Plus className="w-3 h-3" /> Componente</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">O custo do produto composto é calculado automaticamente pela soma dos componentes abaixo.</p>
-                  {editComposicao.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum componente adicionado</p>}
-                  {editComposicao.map((comp, idx) => {
-                    const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
-                          <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                            <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
-                              onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
-                          </div>
-                          <div className="space-y-1"><Label className="text-xs">Qtd</Label>
-                            <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
-                              onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
-                          </div>
-                          <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
-                            <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
-                              {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                            </p>
-                          </div>
-                          <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
-                          Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                        </p>
-                      </div>
-                    );
-                  })}
-                  {editComposicao.length > 0 && (
-                    <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">Custo Total Composto</span>
-                        <span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Margem (%)</Label>
-                          <Input type="number" step="1" value={margemLucro}
-                            onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Preço Sugerido</Label>
-                          <div className="h-9 flex items-center">
-                            <span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span>
-                            <Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0"
-                              onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>
-                              Usar
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </TabsContent>
 
             {/* OBSERVAÇÕES */}
@@ -1165,6 +1176,7 @@ export default function ProdutoForm({
             </TabsContent>
           </Tabs>
     </form>
+    </TooltipProvider>
   );
 
   const auxDialogs = (
