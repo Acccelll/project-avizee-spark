@@ -1,72 +1,43 @@
-# Plano para estabilizar a navegação do grid
-
-## Objetivo
-Evitar que o usuário veja seta de próxima página quando já está no fim e impedir o retorno inesperado para a primeira página, mantendo a paginação previsível e coerente com os dados exibidos.
-
 ## Diagnóstico
-No `/clientes`, a paginação está sendo decidida com base no total server-side, mas a tabela ainda recebe `filteredData`, que aplica um refinamento client-side para o caso especial de `sem_grupo`.
 
-Isso cria um descompasso:
-- o rodapé e as setas usam `totalCount`/`page` do backend;
-- a grade renderiza uma lista já reduzida localmente;
-- quando a página atual fica “sem itens visíveis”, o hook hoje faz `setPage(0)`, então a navegação parece voltar sozinha para a primeira página.
+O formulário **Novo/Editar Lançamento** (`FinanceiroLancamentoForm`) é renderizado em `src/pages/Financeiro.tsx` (linha 665) **sem** a prop `cartoes`. Como a prop tem default `cartoes = []`, o bloco "Cartão *" sempre cai no fallback "Nenhum cartão cadastrado" — mesmo quando há cartões ativos cadastrados. É exatamente o estado da tela enviada.
 
-## Melhor abordagem
-A melhor forma de manter isso sem confundir o usuário é fazer a paginação e o conjunto visível falarem sempre da mesma fonte de verdade.
+Os cartões já são carregados corretamente em `useFinanceiroAuxiliares` → `fetchFinanceiroAuxiliares` (via `listCartoesAtivos`) e são repassados para `BaixaParcialDialog` (linha 744). Só faltou repassar para o `FinanceiroLancamentoForm`.
 
-### 1. Eliminar o filtro client-side que mexe no tamanho da página
-No módulo de clientes, mover o caso especial de grupo (`sem_grupo` combinado com grupos reais) para o filtro server-side, em vez de aplicar `filteredData` depois que a página já veio pronta.
+### Problemas correlatos identificados na revisão
 
-Resultado esperado:
-- `data`, `totalCount`, `hasMore` e setas passam a refletir exatamente os mesmos registros;
-- a última página deixa de “parecer” ter próxima quando a tabela já não tem mais linhas para mostrar.
+1. **`useFinanceiroActions.handleSubmit` — modo `edit` ignora resolução de fatura.** A condição `mode === "create"` (linha 53) impede que ao editar um lançamento e trocar/atribuir cartão a `cartao_fatura_id` seja recalculada. Resultado: lançamento fica com `cartao_id` mas sem `cartao_fatura_id`, quebrando a agregação de fatura.
+2. **Path "parcelado" não grava `cartao_fatura_id` na base passada à RPC `gerar_parcelas_financeiras`** (linhas 101-119): a RPC resolve fatura por parcela, OK, mas o objeto `base` não inclui `cartao_fatura_id` (a RPC tolera, mas mantém-se o ponto: o caminho não-parcelado resolve no client e o parcelado delega — comportamento divergente é aceitável; sem mudança aqui).
+3. **`updateField("cartao", sel?.nome ?? "")` grava o nome do cartão na coluna legada `cartao` (texto livre).** Isso é redundante com `cartao_id` e pode gerar inconsistência se o cartão for renomeado. Manter por compatibilidade (ainda exibido em filtros/colunas), mas documentar.
+4. **No modo `edit`, ao abrir um lançamento que já é cartão de crédito, o select mostra o cartão atual via `value={form.cartao_id}`** — funciona desde que a prop `cartoes` seja passada (fix #1). Sem o fix, o usuário vê o aviso "nenhum cartão" mesmo num lançamento que já está vinculado a um cartão.
 
-### 2. Ajustar a regra de navegação para usar um critério único e confiável
-Centralizar no `DataTable` um cálculo explícito de navegação:
-- `canGoPrev = page > 0`
-- `canGoNext = totalCount conhecido ? page < totalPages - 1 : hasMore`
+## Plano de correção
 
-E usar esse cálculo tanto no mobile quanto no desktop, inclusive para esconder o container de paginação quando não houver navegação possível.
+### 1) Fix principal — passar `cartoes` para o form (`src/pages/Financeiro.tsx`)
 
-### 3. Trocar o reset para página 0 por clamp para a última página válida
-No `useSupabaseCrud`, quando o dataset diminuir por filtro, busca ou remoção:
-- se a página atual ficar fora do range, navegar para a última página válida;
-- só ir para a página 0 quando não existir nenhum resultado.
+Adicionar `cartoes={cartoes}` na renderização de `<FinanceiroLancamentoForm>` (próximo à linha 672, junto com `fornecedores` e `clientes`).
 
-Exemplo:
-- antes: usuário está na página 4, filtra, sobram 2 páginas, UI volta para página 1;
-- depois: usuário cai na página 2, que é a última válida.
+### 2) Fix do modo edit — resolver fatura também em update (`src/pages/financeiro/hooks/useFinanceiroActions.ts`)
 
-Isso preserva contexto e evita sensação de “salto aleatório”.
+Remover a restrição `mode === "create"` da condição que resolve `cartao_fatura_id`/`resolvedVencimento` (linhas 50-74). Passa a aplicar também em `edit`, desde que:
+- `forma_pagamento === "cartao_credito"`,
+- `cartao_id` presente,
+- `cartao_fatura_id` ainda não estiver definido **ou** o `cartao_id`/`data_vencimento` tenha mudado em relação ao `selected` original.
 
-### 4. Alinhar contador e empty state ao dataset real
-Garantir que contadores do toolbar/rodapé e a tabela usem a mesma base:
-- se houver paginação server-side, a lista passada ao `DataTable` deve ser a página já definitiva;
-- não deixar uma camada local esconder itens sem atualizar o total.
+Para evitar recalcular vencimento à toa em edições simples, comparar com `selected.cartao_id` e `selected.data_vencimento`; só resolver quando algum dos dois mudou ou quando `cartao_fatura_id` estiver null.
 
-## Arquivos envolvidos
-- `src/pages/Clientes.tsx`
-- `src/hooks/useSupabaseCrud.ts`
-- `src/components/DataTable.tsx`
-- testes de paginação do hook/tabela
+### 3) Validação visual no edit (sem código novo, só verificar)
 
-## Detalhes técnicos
-```text
-Hoje
-backend => totalCount/page/hasMore
-frontend => data da página -> filteredData local
-DataTable => setas baseadas no backend, linhas baseadas no filteredData
-
-Proposto
-backend => totalCount/page/hasMore + linhas já filtradas corretamente
-frontend => DataTable recebe só a página final
-DataTable => setas e linhas usam a mesma verdade
-```
+Após o fix #1, abrir um lançamento existente "Cartão de Crédito" deve exibir o cartão selecionado no `Select` ao invés do alerta. Esta validação é apenas QA, sem mudança de código.
 
 ## Validação
-1. `/clientes` com apenas 1 página: sem setas.
-2. Página intermediária: duas setas visíveis.
-3. Última página: apenas seta de voltar.
-4. Filtro reduzindo resultados enquanto o usuário está no fim: cair na última página válida, não na primeira.
-5. Caso `sem_grupo` isolado e combinado com outros grupos: total, linhas e setas coerentes.
-6. Testes automatizados para `DataTable` e `useSupabaseCrud` cobrindo clamp para última página válida.
+
+- Abrir `/financeiro` → "Novo Lançamento" → Forma "Cartão de Crédito" → deve listar os cartões ativos cadastrados.
+- Selecionar cartão + data de vencimento → salvar → conferir no DB que `cartao_id` e `cartao_fatura_id` foram persistidos e `data_vencimento` foi ajustada para o vencimento da fatura.
+- Editar um lançamento "Cartão de Crédito" sem cartão atribuído → atribuir cartão → salvar → conferir que `cartao_fatura_id` foi resolvido (fix #2).
+- Mobile (375px): seção "Pagamento" colapsada — abrir, selecionar cartão de crédito → select de cartões aparece e funciona.
+
+## Arquivos afetados
+
+- `src/pages/Financeiro.tsx` (1 linha)
+- `src/pages/financeiro/hooks/useFinanceiroActions.ts` (~5 linhas)

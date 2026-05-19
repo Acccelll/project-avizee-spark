@@ -670,6 +670,7 @@ const Financeiro = () => {
           contasContabeis={contasContabeis}
           clientes={clientesCrud.data}
           fornecedores={fornecedoresCrud.data}
+          cartoes={cartoes}
           setForm={setForm}
           onCancel={() => setModalOpen(false)}
           onSubmit={(e) => {
