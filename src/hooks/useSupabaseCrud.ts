@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fromUntyped } from "@/lib/supabase/fromUntyped";
@@ -141,18 +141,26 @@ export function useSupabaseCrud<R = any>({
   const orFiltersKey = orFilters && orFilters.length > 0 ? orFilters.join("|") : "";
   const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
-  const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
-    [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
-  );
+  // Reset síncrono: quando filtros/busca/ordem mudam em modo paged, força
+  // `page=0` no MESMO render — evita pedir um range inexistente (HTTP 416
+  // "Requested range not satisfiable") na primeira query disparada com o
+  // filtro novo + page antigo. O `setPage` no microtask sincroniza o state
+  // para os próximos renders e para a UI de paginação.
+  const filterDepsKey = `${filterKey}|${dateRangeKey}|${statusKey}|${orFiltersKey}|${searchTerm}|${orderBy}|${ascending}`;
+  const lastDepsRef = useRef(filterDepsKey);
+  let effectivePage = page;
+  if (effectiveMode === "paged" && lastDepsRef.current !== filterDepsKey) {
+    lastDepsRef.current = filterDepsKey;
+    if (page !== 0) {
+      effectivePage = 0;
+      queueMicrotask(() => setPage(0));
+    }
+  }
 
-  // Quando filtros/busca/ordem mudam em modo paged, reseta para a primeira
-  // página — evita pedir um range inexistente após shrink do dataset.
-  useEffect(() => {
-    if (effectiveMode !== "paged") return;
-    setPage(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: reage só a deps de filtro/ordem
-  }, [filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, orderBy, ascending, effectiveMode]);
+  const queryKey = useMemo(
+    () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, effectivePage, shouldFilterAtivo],
+    [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, orFiltersKey, searchTerm, effectiveMode, effectivePage, shouldFilterAtivo],
+  );
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
 
@@ -199,9 +207,19 @@ export function useSupabaseCrud<R = any>({
 
       // ── Paged mode ────────────────────────────────────────────────────────
       if (effectiveMode === "paged" && pageSize) {
-        const from = page * pageSize;
+        const from = effectivePage * pageSize;
         const { data: result, error, count } = await buildQuery().range(from, from + pageSize - 1);
         if (error) {
+          // PGRST103 = Requested range not satisfiable. Acontece quando a página
+          // pedida ficou fora do total após shrink do dataset (filtro/busca novos).
+          // O reset síncrono acima já agendou o retorno a page=0, então só
+          // engolimos o erro silenciosamente em vez de assustar o usuário.
+          const code = (error as { code?: string }).code;
+          const msg = (error as { message?: string }).message ?? "";
+          const isRangeError = code === "PGRST103" || msg.toLowerCase().includes("requested range");
+          if (isRangeError) {
+            return { rows: [] as R[], totalCount: 0, hasMore: false, truncated: false };
+          }
           if (showToasts) notifyError(error);
           throw error;
         }
