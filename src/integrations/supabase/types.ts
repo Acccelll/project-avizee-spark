@@ -3119,6 +3119,8 @@ export type Database = {
           id: string
           motivo_encerramento: string | null
           observacoes: string | null
+          origem: string
+          origem_id: string | null
           periodicidade: string
           proxima_geracao: string
           qtd_ciclos_max: number | null
@@ -3146,6 +3148,8 @@ export type Database = {
           id?: string
           motivo_encerramento?: string | null
           observacoes?: string | null
+          origem?: string
+          origem_id?: string | null
           periodicidade: string
           proxima_geracao: string
           qtd_ciclos_max?: number | null
@@ -3173,6 +3177,8 @@ export type Database = {
           id?: string
           motivo_encerramento?: string | null
           observacoes?: string | null
+          origem?: string
+          origem_id?: string | null
           periodicidade?: string
           proxima_geracao?: string
           qtd_ciclos_max?: number | null
@@ -4664,6 +4670,7 @@ export type Database = {
           protocolo_autorizacao: string | null
           quantidade_volumes: number | null
           recibo: string | null
+          recorrencia_id: string | null
           serie: string | null
           status: string | null
           status_sefaz: string | null
@@ -4785,6 +4792,7 @@ export type Database = {
           protocolo_autorizacao?: string | null
           quantidade_volumes?: number | null
           recibo?: string | null
+          recorrencia_id?: string | null
           serie?: string | null
           status?: string | null
           status_sefaz?: string | null
@@ -4906,6 +4914,7 @@ export type Database = {
           protocolo_autorizacao?: string | null
           quantidade_volumes?: number | null
           recibo?: string | null
+          recorrencia_id?: string | null
           serie?: string | null
           status?: string | null
           status_sefaz?: string | null
@@ -5022,6 +5031,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_recebimentos_consolidado"
             referencedColumns: ["pedido_compra_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_recorrencia_id_fkey"
+            columns: ["recorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_recorrencias"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_fiscais_transportadora_id_fkey"
