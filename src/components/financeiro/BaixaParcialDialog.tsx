@@ -83,6 +83,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const isStatusBlocked = lancamento
     ? (lancamento.status === "pago" || lancamento.status === "cancelado")
     : false;
+  // Nota: Admin/Financeiro podem ajustar/registrar baixas em lançamentos
+  // pagos via RPC `editar_baixa_admin`. Esta UI mantém o bloqueio aqui e
+  // expõe o fluxo privilegiado no FinanceiroDrawer (botão "Editar baixa").
 
   const isExcessivo = valorPago + abatimento > saldoAtual + 0.01;
   const hasEncargos = desconto > 0 || juros > 0 || multa > 0 || abatimento > 0;
