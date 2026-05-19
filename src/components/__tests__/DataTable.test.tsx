@@ -45,4 +45,24 @@ describe("DataTable", () => {
     expect(screen.getByLabelText("Página anterior")).toBeInTheDocument();
     expect(screen.getByLabelText("Próxima página")).toBeInTheDocument();
   });
+
+  it("deve ocultar a próxima página na última página server-side", () => {
+    render(
+      <DataTable
+        columns={[{ key: "nome", label: "Nome" }]}
+        data={Array.from({ length: 47 }, (_, i) => ({ id: String(i + 101), nome: `Produto ${i + 101}` }))}
+        pageSize={50}
+        serverPagination={{
+          page: 4,
+          setPage: () => undefined,
+          totalCount: 247,
+          hasMore: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("201–247 de 247 registros")).toBeInTheDocument();
+    expect(screen.getByLabelText("Página anterior")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Próxima página")).not.toBeInTheDocument();
+  });
 });
