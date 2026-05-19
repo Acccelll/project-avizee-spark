@@ -47,10 +47,18 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
         // vencimento da fatura como vencimento efetivo do lançamento.
         let resolvedVencimento = form.data_vencimento;
         let resolvedFaturaId: string | null = form.cartao_fatura_id || null;
+        // Em create: sempre resolve. Em edit: só recalcula quando cartão/vencimento
+        // mudaram em relação ao registro original ou quando ainda não há fatura vinculada.
+        const cartaoOrVencChanged =
+          mode === "edit" && selected
+            ? selected.cartao_id !== form.cartao_id ||
+              selected.data_vencimento !== form.data_vencimento ||
+              !resolvedFaturaId
+            : true;
         if (
           form.forma_pagamento === "cartao_credito" &&
           form.cartao_id &&
-          mode === "create"
+          cartaoOrVencChanged
         ) {
           try {
             const faturaId = await cartaoFaturaParaData(
