@@ -504,9 +504,21 @@ export default function Transportadoras() {
 
   const summaryAtivos = useTableCount("transportadoras", { ativo: true }).data ?? 0;
   const summarySemPrazo = useTableCount("transportadoras", { prazo_medio: { is: null } }).data ?? 0;
-  // "Sem contato" — telefone IS NULL e email IS NULL. useTableCount não suporta
-  // composição AND complexa; aproximamos pela página corrente quando preciso.
   const summarySemContato = useMemo(() => data.filter(t => !t.telefone && !t.email).length, [data]);
+
+  // Validações por aba (badges de aviso no TabsTrigger)
+  const dadosGeraisComErro = useMemo(() => {
+    if (!form.nome_razao_social?.trim()) return true;
+    const digits = (form.cpf_cnpj || "").replace(/\D/g, "");
+    if (form.tipo_pessoa === "J" && digits.length !== 14) return true;
+    if (form.tipo_pessoa === "F" && digits.length !== 11) return true;
+    if (docUnico === false) return true;
+    return false;
+  }, [form.nome_razao_social, form.tipo_pessoa, form.cpf_cnpj, docUnico]);
+
+  const contatosComErro = useMemo(() => {
+    return !form.telefone && !form.email && !form.contato;
+  }, [form.telefone, form.email, form.contato]);
 
   return (
     <><ModulePage
