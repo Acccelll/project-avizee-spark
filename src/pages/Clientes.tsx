@@ -441,19 +441,9 @@ const Clientes = () => {
   const relacaoLabel: Record<string, string> = { matriz: "Matriz", filial: "Filial", coligada: "Coligada", independente: "Independente" };
   const updateForm = (updates: Partial<ClienteFormData>) => { setForm(prev => ({ ...prev, ...updates })); setIsDirty(true); };
 
-  // tipo/ativo/grupo agora são server-side. Apenas o caso especial
-  // "sem_grupo" misto (NULL + outros) ainda exige refinamento client-side.
-  const filteredData = useMemo(() => {
-    let out = data;
-    if (hasSemGrupoFilter) {
-      out = out.filter((cliente) => {
-        const groupId = cliente.grupo_economico_id || "sem_grupo";
-        return grupoFilters.includes(groupId);
-      });
-    }
-    // `cadastroFilters` agora é server-side via `orFilters` em useSupabaseCrud.
-    return out;
-  }, [data, hasSemGrupoFilter, grupoFilters]);
+  // tipo/ativo/grupo/cadastro são todos server-side. A tabela usa `data`
+  // direto para manter coerência entre linhas, total e paginação.
+  const filteredData = data;
 
   const columns = [
     {
