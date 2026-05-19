@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
@@ -102,6 +103,8 @@ export default function Transportadoras() {
       q: { type: "string" },
       ativo: { type: "stringArray" },
       modalidade: { type: "stringArray" },
+      prazo: { type: "stringArray" },
+      contato: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -110,13 +113,39 @@ export default function Transportadoras() {
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const modalidadeFilters = filterValue.modalidade;
   const setModalidadeFilters = (v: string[]) => setFilter({ modalidade: v });
+  const prazoFilters = filterValue.prazo;
+  const setPrazoFilters = (v: string[]) => setFilter({ prazo: v });
+  const contatoFilters = filterValue.contato;
+  const setContatoFilters = (v: string[]) => setFilter({ contato: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: boolean | string }> = [];
+    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    return out;
+  }, [ativoFilters]);
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
+    statusFilter: modalidadeFilters.length > 0 ? { column: "modalidade", values: modalidadeFilters } : undefined,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
   const { pushView } = useRelationalNavigation();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
