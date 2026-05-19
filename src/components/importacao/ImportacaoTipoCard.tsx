@@ -50,6 +50,8 @@ interface ImportacaoTipoCardProps {
   criticidade?: ImportacaoCriticidade;
   dependencies?: string[];
   orderStep?: number;
+  isBlocked?: boolean;
+  blockReason?: string;
   summary?: {
     lastDate?: string;
     lastStatus?: string;
@@ -69,12 +71,12 @@ export function ImportacaoTipoCard({
   criticidade,
   dependencies,
   summary,
+  isBlocked = false,
+  blockReason,
 }: ImportacaoTipoCardProps) {
   const statusCfg = STATUS_CONFIG[cardStatus];
   const StatusIcon = statusCfg.icon;
   const critCfg = criticidade ? CRITICIDADE_CONFIG[criticidade] : null;
-
-  const isBlocked = false; // reserved for future dependency-blocking logic
 
   return (
     <TooltipProvider>
@@ -102,6 +104,12 @@ export function ImportacaoTipoCard({
         </CardHeader>
 
         <CardContent className="flex-grow space-y-2 pt-0">
+          {isBlocked && blockReason && (
+            <div className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 px-2 py-1.5 text-[11px] text-warning-foreground">
+              <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5 text-warning" />
+              <span>{blockReason}</span>
+            </div>
+          )}
           {/* Status line */}
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <StatusIcon className={cn("h-3 w-3 shrink-0", cardStatus === "processando" && "animate-spin")} />
@@ -147,16 +155,25 @@ export function ImportacaoTipoCard({
         </CardContent>
 
         <CardFooter className="grid grid-cols-2 gap-2 pt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onImport(type)}
-            disabled={isBlocked}
-            className="w-full gap-1.5"
-          >
-            <FileUp className="h-3.5 w-3.5" />
-            Importar
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onImport(type)}
+                  disabled={isBlocked}
+                  className="w-full gap-1.5"
+                >
+                  <FileUp className="h-3.5 w-3.5" />
+                  Importar
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {isBlocked && blockReason && (
+              <TooltipContent side="top" className="max-w-[220px] text-xs">{blockReason}</TooltipContent>
+            )}
+          </Tooltip>
           <Button
             variant="ghost"
             size="sm"

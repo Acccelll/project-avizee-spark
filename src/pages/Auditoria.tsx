@@ -58,7 +58,10 @@ import {
   Shield,
   Trash2,
   User,
+  X,
+  Info,
 } from "lucide-react";
+import type { FilterChip } from "@/components/AdvancedFilterBar";
 
 interface Profile {
   id: string;
@@ -217,6 +220,58 @@ export default function Auditoria() {
 
   const [selected, setSelected] = useState<AdminAuditRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Item 5 — Chips de filtros ativos.
+  const activeFilterChips = useMemo((): FilterChip[] => {
+    const chips: FilterChip[] = [];
+    if (origem !== "todas") {
+      chips.push({
+        key: "origem",
+        label: "Origem",
+        value: [origem],
+        displayValue: origem === "permission_audit" ? "Governança" : "Operacional",
+      });
+    }
+    if (entidade !== "todas") {
+      chips.push({
+        key: "entidade",
+        label: "Entidade",
+        value: [entidade],
+        displayValue: getTableMeta(entidade).entidade,
+      });
+    }
+    if (tipoAcao !== "todas") {
+      chips.push({
+        key: "tipo_acao",
+        label: "Ação",
+        value: [tipoAcao],
+        displayValue: KNOWN_ACOES.find((a) => a.value === tipoAcao)?.label ?? tipoAcao,
+      });
+    }
+    if (criticidade !== "todas") {
+      chips.push({
+        key: "criticidade",
+        label: "Criticidade",
+        value: [criticidade],
+        displayValue: criticidade.charAt(0).toUpperCase() + criticidade.slice(1),
+      });
+    }
+    if (atorId !== "todos") {
+      const p = profileMap.get(atorId);
+      chips.push({ key: "ator", label: "Ator", value: [atorId], displayValue: p?.nome ?? atorId.slice(0, 8) });
+    }
+    if (targetUserId !== "todos") {
+      const p = profileMap.get(targetUserId);
+      chips.push({ key: "alvo", label: "Alvo", value: [targetUserId], displayValue: p?.nome ?? targetUserId.slice(0, 8) });
+    }
+    if (ipAddress) {
+      chips.push({ key: "ip", label: "IP", value: [ipAddress], displayValue: ipAddress });
+    }
+    if (registroId) {
+      chips.push({ key: "registro", label: "Registro", value: [registroId], displayValue: registroId.slice(0, 12) });
+    }
+    return chips;
+  }, [origem, entidade, tipoAcao, criticidade, atorId, targetUserId, ipAddress, registroId, profileMap]);
 
   // Exportações (sobre a página atual)
   const [exporting, setExporting] = useState(false);
@@ -392,12 +447,18 @@ export default function Auditoria() {
               icon={Plus}
               variationType="positive"
               variant="success"
+              onClick={kpis.inserts > 0 ? () => set({ tipo_acao: "INSERT", page: 1 }) : undefined}
+              active={tipoAcao === "INSERT"}
+              aria-label="Filtrar criações e concessões"
             />
             <SummaryCard
               title="Edições / Atualizações"
               value={String(kpis.updates)}
               icon={Edit}
               variationType="neutral"
+              onClick={kpis.updates > 0 ? () => set({ tipo_acao: "UPDATE", page: 1 }) : undefined}
+              active={tipoAcao === "UPDATE"}
+              aria-label="Filtrar edições e atualizações"
             />
             <SummaryCard
               title="Exclusões / Revogações"
@@ -405,6 +466,9 @@ export default function Auditoria() {
               icon={Trash2}
               variationType="negative"
               variant="danger"
+              onClick={kpis.deletes > 0 ? () => set({ tipo_acao: "DELETE", page: 1 }) : undefined}
+              active={tipoAcao === "DELETE"}
+              aria-label="Filtrar exclusões e revogações"
             />
             <SummaryCard
               title="Eventos Sensíveis"
@@ -412,6 +476,9 @@ export default function Auditoria() {
               icon={AlertTriangle}
               variationType="negative"
               variant="warning"
+              onClick={kpis.sensiveis > 0 ? () => set({ criticidade: "alta", page: 1 }) : undefined}
+              active={criticidade === "alta"}
+              aria-label="Filtrar eventos sensíveis"
             />
             <SummaryCard
               title="Atores na Página"
@@ -601,6 +668,44 @@ export default function Auditoria() {
           <div className="mb-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
             Exibindo página {page} de {totalPages} ({rows.length} de {totalCount}{" "}
             eventos no período). Refine os filtros ou navegue pelas páginas.
+          </div>
+        )}
+
+        {activeFilterChips.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {activeFilterChips.map((chip) => (
+              <Badge
+                key={chip.key}
+                variant="secondary"
+                className="gap-1.5 pl-2 pr-1 py-1 text-xs"
+              >
+                <span className="text-muted-foreground">{chip.label}:</span>
+                <span className="font-medium">{chip.displayValue}</span>
+                <button
+                  type="button"
+                  onClick={() => set({ [chip.key]: "", page: 1 })}
+                  aria-label={`Remover filtro ${chip.label}`}
+                  className="ml-0.5 rounded-sm p-0.5 hover:bg-background/80"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            {activeFilterChips.length > 1 && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => clear()}>
+                Limpar todos
+              </Button>
+            )}
+          </div>
+        )}
+
+        {searchTerm && totalPages > 1 && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-foreground/90">
+            <Info className="h-4 w-4 shrink-0 text-info mt-0.5" />
+            <span>
+              A busca textual cobre apenas esta página ({ADMIN_AUDIT_PAGE_SIZE} eventos).
+              Para buscar em todo o histórico, use os filtros estruturados de Ator, Entidade, IP ou ID do registro.
+            </span>
           </div>
         )}
 

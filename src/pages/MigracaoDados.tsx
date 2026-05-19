@@ -23,16 +23,7 @@ import {
   AlertDescription,
   AlertTitle
 } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { useImportacaoCadastros } from "@/hooks/importacao/useImportacaoCadastros";
 import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
@@ -85,11 +76,11 @@ export default function MigracaoDados() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [activeTab, setActiveTab] = useState("overview");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [currentLoteId, setCurrentLoteId] = useState<string | null>(null);
   const [selectedLote, setSelectedLote] = useState<ImportacaoLote | null>(null);
   const [isReconciliacaoOpen, setIsReconciliacaoOpen] = useState(false);
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
 
   const { data: lotes, loading: loadingLotes, fetchData: refreshLotes } = useSupabaseCrud<ImportacaoLote>({
     table: "importacao_lotes",
@@ -139,6 +130,32 @@ export default function MigracaoDados() {
     const matchesStatus = statusFilter === "todos" || lote.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  // Item 7 — Mapa de dependências entre tipos de importação.
+  const DEPENDENCIES: Record<string, string[]> = {
+    estoque_inicial: ["produtos"],
+    faturamento: ["clientes", "produtos"],
+    financeiro: ["clientes", "fornecedores"],
+    compras_xml: ["fornecedores", "produtos"],
+    produtos_fornecedores: ["produtos", "fornecedores"],
+  };
+
+  const isDependencyMet = (tipo: string): boolean => {
+    const deps = DEPENDENCIES[tipo] ?? [];
+    if (deps.length === 0) return true;
+    return deps.every((dep) => lotes.some((l) => l.tipo === dep && l.status === "concluido"));
+  };
+
+  const dependencyBlock = (tipo: string): { isBlocked: boolean; blockReason?: string } => {
+    const deps = DEPENDENCIES[tipo] ?? [];
+    if (deps.length === 0) return { isBlocked: false };
+    if (isDependencyMet(tipo)) return { isBlocked: false };
+    const pending = deps.filter((dep) => !lotes.some((l) => l.tipo === dep && l.status === "concluido"));
+    return {
+      isBlocked: true,
+      blockReason: `Conclua primeiro: ${pending.join(", ")}`,
+    };
+  };
 
   // Compute per-type card status and summary from lotes data
   const cardInfoMap = useMemo(() => {
@@ -315,17 +332,30 @@ export default function MigracaoDados() {
   };
 
   const handleFinalize = async () => {
-    setIsConfirmOpen(true);
-  };
-
-  const onConfirmCarga = async () => {
-    setIsConfirmOpen(false);
-    const success = await finalizeImport(currentLoteId || undefined);
-    if (success) {
-      setIsImportModalOpen(false);
-      refreshLotes();
-      setActiveTab("lotes");
-    }
+    const total = Array.isArray(previewData) ? previewData.length : 0;
+    await confirmDestructive(
+      {
+        verb: "Excluir",
+        title: "Confirmar carga de dados?",
+        description: "Os registros validados serão inseridos definitivamente nas tabelas operacionais. Revise as inconsistências do passo anterior antes de continuar.",
+        terminal: false,
+        requireReason: false,
+        sideEffects: [
+          `${total} registro(s) serão inseridos nas tabelas operacionais`,
+          "Registros duplicados serão sinalizados",
+          "Esta operação não pode ser desfeita automaticamente",
+        ],
+        confirmLabel: "Confirmar Carga",
+      },
+      async () => {
+        const success = await finalizeImport(currentLoteId || undefined);
+        if (success) {
+          setIsImportModalOpen(false);
+          refreshLotes();
+          setActiveTab("lotes");
+        }
+      },
+    );
   };
 
   const resetModal = () => {
@@ -509,6 +539,7 @@ export default function MigracaoDados() {
                 summary={cardInfoMap.estoque_inicial.summary}
                 onImport={() => handleOpenImport("estoque_inicial")}
                 onViewBatches={() => { setTypeFilter("estoque_inicial"); setActiveTab("lotes"); }}
+                {...dependencyBlock("estoque_inicial")}
               />
               <ImportacaoTipoCard
                 type="financeiro"
@@ -520,6 +551,7 @@ export default function MigracaoDados() {
                 summary={cardInfoMap.financeiro.summary}
                 onImport={() => handleOpenImport("conciliacao")}
                 onViewBatches={() => { setTypeFilter("conciliacao_financeiro"); setActiveTab("lotes"); }}
+                {...dependencyBlock("financeiro")}
               />
             </ImportacaoGrupoSection>
 
@@ -540,6 +572,7 @@ export default function MigracaoDados() {
                 summary={{ nextAction: "Importar vínculos" }}
                 onImport={() => handleOpenImport("produtos_fornecedores")}
                 onViewBatches={() => { setTypeFilter("produtos_fornecedores"); setActiveTab("lotes"); }}
+                {...dependencyBlock("produtos_fornecedores")}
               />
               <ImportacaoTipoCard
                 type="formas_pagamento"
@@ -590,6 +623,7 @@ export default function MigracaoDados() {
                 summary={cardInfoMap.faturamento.summary}
                 onImport={() => handleOpenImport("faturamento")}
                 onViewBatches={() => { setTypeFilter("faturamento"); setActiveTab("lotes"); }}
+                {...dependencyBlock("faturamento")}
               />
               <ImportacaoTipoCard
                 type="compras_xml"
@@ -601,26 +635,33 @@ export default function MigracaoDados() {
                 summary={cardInfoMap.compras_xml.summary}
                 onImport={() => handleOpenImport("compras_xml")}
                 onViewBatches={() => { setTypeFilter("compras_xml"); setActiveTab("lotes"); }}
+                {...dependencyBlock("compras_xml")}
               />
             </ImportacaoGrupoSection>
           </TabsContent>
 
           <TabsContent value="lotes" className="mt-0 space-y-4">
             {/* Filtros */}
-            <div className="flex flex-col md:flex-row items-center gap-3 bg-card p-4 rounded-md border">
-              <div className="relative flex-grow">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome do arquivo..."
-                  className="pl-9"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="flex flex-col md:flex-row md:items-end gap-3 bg-card p-4 rounded-md border">
+              <div className="flex-grow space-y-1.5">
+                <Label htmlFor="migracao-busca-arquivo" className="text-xs">Buscar por arquivo</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="migracao-busca-arquivo"
+                    placeholder="Nome do arquivo..."
+                    className="pl-9 h-9"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full md:w-[180px]">
+              <div className="flex items-end gap-2 w-full md:w-auto">
+                <div className="space-y-1.5 w-full md:w-[180px]">
+                  <Label htmlFor="migracao-filter-tipo" className="text-xs">Tipo</Label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger id="migracao-filter-tipo" className="w-full h-9">
                     <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -634,9 +675,12 @@ export default function MigracaoDados() {
                     <SelectItem value="compras_xml">Compras por XML</SelectItem>
                   </SelectContent>
                 </Select>
+                </div>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-[150px]">
+                <div className="space-y-1.5 w-full md:w-[150px]">
+                  <Label htmlFor="migracao-filter-status" className="text-xs">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger id="migracao-filter-status" className="w-full h-9">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -651,8 +695,9 @@ export default function MigracaoDados() {
                     <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
+                </div>
 
-                <Button variant="ghost" size="icon" title="Mais filtros" aria-label="Mais filtros">
+                <Button variant="ghost" size="icon" title="Mais filtros" aria-label="Mais filtros" className="self-end h-9 w-9">
                   <Filter className="h-4 w-4" />
                 </Button>
               </div>
@@ -928,23 +973,7 @@ export default function MigracaoDados() {
         />
 
         {/* Confirmação de Carga */}
-        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Carga de Dados?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação irá inserir os registros validados definitivamente nas tabelas operacionais do sistema.
-                Certifique-se de que revisou as inconsistências no passo anterior.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Revisar mais uma vez</AlertDialogCancel>
-              <AlertDialogAction onClick={onConfirmCarga} className="bg-success text-success-foreground hover:bg-success/90">
-                Confirmar Carga
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {destructiveDialog}
       </div>
     </PageShell>
   );
