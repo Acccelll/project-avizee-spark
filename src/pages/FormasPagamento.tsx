@@ -573,7 +573,7 @@ export default function FormasPagamento() {
                                         next[idx] = Number(e.target.value);
                                         updateForm({ intervalos_dias: next });
                                       }}
-                                      className="w-24 h-9 sm:h-8 text-sm"
+                                      className="flex-1 sm:w-24 sm:flex-none h-9 sm:h-8 text-sm"
                                       inputMode="numeric"
                                     />
                                     <span className="text-xs text-muted-foreground">dias</span>
