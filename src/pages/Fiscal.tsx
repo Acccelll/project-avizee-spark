@@ -582,7 +582,6 @@ const Fiscal = () => {
     };
   });
 
-  const handleSaveAndConfirm = async () => {
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = (
     nfe: import("@/lib/nfeXmlParser").NFeData,
