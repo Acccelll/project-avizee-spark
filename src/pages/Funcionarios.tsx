@@ -360,9 +360,26 @@ export default function Funcionarios() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Funcionários" shortTitle="Total" value={String(kpis.total)} icon={Users} />
-            <SummaryCard title="Ativos" shortTitle="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" shortTitle="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
+            <SummaryCard
+              title="Total de Funcionários" shortTitle="Total"
+              value={String(kpis.total)} icon={Users}
+              onClick={() => setAtivoFilters([])}
+              aria-label="Mostrar todos os funcionários"
+            />
+            <SummaryCard
+              title="Ativos" shortTitle="Ativos" value={String(kpis.ativos)}
+              icon={UserCheck} variant="success"
+              onClick={() => setAtivoFilters(ativoFilters.length === 1 && ativoFilters.includes("ativo") ? [] : ["ativo"])}
+              active={ativoFilters.length === 1 && ativoFilters.includes("ativo")}
+              aria-label="Filtrar funcionários ativos"
+            />
+            <SummaryCard
+              title="Inativos" shortTitle="Inativos" value={String(kpis.inativos)}
+              icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"}
+              onClick={kpis.inativos > 0 ? () => setAtivoFilters(ativoFilters.length === 1 && ativoFilters.includes("inativo") ? [] : ["inativo"]) : undefined}
+              active={ativoFilters.length === 1 && ativoFilters.includes("inativo")}
+              aria-label="Filtrar funcionários inativos"
+            />
             <SummaryCard
               title="Salários (ativos)"
               shortTitle="Folha"

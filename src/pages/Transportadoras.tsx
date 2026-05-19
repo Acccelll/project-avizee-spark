@@ -15,6 +15,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
@@ -102,6 +104,8 @@ export default function Transportadoras() {
       q: { type: "string" },
       ativo: { type: "stringArray" },
       modalidade: { type: "stringArray" },
+      prazo: { type: "stringArray" },
+      contato: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -110,13 +114,39 @@ export default function Transportadoras() {
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const modalidadeFilters = filterValue.modalidade;
   const setModalidadeFilters = (v: string[]) => setFilter({ modalidade: v });
+  const prazoFilters = filterValue.prazo;
+  const setPrazoFilters = (v: string[]) => setFilter({ prazo: v });
+  const contatoFilters = filterValue.contato;
+  const setContatoFilters = (v: string[]) => setFilter({ contato: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: boolean | string }> = [];
+    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    return out;
+  }, [ativoFilters]);
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
+    statusFilter: modalidadeFilters.length > 0 ? { column: "modalidade", values: modalidadeFilters } : undefined,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
   const { pushView } = useRelationalNavigation();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -345,16 +375,11 @@ export default function Transportadoras() {
 
   const filteredData = useMemo(() => {
     return data.filter(t => {
-      if (ativoFilters.length > 0) {
-        const status = t.ativo ? "ativo" : "inativo";
-        if (!ativoFilters.includes(status)) return false;
-      }
-      if (modalidadeFilters.length > 0) {
-        if (!modalidadeFilters.includes(t.modalidade || "")) return false;
-      }
+      if (prazoFilters.includes("sem_prazo") && t.prazo_medio) return false;
+      if (contatoFilters.includes("sem_contato") && (t.telefone || t.email)) return false;
       return true;
     });
-  }, [data, ativoFilters, modalidadeFilters]);
+  }, [data, prazoFilters, contatoFilters]);
 
   const columns = [
     {
@@ -459,17 +484,41 @@ export default function Transportadoras() {
       key: "modalidade", label: "Modalidade", value: [f],
       displayValue: MODALIDADE_LABEL[f] || f,
     }));
+    prazoFilters.forEach(f => chips.push({
+      key: "prazo", label: "Prazo", value: [f],
+      displayValue: f === "sem_prazo" ? "Sem prazo médio" : f,
+    }));
+    contatoFilters.forEach(f => chips.push({
+      key: "contato", label: "Contato", value: [f],
+      displayValue: f === "sem_contato" ? "Sem contato" : f,
+    }));
     return chips;
-  }, [ativoFilters, modalidadeFilters]);
+  }, [ativoFilters, modalidadeFilters, prazoFilters, contatoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
     if (key === "modalidade") setModalidadeFilters(modalidadeFilters.filter(v => v !== value));
+    if (key === "prazo") setPrazoFilters(prazoFilters.filter(v => v !== value));
+    if (key === "contato") setContatoFilters(contatoFilters.filter(v => v !== value));
   };
 
-  const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
-  const summarySemPrazo = useMemo(() => data.filter(t => !t.prazo_medio).length, [data]);
+  const summaryAtivos = useTableCount("transportadoras", { ativo: true }).data ?? 0;
+  const summarySemPrazo = useTableCount("transportadoras", { prazo_medio: { is: null } }).data ?? 0;
   const summarySemContato = useMemo(() => data.filter(t => !t.telefone && !t.email).length, [data]);
+
+  // Validações por aba (badges de aviso no TabsTrigger)
+  const dadosGeraisComErro = useMemo(() => {
+    if (!form.nome_razao_social?.trim()) return true;
+    const digits = (form.cpf_cnpj || "").replace(/\D/g, "");
+    if (form.tipo_pessoa === "J" && digits.length !== 14) return true;
+    if (form.tipo_pessoa === "F" && digits.length !== 11) return true;
+    if (docUnico === false) return true;
+    return false;
+  }, [form.nome_razao_social, form.tipo_pessoa, form.cpf_cnpj, docUnico]);
+
+  const contatosComErro = useMemo(() => {
+    return !form.telefone && !form.email && !form.contato;
+  }, [form.telefone, form.email, form.contato]);
 
   return (
     <><ModulePage
@@ -479,10 +528,42 @@ export default function Transportadoras() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total" value={data.length} icon={Truck} />
-            <SummaryCard title="Ativas" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Sem prazo médio" shortTitle="Sem prazo" value={summarySemPrazo} icon={Clock} variant={summarySemPrazo > 0 ? "warning" : "default"} />
-            <SummaryCard title="Sem contato" shortTitle="Sem contato" value={summarySemContato} icon={PhoneOff} variant={summarySemContato > 0 ? "warning" : "default"} />
+            <SummaryCard
+              title="Total"
+              value={totalCount ?? data.length}
+              icon={Truck}
+              onClick={() => clearFilters(["ativo", "modalidade", "prazo", "contato"])}
+              aria-label="Mostrar todas as transportadoras"
+            />
+            <SummaryCard
+              title="Ativas"
+              value={summaryAtivos}
+              icon={UserCheck}
+              variant="success"
+              onClick={() => setAtivoFilters(ativoFilters.length === 1 && ativoFilters.includes("ativo") ? [] : ["ativo"])}
+              active={ativoFilters.length === 1 && ativoFilters.includes("ativo")}
+              aria-label="Filtrar transportadoras ativas"
+            />
+            <SummaryCard
+              title="Sem prazo médio"
+              shortTitle="Sem prazo"
+              value={summarySemPrazo}
+              icon={Clock}
+              variant={summarySemPrazo > 0 ? "warning" : "default"}
+              onClick={summarySemPrazo > 0 ? () => setPrazoFilters(prazoFilters.includes("sem_prazo") ? [] : ["sem_prazo"]) : undefined}
+              active={prazoFilters.includes("sem_prazo")}
+              aria-label="Filtrar transportadoras sem prazo médio"
+            />
+            <SummaryCard
+              title="Sem contato"
+              shortTitle="Sem contato"
+              value={summarySemContato}
+              icon={PhoneOff}
+              variant={summarySemContato > 0 ? "warning" : "default"}
+              onClick={summarySemContato > 0 ? () => setContatoFilters(contatoFilters.includes("sem_contato") ? [] : ["sem_contato"]) : undefined}
+              active={contatoFilters.includes("sem_contato")}
+              aria-label="Filtrar transportadoras sem contato cadastrado"
+            />
           </>
         }
       >
@@ -493,7 +574,7 @@ export default function Transportadoras() {
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "modalidade"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect
             options={ativoOptions}
@@ -526,6 +607,10 @@ export default function Transportadoras() {
             mobileStatusKey="ativo"
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
           />
         </PullToRefresh>
       </ModulePage>
@@ -564,8 +649,19 @@ export default function Transportadoras() {
               ref={tabsListRef}
               className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
             >
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}</TabsTrigger>
-              <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
+              <TabsTrigger value="dados-gerais" className="gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                {isMobile ? "Dados" : "Dados Gerais"}
+                {modalOpen && dadosGeraisComErro && (
+                  <AlertTriangle className="h-3 w-3 text-warning" aria-label="Dados gerais incompletos" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />Contatos
+                {modalOpen && contatosComErro && (
+                  <AlertTriangle className="h-3 w-3 text-warning" aria-label="Nenhum contato cadastrado" />
+                )}
+              </TabsTrigger>
               <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />{isMobile ? "Operação" : "Operacional"}</TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />Endereço
