@@ -185,12 +185,19 @@ export default function SociosParticipacoes() {
               <div className="flex items-end gap-3 rounded-lg border p-4">
                 <div className="space-y-1.5 flex-1 max-w-xs">
                   <Label>Ajustes (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editAjustes !== "" ? editAjustes : Number(apuracaoAtual.ajustes ?? 0)}
-                    onChange={(e) => setEditAjustes(e.target.value)}
-                  />
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={editAjustes !== "" ? editAjustes : Number(apuracaoAtual.ajustes ?? 0)}
+                      onChange={(e) => setEditAjustes(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSalvarAjustes}>Aplicar e recalcular</Button>
                 <p className="text-xs text-muted-foreground ml-2">
@@ -200,8 +207,8 @@ export default function SociosParticipacoes() {
             )}
 
             {apuracaoAtual && (
-              <div className="rounded-lg border">
-                <Table>
+              <div className="rounded-lg border overflow-x-auto">
+                <Table className="min-w-[640px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Sócio</TableHead>
@@ -220,13 +227,13 @@ export default function SociosParticipacoes() {
                     )}
                     {itens.map((it) => (
                       <TableRow key={it.id}>
-                        <TableCell className="font-medium">{it.socios?.nome ?? "—"}</TableCell>
-                        <TableCell className="text-right font-mono">{Number(it.percentual_aplicado).toFixed(2)}%</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(Number(it.direito_teorico))}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(Number(it.pro_labore_calculado))}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(Number(it.bonus_calculado))}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(Number(it.retirado_no_periodo))}</TableCell>
-                        <TableCell className="text-right font-mono font-semibold">{formatCurrency(Number(it.saldo_disponivel))}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{it.socios?.nome ?? "—"}</TableCell>
+                        <TableCell className="text-right font-mono whitespace-nowrap">{Number(it.percentual_aplicado).toFixed(2)}%</TableCell>
+                        <TableCell className="text-right font-mono whitespace-nowrap">{formatCurrency(Number(it.direito_teorico))}</TableCell>
+                        <TableCell className="text-right font-mono whitespace-nowrap">{formatCurrency(Number(it.pro_labore_calculado))}</TableCell>
+                        <TableCell className="text-right font-mono whitespace-nowrap">{formatCurrency(Number(it.bonus_calculado))}</TableCell>
+                        <TableCell className="text-right font-mono whitespace-nowrap">{formatCurrency(Number(it.retirado_no_periodo))}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold whitespace-nowrap">{formatCurrency(Number(it.saldo_disponivel))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
