@@ -18,6 +18,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
 import { useTableCount } from "@/hooks/useTableCount";
@@ -356,6 +357,12 @@ const GruposEconomicos = () => {
         empresa_matriz_id: form.empresa_matriz_id || null,
       };
       if (mode === "create") await create(payload);
+      if (mode === "create") {
+        toast.success("Grupo econômico criado com sucesso", {
+          action: { label: "Vincular clientes →", onClick: () => navigate("/clientes") },
+          duration: 8000,
+        });
+      }
       else if (selected) await update(selected.id, payload);
       setModalOpen(false);
     } catch (err: unknown) {
@@ -482,7 +489,12 @@ const GruposEconomicos = () => {
           <>
             <SummaryCard title="Total de Grupos" shortTitle="Total" value={totalRegistrosGlobal} icon={Building2} />
             <SummaryCard title="Ativos" shortTitle="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" shortTitle="Inativos" value={summaryInativos} icon={Building2} />
+            <SummaryCard
+              title="Inativos" shortTitle="Inativos" value={summaryInativos} icon={Building2}
+              onClick={summaryInativos > 0 ? () => setAtivoFilters(ativoFilters.length === 1 && ativoFilters.includes("inativo") ? [] : ["inativo"]) : undefined}
+              active={ativoFilters.length === 1 && ativoFilters.includes("inativo")}
+              aria-label="Filtrar grupos inativos"
+            />
             <SummaryCard title="Com Clientes" shortTitle="Com clientes" value={summaryComClientes} icon={Users} />
           </>
         }
