@@ -691,6 +691,7 @@ const Clientes = () => {
             data={filteredData}
             loading={loading}
             moduleKey="clientes"
+            pageSize={50}
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
