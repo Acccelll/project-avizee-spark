@@ -9549,6 +9549,10 @@ export type Database = {
         }[]
       }
       calcular_dv_chave_nfe: { Args: { p_chave43: string }; Returns: string }
+      can_edit_financeiro_avancado: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       cancelar_cotacao_compra: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
@@ -9635,6 +9639,18 @@ export type Database = {
         Returns: boolean
       }
       duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
+      editar_baixa_admin: {
+        Args: { p_baixa_id: string; p_motivo: string; p_payload: Json }
+        Returns: Json
+      }
+      editar_lancamento_financeiro_admin: {
+        Args: { p_id: string; p_motivo: string; p_payload: Json }
+        Returns: Json
+      }
+      editar_parcela_nf_admin: {
+        Args: { p_lancamento_id: string; p_motivo: string; p_payload: Json }
+        Returns: Json
+      }
       email_queue_metrics: {
         Args: never
         Returns: {
