@@ -8,6 +8,7 @@
 - [Gate Hard Delete](mem://security/gate-hard-delete) — useCanHardDelete (admin estrito) para destrutivo; useIsAdmin segue para telas admin
 - [Consumo de Convite](mem://security/consumo-convite-signup) — handle_new_user consome invites atomicamente e aplica role no signup
 - [Lançamento Pago Exige Baixa](mem://security/lancamento-pago-requer-baixa) — Trigger bloqueia status pago/parcial sem registro em financeiro_baixas
+- [Edição Privilegiada Financeiro](mem://features/edicao-privilegiada-financeiro) — Admin/Financeiro editam lançamentos/NFs em qualquer status via RPCs editar_*_admin com auditoria
 - [Storage dbavizee Prefixos](mem://security/storage-dbavizee-prefixos) — Policies por prefixo canônico (templates/apresentacoes/workbooks/fiscal/users)
 - [Admin Estrito vs Visualizar](mem://security/admin-vs-view-admin) — useIsAdmin (estrito) para ações sensíveis; useCanViewAdmin para navegação/rota
 - [Edge Functions CORS Helper](mem://tech/infraestrutura-cors) — supabase/functions/_shared/cors.ts compartilhado; ALLOWED_ORIGIN adiciona origens; padrão lovable.app/lovableproject.com/sistema.avizee.com.br
