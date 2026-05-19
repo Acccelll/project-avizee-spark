@@ -19,6 +19,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 
 interface ContaBancaria {
   id: string;
@@ -80,8 +81,11 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const valorLiquido = valorPago - desconto + juros + multa - abatimento;
   const novoSaldo = Math.max(0, saldoAtual - valorPago - abatimento);
 
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
+  // Admin/Financeiro podem registrar/ajustar baixas mesmo em lançamentos
+  // já pagos (ex.: encargos retroativos) ou cancelados (estorno + nova baixa).
   const isStatusBlocked = lancamento
-    ? (lancamento.status === "pago" || lancamento.status === "cancelado")
+    ? !canEditAvancado && (lancamento.status === "pago" || lancamento.status === "cancelado")
     : false;
 
   const isExcessivo = valorPago + abatimento > saldoAtual + 0.01;

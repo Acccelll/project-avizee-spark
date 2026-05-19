@@ -22,6 +22,9 @@ import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ShieldAlert } from "lucide-react";
 
 interface Props {
   form: LancamentoForm;
@@ -64,7 +67,14 @@ export function FinanceiroLancamentoForm({
     setForm({ ...form, [field]: value });
   };
 
-  const isStatusReadonly = STATUS_READONLY.has(form.status);
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
+  // Admin/Financeiro podem editar mesmo em status pago/parcial — backend
+  // (RPC `editar_lancamento_financeiro_admin`) estorna baixas automaticamente
+  // quando valor/forma/cartão/vencimento mudam.
+  const statusOriginalmenteReadonly = STATUS_READONLY.has(form.status);
+  const isStatusReadonly = statusOriginalmenteReadonly && !canEditAvancado;
+  const showPrivilegedBanner =
+    statusOriginalmenteReadonly && canEditAvancado && mode === "edit";
   const selectStatusValue = form.status === "vencido" ? "aberto" : form.status;
   const [boletoOpen, setBoletoOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
@@ -114,6 +124,18 @@ export function FinanceiroLancamentoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {showPrivilegedBanner && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Edição privilegiada</AlertTitle>
+          <AlertDescription>
+            Este lançamento está <strong>{form.status}</strong>. Alterações em valor,
+            forma de pagamento, cartão ou vencimento <strong>estornam automaticamente
+            as baixas registradas</strong> e reabrem o lançamento — será necessário
+            registrar a nova baixa em seguida. Informe o motivo no campo Observações.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* ── Grupo 1: Essencial (sempre visível) ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="space-y-2"><Label>Tipo</Label>

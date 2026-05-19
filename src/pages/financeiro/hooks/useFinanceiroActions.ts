@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import { processarEstorno } from "@/services/financeiro.service";
+import { editarLancamentoAdmin } from "@/services/financeiro";
 import { notifyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
@@ -9,6 +10,7 @@ import type { LancamentoForm } from "@/pages/financeiro/types";
 import { useGerarParcelas } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { logger } from "@/lib/logger";
 import { cartaoFaturaParaData } from "@/services/cartoesCredito.service";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 
 type LancamentoWritePayload = Partial<Lancamento>;
 
@@ -26,6 +28,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
   const [estornoProcessing, setEstornoProcessing] = useState(false);
   const [estornoMotivo, setEstornoMotivo] = useState("");
   const gerarParcelas = useGerarParcelas();
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
 
   const handleSubmit = useCallback(
     async (mode: "create" | "edit", form: LancamentoForm, selected: Lancamento | null, onSuccess: () => void) => {
@@ -129,7 +132,30 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
         } else if (mode === "create") {
           await create(basePayload);
         } else if (selected) {
-          await update(selected.id, basePayload);
+          // Edição privilegiada: quando o lançamento está em pago/parcial e o
+          // usuário tem papel admin/financeiro, roteia via RPC que estorna
+          // baixas automaticamente e re-resolve fatura de cartão.
+          const needsPrivileged =
+            canEditAvancado && (selected.status === "pago" || selected.status === "parcial");
+          if (needsPrivileged) {
+            const motivo = (form.observacoes ?? "").trim();
+            if (motivo.length < 10) {
+              toast.error("Edição privilegiada: informe o motivo no campo Observações (mínimo 10 caracteres).");
+              setSaving(false);
+              return;
+            }
+            const result = await editarLancamentoAdmin(selected.id, basePayload as Record<string, unknown>, motivo);
+            if (result.baixas_estornadas > 0) {
+              toast.success(
+                `Lançamento atualizado. ${result.baixas_estornadas} baixa(s) estornada(s) — registre a nova baixa.`,
+              );
+            } else {
+              toast.success("Lançamento atualizado.");
+            }
+            await fetchData();
+          } else {
+            await update(selected.id, basePayload);
+          }
         }
 
         onSuccess();
