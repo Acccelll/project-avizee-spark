@@ -1382,8 +1382,21 @@ export default function ProdutoForm({
         badge={headerBadge}
         actions={headerActions}
       >
-        {formBody}
+        <div className="pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:pb-0">
+          {formBody}
+        </div>
       </PageShell>
+      {/* Footer mobile (standalone) — ancora acima do MobileBottomNav (z-40). */}
+      <div className="sm:hidden fixed inset-x-0 z-40 px-4 py-3 bg-background/95 backdrop-blur border-t flex gap-2"
+        style={{ bottom: "var(--mobile-nav-height, 4rem)", paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}>
+        <Button type="button" variant="outline" className="flex-1 h-11" onClick={handleBack} disabled={saving}>
+          Cancelar
+        </Button>
+        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving}>
+          <Save className="h-4 w-4" />
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
       {auxDialogs}
     </>
   );
