@@ -956,23 +956,7 @@ export default function MigracaoDados() {
         />
 
         {/* Confirmação de Carga */}
-        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Carga de Dados?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação irá inserir os registros validados definitivamente nas tabelas operacionais do sistema.
-                Certifique-se de que revisou as inconsistências no passo anterior.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Revisar mais uma vez</AlertDialogCancel>
-              <AlertDialogAction onClick={onConfirmCarga} className="bg-success text-success-foreground hover:bg-success/90">
-                Confirmar Carga
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {destructiveDialog}
       </div>
     </PageShell>
   );
