@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import type { ApresentacaoModoGeracao, ApresentacaoTemplate, SlideConfigItem } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_V2, SECAO_LABELS, SECAO_ORDEM, type SlideSecao } from '@/lib/apresentacao/slideDefinitions';
 import { carregarPreferenciasApresentacao } from '@/services/apresentacaoService';
@@ -51,6 +52,17 @@ interface Props {
 }
 
 export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGerar, isGenerating, onCancel }: Props) {
+  const PROGRESS_STEPS = ['Coletando dados...', 'Calculando métricas...', 'Gerando slides...', 'Finalizando PPTX...'];
+  const [progressStep, setProgressStep] = useState(0);
+  useEffect(() => {
+    if (!isGenerating) { setProgressStep(0); return; }
+    const interval = setInterval(() => {
+      setProgressStep((s) => Math.min(s + 1, PROGRESS_STEPS.length - 1));
+    }, 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenerating]);
+
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
@@ -130,6 +142,21 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
           <DialogTitle>Gerar Apresentação Gerencial (V2)</DialogTitle>
           <DialogDescription>Configure período, modo e slides opcionais antes de gerar.</DialogDescription>
         </DialogHeader>
+        {isGenerating && (
+          <div className="rounded-md border border-info/30 bg-info/5 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Loader2 className="h-4 w-4 animate-spin text-info" />
+              <span>{PROGRESS_STEPS[progressStep]}</span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {progressStep + 1}/{PROGRESS_STEPS.length}
+              </span>
+            </div>
+            <Progress value={((progressStep + 1) / PROGRESS_STEPS.length) * 100} className="h-1.5" />
+            <p className="text-[11px] text-muted-foreground">
+              Isso pode levar até 30 segundos dependendo da quantidade de dados.
+            </p>
+          </div>
+        )}
         <div className="grid gap-3">
           <div className="grid gap-1">
             <Label>Template</Label>
