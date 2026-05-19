@@ -13,7 +13,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import {
   Plus, X, FileText, Banknote, CreditCard, QrCode, ArrowLeftRight, HelpCircle,
   Building2, Wallet, AlertTriangle, Users, TrendingUp, CalendarDays, StickyNote,
-  Info, CheckCircle, Ban,
+  Info, CheckCircle, Ban, Pencil,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -392,6 +392,16 @@ export default function FormasPagamento() {
           deleteBehavior="soft"
           mobileIdentifierKey="tipo"
           mobileStatusKey="ativo"
+          mobilePrimaryAction={(f: FormaPagamento) => (
+            <Button
+              size="sm"
+              className="h-11 w-full gap-2"
+              onClick={(e) => { e.stopPropagation(); openEdit(f); }}
+            >
+              <Pencil className="w-4 h-4" />
+              Editar forma de pagamento
+            </Button>
+          )}
         />
       </ModulePage>
 
@@ -563,7 +573,7 @@ export default function FormasPagamento() {
                                         next[idx] = Number(e.target.value);
                                         updateForm({ intervalos_dias: next });
                                       }}
-                                      className="w-24 h-9 sm:h-8 text-sm"
+                                      className="flex-1 sm:w-24 sm:flex-none h-9 sm:h-8 text-sm"
                                       inputMode="numeric"
                                     />
                                     <span className="text-xs text-muted-foreground">dias</span>

@@ -12,7 +12,7 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Briefcase, UserCheck, Percent, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { Briefcase, UserCheck, Percent, AlertTriangle, Plus, Trash2, Eye } from "lucide-react";
 import { useSocios, useSocioParticipacoes } from "@/hooks/useSocios";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { toast } from "sonner";
@@ -321,6 +321,20 @@ export default function Socios() {
           }}
           mobileIdentifierKey="cpf"
           mobileStatusKey="ativo"
+          mobilePrimaryAction={(s) => (
+            <Button
+              size="sm"
+              className="h-11 w-full gap-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDrawerSocio(s);
+                setDrawerOpen(true);
+              }}
+            >
+              <Eye className="w-4 h-4" />
+              Ver participações
+            </Button>
+          )}
         />
       </ModulePage>
 

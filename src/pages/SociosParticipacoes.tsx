@@ -17,6 +17,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import type { SocioRetirada } from "@/types/domain";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -31,6 +32,7 @@ const TIPO_LABEL: Record<string, string> = {
 
 export default function SociosParticipacoes() {
   const [competencia, setCompetencia] = useState(currentMonth());
+  const isMobile = useIsMobile();
   const { socios } = useSocios();
   const { apuracoes, itens, criar, recalcular, fechar, reabrir, updateBasic, loadingItens } = useApuracoesSocietarias(competencia);
   const { retiradas, create: createRetirada, aprovar, gerarFinanceiro, cancelar } = useSociosRetiradas({ competencia });
@@ -137,18 +139,25 @@ export default function SociosParticipacoes() {
         }
       >
         <Tabs defaultValue="apuracao">
-          <TabsList>
-            <TabsTrigger value="apuracao">Apuração mensal</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3 sm:w-auto sm:inline-flex">
+            <TabsTrigger value="apuracao">
+              {isMobile ? "Apuração" : "Apuração mensal"}
+            </TabsTrigger>
             <TabsTrigger value="retiradas">Retiradas</TabsTrigger>
             <TabsTrigger value="parametros">Parâmetros</TabsTrigger>
           </TabsList>
 
           {/* APURAÇÃO */}
           <TabsContent value="apuracao" className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
-              <div className="space-y-1.5">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 rounded-lg border p-4">
+              <div className="space-y-1.5 max-sm:w-full">
                 <Label>Competência</Label>
-                <Input type="month" value={competencia} onChange={(e) => setCompetencia(e.target.value)} className="w-[180px]" />
+                <Input
+                  type="month"
+                  value={competencia}
+                  onChange={(e) => setCompetencia(e.target.value)}
+                  className="w-[180px] max-sm:w-full"
+                />
               </div>
               {apuracaoAtual ? (
                 <>
@@ -156,26 +165,46 @@ export default function SociosParticipacoes() {
                     <span className="text-sm text-muted-foreground">Status:</span>
                     <StatusBadge status={apuracaoAtual.status} />
                   </div>
-                  <div className="ml-auto flex gap-2">
+                  <div className="sm:ml-auto flex gap-2 max-sm:w-full">
                     {apuracaoAtual.status === "rascunho" && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => recalcular.mutate(apuracaoAtual.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="max-sm:h-11 max-sm:flex-1"
+                          onClick={() => recalcular.mutate(apuracaoAtual.id)}
+                        >
                           <RotateCcw className="h-4 w-4 mr-1" /> Recalcular
                         </Button>
-                        <Button size="sm" onClick={() => fechar.mutate(apuracaoAtual.id)}>
-                          <Lock className="h-4 w-4 mr-1" /> Fechar
+                        <Button
+                          size="sm"
+                          className="max-sm:h-11 max-sm:flex-1"
+                          onClick={() => fechar.mutate(apuracaoAtual.id)}
+                        >
+                          <Lock className="h-4 w-4 mr-1" />
+                          {isMobile ? "Fechar apuração" : "Fechar"}
                         </Button>
                       </>
                     )}
                     {(apuracaoAtual.status === "fechado" || apuracaoAtual.status === "aprovado") && (
-                      <Button variant="outline" size="sm" onClick={() => setReabrirOpen(true)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="max-sm:h-11 max-sm:flex-1"
+                        onClick={() => setReabrirOpen(true)}
+                      >
                         <Unlock className="h-4 w-4 mr-1" /> Reabrir
                       </Button>
                     )}
                   </div>
                 </>
               ) : (
-                <Button size="sm" onClick={handleCriarApuracao} disabled={saving}>
+                <Button
+                  size="sm"
+                  className="max-sm:h-11 max-sm:w-full"
+                  onClick={handleCriarApuracao}
+                  disabled={saving}
+                >
                   <Plus className="h-4 w-4 mr-1" /> Criar apuração
                 </Button>
               )}
