@@ -506,12 +506,6 @@ export function DataTable<T extends Record<string, any>>({
   const totalPages = serverPagination
     ? Math.max(1, Math.ceil(totalRowsForPaging / pageSize))
     : Math.max(1, Math.ceil(sortedData.length / pageSize));
-  const canGoPrev = serverPagination ? effectivePage > 0 : currentPage > 0;
-  const canGoNext = serverPagination
-    ? (serverPagination.totalCount != null
-        ? effectivePage < totalPages - 1
-        : serverPagination.hasMore)
-    : currentPage < totalPages - 1;
 
   // Reset page when filters/data shrink the list past the current page.
   useEffect(() => {
@@ -530,6 +524,12 @@ export function DataTable<T extends Record<string, any>>({
 
   // Página efetiva (controlada pelo consumidor em server-paged).
   const effectivePage = serverPagination ? serverPagination.page : currentPage;
+  const canGoPrev = serverPagination ? effectivePage > 0 : currentPage > 0;
+  const canGoNext = serverPagination
+    ? (serverPagination.totalCount != null
+        ? effectivePage < totalPages - 1
+        : serverPagination.hasMore)
+    : currentPage < totalPages - 1;
   const goToPage = (next: number) => {
     if (next < 0) return;
     if (serverPagination) {
