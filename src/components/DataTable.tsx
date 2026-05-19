@@ -1160,8 +1160,12 @@ export function DataTable<T extends Record<string, any>>({
                 </span>
                 {serverPagination ? (
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" disabled={effectivePage === 0} onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={!serverPagination.hasMore && effectivePage >= totalPages - 1} onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                    {effectivePage > 0 && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                    )}
+                    {(serverPagination.hasMore || effectivePage < totalPages - 1) && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                    )}
                   </div>
                 ) : viewMode === 'infinite' ? (
                   <div className="flex gap-1">
@@ -1169,8 +1173,12 @@ export function DataTable<T extends Record<string, any>>({
                   </div>
                 ) : (
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                    {currentPage > 0 && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                    )}
+                    {currentPage < totalPages - 1 && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                    )}
                   </div>
                 )}
                   </div>
