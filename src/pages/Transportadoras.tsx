@@ -592,6 +592,10 @@ export default function Transportadoras() {
             mobileStatusKey="ativo"
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
           />
         </PullToRefresh>
       </ModulePage>
