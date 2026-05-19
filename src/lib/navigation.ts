@@ -185,7 +185,6 @@ export const navSections: NavSection[] = [
           { title: 'Fluxo de Caixa', path: '/fluxo-caixa', icon: DollarSign },
           { title: 'Contas Bancárias', path: '/contas-bancarias', icon: DollarSign, keywords: ['bancos'] },
           { title: 'Cartões de Crédito', path: '/cartoes-credito', icon: CreditCard, keywords: ['cartao', 'fatura', 'credito'] },
-          { title: 'Cobranças Recorrentes', path: '/financeiro/recorrencias', icon: Wallet, keywords: ['assinatura', 'mensalidade', 'recorrente', 'subscription'] },
           { title: 'Plano de Contas', path: '/contas-contabeis-plano', icon: FileSearch, keywords: ['contabil'] },
           { title: 'Conciliação', path: '/conciliacao', icon: DollarSign, keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
           { title: 'Budget Mensal', path: '/financeiro/budget', icon: BarChart3, keywords: ['orcamento', 'meta', 'planejamento', 'workbook'] },
