@@ -336,8 +336,10 @@ export default function MigracaoDados() {
     await confirmDestructive(
       {
         verb: "Excluir",
-        entity: "carga de dados",
+        title: "Confirmar carga de dados?",
+        description: "Os registros validados serão inseridos definitivamente nas tabelas operacionais. Revise as inconsistências do passo anterior antes de continuar.",
         terminal: false,
+        requireReason: false,
         sideEffects: [
           `${total} registro(s) serão inseridos nas tabelas operacionais`,
           "Registros duplicados serão sinalizados",
