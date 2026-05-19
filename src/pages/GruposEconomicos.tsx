@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert, ChevronDown } from "lucide-react";
+import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
@@ -33,7 +33,6 @@ import { notifyError } from "@/utils/errorMessages";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { logger } from "@/lib/logger";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
 import { CollapsibleSection as MobileSection } from "@/components/CollapsibleSection";
 
 interface GrupoEconomico {
