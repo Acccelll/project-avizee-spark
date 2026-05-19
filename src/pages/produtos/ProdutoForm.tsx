@@ -26,6 +26,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
@@ -154,6 +156,21 @@ export default function ProdutoForm({
   const { isUnique: skuUnico, isLoading: skuChecking } = useFieldUnique(
     "produtos", "sku", form.sku || "", editingProduct?.id, { minLength: 2 },
   );
+
+  // CRT da empresa — usado no hint contextual de CSOSN vs CST (aba Fiscal).
+  const { data: empresaConf } = useQuery({
+    queryKey: ["empresa-config-crt"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("empresa_config")
+        .select("crt")
+        .limit(1)
+        .maybeSingle();
+      return data as { crt?: string | null } | null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const isSimplesNacional = empresaConf?.crt === "1" || empresaConf?.crt === "2";
 
   // Dialog: Nova Unidade
   const [novaUnidadeDialogOpen, setNovaUnidadeDialogOpen] = useState(false);
@@ -436,10 +453,44 @@ export default function ProdutoForm({
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    const skeletonContent = (
+      <div className="space-y-4">
+        <div className="flex gap-2 border-b pb-2 overflow-hidden">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-9 w-24 shrink-0" />
+          ))}
+        </div>
+        <div className="space-y-3 pt-1">
+          <Skeleton className="h-5 w-40" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3 border-t pt-3">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+    );
+    if (embedded) {
+      return <div className="p-2 sm:p-4">{skeletonContent}</div>;
+    }
+    return (
+      <PageShell backTo={handleBack} maxWidth="5xl" title="Carregando...">
+        {skeletonContent}
+      </PageShell>
     );
   }
 
@@ -534,6 +585,7 @@ export default function ProdutoForm({
   );
 
   const formBody = (
+    <TooltipProvider delayDuration={300}>
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
@@ -568,18 +620,23 @@ export default function ProdutoForm({
                           return g?.sigla ? `${g.sigla}001` : "Ex: PROD-001";
                         })()}
                       />
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Gerar SKU automaticamente pela sigla do grupo" aria-label="Gerar SKU automaticamente"
-                        disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
-                        onClick={async () => {
-                          try {
-                            const next = await proximoSkuDoGrupo(form.grupo_id);
-                            setForm({ ...form, sku: next });
-                            toast.success(`SKU sugerido: ${next}`);
-                          } catch (err) { toast.error((err as Error).message); }
-                        }}>
-                        <Wand2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Gerar SKU automaticamente"
+                            disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
+                            onClick={async () => {
+                              try {
+                                const next = await proximoSkuDoGrupo(form.grupo_id);
+                                setForm({ ...form, sku: next });
+                                toast.success(`SKU sugerido: ${next}`);
+                              } catch (err) { toast.error((err as Error).message); }
+                            }}>
+                            <Wand2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Gerar SKU automaticamente pela sigla do grupo</TooltipContent>
+                      </Tooltip>
                     </div>
                     {skuChecking && form.sku && <p className="text-xs text-muted-foreground">Verificando SKU...</p>}
                     {!skuChecking && skuUnico === false && <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>}
@@ -612,21 +669,31 @@ export default function ProdutoForm({
                         </SelectContent>
                       </Select>
                       {form.grupo_id && (
-                        <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                          title="Editar sigla do grupo (usada para gerar SKU)" aria-label="Editar sigla do grupo"
-                          onClick={() => {
-                            const g = grupos.find(g => g.id === form.grupo_id);
-                            setSiglaInput(g?.sigla || "");
-                            setSiglaDialogOpen(true);
-                          }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                              aria-label="Editar sigla do grupo"
+                              onClick={() => {
+                                const g = grupos.find(g => g.id === form.grupo_id);
+                                setSiglaInput(g?.sigla || "");
+                                setSiglaDialogOpen(true);
+                              }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar sigla do grupo (usada para gerar SKU)</TooltipContent>
+                        </Tooltip>
                       )}
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Criar novo grupo de produto" aria-label="Criar novo grupo de produto"
-                        onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Criar novo grupo de produto"
+                            onClick={() => { setNovoGrupoForm({ nome: "", sigla: "" }); setNovoGrupoDialogOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Criar novo grupo de produto</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -644,11 +711,16 @@ export default function ProdutoForm({
                             : UNIDADES_FALLBACK.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
                         </SelectContent>
                       </Select>
-                      <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Criar nova unidade de medida" aria-label="Criar nova unidade de medida"
-                        onClick={() => { setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" }); setNovaUnidadeDialogOpen(true); }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
+                            aria-label="Criar nova unidade de medida"
+                            onClick={() => { setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" }); setNovaUnidadeDialogOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Criar nova unidade de medida</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -687,6 +759,71 @@ export default function ProdutoForm({
                       : "Custo informado manualmente."}
                   </p>
                 </div>
+                {form.eh_composto && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-t pt-3">
+                      <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Composição do produto</h3>
+                      <Button type="button" size="sm" variant="outline" onClick={addComponent} className="gap-1">
+                        <Plus className="w-3 h-3" /> Componente
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">O custo é calculado automaticamente pela soma dos componentes.</p>
+                    {editComposicao.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum componente adicionado</p>}
+                    {editComposicao.map((comp, idx) => {
+                      const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
+                            <div className="space-y-1"><Label className="text-xs">Produto</Label>
+                              <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
+                                onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs">Qtd</Label>
+                              <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
+                                onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
+                            </div>
+                            <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
+                              <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
+                                {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                              </p>
+                            </div>
+                            <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
+                            Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                    {editComposicao.length > 0 && (
+                      <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">Custo Total Composto</span>
+                          <span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Margem (%)</Label>
+                            <Input type="number" step="1" value={margemLucro}
+                              onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Preço Sugerido</Label>
+                            <div className="h-9 flex items-center">
+                              <span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span>
+                              <Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0"
+                                onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>
+                                Usar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -898,6 +1035,14 @@ export default function ProdutoForm({
                     <Label>CST</Label>
                     <FiscalAutocomplete data={cstIcmsCodes} value={form.cst} onChange={(v) => setForm({ ...form, cst: v })} placeholder="Ex: 000" />
                     <p className="text-xs text-muted-foreground">Situação tributária do ICMS.</p>
+                    {isSimplesNacional && (
+                      <div className="rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5 flex items-start gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-muted-foreground">
+                          Empresa <strong>Simples Nacional</strong>: use <strong>CSOSN</strong> (ex.: 102, 400, 500) em vez de CST.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>CFOP Padrão</Label>
@@ -1011,69 +1156,6 @@ export default function ProdutoForm({
                 ))}
               </div>
 
-              {form.eh_composto && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-t pt-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Composição</h3>
-                    <Button type="button" size="sm" variant="outline" onClick={addComponent} className="gap-1"><Plus className="w-3 h-3" /> Componente</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">O custo do produto composto é calculado automaticamente pela soma dos componentes abaixo.</p>
-                  {editComposicao.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum componente adicionado</p>}
-                  {editComposicao.map((comp, idx) => {
-                    const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
-                          <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                            <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
-                              onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
-                          </div>
-                          <div className="space-y-1"><Label className="text-xs">Qtd</Label>
-                            <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
-                              onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
-                          </div>
-                          <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
-                            <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
-                              {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                            </p>
-                          </div>
-                          <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
-                          Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                        </p>
-                      </div>
-                    );
-                  })}
-                  {editComposicao.length > 0 && (
-                    <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">Custo Total Composto</span>
-                        <span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Margem (%)</Label>
-                          <Input type="number" step="1" value={margemLucro}
-                            onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Preço Sugerido</Label>
-                          <div className="h-9 flex items-center">
-                            <span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span>
-                            <Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0"
-                              onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>
-                              Usar
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </TabsContent>
 
             {/* OBSERVAÇÕES */}
@@ -1094,6 +1176,7 @@ export default function ProdutoForm({
             </TabsContent>
           </Tabs>
     </form>
+    </TooltipProvider>
   );
 
   const auxDialogs = (
@@ -1108,7 +1191,8 @@ export default function ProdutoForm({
               <Label>Código <span className="text-destructive">*</span></Label>
               <Input value={novaUnidadeForm.codigo}
                 onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, codigo: e.target.value.toUpperCase() }))}
-                placeholder="Ex: UN, KG, MT, CX" maxLength={10} autoFocus />
+                placeholder="Ex: UN, KG, MT, CX" maxLength={10} autoFocus
+                autoCapitalize="characters" inputMode="text" autoComplete="off" />
               <p className="text-[11px] text-muted-foreground">Código curto em maiúsculas. Ex: KG, MT, LT.</p>
             </div>
             <div className="space-y-1.5">
@@ -1123,9 +1207,11 @@ export default function ProdutoForm({
                 onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, sigla: e.target.value }))}
                 placeholder="Ex: kg, m, l" maxLength={10} />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setNovaUnidadeDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={savingNovaUnidade} className="gap-1.5">
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setNovaUnidadeDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
+              <Button type="submit" disabled={savingNovaUnidade} className="gap-1.5 max-sm:h-11 max-sm:w-full">
                 {savingNovaUnidade ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Criar Unidade
               </Button>
@@ -1150,9 +1236,12 @@ export default function ProdutoForm({
                 placeholder="Ex: AG" maxLength={4} autoFocus className="font-mono" />
               <p className="text-[11px] text-muted-foreground">2 a 4 caracteres (letras/números). Maiúsculas.</p>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setSiglaDialogOpen(false)}>Cancelar</Button>
-              <Button type="button" disabled={savingSigla || siglaInput.length < 2} className="gap-1.5"
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setSiglaDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
+              <Button type="button" disabled={savingSigla || siglaInput.length < 2}
+                className="gap-1.5 max-sm:h-11 max-sm:w-full"
                 onClick={async () => {
                   if (!form.grupo_id) return;
                   setSavingSigla(true);
@@ -1230,12 +1319,14 @@ export default function ProdutoForm({
               />
               <p className="text-[11px] text-muted-foreground">2 a 6 caracteres (letras/números). Maiúsculas.</p>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setNovoGrupoDialogOpen(false)}>Cancelar</Button>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline"
+                onClick={() => setNovoGrupoDialogOpen(false)}
+                className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
               <Button
                 type="submit"
                 disabled={savingNovoGrupo || !novoGrupoForm.nome.trim() || novoGrupoForm.sigla.length < 2}
-                className="gap-1.5"
+                className="gap-1.5 max-sm:h-11 max-sm:w-full"
               >
                 {savingNovoGrupo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Criar grupo
@@ -1291,8 +1382,21 @@ export default function ProdutoForm({
         badge={headerBadge}
         actions={headerActions}
       >
-        {formBody}
+        <div className="pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:pb-0">
+          {formBody}
+        </div>
       </PageShell>
+      {/* Footer mobile (standalone) — ancora acima do MobileBottomNav (z-40). */}
+      <div className="sm:hidden fixed inset-x-0 z-40 px-4 py-3 bg-background/95 backdrop-blur border-t flex gap-2"
+        style={{ bottom: "var(--mobile-nav-height, 4rem)", paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}>
+        <Button type="button" variant="outline" className="flex-1 h-11" onClick={handleBack} disabled={saving}>
+          Cancelar
+        </Button>
+        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving}>
+          <Save className="h-4 w-4" />
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
       {auxDialogs}
     </>
   );
