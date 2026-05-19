@@ -997,7 +997,9 @@ export function DataTable<T extends Record<string, any>>({
                   {effectivePage > 0 && (
                     <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Página anterior" onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
                   )}
-                  {(serverPagination.hasMore || effectivePage < totalPages - 1) && (
+                  {(serverPagination.totalCount != null
+                    ? effectivePage < totalPages - 1
+                    : serverPagination.hasMore) && (
                     <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima página" onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
                   )}
                 </div>
