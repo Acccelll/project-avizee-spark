@@ -37,6 +37,8 @@ import { TipoDocumentoSelector } from "@/components/fiscal/TipoDocumentoSelector
 import { NfseFieldsSection } from "@/components/fiscal/NfseFieldsSection";
 import { CteFieldsSection } from "@/components/fiscal/CteFieldsSection";
 import type { TipoDocumentoFiscal } from "@/types/domain";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { ShieldAlert } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -209,7 +211,17 @@ export function NotaFiscalEditModal({
   totalNF,
 }: NotaFiscalEditModalProps) {
   const statusSefaz = (selected as { status_sefaz?: string }).status_sefaz ?? null;
-  const rules = getStatusRules(selected.status, statusSefaz);
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
+  const baseRules = getStatusRules(selected.status, statusSefaz);
+  // Edição privilegiada (Admin/Financeiro): destrava itens, valores e
+  // pagamento mesmo em NFs confirmadas/importadas/autorizadas. As travas
+  // permanecem para cancelada_sefaz/inutilizada porque exigem reemissão.
+  const isTerminalSefaz =
+    statusSefaz === "cancelada_sefaz" || statusSefaz === "inutilizada";
+  const privilegedOverride = canEditAvancado && !isTerminalSefaz;
+  const rules = privilegedOverride
+    ? { ...baseRules, isStructurallyLocked: false, isFullyLocked: false }
+    : baseRules;
   const modelo =
     modeloLabels[selected.modelo_documento || "55"] ||
     selected.modelo_documento;
@@ -300,6 +312,23 @@ export function NotaFiscalEditModal({
         </div>
 
         {/* ── Status Alert ──────────────────────────────────────────── */}
+        {privilegedOverride && (baseRules.isStructurallyLocked || baseRules.isFullyLocked) && (
+          <div className="rounded-lg border bg-destructive/5 border-destructive/30 p-3 flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-destructive">
+                Edição privilegiada — Admin/Financeiro
+              </p>
+              <p className="text-xs text-destructive/80 mt-0.5">
+                Esta NF está {baseRules.isFullyLocked ? "cancelada" : selected.status === "importada" ? "importada" : "confirmada"}
+                {statusSefaz === "autorizada" && " e autorizada na SEFAZ"}.
+                Alterações em itens, valores e pagamento <strong>estornam estoque e
+                lançamentos financeiros vinculados</strong> e regravam tudo após salvar.
+                Use Observações para registrar o motivo da correção.
+              </p>
+            </div>
+          </div>
+        )}
         {rules.isFullyLocked && (
           <div className="rounded-lg border bg-destructive/5 border-destructive/20 p-3 flex items-start gap-2">
             <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
