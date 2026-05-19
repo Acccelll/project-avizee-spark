@@ -335,7 +335,7 @@ export default function MigracaoDados() {
     const total = Array.isArray(previewData) ? previewData.length : 0;
     await confirmDestructive(
       {
-        verb: "Confirmar",
+        verb: "Excluir",
         entity: "carga de dados",
         terminal: false,
         sideEffects: [
