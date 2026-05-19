@@ -859,7 +859,18 @@ export default function Auditoria() {
           loading={isLoading}
           moduleKey="auditoria"
           mobileStatusKey="criticidade"
-          mobileIdentifierKey="entidade"
+          mobileIdentifierKey="tipo_acao"
+          mobilePrimaryAction={(r: AdminAuditRow) => (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-11 gap-1.5"
+              onClick={(e) => { e.stopPropagation(); setSelected(r); setDrawerOpen(true); }}
+            >
+              <Eye className="h-4 w-4" />
+              Ver detalhes
+            </Button>
+          )}
           emptyTitle="Nenhum evento de auditoria encontrado"
           emptyDescription="Ajuste os filtros ou amplie o período consultado para ver os registros."
           onView={(r) => {
@@ -869,16 +880,17 @@ export default function Auditoria() {
         />
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 px-1">
-            <span className="text-sm text-muted-foreground">
+          <div className="mt-4 px-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-muted-foreground text-center sm:text-left">
               Página {page} de {totalPages} — {totalCount} registros
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => set({ page: Math.max(1, page - 1) })}
                 disabled={page <= 1}
+                className="flex-1 sm:flex-none max-sm:h-11 gap-1.5"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Anterior
@@ -888,6 +900,7 @@ export default function Auditoria() {
                 size="sm"
                 onClick={() => set({ page: Math.min(totalPages, page + 1) })}
                 disabled={page >= totalPages}
+                className="flex-1 sm:flex-none max-sm:h-11 gap-1.5"
               >
                 Próxima
                 <ChevronRight className="h-4 w-4" />
