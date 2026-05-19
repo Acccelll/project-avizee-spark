@@ -603,16 +603,64 @@ export default function FormasPagamento() {
                                 inputMode="numeric"
                               />
                             </div>
-                            <Button type="button" size="sm" variant="outline" className="h-9 gap-2 w-full sm:w-auto" onClick={addIntervalo}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-9 gap-2 w-full sm:w-auto"
+                              onClick={addIntervalo}
+                              disabled={intervalos.length >= MAX_INTERVALOS}
+                            >
                               <Plus className="w-4 h-4" /> Adicionar parcela
                             </Button>
                           </div>
+
+                          {intervalos.length >= MAX_INTERVALOS && (
+                            <p className="text-xs text-warning flex items-center gap-1.5">
+                              <AlertTriangle className="w-3 h-3" />
+                              Máximo de {MAX_INTERVALOS} parcelas atingido.
+                            </p>
+                          )}
 
                           {intervalos.length > 0 && (
                             <p className="text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground">{intervalos.length}</span> parcela(s):{" "}
                               {intervalos.join(" / ")} dias.
                             </p>
+                          )}
+
+                          {intervalos.length > 0 && (
+                            <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                                <CalendarDays className="w-3.5 h-3.5 text-primary/70" />
+                                Preview — vencimentos para venda de hoje
+                                <span className="text-muted-foreground font-normal">
+                                  ({formatDateShort(new Date())})
+                                </span>
+                              </div>
+                              <ul className="space-y-1">
+                                {intervalos.map((dias, idx) => {
+                                  const vencimento = addDaysDate(new Date(), dias);
+                                  return (
+                                    <li
+                                      key={idx}
+                                      className="flex items-center gap-2 text-xs font-mono"
+                                    >
+                                      <span className="text-muted-foreground min-w-[2rem]">
+                                        {idx + 1}ª
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        {dias} dias
+                                      </span>
+                                      <span className="text-muted-foreground">→</span>
+                                      <span className="font-semibold text-foreground">
+                                        {formatDateShort(vencimento)}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
                           )}
                         </div>
                       </>
