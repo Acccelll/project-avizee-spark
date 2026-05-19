@@ -508,6 +508,7 @@ const Fornecedores = () => {
             data={filteredData}
             loading={loading}
             moduleKey="fornecedores"
+            pageSize={50}
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
