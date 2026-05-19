@@ -374,33 +374,11 @@ export default function Transportadoras() {
 
   const filteredData = useMemo(() => {
     return data.filter(t => {
-      // ativo/modalidade tratados server-side; aplicamos client-side apenas
-      // quando há 2+ valores de ativo (server filter só atua com length===1).
-      if (ativoFilters.length === 2) {
-        // ambos selecionados → não filtra nada
-      } else if (ativoFilters.length === 1) {
-        const status = t.ativo ? "ativo" : "inativo";
-        if (!ativoFilters.includes(status)) return false;
-      }
       if (prazoFilters.includes("sem_prazo") && t.prazo_medio) return false;
       if (contatoFilters.includes("sem_contato") && (t.telefone || t.email)) return false;
       return true;
     });
-  }, [data, ativoFilters, prazoFilters, contatoFilters]);
-  // (modalidade já filtrada server-side via statusFilter)
-  void modalidadeFilters;
-  // noop to keep deps stable
-  useMemo(() => modalidadeFilters, [modalidadeFilters]);
-  // legacy guard removed
-  const _legacyFilter = () => {
-    return data.filter(t => {
-      if (modalidadeFilters.length > 0) {
-        if (!modalidadeFilters.includes(t.modalidade || "")) return false;
-      }
-      return true;
-    });
-  };
-  void _legacyFilter;
+  }, [data, prazoFilters, contatoFilters]);
 
   const columns = [
     {
