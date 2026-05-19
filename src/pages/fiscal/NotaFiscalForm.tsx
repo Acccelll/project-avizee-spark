@@ -29,6 +29,7 @@ import { useFiscalNotaForm } from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { toast } from "sonner";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 
 /**
  * Página de criação/edição de NF-e (Fase 4 do roadmap fiscal).
@@ -60,6 +61,7 @@ export default function NotaFiscalFormPage() {
   });
 
   const { isAdmin } = useIsAdmin();
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
   const isMobile = useIsMobile();
 
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
@@ -97,12 +99,16 @@ export default function NotaFiscalFormPage() {
 
   const wouldBeReadOnly =
     !isCreate && !!statusSefaz && STATUS_SEFAZ_TRAVADOS.has(statusSefaz);
-  const isAdminEntradaOverride =
-    !isCreate && isAdmin && nfRow?.tipo === "entrada";
-  const readOnly = wouldBeReadOnly && !isAdminEntradaOverride;
+  // Override de edição privilegiada: admin OU financeiro podem editar
+  // qualquer NF (entrada/saída) independentemente do status interno/SEFAZ.
+  // Mantemos o flag `isAdmin` legado apenas para compatibilidade dos textos.
+  const isPrivilegedOverride = !isCreate && canEditAvancado;
+  const readOnly = wouldBeReadOnly && !isPrivilegedOverride;
   const showAdminOverrideBanner =
-    isAdminEntradaOverride &&
+    isPrivilegedOverride &&
     (wouldBeReadOnly || (statusErp && ["confirmada", "importada", "cancelada"].includes(statusErp)));
+  // hint para evitar warning de variável não usada quando isAdmin sobra
+  void isAdmin;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
