@@ -6,6 +6,7 @@ import { Save, Loader2, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Form,
   FormField,
@@ -145,8 +146,26 @@ export default function ConfiguracaoFiscal() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6 p-6" aria-busy="true">
+        <Skeleton className="h-8 w-64" />
+        <div className="max-w-2xl space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-9" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Skeleton className="h-9 w-40" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -179,7 +198,7 @@ export default function ConfiguracaoFiscal() {
             <div>
               <h2 className="text-base font-semibold">Regime Tributário</h2>
               <Separator className="my-2" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="crt" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CRT</FormLabel>
@@ -244,7 +263,7 @@ export default function ConfiguracaoFiscal() {
             <div>
               <h2 className="text-base font-semibold">Numeração NF-e</h2>
               <Separator className="my-2" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="serie_padrao_nfe" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Série Padrão</FormLabel>
@@ -294,7 +313,7 @@ export default function ConfiguracaoFiscal() {
                 ⚠️ Os campos abaixo ainda <strong>não são persistidos</strong> no banco de dados.
                 Eles estão disponíveis para configuração futura quando a integração com certificado digital for implementada.
               </div>
-              <div className="grid grid-cols-2 gap-4 opacity-70">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-70">
                 <FormField control={form.control} name="certificadoTipo" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Certificado</FormLabel>
