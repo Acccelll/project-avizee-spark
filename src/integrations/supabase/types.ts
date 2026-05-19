@@ -2862,6 +2862,8 @@ export type Database = {
           parcela_numero: number | null
           parcela_total: number | null
           pedido_compra_id: string | null
+          recorrencia_ciclo: number | null
+          recorrencia_id: string | null
           saldo_restante: number | null
           status: string | null
           tipo: string
@@ -2905,6 +2907,8 @@ export type Database = {
           parcela_numero?: number | null
           parcela_total?: number | null
           pedido_compra_id?: string | null
+          recorrencia_ciclo?: number | null
+          recorrencia_id?: string | null
           saldo_restante?: number | null
           status?: string | null
           tipo?: string
@@ -2948,6 +2952,8 @@ export type Database = {
           parcela_numero?: number | null
           parcela_total?: number | null
           pedido_compra_id?: string | null
+          recorrencia_ciclo?: number | null
+          recorrencia_id?: string | null
           saldo_restante?: number | null
           status?: string | null
           tipo?: string
@@ -3083,6 +3089,140 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_recebimentos_consolidado"
             referencedColumns: ["pedido_compra_id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_recorrencia_id_fkey"
+            columns: ["recorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_recorrencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_recorrencias: {
+        Row: {
+          ativo: boolean
+          cartao_id: string | null
+          centro_custo_id: string | null
+          ciclos_gerados: number
+          cliente_id: string | null
+          conta_bancaria_id: string | null
+          conta_contabil_id: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento: number | null
+          empresa_id: string | null
+          forma_pagamento: string | null
+          fornecedor_id: string | null
+          id: string
+          motivo_encerramento: string | null
+          observacoes: string | null
+          periodicidade: string
+          proxima_geracao: string
+          qtd_ciclos_max: number | null
+          status: string
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          cartao_id?: string | null
+          centro_custo_id?: string | null
+          ciclos_gerados?: number
+          cliente_id?: string | null
+          conta_bancaria_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento?: number | null
+          empresa_id?: string | null
+          forma_pagamento?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          motivo_encerramento?: string | null
+          observacoes?: string | null
+          periodicidade: string
+          proxima_geracao: string
+          qtd_ciclos_max?: number | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          cartao_id?: string | null
+          centro_custo_id?: string | null
+          ciclos_gerados?: number
+          cliente_id?: string | null
+          conta_bancaria_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_vencimento?: number | null
+          empresa_id?: string | null
+          forma_pagamento?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          motivo_encerramento?: string | null
+          observacoes?: string | null
+          periodicidade?: string
+          proxima_geracao?: string
+          qtd_ciclos_max?: number | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_recorrencias_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_credito"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -9596,6 +9736,18 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_lancamento_recorrencia_agora: {
+        Args: { p_recorrencia_id: string }
+        Returns: string
+      }
+      gerar_lancamentos_recorrentes: {
+        Args: never
+        Returns: {
+          ciclo: number
+          lancamento_id: string
+          recorrencia_id: string
+        }[]
+      }
       gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       gerar_parcelas_financeiras: {
         Args: {
@@ -9879,6 +10031,14 @@ export type Database = {
           p_pedido_id: string
         }
         Returns: Json
+      }
+      recorrencia_proxima_data: {
+        Args: {
+          p_atual: string
+          p_dia_vencimento: number
+          p_periodicidade: string
+        }
+        Returns: string
       }
       registrar_baixa_financeira: {
         Args: {
