@@ -219,13 +219,11 @@ export function FinanceiroLancamentoForm({
                 value={form.cartao_id || "nenhum"}
                 onValueChange={(v) => {
                   if (v === "nenhum") {
-                    updateField("cartao_id", "");
-                    updateField("cartao", "");
+                    setForm({ ...form, cartao_id: "", cartao: "" });
                     return;
                   }
                   const sel = cartoes.find((c) => c.id === v);
-                  updateField("cartao_id", v);
-                  updateField("cartao", sel?.nome ?? "");
+                  setForm({ ...form, cartao_id: v, cartao: sel?.nome ?? "" });
                 }}
               >
                 <SelectTrigger>
