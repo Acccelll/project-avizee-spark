@@ -474,6 +474,7 @@ const GruposEconomicos = () => {
             data={filteredData}
             loading={loading}
             moduleKey="grupos-economicos"
+            pageSize={50}
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}

@@ -598,6 +598,7 @@ export default function Transportadoras() {
             data={filteredData}
             loading={loading}
             moduleKey="transportadoras"
+            pageSize={50}
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}

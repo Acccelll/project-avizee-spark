@@ -524,9 +524,23 @@ export function DataTable<T extends Record<string, any>>({
 
   // Página efetiva (controlada pelo consumidor em server-paged).
   const effectivePage = serverPagination ? serverPagination.page : currentPage;
+  const canGoPrev = serverPagination ? effectivePage > 0 : currentPage > 0;
+  const canGoNext = serverPagination
+    ? (serverPagination.totalCount != null
+        ? effectivePage < totalPages - 1
+        : serverPagination.hasMore)
+    : currentPage < totalPages - 1;
   const goToPage = (next: number) => {
-    if (serverPagination) serverPagination.setPage(next);
-    else setCurrentPage(next);
+    if (next < 0) return;
+    if (serverPagination) {
+      const lastKnownPage = serverPagination.totalCount != null ? Math.max(0, totalPages - 1) : null;
+      if (lastKnownPage != null && next > lastKnownPage) return;
+      if (!canGoNext && next > effectivePage) return;
+      serverPagination.setPage(next);
+      return;
+    }
+    if (next > totalPages - 1) return;
+    setCurrentPage(next);
   };
 
   const toggleSelect = useCallback((id: string) => {
@@ -978,7 +992,7 @@ export function DataTable<T extends Record<string, any>>({
             {renderMobileCards()}
             {(() => {
               const mobilePagerVisible = serverPagination
-                ? (totalPages > 1 || serverPagination.hasMore)
+                ? (canGoPrev || canGoNext)
                 : viewMode === 'infinite'
                 ? sortedData.length > visibleCount
                 : totalPages > 1;
@@ -994,12 +1008,10 @@ export function DataTable<T extends Record<string, any>>({
               </span>
               {serverPagination ? (
                 <div className="flex gap-1">
-                  {effectivePage > 0 && (
+                  {canGoPrev && (
                     <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Página anterior" onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
                   )}
-                  {(serverPagination.totalCount != null
-                    ? effectivePage < totalPages - 1
-                    : serverPagination.hasMore) && (
+                  {canGoNext && (
                     <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima página" onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
                   )}
                 </div>
@@ -1157,7 +1169,9 @@ export function DataTable<T extends Record<string, any>>({
               </div>
 
               {(() => {
-                const desktopPagerHidden = !serverPagination && viewMode !== 'infinite' && hideSinglePagePagination && totalPages <= 1;
+                const desktopPagerHidden = serverPagination
+                  ? !canGoPrev && !canGoNext
+                  : !serverPagination && viewMode !== 'infinite' && hideSinglePagePagination && totalPages <= 1;
                 if (desktopPagerHidden) return null;
                 return (
                   <div className="flex items-center justify-between border-t px-4 py-3">
@@ -1170,12 +1184,10 @@ export function DataTable<T extends Record<string, any>>({
                 </span>
                 {serverPagination ? (
                   <div className="flex gap-1">
-                    {effectivePage > 0 && (
+                    {canGoPrev && (
                       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
                     )}
-                    {(serverPagination.totalCount != null
-                      ? effectivePage < totalPages - 1
-                      : serverPagination.hasMore) && (
+                    {canGoNext && (
                       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
                     )}
                   </div>
