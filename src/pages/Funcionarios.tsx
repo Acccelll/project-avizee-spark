@@ -15,8 +15,6 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DollarSign, Users, UserCheck, UserX, HelpCircle } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
-import { useServerSort } from "@/hooks/useServerSort";
-import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,33 +141,11 @@ export default function Funcionarios() {
   const departamentoFilters = filterValue.departamento;
   const setDepartamentoFilters = (v: string[]) => setFilter({ departamento: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
-  const sort = useServerSort("nome", "asc");
-  const serverFilters = useMemo(() => {
-    const out: Array<{ column: string; value: boolean | string }> = [];
-    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
-    return out;
-  }, [ativoFilters]);
-  const {
-    data,
-    loading,
-    create,
-    update,
-    remove,
-    fetchData,
-    page,
-    setPage,
-    totalCount,
-    hasMore,
-  } = useSupabaseCrud<Funcionario>({
+  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
     searchTerm: debouncedSearch,
     filterAtivo: false,
-    filter: serverFilters,
-    statusFilter: tipoContratoFilters.length > 0 ? { column: "tipo_contrato", values: tipoContratoFilters } : undefined,
     searchColumns: ["nome", "cpf", "cargo", "departamento"],
-    pageSize: 50,
-    orderBy: sort.orderBy,
-    ascending: sort.ascending,
   });
   const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
