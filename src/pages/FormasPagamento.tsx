@@ -91,6 +91,17 @@ const emptyForm: FormaPagamentoForm = {
   descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto", observacoes: "", ativo: true,
 };
 
+const MAX_INTERVALOS = 12;
+
+const addDaysDate = (date: Date, days: number): Date => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const formatDateShort = (date: Date): string =>
+  date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
 export default function FormasPagamento() {
   const { pushView } = useRelationalNavigation();
   const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento", filterAtivo: false });
@@ -152,6 +163,7 @@ export default function FormasPagamento() {
 
   const addIntervalo = () => {
     const current = Array.isArray(form.intervalos_dias) ? form.intervalos_dias : [];
+    if (current.length >= MAX_INTERVALOS) return;
     const updated = [...current, newIntervalo].sort((a, b) => a - b);
     updateForm({ intervalos_dias: updated, parcelas: updated.length });
     setNewIntervalo((updated[updated.length - 1] || 0) + 30);
