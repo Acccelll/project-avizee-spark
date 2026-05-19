@@ -89,7 +89,7 @@ export default function SpedFiscal() {
         <h2 className="mb-4 text-base font-semibold">Configurar Geração</h2>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleGerar)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="periodoInicio"
@@ -164,7 +164,7 @@ export default function SpedFiscal() {
               )}
             />
 
-            <Button type="submit" disabled={gerando} className="w-full" aria-label="Gerar arquivo SPED">
+            <Button type="submit" disabled={gerando} className="w-full max-sm:h-11" aria-label="Gerar arquivo SPED">
               <FileDown className="mr-2 h-4 w-4" />
               {gerando ? "Gerando..." : "Gerar SPED"}
             </Button>
