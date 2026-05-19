@@ -176,18 +176,20 @@ const Clientes = () => {
     const out: Array<{ column: string; value: string | string[] | boolean; operator?: "eq" | "in" }> = [];
     if (tipoFilters.length === 1) out.push({ column: "tipo_pessoa", value: tipoFilters[0] });
     else if (tipoFilters.length > 1) out.push({ column: "tipo_pessoa", value: tipoFilters, operator: "in" });
-    // grupo: "sem_grupo" representa grupo_economico_id IS NULL — não dá para empurrar para `in`,
-    // então só empurramos quando todos os valores são UUIDs reais.
+    // grupo: "sem_grupo" representa grupo_economico_id IS NULL. Quando o
+    // usuário seleciona apenas UUIDs reais, empurramos como `in`. Quando
+    // mistura (NULL + UUIDs) ou seleciona somente "sem_grupo", o caso é
+    // empurrado server-side via `orFilters` mais abaixo — assim a tabela,
+    // o total e a paginação ficam coerentes.
     const realGroupIds = grupoFilters.filter((g) => g !== "sem_grupo");
-    if (grupoFilters.length > 0 && realGroupIds.length === grupoFilters.length) {
+    const hasSemGrupo = grupoFilters.includes("sem_grupo");
+    if (grupoFilters.length > 0 && !hasSemGrupo) {
       if (realGroupIds.length === 1) out.push({ column: "grupo_economico_id", value: realGroupIds[0] });
       else out.push({ column: "grupo_economico_id", value: realGroupIds, operator: "in" });
     }
     if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
     return out;
   }, [tipoFilters, grupoFilters, ativoFilters]);
-
-  const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
   // Predicados PostgREST para o filtro "Cadastro" (server-side).
   // Cada item vira um `.or(...)` separado em useSupabaseCrud — múltiplos
@@ -211,8 +213,20 @@ const Clientes = () => {
       sem_prazo: SEM_PRAZO,
       sem_grupo: "grupo_economico_id.is.null",
     };
-    return cadastroFilters.map((f) => map[f]).filter(Boolean);
-  }, [cadastroFilters]);
+    const out = cadastroFilters.map((f) => map[f]).filter(Boolean);
+    // Caso especial de grupo: "sem_grupo" combinado com UUIDs reais vira
+    // um `or(grupo.is.null, grupo.in.(...))`. "sem_grupo" sozinho já é
+    // coberto pelo predicado simples.
+    const hasSemGrupo = grupoFilters.includes("sem_grupo");
+    const realGroupIds = grupoFilters.filter((g) => g !== "sem_grupo");
+    if (hasSemGrupo && realGroupIds.length > 0) {
+      const inList = realGroupIds.map((id) => `"${id}"`).join(",");
+      out.push(`or(grupo_economico_id.is.null,grupo_economico_id.in.(${inList}))`);
+    } else if (hasSemGrupo && realGroupIds.length === 0) {
+      out.push("grupo_economico_id.is.null");
+    }
+    return out;
+  }, [cadastroFilters, grupoFilters]);
 
   // Avalia "qualidade cadastral" do cliente — completo se possui documento,
   // contato (tel ou cel), e-mail, prazo > 0 e endereço (cidade+uf).
