@@ -142,6 +142,13 @@ export type FormaPagamento = TableRow<"formas_pagamento">;
 
 export type CaixaMovimento = TableRow<"caixa_movimentos">;
 
+export type Recorrencia = TableRow<"financeiro_recorrencias"> & {
+  clientes?: { nome_razao_social: string } | null;
+  fornecedores?: { nome_razao_social: string } | null;
+  cartoes_credito?: { nome: string; ultimos4: string | null } | null;
+  contas_bancarias?: { descricao: string } | null;
+};
+
 // ── Estoque ──────────────────────────────────────────────────────────────────
 
 export type MovimentacaoEstoque = TableRow<"estoque_movimentos"> & {
