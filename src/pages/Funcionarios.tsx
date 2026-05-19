@@ -13,7 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { SummaryCard } from "@/components/SummaryCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, Users, UserCheck, UserX, HelpCircle } from "lucide-react";
+import { DollarSign, Users, UserCheck, UserX, HelpCircle, Eye } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -445,6 +445,16 @@ export default function Funcionarios() {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf"
             mobileStatusKey="ativo"
+            mobilePrimaryAction={(f: Funcionario) => (
+              <Button
+                size="sm"
+                className="h-11 w-full gap-2"
+                onClick={(e) => { e.stopPropagation(); openView(f); }}
+              >
+                <Eye className="w-4 h-4" />
+                Ver funcionário
+              </Button>
+            )}
           />
         </PullToRefresh>
       </ModulePage>
