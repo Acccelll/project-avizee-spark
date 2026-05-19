@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Wallet, Play, Pause, StopCircle, Zap, Eye, Trash2, RefreshCw } from "lucide-react";
+import { Wallet, Play, Pause, StopCircle, Zap, Eye, Trash2, RefreshCw, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { FormSection } from "@/components/FormSection";
-import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { SummaryCard } from "@/components/SummaryCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -64,7 +63,7 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
-import { AutocompleteSearch } from "@/components/ui/autocomplete-search";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 
 interface RecorrenciaForm {
   tipo: "receber" | "pagar";
@@ -393,76 +392,144 @@ export default function FinanceiroRecorrencias() {
   const isCartao = form.forma_pagamento === "cartao_credito";
   const cartaoSelecionado = cartoes.find((c) => c.id === form.cartao_id);
 
+  const summaryCards = (
+    <>
+      <SummaryCard title="Ativas" value={ativos.length} icon={Play} />
+      <SummaryCard
+        title="Mensal a Receber"
+        value={formatCurrency(totalMensalReceber)}
+        icon={Wallet}
+        variant="success"
+      />
+      <SummaryCard
+        title="Mensal a Pagar"
+        value={formatCurrency(totalMensalPagar)}
+        icon={Wallet}
+        variant="danger"
+      />
+      <SummaryCard title="Próx. 7 dias" value={proximos7Dias} icon={Zap} />
+    </>
+  );
+
+  const filtersNode = (
+    <>
+      <Select value={filtroTipo || "todos"} onValueChange={(v) => setFiltroTipo(v === "todos" ? "" : v)}>
+        <SelectTrigger className="h-9 w-[150px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos os tipos</SelectItem>
+          <SelectItem value="receber">A Receber</SelectItem>
+          <SelectItem value="pagar">A Pagar</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={filtroStatus || "todos"} onValueChange={(v) => setFiltroStatus(v === "todos" ? "" : v)}>
+        <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos os status</SelectItem>
+          <SelectItem value="ativa">Ativa</SelectItem>
+          <SelectItem value="pausada">Pausada</SelectItem>
+          <SelectItem value="encerrada">Encerrada</SelectItem>
+          <SelectItem value="cancelada">Cancelada</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  );
+
   return (
     <ModulePage
       title="Cobranças Recorrentes"
-      description="Assinaturas e mensalidades que geram lançamentos automaticamente a cada ciclo."
-      icon={Wallet}
-      action={
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
-          </Button>
-          <Button onClick={openCreate}>Nova Recorrência</Button>
-        </div>
+      subtitle="Assinaturas e mensalidades que geram lançamentos automaticamente a cada ciclo."
+      addLabel="Nova Recorrência"
+      onAdd={openCreate}
+      headerActions={
+        <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
+          <RefreshCw className="h-4 w-4" /> Atualizar
+        </Button>
       }
+      summaryCards={summaryCards}
+      searchValue={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder="Buscar por descrição, cliente ou fornecedor..."
+      filters={filtersNode}
+      count={filtered.length}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard label="Ativas" value={ativos.length} icon={Play} />
-        <SummaryCard
-          label="Mensal a Receber"
-          value={formatCurrency(totalMensalReceber)}
-          icon={Wallet}
-          variant="success"
-        />
-        <SummaryCard
-          label="Mensal a Pagar"
-          value={formatCurrency(totalMensalPagar)}
-          icon={Wallet}
-          variant="destructive"
-        />
-        <SummaryCard label="Próx. 7 dias" value={proximos7Dias} icon={Zap} />
-      </div>
-
-      <AdvancedFilterBar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Buscar por descrição, cliente ou fornecedor..."
-        filters={[
-          {
-            label: "Tipo",
-            value: filtroTipo,
-            onChange: setFiltroTipo,
-            options: [
-              { value: "", label: "Todos" },
-              { value: "receber", label: "A Receber" },
-              { value: "pagar", label: "A Pagar" },
-            ],
-          },
-          {
-            label: "Status",
-            value: filtroStatus,
-            onChange: setFiltroStatus,
-            options: [
-              { value: "", label: "Todos" },
-              { value: "ativa", label: "Ativa" },
-              { value: "pausada", label: "Pausada" },
-              { value: "encerrada", label: "Encerrada" },
-              { value: "cancelada", label: "Cancelada" },
-            ],
-          },
-        ]}
-      />
-
-      <DataTable
+      <DataTable<Recorrencia>
         loading={loading}
         data={filtered}
-        emptyMessage="Nenhuma recorrência cadastrada"
+        moduleKey="financeiro-recorrencias"
+        emptyTitle="Nenhuma recorrência cadastrada"
+        emptyDescription="Crie sua primeira assinatura ou mensalidade recorrente."
+        onView={(r) => openView(r)}
+        onEdit={(r) => openEdit(r)}
+        onDelete={isAdmin ? (r) => handleDelete(r) : undefined}
+        deleteBehavior="hard"
+        mobileStatusKey="status"
+        mobileIdentifierKey="descricao"
+        rowExtraActions={(r) => (
+          <div className="flex gap-1">
+            {r.status === "ativa" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleGerarAgora(r);
+                  }}
+                  title="Gerar lançamento agora"
+                >
+                  <Zap className="h-3 w-3" /> Gerar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePausarReativar(r);
+                  }}
+                  title="Pausar"
+                >
+                  <Pause className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1 text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEncerrarTarget(r);
+                    setEncerrarMode("encerrada");
+                    setEncerrarMotivo("");
+                  }}
+                  title="Encerrar"
+                >
+                  <StopCircle className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+            {r.status === "pausada" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePausarReativar(r);
+                }}
+                title="Reativar"
+              >
+                <Play className="h-3 w-3" /> Reativar
+              </Button>
+            )}
+          </div>
+        )}
         columns={[
           {
             key: "descricao",
-            header: "Descrição",
-            render: (r: Recorrencia) => (
+            label: "Descrição",
+            mobilePrimary: true,
+            render: (r) => (
               <div className="flex flex-col">
                 <span className="font-medium">{r.descricao}</span>
                 <span className="text-xs text-muted-foreground">
@@ -475,30 +542,30 @@ export default function FinanceiroRecorrencias() {
           },
           {
             key: "tipo",
-            header: "Tipo",
-            render: (r: Recorrencia) => (
-              <StatusBadge status={r.tipo === "receber" ? "receita" : "despesa"} />
-            ),
+            label: "Tipo",
+            render: (r) => <StatusBadge status={r.tipo === "receber" ? "receita" : "despesa"} />,
           },
           {
             key: "valor",
-            header: "Valor",
-            render: (r: Recorrencia) => formatCurrency(Number(r.valor)),
+            label: "Valor",
+            mobileCard: true,
+            render: (r) => formatCurrency(Number(r.valor)),
           },
           {
             key: "periodicidade",
-            header: "Periodicidade",
-            render: (r: Recorrencia) => periodicidadeLabel(r.periodicidade),
+            label: "Periodicidade",
+            render: (r) => periodicidadeLabel(r.periodicidade),
           },
           {
             key: "proxima_geracao",
-            header: "Próx. geração",
-            render: (r: Recorrencia) => formatDate(r.proxima_geracao),
+            label: "Próx. geração",
+            mobileCard: true,
+            render: (r) => formatDate(r.proxima_geracao),
           },
           {
             key: "forma_pagamento",
-            header: "Forma",
-            render: (r: Recorrencia) => {
+            label: "Forma",
+            render: (r) => {
               const fp = r.forma_pagamento as keyof typeof FORMA_PAGAMENTO_LABELS;
               const cartao = r.cartoes_credito;
               return (
@@ -516,44 +583,9 @@ export default function FinanceiroRecorrencias() {
           },
           {
             key: "status",
-            header: "Status",
-            render: (r: Recorrencia) => <StatusBadge status={r.status} />,
+            label: "Status",
+            render: (r) => <StatusBadge status={r.status} />,
           },
-        ]}
-        actions={(r: Recorrencia) => [
-          { label: "Ver lançamentos", icon: Eye, onClick: () => openView(r) },
-          { label: "Editar", onClick: () => openEdit(r) },
-          ...(r.status === "ativa"
-            ? [
-                {
-                  label: "Gerar agora",
-                  icon: Zap,
-                  onClick: () => handleGerarAgora(r),
-                },
-                { label: "Pausar", icon: Pause, onClick: () => handlePausarReativar(r) },
-                {
-                  label: "Encerrar",
-                  icon: StopCircle,
-                  onClick: () => {
-                    setEncerrarTarget(r);
-                    setEncerrarMode("encerrada");
-                    setEncerrarMotivo("");
-                  },
-                },
-              ]
-            : r.status === "pausada"
-              ? [{ label: "Reativar", icon: Play, onClick: () => handlePausarReativar(r) }]
-              : []),
-          ...(isAdmin
-            ? [
-                {
-                  label: "Excluir",
-                  icon: Trash2,
-                  variant: "destructive" as const,
-                  onClick: () => handleDelete(r),
-                },
-              ]
-            : []),
         ]}
       />
 
