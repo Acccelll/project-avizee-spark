@@ -575,6 +575,7 @@ const Produtos = () => {
             data={filteredData}
             loading={loading}
             moduleKey="produtos"
+            pageSize={50}
             defaultSortKey="sku"
             showColumnToggle={true}
             onView={openView}
