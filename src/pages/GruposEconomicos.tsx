@@ -335,6 +335,7 @@ const GruposEconomicos = () => {
       label: "Nome do Grupo",
       sortable: true,
       serverSortable: true,
+      mobilePrimary: true,
       render: (g: GrupoEconomico) => {
         const matrizNome = g.empresa_matriz_id ? matrizNomeMap[g.empresa_matriz_id] : null;
         const obsPreview = g.observacoes?.split("\n")[0]?.trim();
@@ -362,6 +363,7 @@ const GruposEconomicos = () => {
     {
       key: "qtd_clientes",
       label: "Clientes",
+      mobileCard: true,
       render: (g: GrupoEconomico) => {
         const count = clienteCountMap[g.id] ?? 0;
         const label = count === 1 ? "1 cliente vinculado" : `${count} clientes vinculados`;
@@ -477,8 +479,18 @@ const GruposEconomicos = () => {
             onEdit={openEdit}
             onDelete={canExcluir ? (g) => remove(g.id) : undefined}
             deleteBehavior="soft"
-            mobileIdentifierKey="qtd_clientes"
+            mobileIdentifierKey="created_at"
             mobileStatusKey="ativo"
+            mobilePrimaryAction={(g: GrupoEconomico) => (
+              <Button
+                size="sm"
+                className="h-11 w-full gap-2"
+                onClick={(e) => { e.stopPropagation(); openEdit(g); }}
+              >
+                <Pencil className="w-4 h-4" />
+                Editar grupo
+              </Button>
+            )}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
