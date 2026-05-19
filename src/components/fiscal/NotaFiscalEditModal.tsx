@@ -37,6 +37,8 @@ import { TipoDocumentoSelector } from "@/components/fiscal/TipoDocumentoSelector
 import { NfseFieldsSection } from "@/components/fiscal/NfseFieldsSection";
 import { CteFieldsSection } from "@/components/fiscal/CteFieldsSection";
 import type { TipoDocumentoFiscal } from "@/types/domain";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { ShieldAlert } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -209,7 +211,17 @@ export function NotaFiscalEditModal({
   totalNF,
 }: NotaFiscalEditModalProps) {
   const statusSefaz = (selected as { status_sefaz?: string }).status_sefaz ?? null;
-  const rules = getStatusRules(selected.status, statusSefaz);
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
+  const baseRules = getStatusRules(selected.status, statusSefaz);
+  // Edição privilegiada (Admin/Financeiro): destrava itens, valores e
+  // pagamento mesmo em NFs confirmadas/importadas/autorizadas. As travas
+  // permanecem para cancelada_sefaz/inutilizada porque exigem reemissão.
+  const isTerminalSefaz =
+    statusSefaz === "cancelada_sefaz" || statusSefaz === "inutilizada";
+  const privilegedOverride = canEditAvancado && !isTerminalSefaz;
+  const rules = privilegedOverride
+    ? { ...baseRules, isStructurallyLocked: false, isFullyLocked: false }
+    : baseRules;
   const modelo =
     modeloLabels[selected.modelo_documento || "55"] ||
     selected.modelo_documento;
