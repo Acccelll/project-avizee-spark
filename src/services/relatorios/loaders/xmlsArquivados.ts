@@ -45,7 +45,7 @@ export async function loadXmlsArquivados(
   const tipoNota = filtros.tipoNota ?? "todos";
   const apenasComXml = filtros.apenasComXml ?? true;
 
-  const data = await fetchAllPages<RawNotaXml>(() => {
+  const data = await fetchAllPages<RawNotaXml>((() => {
     let q = supabase
       .from("notas_fiscais")
       .select(
@@ -59,8 +59,8 @@ export async function loadXmlsArquivados(
     if (filtros.clienteIds?.length) q = q.in("cliente_id", filtros.clienteIds);
     if (filtros.statusList?.length) q = q.in("status", filtros.statusList);
     if (apenasComXml) q = q.not("caminho_xml", "is", null);
-    return q as unknown as Parameters<typeof fetchAllPages<RawNotaXml>>[0] extends () => infer R ? R : never;
-  });
+    return q;
+  }) as Parameters<typeof fetchAllPages<RawNotaXml>>[0]);
 
   const rows: XmlArquivadoRow[] = data.map((n) => {
     const tipoNorm = (n.tipo || "saida").toLowerCase();
