@@ -567,6 +567,7 @@ const nfeEntradaConfig: ReportConfig = {
 };
 
 const faturamentoConfig: ReportConfig = {
+  // (placeholder for insertion above)
   id: 'faturamento',
   title: 'Faturamento',
   description: 'NFs de saída confirmadas com impostos e receita líquida',
