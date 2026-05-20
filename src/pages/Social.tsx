@@ -294,7 +294,6 @@ export default function Social() {
               canExportReports={permissions.canExportReports}
               onExportCsv={handleExportCsv}
               onExportXlsx={handleExportXlsx}
-              permissions={socialPermissions}
             />
           </TabsContent>
 
