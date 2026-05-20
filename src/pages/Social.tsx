@@ -25,7 +25,6 @@ import {
   listarPostsFiltrados,
   removerContaSocial,
   sincronizarSocial,
-  socialPermissions,
 } from '@/services/social.service';
 import { SocialDashboardTab } from '@/components/social/SocialDashboardTab';
 import { SocialContasTab } from '@/components/social/SocialContasTab';
