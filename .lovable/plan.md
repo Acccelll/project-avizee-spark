@@ -1,104 +1,77 @@
 ## Objetivo
 
-Liberar para **Admin** e **Financeiro** a edição completa de itens, valores e formas de pagamento — tanto em **lançamentos financeiros** quanto em **entradas de NF** —, independentemente do status (confirmada, importada, paga, parcial, autorizada SEFAZ). O sistema deve propagar a edição para tudo que está conectado (parcelas, baixas, estoque, fatura de cartão) ou orientar o caminho seguro quando não for possível.
+Persistir o arquivo XML original de toda NF-e importada (entrada ou saída) para download posterior, sem perder a verdade fiscal.
 
-## Estado atual (diagnóstico)
+## Recomendação: Storage interno (bucket `dbavizee`, prefixo `fiscal/`)
 
-**Travas que precisamos relaxar para Admin/Financeiro:**
+**Por que não Google Drive como destino principal:**
+- Exige OAuth por usuário (cada operador autorizando sua conta) ou OAuth do dono — o que mistura responsabilidade fiscal com conta pessoal de um único Google.
+- Latência maior, falhas de quota, risco de pasta movida/renomeada quebrando vínculo com a nota.
+- Auditoria fiscal precisa que o arquivo viva ao lado do registro (mesma RLS, mesmo backup, mesmo `deleted_at`).
+- Google Drive é ótimo como **espelho/exportação opcional**, não como fonte primária.
 
-1. `NotaFiscalForm.tsx` — `readOnly` quando `status_sefaz ∈ {autorizada, cancelada_sefaz, denegada}`. Só admin escapa, e apenas para `tipo = 'entrada'`. Saída autorizada fica travada para todos.
-2. `FinanceiroLancamentoForm.tsx` — `STATUS_READONLY = {parcial, pago}` bloqueia todos os campos no submit (`disabled={isStatusReadonly}`), incluindo valor, vencimento, forma de pagamento, conta contábil.
-3. `BaixaParcialDialog.tsx` — `isStatusBlocked` quando `pago | cancelado` impede registrar baixas adicionais ou corrigir uma baixa existente.
-4. Trigger `trg_lancamento_status_requer_baixa` (memória de segurança) — bloqueia `UPDATE` direto de `status` para `pago/parcial` sem baixa. Correto para usuários normais, mas precisa de caminho admin para reabrir um lançamento sem precisar estornar manualmente.
-5. NF de saída autorizada não tem fluxo "editar com cuidado": só Cancelar/Inutilizar.
-6. Drawer do financeiro (`FinanceiroDrawer.tsx`) calcula `canBaixa` sem considerar override de admin/financeiro.
+**Storage interno resolve sem dependências externas:**
+- Bucket `dbavizee` já existe com prefixo `fiscal/` autorizado por policy.
+- Coluna `notas_fiscais.caminho_xml text` já existe — hoje nunca é preenchida.
+- Download direto via signed URL respeitando RLS de `faturamento_fiscal`.
 
-**O que já funciona e vamos reutilizar:**
+## Escopo da implementação
 
-- RPC `atualizar_financeiro_nota` já regenera parcelas/lançamentos da NF a partir de nova forma + condição + parcelas (idempotente).
-- RPC `salvar_nota_fiscal` faz upsert atômico de cabeçalho + itens.
-- RPC `processarEstorno` (`financeiro.service`) reverte baixas.
-- Role `financeiro` já tem `financeiro:editar` em `permissions.ts`.
+### 1. Caminho canônico no bucket
+```
+fiscal/{ano}/{mes}/{tipo}/{chave_acesso}.xml
+```
+Ex.: `fiscal/2026/05/entrada/35260512345678000190550010000012341123456789.xml`. Idempotente (mesma chave → mesmo path, `upsert: true`).
 
-## Mudanças propostas
+### 2. Fluxos cobertos
+| Fluxo | Onde inserir upload |
+|---|---|
+| Importação XML de **entrada** (drawer + Tradução) | `src/pages/Fiscal.tsx` → `aplicarImportacaoXml` / `handleXmlImport` |
+| Importação XML em **lote (.zip)** de compras | `src/hooks/importacao/useImportacaoXml.ts` → `processImport` |
+| **Saída** emitida pelo sistema (NF-e autorizada via SEFAZ) | já gera XML; salvar `xml_autorizado` no mesmo prefixo após retorno SEFAZ |
+| **Saída** importada (XML colado/carregado) | mesmo handler do drawer fiscal |
 
-### 1. Política de edição privilegiada (frontend)
+Em todos os casos: `upload → set caminho_xml → insert/update nota`. Se o upload falhar, importação continua (a nota não pode ser perdida); registra warning em `importacao_logs`.
 
-Criar `useCanEditFinanceiroAvancado()` em `src/hooks/` que retorne `true` para `isAdmin || hasRole('financeiro')`. Usar em:
+### 3. Service novo
+`src/services/fiscal/xmlStorage.service.ts`:
+- `uploadNfeXml({ chave, tipo, xmlText }) → { path }`
+- `getNfeXmlSignedUrl(notaId) → string` (lê `caminho_xml`, gera signed URL 5 min)
+- `downloadNfeXml(notaId) → Blob` (para botão "Baixar XML")
 
-- **`NotaFiscalForm.tsx`**
-  - Substituir `isAdminEntradaOverride` por `canEditAvancado`.
-  - Liberar override também para **NF de saída** quando `canEditAvancado === true`, mantendo o banner vermelho "Modo administrador" e listando os efeitos colaterais (estoque, financeiro, SEFAZ).
-  - Quando a NF está autorizada na SEFAZ, exigir **confirmação dupla** (`useConfirmDestructive`) antes de salvar.
-- **`FinanceiroLancamentoForm.tsx`**
-  - `isStatusReadonly` continua para usuários comuns, mas com `canEditAvancado` o fieldset libera e exibe banner "Edição privilegiada — pode afetar baixas e fatura de cartão".
-  - Permitir alterar `status` de `pago → aberto` (reabertura). Ao salvar, exibir confirmação destacando que as baixas associadas serão **estornadas automaticamente**.
-- **`FinanceiroDrawer.tsx`**
-  - `canBaixa`, `canEditar`, `canExcluir` calculados via `getFinanceiroPermissions` recebem também `canEditAvancado` e ignoram travas de status para esses dois papéis.
-- **`BaixaParcialDialog.tsx`**
-  - `isStatusBlocked` deixa de bloquear quando `canEditAvancado`. Permitir corrigir/ajustar uma baixa existente (ou registrar adicional em lançamento `pago` para encargos retroativos).
+Encapsula `supabase.storage.from('dbavizee')` — respeita a regra de camada services única.
 
-### 2. Persistência segura no backend (idempotente)
+### 4. UI
+- **Drawer/lista fiscal** (`Fiscal.tsx` + `FiscalDetail.tsx` + `NotaFiscalEditModal.tsx`): novo botão **"Baixar XML"** quando `caminho_xml` presente. Ícone `FileDown`, ao lado de "Baixar DANFE".
+- **Coluna na tabela**: badge discreto "XML" indicando disponibilidade.
+- **Importação lote**: relatório final mostra "X XMLs arquivados".
 
-Migration nova com **uma RPC central** `editar_lancamento_financeiro_admin(p_id, p_payload jsonb, p_motivo text)`:
+### 5. Backfill (opcional, fora deste plano)
+NFs já importadas ficam sem `caminho_xml`. Pode ser feito sob demanda: ao abrir uma nota sem XML arquivado, oferecer "Reimportar XML para arquivar".
 
-1. Verifica papel via `has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro')`. Caso contrário → `EXCEPTION` 42501.
-2. Se houver baixas ativas e o payload mudar `valor` / `forma_pagamento` / `cartao_id` / `data_vencimento`, **estorna** baixas via `processar_estorno_lancamento` automaticamente e registra no `auditoria_log` com `p_motivo`.
-3. Atualiza o lançamento (libera trigger via `SET LOCAL avizee.admin_override = on` lido pelo `trg_lancamento_status_requer_baixa` para pular a validação dentro desta RPC).
-4. Re-resolve fatura de cartão (chamando `cartao_fatura_para_data`) se mudou cartão ou vencimento.
-
-Equivalente para NF: estender `atualizar_financeiro_nota` ou criar wrapper `editar_nota_fiscal_admin(p_nf_id, p_payload, p_itens, p_parcelas, p_motivo)` que:
-
-1. Checa o mesmo gate de papel.
-2. Reverte efeitos da confirmação atual (estorno de estoque + financeiro) via `estornar_nota_fiscal`.
-3. Chama `salvar_nota_fiscal` para cabeçalho + itens.
-4. Re-confirma via `confirmar_nota_fiscal` (refazendo estoque e financeiro) ou apenas regrava forma/parcelas via `atualizar_financeiro_nota` se itens não mudaram.
-5. Tudo na mesma transação. Falha → rollback completo.
-6. Registra `auditoria_log` com `acao = 'nf_edicao_privilegiada'`, snapshot before/after e `motivo`.
-
-### 3. Auditoria e UX de segurança
-
-- Toda edição privilegiada exige **motivo (≥ 10 caracteres)** num `ConfirmDestructiveDialog` antes do submit.
-- `useToast` ao final com resumo: "X parcelas regeneradas, Y baixas estornadas, estoque ajustado em Z itens".
-- Nova aba "Histórico" no `FinanceiroDrawer` e na `NotaFiscalForm` lendo `auditoria_log` filtrado por `entidade_id`, para rastrear quem editou o quê.
-
-### 4. Outras melhorias relacionadas (no mesmo espírito de destravar correções)
-
-- **Reabrir NF cancelada/inutilizada (apenas interno, sem SEFAZ):** botão "Reabrir como rascunho" para Admin/Financeiro em NF com `status = cancelada` e `status_sefaz IS NULL OR rejeitada`.
-- **Editar baixa existente:** hoje só dá para estornar e refazer. Adicionar "Editar baixa" no histórico do drawer (ajusta `valor_pago`, `data_pagamento`, `conta_bancaria_id`, encargos) via RPC `editar_baixa_admin`, mantendo idempotência do saldo.
-- **Editar parcela isolada da NF sem regenerar tudo:** atualmente `atualizar_financeiro_nota` regrava todas as parcelas. Acrescentar `editar_parcela_nf(p_lancamento_id, p_payload)` para correção pontual de vencimento/valor de UMA parcela, atualizando o agrupador.
-- **Vincular/desvincular lançamento avulso a uma NF:** útil quando o usuário criou manualmente e a NF chegou depois.
-- **Lock visual claro:** banner amarelo sempre que o usuário está em "modo privilegiado", para evitar edição acidental.
-
-## Detalhes técnicos
-
-### Arquivos a editar
-
-- `src/hooks/useCanEditFinanceiroAvancado.ts` (novo)
-- `src/pages/fiscal/NotaFiscalForm.tsx` — substitui guard `isAdminEntradaOverride`
-- `src/pages/financeiro/components/FinanceiroLancamentoForm.tsx` — libera `STATUS_READONLY` para papel
-- `src/components/financeiro/FinanceiroDrawer.tsx` — propaga override em `canBaixa/canEditar`
-- `src/components/financeiro/BaixaParcialDialog.tsx` — relaxa `isStatusBlocked`
-- `src/lib/drawerPermissions.ts` — `getFinanceiroPermissions` aceita `canEditAvancado`
-- `src/services/financeiro/lancamentos.ts` e `src/services/fiscal/lifecycle.service.ts` — wrappers para novas RPCs
-- `src/pages/financeiro/hooks/useFinanceiroActions.ts` — rota submit por `editar_lancamento_financeiro_admin` quando privilegiado
-
-### Migration
-
+### 6. Migration
+Apenas reforçar policy do bucket (já permite `fiscal/`) e criar índice parcial para consulta rápida:
 ```sql
--- 1. Settings flag por transação para bypass controlado da trigger
-CREATE OR REPLACE FUNCTION public.trg_lancamento_status_requer_baixa() ...
-  IF current_setting('avizee.admin_override', true) = 'on' THEN RETURN NEW; END IF;
-  ...
-
--- 2. RPCs editar_lancamento_financeiro_admin / editar_nota_fiscal_admin
---    editar_baixa_admin / editar_parcela_nf
--- Todas SECURITY DEFINER, SET search_path = public, gate por has_role.
--- Todas escrevem em auditoria_log com snapshot jsonb e motivo.
+CREATE INDEX IF NOT EXISTS idx_notas_fiscais_com_xml
+  ON notas_fiscais (chave_acesso) WHERE caminho_xml IS NOT NULL;
 ```
 
-### Fora de escopo
+### 7. Google Drive como **export opcional** (futuro, não nesta entrega)
+Deixar gancho: botão "Enviar para Google Drive" no detalhe da nota, usando o connector `google_drive` já disponível. Faz upload pontual do XML baixado do Storage interno para uma pasta configurável em `app_configuracoes` (`fiscal.gdrive_folder_id`). Não substitui o Storage interno — apenas espelha.
 
-- Reemissão SEFAZ automática após edição de NF autorizada (continua sendo cancelar + emitir nova).
-- Conciliação bancária retroativa de baixas alteradas (só sinaliza no banner).
-- Mudança nas regras de role para usuários não-admin/financeiro (ficam como hoje).
+## Arquivos afetados
+
+- **Novo**: `src/services/fiscal/xmlStorage.service.ts`
+- **Edit**: `src/pages/Fiscal.tsx` (handlers de import)
+- **Edit**: `src/hooks/importacao/useImportacaoXml.ts` (lote .zip)
+- **Edit**: `src/pages/fiscal/hooks/useNFeXmlImport.ts` (passar `xmlText` adiante)
+- **Edit**: `src/pages/FiscalDetail.tsx` e `src/components/fiscal/NotaFiscalEditModal.tsx` (botão download)
+- **Edit**: emissão SEFAZ (onde grava `xml_autorizado` no fluxo de saída) — localizar ponto exato durante implementação
+- **Nova migration**: índice parcial
+- **Memória**: atualizar `mem/features/faturamento-fiscal.md` com a doutrina "XML é arquivado em `dbavizee/fiscal/` por chave"
+
+## Fora de escopo
+
+- Sincronização automática contínua com Google Drive
+- Backfill em massa de NFs antigas
+- Compactação/criptografia adicional (Storage já é privado por RLS)
