@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
 import { calcularTotalNF } from "@/lib/fiscal";
-import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon, Copy } from "lucide-react";
+import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon, Copy } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -121,7 +121,7 @@ const emptyForm: FiscalForm = {
   movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
   ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
-  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual",
+  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual", caminho_xml: "",
 };
 
 const modeloLabels: Record<string, string> = {
@@ -222,6 +222,7 @@ const Fiscal = () => {
     clienteId?: string;
     clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
+    xmlText?: string;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
@@ -456,6 +457,21 @@ const Fiscal = () => {
 
   const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
 
+  const baixarXmlArquivado = async (n: NotaFiscal) => {
+    const path = (n as { caminho_xml?: string | null }).caminho_xml;
+    if (!path) {
+      toast.error("XML não arquivado para esta NF.");
+      return;
+    }
+    try {
+      const { triggerDownloadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
+      await triggerDownloadNfeXml({ path, filename: `${n.chave_acesso || n.numero}.xml` });
+    } catch (err) {
+      logger.error("[fiscal] baixar XML:", err);
+      toast.error(`Não foi possível baixar o XML: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const handleConfirmar = async (nf: NotaFiscal) => {
     if (!canConfirmFiscal(nf.status)) {
       toast.error(`NF ${nf.numero} não está em estado confirmável.`);
@@ -583,7 +599,7 @@ const Fiscal = () => {
   });
 
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
-  const aplicarImportacaoXml = (
+  const aplicarImportacaoXml = async (
     nfe: import("@/lib/nfeXmlParser").NFeData,
     tipo: "entrada" | "saida",
     fornecedorId: string,
@@ -592,6 +608,7 @@ const Fiscal = () => {
     clienteNome: string,
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
+    xmlText?: string,
   ) => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
@@ -609,6 +626,23 @@ const Fiscal = () => {
     // Quando o XML traz protocolo SEFAZ (procNFe autorizado), pré-marcamos
     // como já confirmada/autorizada — caso contrário fica como rascunho.
     const temProtocolo = !!nfe.protocolo;
+    // Upload do XML cru ao Storage. Falha NÃO bloqueia importação.
+    let caminhoXmlInicial = "";
+    if (xmlText && nfe.chaveAcesso) {
+      try {
+        const { uploadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
+        const { path } = await uploadNfeXml({
+          chave: nfe.chaveAcesso,
+          tipo,
+          xmlText,
+          dataEmissao: nfe.dataEmissao,
+        });
+        caminhoXmlInicial = path;
+      } catch (err) {
+        logger.warn("[fiscal] falha ao arquivar XML no Storage:", err);
+        toast.warning("XML importado, mas não foi arquivado no Storage (download original ficará indisponível).");
+      }
+    }
     setForm({
       ...emptyForm,
       tipo,
@@ -631,6 +665,7 @@ const Fiscal = () => {
       outras_despesas: nfe.valorOutrasDespesas,
       valor_total: nfe.valorTotal,
       origem: "xml_importado",
+      caminho_xml: caminhoXmlInicial,
     });
     setItems(newItems);
     setMode("create");
@@ -688,7 +723,7 @@ const Fiscal = () => {
       if (!result) {
         return;
       }
-      const { nfe, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
+      const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
       const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
       const clienteNome = clientesCrud.data.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
 
@@ -709,7 +744,7 @@ const Fiscal = () => {
           cidade: d.municipio || "",
           uf: d.uf || "",
         });
-        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome: "", clienteId: "", clienteNome: d.razaoSocial || "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome: "", clienteId: "", clienteNome: d.razaoSocial || "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setQuickClienteOpen(true);
         toast.info(`Cliente ${d.cpfCnpj} não cadastrado. Cadastre rapidamente para continuar.`);
@@ -725,7 +760,7 @@ const Fiscal = () => {
           telefone: (nfe.emitente as { telefone?: string }).telefone || "",
         });
         // Mantém pendingXmlImport para retomar após cadastro do fornecedor.
-        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome, clienteId: "", clienteNome: "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome, clienteId: "", clienteNome: "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setQuickFornecedorOpen(true);
         toast.info(`Fornecedor ${nfe.emitente.cnpj} não cadastrado. Cadastre rapidamente para continuar.`);
@@ -734,11 +769,11 @@ const Fiscal = () => {
 
       if (traducaoOk) {
         // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
-        aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
+        aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, traducao, fiscalMap as Record<number, NfItemFiscalData>, xmlText);
         toast.success("XML importado. Tradução automática aplicada.");
       } else {
         // Pendência → drawer obrigatório, segura abertura do form.
-        setPendingXmlImport({ nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setTraducaoReadOnly(false);
         setTraducaoOpen(true);
@@ -748,9 +783,9 @@ const Fiscal = () => {
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
     if (pendingXmlImport) {
       // Fluxo "tinha pendência": agora aplica e abre o form.
-      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap } = pendingXmlImport;
+      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText } = pendingXmlImport;
       if (tipo === "entrada") await salvarDeParaFornecedor(fornecedorId, linhas);
-      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap);
+      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText);
       setPendingXmlImport(null);
       setTraducaoOpen(false);
       toast.success("Tradução confirmada. Revise a NF e salve.");
@@ -1671,6 +1706,11 @@ const Fiscal = () => {
                     {["confirmada", "autorizada", "importada"].includes(n.status) && (
                       <DropdownMenuItem onClick={() => openDanfe(n)}>
                         <FileText className="h-4 w-4 mr-2" /> DANFE
+                      </DropdownMenuItem>
+                    )}
+                    {(n as { caminho_xml?: string | null }).caminho_xml && (
+                      <DropdownMenuItem onClick={() => baixarXmlArquivado(n)}>
+                        <FileDown className="h-4 w-4 mr-2" /> Baixar XML
                       </DropdownMenuItem>
                     )}
                     {canDevolucao && (

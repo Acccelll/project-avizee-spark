@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
+import { uploadNfeXml } from "@/services/fiscal/xmlStorage.service";
 import {
   createImportacaoLote,
   updateLoteStatus,
@@ -18,6 +19,7 @@ export interface XmlImportItem {
   status: "pendente" | "valido" | "erro" | "duplicado";
   error?: string;
   isNew?: boolean;
+  xmlText?: string;
 }
 
 export function useImportacaoXml() {
@@ -95,7 +97,7 @@ export function useImportacaoXml() {
             const content = await zipFile.async("string");
             try {
               const parsed = parseNFeXml(content);
-              results.push({ fileName: zipFile.name, data: parsed, status: "pendente" });
+              results.push({ fileName: zipFile.name, data: parsed, status: "pendente", xmlText: content });
             } catch (err: unknown) {
               results.push({ fileName: zipFile.name, data: null, status: "erro", error: err instanceof Error ? err.message : String(err) });
             }
@@ -109,7 +111,7 @@ export function useImportacaoXml() {
           const content = await file.text();
           try {
             const parsed = parseNFeXml(content);
-            results.push({ fileName: file.name, data: parsed, status: "pendente" });
+            results.push({ fileName: file.name, data: parsed, status: "pendente", xmlText: content });
           } catch (err: unknown) {
             results.push({ fileName: file.name, data: null, status: "erro", error: err instanceof Error ? err.message : String(err) });
           }
@@ -190,14 +192,22 @@ export function useImportacaoXml() {
         comFornecedor.map(item => {
           const nfe = item.data;
           const fornecedorId = vendorMap.get(nfe.emitente.cnpj.replace(/\D/g, ""));
-          return inserirCompraXml({
-            fornecedor_id: fornecedorId!,
-            numero: nfe.numero,
-            data_compra: nfe.dataEmissao,
-            valor_total: nfe.valorTotal,
-            status: "confirmado",
-            observacoes: `Importação XML - Chave: ${nfe.chaveAcesso}`,
-          }).then(({ error }) => ({ nfe, error }));
+          // Arquivamento do XML cru (não bloqueia inserção em caso de falha).
+          const archive = item.xmlText && nfe.chaveAcesso
+            ? uploadNfeXml({ chave: nfe.chaveAcesso, tipo: "entrada", xmlText: item.xmlText, dataEmissao: nfe.dataEmissao })
+                .then(({ path }) => path)
+                .catch(() => null)
+            : Promise.resolve(null);
+          return archive.then((path) =>
+            inserirCompraXml({
+              fornecedor_id: fornecedorId!,
+              numero: nfe.numero,
+              data_compra: nfe.dataEmissao,
+              valor_total: nfe.valorTotal,
+              status: "confirmado",
+              observacoes: `Importação XML - Chave: ${nfe.chaveAcesso}${path ? ` - XML arquivado em ${path}` : " - XML NÃO arquivado"}`,
+            }).then(({ error }) => ({ nfe, error })),
+          );
         })
       );
 
