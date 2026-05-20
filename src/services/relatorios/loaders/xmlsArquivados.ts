@@ -59,9 +59,7 @@ export async function loadXmlsArquivados(
     if (filtros.clienteIds?.length) q = q.in("cliente_id", filtros.clienteIds);
     if (filtros.statusList?.length) q = q.in("status", filtros.statusList);
     if (apenasComXml) q = q.not("caminho_xml", "is", null);
-    return q as unknown as Parameters<typeof fetchAllPages<RawNotaXml>>[0] extends () => infer R
-      ? R
-      : never;
+    return q as unknown as Parameters<typeof fetchAllPages<RawNotaXml>>[0] extends () => infer R ? R : never;
   });
 
   const rows: XmlArquivadoRow[] = data.map((n) => {
