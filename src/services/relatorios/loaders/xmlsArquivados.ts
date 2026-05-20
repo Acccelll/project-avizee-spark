@@ -41,7 +41,7 @@ export interface XmlsArquivadosFiltros extends FiltroRelatorio {
 
 export async function loadXmlsArquivados(
   filtros: XmlsArquivadosFiltros,
-): Promise<RelatorioResultado<XmlArquivadoRow>> {
+): Promise<RelatorioResultado> {
   const tipoNota = filtros.tipoNota ?? "todos";
   const apenasComXml = filtros.apenasComXml ?? true;
 
