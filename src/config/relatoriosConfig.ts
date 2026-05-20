@@ -566,6 +566,52 @@ const nfeEntradaConfig: ReportConfig = {
   ],
 };
 
+const xmlsArquivadosConfig: ReportConfig = {
+  id: 'xmls_arquivados',
+  title: 'XMLs Arquivados',
+  description: 'NF-e com XML persistido — exporte em .zip para backup ou contador',
+  objective: 'Localizar e baixar XMLs arquivados (entrada/saída) por período, parceiro e status',
+  category: 'fiscal_faturamento',
+  icon: FileArchive,
+  chartType: 'bar',
+  columns: [
+    { key: 'tipo', label: 'Tipo', format: 'badge' },
+    { key: 'emissao', label: 'Emissão', format: 'date' },
+    { key: 'numero', label: 'Nº' },
+    { key: 'serie', label: 'Série' },
+    { key: 'chave', label: 'Chave de Acesso' },
+    { key: 'parceiro', label: 'Parceiro' },
+    { key: 'valor', label: 'Valor Total', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'status', label: 'Status', format: 'badge' },
+    { key: 'temXml', label: 'XML', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: true,
+    showFornecedores: true,
+    showGrupos: false,
+    showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'autorizada', label: 'Autorizada' },
+      { value: 'cancelada', label: 'Cancelada' },
+      { value: 'denegada', label: 'Denegada' },
+      { value: 'rejeitada', label: 'Rejeitada' },
+    ],
+    showTipos: true,
+  },
+  timeAxis: { field: 'emissao', label: 'data de emissão', required: true },
+  kpis: [
+    { key: 'totalNotas', label: 'Notas', format: 'number', variation: 'no período' },
+    { key: 'totalArquivados', label: 'Com XML', format: 'number', variant: 'success', variation: 'no armazenamento' },
+    { key: 'semXml', label: 'Sem XML', format: 'number', variant: 'warning', variation: 'não exportáveis' },
+    { key: 'entradas', label: 'Entradas', format: 'number', variation: 'NF-e recebidas' },
+    { key: 'saidas', label: 'Saídas', format: 'number', variation: 'NF-e emitidas' },
+    { key: 'valorTotal', label: 'Valor Total', format: 'currency', variation: 'soma das notas' },
+  ],
+  drillDown: [],
+};
+
 const faturamentoConfig: ReportConfig = {
   id: 'faturamento',
   title: 'Faturamento',
