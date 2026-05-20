@@ -121,7 +121,7 @@ const emptyForm: FiscalForm = {
   movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
   ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
-  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual",
+  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual", caminho_xml: "",
 };
 
 const modeloLabels: Record<string, string> = {
