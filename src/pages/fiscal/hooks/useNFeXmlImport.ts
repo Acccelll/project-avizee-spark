@@ -78,6 +78,8 @@ export interface TraducaoLinha {
 
 export interface NFeXmlImportResult {
   nfe: NFeData;
+  /** XML cru recebido (para arquivamento no Storage). */
+  xmlText: string;
   /** "entrada" quando o emitente do XML é um terceiro; "saida" quando é a própria empresa. */
   tipo: "entrada" | "saida";
   fornecedorId: string;
@@ -311,7 +313,7 @@ export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa 
       const unmatchedItemsCount = items.filter((i) => !i.produto_id).length;
       const traducaoOk = traducao.every((t) => !t.pendente);
 
-      return { nfe, tipo, fornecedorId, clienteId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk, distdfeRef };
+      return { nfe, xmlText, tipo, fornecedorId, clienteId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk, distdfeRef };
     },
     [fornecedores, produtos, clientes, cnpjEmpresa],
   );
