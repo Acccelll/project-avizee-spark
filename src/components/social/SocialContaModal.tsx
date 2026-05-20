@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Instagram } from 'lucide-react';
+import { Instagram, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,9 +152,22 @@ export function SocialContaModal({ open, onOpenChange, onSubmit }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={disabled}>{saving ? 'Salvando...' : 'Salvar conta'}</Button>
+        <DialogFooter className="max-sm:flex-col-reverse max-sm:gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="max-sm:h-11 max-sm:w-full"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={disabled}
+            className="max-sm:h-11 max-sm:w-full"
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {saving ? 'Salvando...' : 'Salvar conta'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
