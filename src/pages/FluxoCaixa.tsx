@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle,
   Plus, Upload, BarChart2, List, Building2, FileDown,
+  Loader2,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
@@ -526,24 +527,41 @@ const FluxoCaixa = () => {
             value={formatCurrency(totals.prevReceber)}
             subtitle={`Realizado: ${formatCurrency(totals.realReceber)}`}
             icon={TrendingUp} variant="success"
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovTipoFilters(["receber"]);
+            }}
+            aria-label="Ver movimentos de entradas previstas"
           />
           <SummaryCard
             title="Saídas Previstas"
             value={formatCurrency(totals.prevPagar)}
             subtitle={`Realizado: ${formatCurrency(totals.realPagar)}`}
             icon={TrendingDown} variant="danger"
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovTipoFilters(["pagar"]);
+            }}
+            aria-label="Ver movimentos de saídas previstas"
           />
           <SummaryCard
             title="Saldo Previsto"
             value={formatCurrency(totals.saldoPrevisto)}
             icon={Wallet}
             variant={totals.saldoPrevisto >= 0 ? "success" : "danger"}
+            onClick={() => setViewMode("movimentos")}
+            aria-label="Ver todos os movimentos do período"
           />
           <SummaryCard
             title="Saldo Realizado"
             value={formatCurrency(totals.saldoRealizado)}
             icon={Wallet}
             variant={totals.saldoRealizado >= 0 ? "info" : "danger"}
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovStatusFilters(["pago"]);
+            }}
+            aria-label="Ver movimentos realizados (pagos)"
           />
         </div>
 
@@ -569,7 +587,7 @@ const FluxoCaixa = () => {
         )}
 
         {/* ── View mode toggle ── */}
-        <div className="flex gap-1 mb-4">
+        <div className="flex gap-1 mb-4 max-sm:sticky max-sm:top-14 max-sm:z-20 max-sm:bg-background/95 max-sm:backdrop-blur max-sm:py-2 max-sm:-mx-4 max-sm:px-4 max-sm:border-b">
           <Button size="sm" variant={viewMode === "painel" ? "default" : "outline"} className="gap-2" onClick={() => setViewMode("painel")}>
             <BarChart2 className="w-3.5 h-3.5" /> Painel
           </Button>
