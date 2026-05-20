@@ -1018,6 +1018,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   compras_fornecedor: comprasFornecedorConfig,
   nfe_entrada: nfeEntradaConfig,
   faturamento: faturamentoConfig,
+  xmls_arquivados: xmlsArquivadosConfig,
   aging: agingConfig,
   dre: dreConfig,
   curva_abc: curvaAbcConfig,
