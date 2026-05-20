@@ -4,7 +4,8 @@ import { formatDate, formatNumber } from '@/lib/format';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { SocialPost } from '@/types/social';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Plug } from 'lucide-react';
+import { Plug, TrendingUp, Activity, BarChart2 } from 'lucide-react';
+import { SummaryCard } from '@/components/SummaryCard';
 
 interface Props {
   historicoComparativo: Array<{ plataforma: string; seguidores_novos: number; taxa_engajamento_media: number }>;
@@ -43,28 +44,29 @@ export function SocialDashboardTab({
   return (
     <div className="space-y-4">
       <div className="grid lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Crescimento no período</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{growthPercent.toFixed(2)}%</p>
-            <p className="text-xs text-muted-foreground">Comparado com período anterior equivalente</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Frequência de postagem</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{postingFrequency.toFixed(2)} / dia</p>
-            <p className="text-xs text-muted-foreground">Média de posts por dia no filtro ativo</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Tendência</CardTitle></CardHeader>
-          <CardContent>
-            <Badge variant={trendLabel === 'alta' ? 'default' : trendLabel === 'queda' ? 'destructive' : 'secondary'}>
-              {trendLabel}
-            </Badge>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          title="Crescimento no período"
+          value={`${growthPercent.toFixed(2)}%`}
+          subtitle="vs período anterior equivalente"
+          icon={TrendingUp}
+          variant={growthPercent >= 0 ? 'success' : 'danger'}
+          density="compact"
+        />
+        <SummaryCard
+          title="Frequência de postagem"
+          value={`${postingFrequency.toFixed(2)} / dia`}
+          subtitle="média no filtro ativo"
+          icon={Activity}
+          density="compact"
+        />
+        <SummaryCard
+          title="Tendência"
+          value={trendLabel}
+          subtitle="comparativo de engajamento"
+          icon={BarChart2}
+          variant={trendLabel === 'alta' ? 'success' : trendLabel === 'queda' ? 'danger' : 'default'}
+          density="compact"
+        />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -105,15 +107,23 @@ export function SocialDashboardTab({
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle>Melhor post</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Top posts (engajamento)</CardTitle></CardHeader>
           <CardContent>
-            {melhoresPosts[0] ? (
-              <div className="rounded border p-3">
-                <p className="font-medium text-sm">{melhoresPosts[0].titulo_legenda || 'Sem título'}</p>
-                <p className="text-xs text-muted-foreground">{formatDate(melhoresPosts[0].data_publicacao)} · {melhoresPosts[0].tipo_post}</p>
-                <p className="text-xs mt-2">Engajamento: <strong>{formatNumber(melhoresPosts[0].engajamento_total || 0)}</strong></p>
-              </div>
-            ) : <p className="text-sm text-muted-foreground">Sem postagens no período.</p>}
+            <div className="space-y-2">
+              {melhoresPosts.slice(0, 3).map((post, i) => (
+                <div key={post.id ?? i} className="rounded border p-3">
+                  <p className="font-medium text-sm flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">#{i + 1}</Badge>
+                    {post.titulo_legenda || 'Sem título'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatDate(post.data_publicacao)} · {post.tipo_post}</p>
+                  <p className="text-xs mt-2">Engajamento: <strong>{formatNumber(post.engajamento_total || 0)}</strong></p>
+                </div>
+              ))}
+              {melhoresPosts.length === 0 && (
+                <p className="text-sm text-muted-foreground">Sem postagens no período.</p>
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
