@@ -11,10 +11,10 @@ export function SocialPostsTab({ posts }: { posts: SocialPost[] }) {
       mobileIdentifierKey="titulo_legenda"
       columns={[
         { key: 'plataforma', label: 'Rede', render: (item: SocialPost) => socialPlatformLabel(item.plataforma) },
-        { key: 'data_publicacao', label: 'Publicação', render: (item: SocialPost) => formatDate(item.data_publicacao) },
-        { key: 'titulo_legenda', label: 'Título/Legenda' },
+        { key: 'data_publicacao', label: 'Publicação', mobileCard: true, render: (item: SocialPost) => formatDate(item.data_publicacao) },
+        { key: 'titulo_legenda', label: 'Título/Legenda', mobilePrimary: true },
         { key: 'tipo_post', label: 'Tipo' },
-        { key: 'engajamento_total', label: 'Engajamento', render: (item: SocialPost) => formatNumber(item.engajamento_total || 0) },
+        { key: 'engajamento_total', label: 'Engajamento', mobileCard: true, render: (item: SocialPost) => formatNumber(item.engajamento_total || 0) },
         { key: 'taxa_engajamento', label: 'Taxa', render: (item: SocialPost) => `${Number(item.taxa_engajamento || 0).toFixed(2)}%` },
       ]}
     />
