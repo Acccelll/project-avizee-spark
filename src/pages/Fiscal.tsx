@@ -593,6 +593,7 @@ const Fiscal = () => {
     clienteNome: string,
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
+    xmlText?: string,
   ) => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
@@ -610,6 +611,20 @@ const Fiscal = () => {
     // Quando o XML traz protocolo SEFAZ (procNFe autorizado), pré-marcamos
     // como já confirmada/autorizada — caso contrário fica como rascunho.
     const temProtocolo = !!nfe.protocolo;
+    // Upload do XML cru ao Storage (fire-and-forget; falha não bloqueia importação).
+    let caminhoXmlInicial = "";
+    if (xmlText && nfe.chaveAcesso) {
+      import("@/services/fiscal/xmlStorage.service").then(({ uploadNfeXml }) =>
+        uploadNfeXml({ chave: nfe.chaveAcesso, tipo, xmlText, dataEmissao: nfe.dataEmissao })
+          .then(({ path }) => {
+            setForm((prev) => ({ ...prev, caminho_xml: path }));
+          })
+          .catch((err) => {
+            logger.warn("[fiscal] falha ao arquivar XML no Storage:", err);
+            toast.warning("XML importado, mas não foi arquivado no Storage (download original ficará indisponível).");
+          }),
+      );
+    }
     setForm({
       ...emptyForm,
       tipo,
@@ -632,6 +647,7 @@ const Fiscal = () => {
       outras_despesas: nfe.valorOutrasDespesas,
       valor_total: nfe.valorTotal,
       origem: "xml_importado",
+      caminho_xml: caminhoXmlInicial,
     });
     setItems(newItems);
     setMode("create");
