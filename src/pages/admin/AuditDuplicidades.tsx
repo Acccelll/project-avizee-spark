@@ -31,6 +31,7 @@ import {
 } from "@/services/auditDups.service";
 import { AlertTriangle, RefreshCw, Trash2, ShieldCheck, ScanSearch } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 
 type StatusTab = "pendente" | "removido" | "mantido";
 
@@ -40,10 +41,11 @@ export default function AuditDuplicidades() {
   const [data, setData] = useState<AuditDup[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [purgeTarget, setPurgeTarget] = useState<AuditDup | null>(null);
   const [manterTarget, setManterTarget] = useState<AuditDup | null>(null);
   const [manterMotivo, setManterMotivo] = useState("");
   const [working, setWorking] = useState(false);
+  const [classFilter, setClassFilter] = useState<"todos" | "clara" | "manual_review">("todos");
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
 
   const fetchData = async (status: StatusTab) => {
     setLoading(true);
@@ -76,19 +78,32 @@ export default function AuditDuplicidades() {
     }
   };
 
-  const handleConfirmPurge = async () => {
-    if (!purgeTarget) return;
-    setWorking(true);
-    try {
-      const removed = await purgeDup(purgeTarget.id);
-      toast.success(`${removed} lançamento(s) removido(s) definitivamente`);
-      setPurgeTarget(null);
-      fetchData(tab);
-    } catch (e) {
-      notifyError(e);
-    } finally {
-      setWorking(false);
-    }
+  const handlePurge = async (target: AuditDup) => {
+    const n = (target.ids_a_remover as string[] | null)?.length ?? 0;
+    await confirmDestructive(
+      {
+        verb: "Remover",
+        entity: `${n} lançamento(s) duplicado(s)`,
+        sideEffects: [
+          `${n} lançamento(s) serão removidos permanentemente`,
+          `Valor: ${formatCurrency(Number(target.valor))} · Vencimento: ${formatDate(target.data_vencimento)}`,
+          "Lançamentos baixados nunca são removidos pelo sistema",
+          "Esta ação não pode ser desfeita",
+        ],
+      },
+      async () => {
+        setWorking(true);
+        try {
+          const removed = await purgeDup(target.id);
+          toast.success(`${removed} lançamento(s) removido(s) definitivamente`);
+          fetchData(tab);
+        } catch (e) {
+          notifyError(e);
+        } finally {
+          setWorking(false);
+        }
+      },
+    );
   };
 
   const handleConfirmManter = async () => {
@@ -117,10 +132,16 @@ export default function AuditDuplicidades() {
     return { total: data.length, claros, revisao };
   }, [data]);
 
+  const filteredData = useMemo(() => {
+    if (classFilter === "todos") return data;
+    return data.filter((d) => d.classificacao === classFilter);
+  }, [data, classFilter]);
+
   const columns = [
     {
       key: "tipo",
       label: "Tipo",
+      mobileCard: true,
       render: (r: AuditDup) => (
         <Badge variant="outline">{r.tipo === "pagar" ? "A Pagar" : "A Receber"}</Badge>
       ),
@@ -129,6 +150,7 @@ export default function AuditDuplicidades() {
       key: "valor",
       label: "Valor",
       sortable: true,
+      mobilePrimary: true,
       render: (r: AuditDup) => (
         <span className="font-mono text-sm">{formatCurrency(Number(r.valor))}</span>
       ),
@@ -137,6 +159,7 @@ export default function AuditDuplicidades() {
       key: "venc",
       label: "Vencimento",
       sortable: true,
+      mobileCard: true,
       render: (r: AuditDup) => formatDate(r.data_vencimento),
     },
     {
@@ -179,6 +202,7 @@ export default function AuditDuplicidades() {
     {
       key: "classificacao",
       label: "Classificação",
+      mobileCard: true,
       render: (r: AuditDup) =>
         r.classificacao === "clara" ? (
           <Badge className="bg-warning/15 text-warning border-warning/30">Clara</Badge>
@@ -198,10 +222,10 @@ export default function AuditDuplicidades() {
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 max-sm:h-11 text-xs"
               disabled={!isAdmin || (r.ids_a_remover as string[] | null)?.length === 0}
               title={!isAdmin ? "Apenas administradores podem mesclar duplicidades" : undefined}
-              onClick={() => setPurgeTarget(r)}
+              onClick={() => handlePurge(r)}
             >
               <Trash2 className="w-3 h-3 mr-1" />
               Remover
@@ -209,7 +233,7 @@ export default function AuditDuplicidades() {
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 text-xs"
+              className="h-9 max-sm:h-11 text-xs"
               disabled={!isAdmin}
               title={!isAdmin ? "Apenas administradores podem marcar duplicidades" : undefined}
               onClick={() => setManterTarget(r)}
@@ -241,18 +265,45 @@ export default function AuditDuplicidades() {
         }
         summaryCards={
           <>
-            <SummaryCard title="Grupos" value={String(counts.total)} icon={ScanSearch} />
-            <SummaryCard title="Claras" value={String(counts.claros)} icon={Trash2} variant="warning" />
+            <SummaryCard
+              title="Grupos"
+              value={String(counts.total)}
+              icon={ScanSearch}
+              onClick={() => setClassFilter("todos")}
+              active={classFilter === "todos"}
+              aria-label="Mostrar todas as duplicidades"
+            />
+            <SummaryCard
+              title="Claras"
+              value={String(counts.claros)}
+              icon={Trash2}
+              variant="warning"
+              onClick={
+                counts.claros > 0
+                  ? () => setClassFilter(classFilter === "clara" ? "todos" : "clara")
+                  : undefined
+              }
+              active={classFilter === "clara"}
+              aria-label="Filtrar duplicidades claras"
+            />
             <SummaryCard
               title="Revisão manual"
               value={String(counts.revisao)}
               icon={AlertTriangle}
+              onClick={
+                counts.revisao > 0
+                  ? () =>
+                      setClassFilter(classFilter === "manual_review" ? "todos" : "manual_review")
+                  : undefined
+              }
+              active={classFilter === "manual_review"}
+              aria-label="Filtrar duplicidades para revisão manual"
             />
           </>
         }
       >
         <Tabs value={tab} onValueChange={(v) => setTab(v as StatusTab)} className="w-full">
-          <TabsList>
+          <TabsList className="w-full grid grid-cols-3 max-sm:h-11">
             <TabsTrigger value="pendente">Pendentes</TabsTrigger>
             <TabsTrigger value="removido">Removidos</TabsTrigger>
             <TabsTrigger value="mantido">Mantidos</TabsTrigger>
@@ -260,9 +311,37 @@ export default function AuditDuplicidades() {
           <TabsContent value={tab} className="mt-4">
             <DataTable
               columns={columns}
-              data={data}
+              data={filteredData}
               loading={loading}
               moduleKey="audit-dups"
+              mobileStatusKey="classificacao"
+              mobileIdentifierKey="valor"
+              mobilePrimaryAction={
+                tab === "pendente"
+                  ? (r: AuditDup) => (
+                      <div className="flex gap-2 w-full">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-11 flex-1"
+                          disabled={!isAdmin || (r.ids_a_remover as string[] | null)?.length === 0}
+                          onClick={(e) => { e.stopPropagation(); handlePurge(r); }}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" /> Remover
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-11 flex-1"
+                          disabled={!isAdmin}
+                          onClick={(e) => { e.stopPropagation(); setManterTarget(r); }}
+                        >
+                          <ShieldCheck className="w-3 h-3 mr-1" /> Manter
+                        </Button>
+                      </div>
+                    )
+                  : undefined
+              }
               emptyTitle="Nenhuma duplicidade encontrada"
               emptyDescription={
                 tab === "pendente"
@@ -274,37 +353,7 @@ export default function AuditDuplicidades() {
         </Tabs>
       </ModulePage>
 
-      <AlertDialog open={!!purgeTarget} onOpenChange={(o) => !o && setPurgeTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              Confirmar remoção definitiva
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação remove permanentemente{" "}
-              <strong>{(purgeTarget?.ids_a_remover as string[] | null)?.length ?? 0}</strong>{" "}
-              lançamento(s) duplicado(s). Lançamentos baixados nunca são removidos pelo sistema.
-              <br />
-              <br />
-              <span className="font-medium text-foreground">
-                Valor: {purgeTarget && formatCurrency(Number(purgeTarget.valor))} — Vencimento:{" "}
-                {purgeTarget && formatDate(purgeTarget.data_vencimento)}
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmPurge}
-              disabled={working}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Remover definitivamente
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {destructiveDialog}
 
       <AlertDialog open={!!manterTarget} onOpenChange={(o) => !o && setManterTarget(null)}>
         <AlertDialogContent>
