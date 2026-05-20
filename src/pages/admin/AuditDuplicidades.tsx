@@ -82,7 +82,7 @@ export default function AuditDuplicidades() {
     const n = (target.ids_a_remover as string[] | null)?.length ?? 0;
     await confirmDestructive(
       {
-        verb: "Remover",
+        verb: "Excluir",
         entity: `${n} lançamento(s) duplicado(s)`,
         sideEffects: [
           `${n} lançamento(s) serão removidos permanentemente`,
