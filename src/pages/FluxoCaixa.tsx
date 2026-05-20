@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle,
   Plus, Upload, BarChart2, List, Building2, FileDown,
+  Loader2,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
@@ -300,6 +301,7 @@ const FluxoCaixa = () => {
   const movColumns = [
     {
       key: "data_vencimento", label: "Vencimento", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => {
         const es = getEffectiveStatus(l, hoje);
         const isOverdue = es === "vencido";
@@ -318,6 +320,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "tipo", label: "Tipo", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => (
         <Badge variant="outline" className={l.tipo === "receber"
           ? "border-success/40 text-success bg-success/5 whitespace-nowrap"
@@ -333,6 +336,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "valor", label: "Valor", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => (
         <span className={`font-semibold font-mono text-sm ${l.tipo === "receber" ? "text-success" : "text-destructive"}`}>
           {l.tipo === "receber" ? "+" : "-"}{formatCurrency(Number(l.valor))}
@@ -497,7 +501,7 @@ const FluxoCaixa = () => {
             <Label className="text-xs text-muted-foreground font-medium">Agrupamento</Label>
             <div className="flex gap-1">
               {(["diaria", "semanal", "mensal"] as Periodicidade[]).map(p => (
-                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
+                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="max-sm:h-11 h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
                   {p === "diaria" ? "Diária" : p === "semanal" ? "Semanal" : "Mensal"}
                 </Button>
               ))}
@@ -526,24 +530,41 @@ const FluxoCaixa = () => {
             value={formatCurrency(totals.prevReceber)}
             subtitle={`Realizado: ${formatCurrency(totals.realReceber)}`}
             icon={TrendingUp} variant="success"
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovTipoFilters(["receber"]);
+            }}
+            aria-label="Ver movimentos de entradas previstas"
           />
           <SummaryCard
             title="Saídas Previstas"
             value={formatCurrency(totals.prevPagar)}
             subtitle={`Realizado: ${formatCurrency(totals.realPagar)}`}
             icon={TrendingDown} variant="danger"
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovTipoFilters(["pagar"]);
+            }}
+            aria-label="Ver movimentos de saídas previstas"
           />
           <SummaryCard
             title="Saldo Previsto"
             value={formatCurrency(totals.saldoPrevisto)}
             icon={Wallet}
             variant={totals.saldoPrevisto >= 0 ? "success" : "danger"}
+            onClick={() => setViewMode("movimentos")}
+            aria-label="Ver todos os movimentos do período"
           />
           <SummaryCard
             title="Saldo Realizado"
             value={formatCurrency(totals.saldoRealizado)}
             icon={Wallet}
             variant={totals.saldoRealizado >= 0 ? "info" : "danger"}
+            onClick={() => {
+              setViewMode("movimentos");
+              setMovStatusFilters(["pago"]);
+            }}
+            aria-label="Ver movimentos realizados (pagos)"
           />
         </div>
 
@@ -569,7 +590,7 @@ const FluxoCaixa = () => {
         )}
 
         {/* ── View mode toggle ── */}
-        <div className="flex gap-1 mb-4">
+        <div className="flex gap-1 mb-4 max-sm:sticky max-sm:top-14 max-sm:z-20 max-sm:bg-background/95 max-sm:backdrop-blur max-sm:py-2 max-sm:-mx-4 max-sm:px-4 max-sm:border-b">
           <Button size="sm" variant={viewMode === "painel" ? "default" : "outline"} className="gap-2" onClick={() => setViewMode("painel")}>
             <BarChart2 className="w-3.5 h-3.5" /> Painel
           </Button>
@@ -799,7 +820,7 @@ const FluxoCaixa = () => {
               emptyTitle="Nenhum movimento encontrado"
               emptyDescription="Ajuste os filtros ou registre novos lançamentos."
               mobileStatusKey="status"
-              mobileIdentifierKey="data_vencimento"
+              mobileIdentifierKey="descricao"
             />
           </>
         )}
@@ -838,7 +859,7 @@ const FluxoCaixa = () => {
           </span>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo <span className="text-destructive">*</span></Label>
               <Select value={form.tipo} onValueChange={v => setForm({ ...form, tipo: v })}>
@@ -900,7 +921,7 @@ const FluxoCaixa = () => {
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$) <span className="text-destructive">*</span></Label>
               <CurrencyInput
@@ -914,7 +935,7 @@ const FluxoCaixa = () => {
               <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} required className="h-11 md:h-9" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
               <Select value={form.forma_pagamento || "__none__"} onValueChange={v => setForm({ ...form, forma_pagamento: v === "__none__" ? "" : v })}>
@@ -953,11 +974,18 @@ const FluxoCaixa = () => {
               rows={2}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving} className="gap-2">
-              {saving && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              Registrar Lançamento
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModalOpen(false)}
+              className="max-sm:h-11 max-sm:w-full"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving} className="gap-2 max-sm:h-11 max-sm:w-full">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Registrando..." : "Registrar Lançamento"}
             </Button>
           </div>
         </form>
@@ -988,7 +1016,7 @@ const FluxoCaixa = () => {
           {csvRows.length > 0 && (
             <div>
               <p className="text-sm font-medium mb-2">{csvRows.length} registro(s) detectado(s) — prévia:</p>
-              <div className="max-h-48 overflow-y-auto rounded border">
+              <div className="max-h-48 overflow-auto rounded border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">
                     <tr>{Object.keys(csvRows[0]).map(h => <th key={h} className="p-2 text-left font-semibold">{h}</th>)}</tr>
@@ -1006,11 +1034,21 @@ const FluxoCaixa = () => {
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setCsvOpen(false); setCsvRows([]); setCsvFile(""); }}>Cancelar</Button>
-            <Button disabled={!csvRows.length || csvImporting} onClick={handleCsvImport} className="gap-2">
-              {csvImporting && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              Importar {csvRows.length > 0 ? `${csvRows.length} registro(s)` : ""}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => { setCsvOpen(false); setCsvRows([]); setCsvFile(""); }}
+              className="max-sm:h-11 max-sm:w-full"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!csvRows.length || csvImporting}
+              onClick={handleCsvImport}
+              className="gap-2 max-sm:h-11 max-sm:w-full"
+            >
+              {csvImporting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {csvImporting ? "Importando..." : `Importar ${csvRows.length > 0 ? `${csvRows.length} registro(s)` : ""}`}
             </Button>
           </div>
         </div>
