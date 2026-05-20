@@ -705,7 +705,7 @@ const Fiscal = () => {
       if (!result) {
         return;
       }
-      const { nfe, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
+      const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
       const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
       const clienteNome = clientesCrud.data.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
 
@@ -726,7 +726,7 @@ const Fiscal = () => {
           cidade: d.municipio || "",
           uf: d.uf || "",
         });
-        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome: "", clienteId: "", clienteNome: d.razaoSocial || "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome: "", clienteId: "", clienteNome: d.razaoSocial || "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setQuickClienteOpen(true);
         toast.info(`Cliente ${d.cpfCnpj} não cadastrado. Cadastre rapidamente para continuar.`);
@@ -742,7 +742,7 @@ const Fiscal = () => {
           telefone: (nfe.emitente as { telefone?: string }).telefone || "",
         });
         // Mantém pendingXmlImport para retomar após cadastro do fornecedor.
-        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome, clienteId: "", clienteNome: "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId: "", fornecedorNome, clienteId: "", clienteNome: "", fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setQuickFornecedorOpen(true);
         toast.info(`Fornecedor ${nfe.emitente.cnpj} não cadastrado. Cadastre rapidamente para continuar.`);
@@ -751,11 +751,11 @@ const Fiscal = () => {
 
       if (traducaoOk) {
         // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
-        aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
+        aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, traducao, fiscalMap as Record<number, NfItemFiscalData>, xmlText);
         toast.success("XML importado. Tradução automática aplicada.");
       } else {
         // Pendência → drawer obrigatório, segura abertura do form.
-        setPendingXmlImport({ nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setPendingXmlImport({ nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData>, xmlText });
         setTraducaoLinhas(traducao);
         setTraducaoReadOnly(false);
         setTraducaoOpen(true);
@@ -765,9 +765,9 @@ const Fiscal = () => {
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
     if (pendingXmlImport) {
       // Fluxo "tinha pendência": agora aplica e abre o form.
-      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap } = pendingXmlImport;
+      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText } = pendingXmlImport;
       if (tipo === "entrada") await salvarDeParaFornecedor(fornecedorId, linhas);
-      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap);
+      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText);
       setPendingXmlImport(null);
       setTraducaoOpen(false);
       toast.success("Tradução confirmada. Revise a NF e salve.");
