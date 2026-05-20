@@ -1111,6 +1111,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   compras_fornecedor: { valueSortField: 'valorTotal', dateSortField: 'compra', periodAxisLabel: 'data de compra (por fornecedor)', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
   nfe_entrada: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (NF-e de entrada)', highlightFilters: ['periodo', 'fornecedores', 'status'], investigableField: 'fornecedor' },
   faturamento: { valueSortField: 'valorTotal', dateSortField: 'data', periodAxisLabel: 'data de emissão da NF', highlightFilters: ['periodo'] },
+  xmls_arquivados: { statusField: 'tipo', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (XMLs arquivados)', highlightFilters: ['periodo', 'fornecedores', 'clientes', 'tipo'], investigableField: 'parceiro' },
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
   margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },
