@@ -22,3 +22,9 @@ Todo XML de NF-e importado para o sistema (drawer fiscal, consulta por chave, lo
 **Backfill:** NFs antigas (anteriores a esta feature) ficam sem `caminho_xml`. Não há job de backfill — a reimportação manual do XML preenche o campo.
 
 **Índice:** `idx_notas_fiscais_com_xml` (parcial, `WHERE caminho_xml IS NOT NULL`) para consulta rápida.
+
+## Export em lote (.zip) via Relatórios
+
+Relatório `xmls_arquivados` (categoria *Fiscal/Faturamento*) lista NF-e com `caminho_xml` filtradas por período (data_emissao), tipo (entrada/saida), fornecedor, cliente e status. O `ExportMenu` ganha a opção **"XMLs (.zip)"** apenas quando `tipo === 'xmls_arquivados'`.
+
+Service: `src/services/fiscal/xmlBatchExport.ts` → `exportarXmlsZip({ rows, dataInicio, dataFim, onProgress })`. Concorrência 6, falhas individuais não abortam (ficam em `_falhas.txt`). Estrutura interna do zip: `xmls_nfe_{di}_{df}/{entrada|saida}/{AAAA-MM}/{chave}.xml` + `_resumo.csv`.
