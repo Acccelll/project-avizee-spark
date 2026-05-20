@@ -820,7 +820,7 @@ const FluxoCaixa = () => {
               emptyTitle="Nenhum movimento encontrado"
               emptyDescription="Ajuste os filtros ou registre novos lançamentos."
               mobileStatusKey="status"
-              mobileIdentifierKey="data_vencimento"
+              mobileIdentifierKey="descricao"
             />
           </>
         )}
@@ -859,7 +859,7 @@ const FluxoCaixa = () => {
           </span>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo <span className="text-destructive">*</span></Label>
               <Select value={form.tipo} onValueChange={v => setForm({ ...form, tipo: v })}>
@@ -921,7 +921,7 @@ const FluxoCaixa = () => {
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$) <span className="text-destructive">*</span></Label>
               <CurrencyInput
@@ -935,7 +935,7 @@ const FluxoCaixa = () => {
               <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} required className="h-11 md:h-9" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
               <Select value={form.forma_pagamento || "__none__"} onValueChange={v => setForm({ ...form, forma_pagamento: v === "__none__" ? "" : v })}>
@@ -974,11 +974,18 @@ const FluxoCaixa = () => {
               rows={2}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving} className="gap-2">
-              {saving && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              Registrar Lançamento
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModalOpen(false)}
+              className="max-sm:h-11 max-sm:w-full"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving} className="gap-2 max-sm:h-11 max-sm:w-full">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Registrando..." : "Registrar Lançamento"}
             </Button>
           </div>
         </form>
@@ -1009,7 +1016,7 @@ const FluxoCaixa = () => {
           {csvRows.length > 0 && (
             <div>
               <p className="text-sm font-medium mb-2">{csvRows.length} registro(s) detectado(s) — prévia:</p>
-              <div className="max-h-48 overflow-y-auto rounded border">
+              <div className="max-h-48 overflow-auto rounded border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">
                     <tr>{Object.keys(csvRows[0]).map(h => <th key={h} className="p-2 text-left font-semibold">{h}</th>)}</tr>
@@ -1027,11 +1034,21 @@ const FluxoCaixa = () => {
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setCsvOpen(false); setCsvRows([]); setCsvFile(""); }}>Cancelar</Button>
-            <Button disabled={!csvRows.length || csvImporting} onClick={handleCsvImport} className="gap-2">
-              {csvImporting && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              Importar {csvRows.length > 0 ? `${csvRows.length} registro(s)` : ""}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => { setCsvOpen(false); setCsvRows([]); setCsvFile(""); }}
+              className="max-sm:h-11 max-sm:w-full"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!csvRows.length || csvImporting}
+              onClick={handleCsvImport}
+              className="gap-2 max-sm:h-11 max-sm:w-full"
+            >
+              {csvImporting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {csvImporting ? "Importando..." : `Importar ${csvRows.length > 0 ? `${csvRows.length} registro(s)` : ""}`}
             </Button>
           </div>
         </div>
