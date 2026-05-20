@@ -222,6 +222,7 @@ const Fiscal = () => {
     clienteId?: string;
     clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
+    xmlText?: string;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
