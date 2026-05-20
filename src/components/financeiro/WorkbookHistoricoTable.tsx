@@ -47,6 +47,7 @@ export function WorkbookHistoricoTable({
     {
       key: 'gerado_em',
       label: 'Gerado em',
+      mobilePrimary: true,
       render: (r: WorkbookGeracao) => {
         const ts = new Date(r.gerado_em).getTime();
         const dias = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
@@ -74,12 +75,14 @@ export function WorkbookHistoricoTable({
     {
       key: 'template',
       label: 'Template',
+      mobileCard: true,
       render: (r: WorkbookGeracao) =>
         r.workbook_templates?.nome ?? '—',
     },
     {
       key: 'periodo',
       label: 'Período',
+      mobileCard: true,
       render: (r: WorkbookGeracao) =>
         r.competencia_inicial && r.competencia_final
           ? `${r.competencia_inicial} → ${r.competencia_final}`
@@ -150,7 +153,7 @@ export function WorkbookHistoricoTable({
       label: '',
       render: (r: WorkbookGeracao) =>
         r.status === 'concluido' && canDownload ? (
-          <Button size="sm" variant="outline" onClick={() => onDownload(r)}>
+          <Button size="sm" variant="outline" onClick={() => onDownload(r)} className="max-sm:h-11">
             <Download className="h-4 w-4 mr-1" /> Download
           </Button>
         ) : null,
@@ -166,6 +169,18 @@ export function WorkbookHistoricoTable({
           loading={isLoading}
           emptyTitle="Nenhuma geração encontrada."
           mobileStatusKey="status"
+          mobilePrimaryAction={(r: WorkbookGeracao) =>
+            r.status === 'concluido' && canDownload ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-11 w-full"
+                onClick={(e) => { e.stopPropagation(); onDownload(r); }}
+              >
+                <Download className="h-4 w-4 mr-1" /> Download
+              </Button>
+            ) : null
+          }
         />
       </div>
     </div>
