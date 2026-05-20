@@ -95,7 +95,7 @@ export async function loadXmlsArquivados(
     title: "XMLs Arquivados",
     subtitle:
       "NF-e com XML persistido no armazenamento interno — pronto para download em .zip.",
-    rows,
+    rows: rows as unknown as Record<string, unknown>[],
     kpis: {
       totalNotas: rows.length,
       totalArquivados,
