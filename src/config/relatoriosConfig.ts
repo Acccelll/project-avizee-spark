@@ -33,6 +33,7 @@ import {
   Users,
   ContactRound,
   IdCard,
+  FileArchive,
   type LucideIcon,
 } from 'lucide-react';
 
