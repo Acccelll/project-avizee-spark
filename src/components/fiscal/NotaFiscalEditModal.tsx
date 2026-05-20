@@ -1160,6 +1160,23 @@ export function NotaFiscalEditModal({
 
           {/* ── 9. Ações ─────────────────────────────────────────── */}
           <div className="pt-2 border-t">
+            {(selected as { caminho_xml?: string | null }).caminho_xml && (
+              <div className="mb-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={async () => {
+                    const path = (selected as { caminho_xml?: string | null }).caminho_xml!;
+                    const { triggerDownloadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
+                    await triggerDownloadNfeXml({ path, filename: `${selected.chave_acesso || selected.numero}.xml` });
+                  }}
+                >
+                  <FileDown className="h-4 w-4" /> Baixar XML
+                </Button>
+              </div>
+            )}
             {rules.isFullyLocked ? (
               <Button
                 type="button"
