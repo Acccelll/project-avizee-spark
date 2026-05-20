@@ -498,7 +498,7 @@ const FluxoCaixa = () => {
             <Label className="text-xs text-muted-foreground font-medium">Agrupamento</Label>
             <div className="flex gap-1">
               {(["diaria", "semanal", "mensal"] as Periodicidade[]).map(p => (
-                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
+                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="max-sm:h-11 h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
                   {p === "diaria" ? "Diária" : p === "semanal" ? "Semanal" : "Mensal"}
                 </Button>
               ))}
