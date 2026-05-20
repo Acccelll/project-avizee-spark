@@ -239,6 +239,8 @@ export default function Relatorios() {
     handleExportCsv,
     handleExportPdf,
     handleExportXlsx,
+    handleExportXmlZip,
+    xmlZipCount,
     PDF_ROW_LIMIT,
     isLikelyTruncated,
     confirmDialogs,
