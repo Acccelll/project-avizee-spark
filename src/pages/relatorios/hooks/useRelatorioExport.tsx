@@ -23,6 +23,8 @@ import type {
   RelatorioResultado,
   TipoRelatorio,
 } from '@/services/relatorios.service';
+import { exportarXmlsZip } from '@/services/fiscal/xmlBatchExport';
+import type { XmlArquivadoRow } from '@/types/relatorios-xml';
 
 const PDF_ROW_LIMIT = 200;
 const XLSX_ROW_LIMIT = 10000;
@@ -57,6 +59,7 @@ export function useRelatorioExport({
   const { confirm: confirmCsv, dialog: dialogCsv } = useConfirmDialog();
   const { confirm: confirmPdf, dialog: dialogPdf } = useConfirmDialog();
   const { confirm: confirmXlsx, dialog: dialogXlsx } = useConfirmDialog();
+  const { confirm: confirmZip, dialog: dialogZip } = useConfirmDialog();
 
   const exportScopeDescription = `${sortedRows.length} ${
     sortedRows.length === 1 ? 'registro' : 'registros'
@@ -187,6 +190,60 @@ export function useRelatorioExport({
     }
   };
 
+  // ── XMLs (.zip) — específico para o relatório "xmls_arquivados" ──────────
+  const xmlZipRows = (sortedRows as unknown as XmlArquivadoRow[]).filter(
+    (r) => !!r?.caminhoXml,
+  );
+  const xmlZipCount = tipo === 'xmls_arquivados' ? xmlZipRows.length : 0;
+
+  const handleExportXmlZip = async () => {
+    if (tipo !== 'xmls_arquivados') return;
+    if (!xmlZipRows.length) {
+      toast.warning('Nenhum XML arquivado nas linhas filtradas.');
+      return;
+    }
+    if (isExporting) return;
+    if (xmlZipRows.length > 500) {
+      const ok = await confirmZip({
+        title: `Compactar ${xmlZipRows.length} XMLs`,
+        description: `Você está prestes a baixar um .zip com ${xmlZipRows.length.toLocaleString('pt-BR')} arquivos XML. O processo pode levar alguns minutos. Deseja continuar?`,
+        confirmLabel: 'Gerar .zip',
+      });
+      if (!ok) return;
+    }
+    const tid = toast.loading('Coletando XMLs...', {
+      description: `${xmlZipRows.length} arquivos`,
+    });
+    setIsExporting(true);
+    try {
+      const result = await exportarXmlsZip({
+        rows: xmlZipRows,
+        dataInicio,
+        dataFim,
+        onProgress: (p) => {
+          if (p.phase === 'coletando') {
+            toast.loading(`Coletando XMLs ${p.current}/${p.total}...`, { id: tid });
+          } else if (p.phase === 'compactando') {
+            toast.loading('Compactando .zip...', { id: tid });
+          }
+        },
+      });
+      const extra = result.falhas
+        ? ` · ${result.falhas} falha${result.falhas === 1 ? '' : 's'}`
+        : '';
+      toast.success(`${result.arquivos} XML${result.arquivos === 1 ? '' : 's'} exportados${extra}`, {
+        id: tid,
+        description: result.filename,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Falha ao gerar .zip';
+      toast.error(msg, { id: tid });
+      console.error(e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return {
     isExporting,
     exportColumnDefs,
@@ -195,6 +252,8 @@ export function useRelatorioExport({
     handleExportCsv,
     handleExportPdf,
     handleExportXlsx,
+    handleExportXmlZip,
+    xmlZipCount,
     PDF_ROW_LIMIT,
     XLSX_ROW_LIMIT,
     CSV_ROW_LIMIT,
@@ -203,6 +262,7 @@ export function useRelatorioExport({
         {dialogCsv}
         {dialogPdf}
         {dialogXlsx}
+        {dialogZip}
       </>
     ),
   };
