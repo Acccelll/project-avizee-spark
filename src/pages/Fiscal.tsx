@@ -457,6 +457,21 @@ const Fiscal = () => {
 
   const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
 
+  const baixarXmlArquivado = async (n: NotaFiscal) => {
+    const path = (n as { caminho_xml?: string | null }).caminho_xml;
+    if (!path) {
+      toast.error("XML não arquivado para esta NF.");
+      return;
+    }
+    try {
+      const { triggerDownloadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
+      await triggerDownloadNfeXml({ path, filename: `${n.chave_acesso || n.numero}.xml` });
+    } catch (err) {
+      logger.error("[fiscal] baixar XML:", err);
+      toast.error(`Não foi possível baixar o XML: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const handleConfirmar = async (nf: NotaFiscal) => {
     if (!canConfirmFiscal(nf.status)) {
       toast.error(`NF ${nf.numero} não está em estado confirmável.`);
