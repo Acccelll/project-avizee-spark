@@ -1708,6 +1708,11 @@ const Fiscal = () => {
                         <FileText className="h-4 w-4 mr-2" /> DANFE
                       </DropdownMenuItem>
                     )}
+                    {(n as { caminho_xml?: string | null }).caminho_xml && (
+                      <DropdownMenuItem onClick={() => baixarXmlArquivado(n)}>
+                        <FileDown className="h-4 w-4 mr-2" /> Baixar XML
+                      </DropdownMenuItem>
+                    )}
                     {canDevolucao && (
                       <DropdownMenuItem onClick={() => openDevolucao(n)}>
                         <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
