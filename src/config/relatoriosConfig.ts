@@ -33,6 +33,7 @@ import {
   Users,
   ContactRound,
   IdCard,
+  FileArchive,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -565,6 +566,52 @@ const nfeEntradaConfig: ReportConfig = {
   ],
 };
 
+const xmlsArquivadosConfig: ReportConfig = {
+  id: 'xmls_arquivados',
+  title: 'XMLs Arquivados',
+  description: 'NF-e com XML persistido — exporte em .zip para backup ou contador',
+  objective: 'Localizar e baixar XMLs arquivados (entrada/saída) por período, parceiro e status',
+  category: 'fiscal_faturamento',
+  icon: FileArchive,
+  chartType: 'bar',
+  columns: [
+    { key: 'tipo', label: 'Tipo', format: 'badge' },
+    { key: 'emissao', label: 'Emissão', format: 'date' },
+    { key: 'numero', label: 'Nº' },
+    { key: 'serie', label: 'Série' },
+    { key: 'chave', label: 'Chave de Acesso' },
+    { key: 'parceiro', label: 'Parceiro' },
+    { key: 'valor', label: 'Valor Total', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'status', label: 'Status', format: 'badge' },
+    { key: 'temXml', label: 'XML', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: true,
+    showFornecedores: true,
+    showGrupos: false,
+    showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'autorizada', label: 'Autorizada' },
+      { value: 'cancelada', label: 'Cancelada' },
+      { value: 'denegada', label: 'Denegada' },
+      { value: 'rejeitada', label: 'Rejeitada' },
+    ],
+    showTipos: true,
+  },
+  timeAxis: { field: 'emissao', label: 'data de emissão', required: true },
+  kpis: [
+    { key: 'totalNotas', label: 'Notas', format: 'number', variation: 'no período' },
+    { key: 'totalArquivados', label: 'Com XML', format: 'number', variant: 'success', variation: 'no armazenamento' },
+    { key: 'semXml', label: 'Sem XML', format: 'number', variant: 'warning', variation: 'não exportáveis' },
+    { key: 'entradas', label: 'Entradas', format: 'number', variation: 'NF-e recebidas' },
+    { key: 'saidas', label: 'Saídas', format: 'number', variation: 'NF-e emitidas' },
+    { key: 'valorTotal', label: 'Valor Total', format: 'currency', variation: 'soma das notas' },
+  ],
+  drillDown: [],
+};
+
 const faturamentoConfig: ReportConfig = {
   id: 'faturamento',
   title: 'Faturamento',
@@ -971,6 +1018,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   compras_fornecedor: comprasFornecedorConfig,
   nfe_entrada: nfeEntradaConfig,
   faturamento: faturamentoConfig,
+  xmls_arquivados: xmlsArquivadosConfig,
   aging: agingConfig,
   dre: dreConfig,
   curva_abc: curvaAbcConfig,
@@ -1063,6 +1111,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   compras_fornecedor: { valueSortField: 'valorTotal', dateSortField: 'compra', periodAxisLabel: 'data de compra (por fornecedor)', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
   nfe_entrada: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (NF-e de entrada)', highlightFilters: ['periodo', 'fornecedores', 'status'], investigableField: 'fornecedor' },
   faturamento: { valueSortField: 'valorTotal', dateSortField: 'data', periodAxisLabel: 'data de emissão da NF', highlightFilters: ['periodo'] },
+  xmls_arquivados: { statusField: 'tipo', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (XMLs arquivados)', highlightFilters: ['periodo', 'fornecedores', 'clientes', 'tipo'], investigableField: 'parceiro' },
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
   margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },

@@ -45,6 +45,7 @@ import {
   loadNfeEntrada,
 } from "@/services/relatorios/loaders/compras";
 import { loadDivergencias } from "@/services/relatorios/loaders/divergencias";
+import { loadXmlsArquivados } from "@/services/relatorios/loaders/xmlsArquivados";
 import {
   loadCadastroProdutos,
   loadCadastroClientes,
@@ -106,6 +107,9 @@ export async function carregarRelatorio(
 
     case "divergencias":
       return loadDivergencias(filtros);
+
+    case "xmls_arquivados":
+      return loadXmlsArquivados(filtros);
 
     case "cadastro_produtos":
       return loadCadastroProdutos(filtros);

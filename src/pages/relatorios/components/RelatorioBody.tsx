@@ -53,6 +53,8 @@ interface RelatorioBodyProps {
   handleExportPdf: () => void;
   handleExportXlsx: () => void;
   handleExportCsv: () => void;
+  handleExportXmlZip?: () => void;
+  xmlZipCount?: number;
   /** Item 3 — layout do conjunto chart+tabela no desktop. */
   layout?: 'stacked' | 'side-by-side';
 }
@@ -67,6 +69,7 @@ export function RelatorioBody(props: RelatorioBodyProps) {
     handleClearAllFilters, handleChartDrillDown,
     tableExpanded, setTableExpanded,
     isExporting, PDF_ROW_LIMIT, handleExportPdf, handleExportXlsx, handleExportCsv,
+    handleExportXmlZip, xmlZipCount,
     layout = 'stacked',
   } = props;
 
@@ -273,6 +276,8 @@ export function RelatorioBody(props: RelatorioBodyProps) {
           onExportPdf={handleExportPdf}
           onExportExcel={handleExportXlsx}
           onExportCsv={handleExportCsv}
+          onExportXmlZip={handleExportXmlZip}
+          xmlZipCount={xmlZipCount}
           fullWidth
         />
       </div>

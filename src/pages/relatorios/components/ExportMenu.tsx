@@ -14,11 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, FileText, FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, FileDown, FileArchive, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ExportMenuProps {
-  recordCount: number;
+  recordCount: number | undefined;
   columnCount: number;
   disabled?: boolean;
   loading?: boolean;
@@ -28,6 +28,13 @@ export interface ExportMenuProps {
   onExportPdf: () => void;
   onExportExcel: () => void;
   onExportCsv: () => void;
+  /**
+   * Quando definido, adiciona a opção "XMLs (.zip)" no menu. Usado no relatório
+   * "XMLs Arquivados" para baixar o pacote de XML-NFe filtrados.
+   */
+  onExportXmlZip?: () => void;
+  /** Quantidade de XMLs que entrariam no .zip (subset de recordCount). */
+  xmlZipCount?: number;
 }
 
 export function ExportMenu({
@@ -40,6 +47,8 @@ export function ExportMenu({
   onExportPdf,
   onExportExcel,
   onExportCsv,
+  onExportXmlZip,
+  xmlZipCount,
 }: ExportMenuProps) {
   return (
     <DropdownMenu>
@@ -86,6 +95,26 @@ export function ExportMenu({
             <div className="text-xs text-muted-foreground">Texto separado por vírgula</div>
           </div>
         </DropdownMenuItem>
+        {onExportXmlZip && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onExportXmlZip}
+              className="gap-2"
+              disabled={!xmlZipCount}
+            >
+              <FileArchive className="h-4 w-4 text-primary" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">XMLs (.zip)</div>
+                <div className="text-xs text-muted-foreground">
+                  {xmlZipCount
+                    ? `${xmlZipCount} XML${xmlZipCount === 1 ? "" : "s"} arquivado${xmlZipCount === 1 ? "" : "s"}`
+                    : "Nenhum XML arquivado no filtro atual"}
+                </div>
+              </div>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -26,6 +26,7 @@ export type TipoRelatorio =
   | "nfe_entrada"
   | "divergencias"
   | "faturamento"
+  | "xmls_arquivados"
   | "cadastro_produtos"
   | "cadastro_clientes"
   | "cadastro_fornecedores"

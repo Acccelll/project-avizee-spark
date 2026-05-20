@@ -239,6 +239,8 @@ export default function Relatorios() {
     handleExportCsv,
     handleExportPdf,
     handleExportXlsx,
+    handleExportXmlZip,
+    xmlZipCount,
     PDF_ROW_LIMIT,
     isLikelyTruncated,
     confirmDialogs,
@@ -394,6 +396,8 @@ export default function Relatorios() {
                     onExportPdf={handleExportPdf}
                     onExportExcel={handleExportXlsx}
                     onExportCsv={handleExportCsv}
+                    onExportXmlZip={tipo === 'xmls_arquivados' ? handleExportXmlZip : undefined}
+                    xmlZipCount={tipo === 'xmls_arquivados' ? xmlZipCount : undefined}
                   />
                 }
               />
@@ -429,6 +433,8 @@ export default function Relatorios() {
                     onExportPdf={handleExportPdf}
                     onExportExcel={handleExportXlsx}
                     onExportCsv={handleExportCsv}
+                    onExportXmlZip={tipo === 'xmls_arquivados' ? handleExportXmlZip : undefined}
+                    xmlZipCount={tipo === 'xmls_arquivados' ? xmlZipCount : undefined}
                   />
                 }
               />
@@ -463,6 +469,8 @@ export default function Relatorios() {
                 handleExportPdf={handleExportPdf}
                 handleExportXlsx={handleExportXlsx}
                 handleExportCsv={handleExportCsv}
+                handleExportXmlZip={tipo === 'xmls_arquivados' ? handleExportXmlZip : undefined}
+                xmlZipCount={tipo === 'xmls_arquivados' ? xmlZipCount : undefined}
                 layout={layout}
               />
             </>
@@ -485,6 +493,8 @@ export default function Relatorios() {
             onExportPdf={handleExportPdf}
             onExportExcel={handleExportXlsx}
             onExportCsv={handleExportCsv}
+            onExportXmlZip={tipo === 'xmls_arquivados' ? handleExportXmlZip : undefined}
+            xmlZipCount={tipo === 'xmls_arquivados' ? xmlZipCount : undefined}
           />
         }
       >

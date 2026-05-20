@@ -1,77 +1,65 @@
 ## Objetivo
 
-Persistir o arquivo XML original de toda NF-e importada (entrada ou saída) para download posterior, sem perder a verdade fiscal.
+Adicionar em **Relatórios** a opção de **exportar XMLs arquivados em um único `.zip`**, respeitando filtros (período, fornecedor/cliente, tipo entrada/saída, status). Reaproveita os XMLs já persistidos em `dbavizee/fiscal/{ano}/{mes}/{tipo}/{chave}.xml` (feature de arquivamento já implementada).
 
-## Recomendação: Storage interno (bucket `dbavizee`, prefixo `fiscal/`)
+## UX
 
-**Por que não Google Drive como destino principal:**
-- Exige OAuth por usuário (cada operador autorizando sua conta) ou OAuth do dono — o que mistura responsabilidade fiscal com conta pessoal de um único Google.
-- Latência maior, falhas de quota, risco de pasta movida/renomeada quebrando vínculo com a nota.
-- Auditoria fiscal precisa que o arquivo viva ao lado do registro (mesma RLS, mesmo backup, mesmo `deleted_at`).
-- Google Drive é ótimo como **espelho/exportação opcional**, não como fonte primária.
+Novo relatório dedicado **"XMLs Arquivados"** na categoria *Fiscal/Faturamento* (ao lado de "NF-e de Entrada" e "Faturamento"). Mantém o padrão visual do workspace de Relatórios — tabela com colunas Tipo / Emissão / Nº / Chave / Parceiro / Valor / Status / "XML arquivado" (badge sim/não).
 
-**Storage interno resolve sem dependências externas:**
-- Bucket `dbavizee` já existe com prefixo `fiscal/` autorizado por policy.
-- Coluna `notas_fiscais.caminho_xml text` já existe — hoje nunca é preenchida.
-- Download direto via signed URL respeitando RLS de `faturamento_fiscal`.
+Filtros disponíveis (via `FiltroRelatorio` padrão):
+- **Período** (data de emissão) — obrigatório
+- **Tipo**: Entrada / Saída / Ambos (novo `statusOptions`)
+- **Fornecedor** (quando tipo = entrada/ambos)
+- **Cliente** (quando tipo = saída/ambos)
+- **Status SEFAZ** (autorizada, cancelada, denegada, etc.) — reutilizando filtro de status já existente
+- **Apenas com XML arquivado** (default ligado)
 
-## Escopo da implementação
+CTA principal: substituir o `ExportMenu` padrão (PDF/Excel/CSV) por uma versão estendida que adiciona a opção **"XMLs (.zip)"**. Só nesse relatório.
 
-### 1. Caminho canônico no bucket
-```
-fiscal/{ano}/{mes}/{tipo}/{chave_acesso}.xml
-```
-Ex.: `fiscal/2026/05/entrada/35260512345678000190550010000012341123456789.xml`. Idempotente (mesma chave → mesmo path, `upsert: true`).
+Confirmação antes de zips grandes (>500 arquivos ou >100 MB estimados) via `useConfirmDialog`.
 
-### 2. Fluxos cobertos
-| Fluxo | Onde inserir upload |
-|---|---|
-| Importação XML de **entrada** (drawer + Tradução) | `src/pages/Fiscal.tsx` → `aplicarImportacaoXml` / `handleXmlImport` |
-| Importação XML em **lote (.zip)** de compras | `src/hooks/importacao/useImportacaoXml.ts` → `processImport` |
-| **Saída** emitida pelo sistema (NF-e autorizada via SEFAZ) | já gera XML; salvar `xml_autorizado` no mesmo prefixo após retorno SEFAZ |
-| **Saída** importada (XML colado/carregado) | mesmo handler do drawer fiscal |
+## Comportamento do export ZIP
 
-Em todos os casos: `upload → set caminho_xml → insert/update nota`. Se o upload falhar, importação continua (a nota não pode ser perdida); registra warning em `importacao_logs`.
+1. A partir das linhas filtradas atualmente visíveis, coleta `caminho_xml` (ignora linhas sem XML, contabilizando "X NF-e sem XML arquivado — não incluídas").
+2. Baixa em paralelo (concorrência 6) via `getNfeXmlSignedUrl` → fetch → Blob (reusa `src/services/fiscal/xmlStorage.service.ts`).
+3. Monta `.zip` com `jszip` (já no projeto) estruturado:
+   ```text
+   xmls_{periodo}/
+     entrada/{AAAA-MM}/{chave}.xml
+     saida/{AAAA-MM}/{chave}.xml
+     _resumo.csv   # chave, tipo, emissao, parceiro, valor, status, caminho
+   ```
+4. Toast em fases ("Coletando", "Compactando X/Y", "Concluído") seguindo o padrão de `useRelatorioExport`.
+5. Nome do arquivo: `xmls_nfe_{YYYYMMDD}_{YYYYMMDD}.zip`.
 
-### 3. Service novo
-`src/services/fiscal/xmlStorage.service.ts`:
-- `uploadNfeXml({ chave, tipo, xmlText }) → { path }`
-- `getNfeXmlSignedUrl(notaId) → string` (lê `caminho_xml`, gera signed URL 5 min)
-- `downloadNfeXml(notaId) → Blob` (para botão "Baixar XML")
+Falhas individuais não abortam o lote — entram em `_falhas.txt` dentro do zip, e o toast final indica "N XMLs · M falhas".
 
-Encapsula `supabase.storage.from('dbavizee')` — respeita a regra de camada services única.
+## Implementação técnica
 
-### 4. UI
-- **Drawer/lista fiscal** (`Fiscal.tsx` + `FiscalDetail.tsx` + `NotaFiscalEditModal.tsx`): novo botão **"Baixar XML"** quando `caminho_xml` presente. Ícone `FileDown`, ao lado de "Baixar DANFE".
-- **Coluna na tabela**: badge discreto "XML" indicando disponibilidade.
-- **Importação lote**: relatório final mostra "X XMLs arquivados".
+**Arquivos novos**
+- `src/services/fiscal/xmlBatchExport.ts` — função `exportarXmlsZip({ rows, onProgress })` com pool de concorrência + jszip + dispatch de download. Sem lógica de UI.
+- `src/services/relatorios/loaders/xmlsArquivados.ts` — query em `notas_fiscais` retornando linhas tipadas (`XmlArquivadoRow`) com filtros de período/tipo/parceiro/status e flag `temXml = caminho_xml IS NOT NULL`.
+- `src/types/relatorios.ts` — interface `XmlArquivadoRow`.
 
-### 5. Backfill (opcional, fora deste plano)
-NFs já importadas ficam sem `caminho_xml`. Pode ser feito sob demanda: ao abrir uma nota sem XML arquivado, oferecer "Reimportar XML para arquivar".
+**Arquivos editados (mínimos)**
+- `src/services/relatorios.service.ts` — registrar novo `case 'xmls_arquivados'` no dispatcher.
+- `src/services/relatorios/lib/shared.ts` — adicionar `'xmls_arquivados'` ao union `TipoRelatorio`.
+- `src/config/relatoriosConfig.ts` — novo `xmlsArquivadosConfig` (colunas, filtros, meta `kind: 'list'`).
+- `src/pages/relatorios/hooks/useRelatorioExport.tsx` — aceitar `enableXmlZip?: boolean` e expor `handleExportXmlZip` + estado `isExportingZip`.
+- `src/pages/relatorios/components/ExportMenu.tsx` — prop opcional `onExportXmlZip`; quando presente, adiciona `DropdownMenuItem` "XMLs (.zip)" com ícone `FileArchive` e hint `"N XMLs · ~M MB"`.
+- `src/pages/Relatorios.tsx` — passar `onExportXmlZip` apenas quando `tipo === 'xmls_arquivados'`.
 
-### 6. Migration
-Apenas reforçar policy do bucket (já permite `fiscal/`) e criar índice parcial para consulta rápida:
-```sql
-CREATE INDEX IF NOT EXISTS idx_notas_fiscais_com_xml
-  ON notas_fiscais (chave_acesso) WHERE caminho_xml IS NOT NULL;
-```
-
-### 7. Google Drive como **export opcional** (futuro, não nesta entrega)
-Deixar gancho: botão "Enviar para Google Drive" no detalhe da nota, usando o connector `google_drive` já disponível. Faz upload pontual do XML baixado do Storage interno para uma pasta configurável em `app_configuracoes` (`fiscal.gdrive_folder_id`). Não substitui o Storage interno — apenas espelha.
-
-## Arquivos afetados
-
-- **Novo**: `src/services/fiscal/xmlStorage.service.ts`
-- **Edit**: `src/pages/Fiscal.tsx` (handlers de import)
-- **Edit**: `src/hooks/importacao/useImportacaoXml.ts` (lote .zip)
-- **Edit**: `src/pages/fiscal/hooks/useNFeXmlImport.ts` (passar `xmlText` adiante)
-- **Edit**: `src/pages/FiscalDetail.tsx` e `src/components/fiscal/NotaFiscalEditModal.tsx` (botão download)
-- **Edit**: emissão SEFAZ (onde grava `xml_autorizado` no fluxo de saída) — localizar ponto exato durante implementação
-- **Nova migration**: índice parcial
-- **Memória**: atualizar `mem/features/faturamento-fiscal.md` com a doutrina "XML é arquivado em `dbavizee/fiscal/` por chave"
+**Sem mudanças** em: schema de banco, migrações, RLS, edge functions, bucket (`dbavizee/fiscal/` já existe com policies corretas), nem em `xmlStorage.service.ts` (apenas consumido).
 
 ## Fora de escopo
 
-- Sincronização automática contínua com Google Drive
-- Backfill em massa de NFs antigas
-- Compactação/criptografia adicional (Storage já é privado por RLS)
+- Export direto para Google Drive (já descartado em decisão anterior — armazenamento interno é canônico).
+- Geração retroativa de XML para NF-e antigas sem `caminho_xml` (mostrar contagem e instruir reimportação).
+- Inclusão de DANFE PDF no zip (pode ser feature futura separada).
+
+## Verificação
+
+- Smoke: gerar zip com 1 NF-e e abrir/inspecionar estrutura.
+- Caso "0 XMLs no filtro": toast de aviso, sem download.
+- Caso "linhas filtradas mas nenhuma com `caminho_xml`": toast com instrução.
+- Mobile: dropdown do `ExportMenu` exibe a nova opção com `min-h-11`.
