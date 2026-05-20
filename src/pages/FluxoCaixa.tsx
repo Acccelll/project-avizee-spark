@@ -301,6 +301,7 @@ const FluxoCaixa = () => {
   const movColumns = [
     {
       key: "data_vencimento", label: "Vencimento", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => {
         const es = getEffectiveStatus(l, hoje);
         const isOverdue = es === "vencido";
@@ -319,6 +320,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "tipo", label: "Tipo", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => (
         <Badge variant="outline" className={l.tipo === "receber"
           ? "border-success/40 text-success bg-success/5 whitespace-nowrap"
@@ -334,6 +336,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "valor", label: "Valor", sortable: true,
+      mobileCard: true,
       render: (l: Lancamento) => (
         <span className={`font-semibold font-mono text-sm ${l.tipo === "receber" ? "text-success" : "text-destructive"}`}>
           {l.tipo === "receber" ? "+" : "-"}{formatCurrency(Number(l.valor))}
