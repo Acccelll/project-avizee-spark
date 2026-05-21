@@ -37,6 +37,25 @@ export async function listBancosAtivos(): Promise<Banco[]> {
   return (data || []) as Banco[];
 }
 
+export async function createBanco(payload: {
+  nome: string;
+  tipo?: string | null;
+  fornecedor_id?: string | null;
+}): Promise<Banco> {
+  const { data, error } = await supabase
+    .from("bancos")
+    .insert({
+      nome: payload.nome.trim(),
+      tipo: payload.tipo?.trim() || "banco",
+      fornecedor_id: payload.fornecedor_id ?? null,
+      ativo: true,
+    })
+    .select("*, fornecedores(id, nome_razao_social)")
+    .single();
+  if (error) throw error;
+  return data as Banco;
+}
+
 export async function listContasBancarias(): Promise<ContaBancaria[]> {
   const { data, error } = await supabase
     .from("contas_bancarias")
