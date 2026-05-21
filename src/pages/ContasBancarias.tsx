@@ -688,6 +688,15 @@ const ContasBancarias = () => {
                   {bancos.map(b => <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-primary hover:text-primary"
+                onClick={() => setNovoBancoOpen(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Cadastrar novo banco
+              </Button>
             </div>
             <div className="space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={e => updateForm({ descricao: e.target.value })} placeholder="Ex: Conta Corrente Principal" required /></div>
             <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => updateForm({ agencia: e.target.value })} /></div>
