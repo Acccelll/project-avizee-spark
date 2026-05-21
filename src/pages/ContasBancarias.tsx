@@ -940,6 +940,120 @@ const ContasBancarias = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={gerenciarBancosOpen} onOpenChange={(o) => {
+        if (!o) {
+          setGerenciarBancosOpen(false);
+          setEditingBanco(null);
+        } else {
+          setGerenciarBancosOpen(true);
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar bancos</DialogTitle>
+            <DialogDescription>
+              Edite ou inative instituições financeiras cadastradas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {loadingBancos ? (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : todosBancos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum banco cadastrado.</p>
+            ) : (
+              todosBancos.map((b) => (
+                <div
+                  key={b.id}
+                  className="rounded-lg border p-3 space-y-2"
+                >
+                  {editingBanco?.id === b.id ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-banco-nome-${b.id}`}>Nome</Label>
+                        <Input
+                          id={`edit-banco-nome-${b.id}`}
+                          autoFocus
+                          value={editBancoNome}
+                          onChange={(e) => setEditBancoNome(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-banco-tipo-${b.id}`}>Tipo</Label>
+                        <Select value={editBancoTipo} onValueChange={setEditBancoTipo}>
+                          <SelectTrigger id={`edit-banco-tipo-${b.id}`}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="banco">Banco</SelectItem>
+                            <SelectItem value="fintech">Fintech / Conta digital</SelectItem>
+                            <SelectItem value="cooperativa">Cooperativa</SelectItem>
+                            <SelectItem value="corretora">Corretora</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingBanco(null)}
+                          disabled={savingBancoEdit}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleUpdateBanco}
+                          disabled={savingBancoEdit}
+                        >
+                          {savingBancoEdit ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Landmark className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{b.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getTipoLabel(b.tipo)} · {b.ativo ? "Ativo" : "Inativo"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => startEditBanco(b)}
+                          disabled={!b.ativo}
+                          title={b.ativo ? "Editar" : "Banco inativo — não editável"}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        {b.ativo && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleInativarBanco(b)}
+                            title="Inativar"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
