@@ -59,7 +59,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const origemFilters = filterState.origem;
   const formaPagamentoFilters = filterState.forma;
   const cartaoFilters = filterState.cartao;
-  const period: Period = isPeriod(filterState.period || null) ? (filterState.period as Period) : "30d";
+  const period: Period = isPeriod(filterState.period || null) ? (filterState.period as Period) : "todos";
   const mesRaw = filterState.mes;
   const mes = mesRaw && /^\d{4}-\d{2}$/.test(mesRaw) ? mesRaw : null;
 
@@ -77,7 +77,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const setCartaoFilters = applyArr("cartao", cartaoFilters);
   const setPeriod = (v: Period, opts?: { clearMes?: boolean; clearStatus?: boolean }) =>
     setFilters({
-      period: v === "30d" ? "" : v,
+      period: v === "todos" ? "" : v,
       ...(opts?.clearMes ? { mes: "" } : {}),
       ...(opts?.clearStatus ? { status: [] } : {}),
     });

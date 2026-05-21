@@ -118,7 +118,12 @@ const Financeiro = () => {
     date.setHours(0, 0, 0, 0);
     return date;
   }, []);
-  const hojeStr = useMemo(() => hoje.toISOString().split("T")[0], [hoje]);
+  const hojeStr = useMemo(() => {
+    const yyyy = hoje.getFullYear();
+    const mm = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dd = String(hoje.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, [hoje]);
 
   const getLancamentoStatus = useCallback((l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje), [hoje]);
 
