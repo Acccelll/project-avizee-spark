@@ -228,6 +228,7 @@ const ContasBancarias = () => {
   const [editBancoNome, setEditBancoNome] = useState("");
   const [editBancoTipo, setEditBancoTipo] = useState<string>("banco");
   const [savingBancoEdit, setSavingBancoEdit] = useState(false);
+  const [bancoToDelete, setBancoToDelete] = useState<Banco | null>(null);
 
   const handleCreateBanco = async () => {
     const nome = novoBancoNome.trim();
@@ -320,6 +321,14 @@ const ContasBancarias = () => {
     } catch (err) {
       notifyError(err);
     }
+  };
+
+  const handleDeletedBanco = async () => {
+    setBancoToDelete(null);
+    toast.success("Banco excluído definitivamente!");
+    await fetchTodosBancos();
+    const ativos = await listBancosAtivos();
+    setBancos(ativos);
   };
 
   // Filter state
@@ -1045,6 +1054,18 @@ const ContasBancarias = () => {
                             <Ban className="w-3.5 h-3.5" />
                           </Button>
                         )}
+                        {!b.ativo && isAdmin && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setBancoToDelete(b)}
+                            title="Excluir definitivamente"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1054,6 +1075,19 @@ const ContasBancarias = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {bancoToDelete && (
+        <PermanentDeleteDialog
+          open={!!bancoToDelete}
+          onClose={() => setBancoToDelete(null)}
+          table="bancos"
+          id={bancoToDelete.id}
+          entityLabel="banco"
+          recordName={bancoToDelete.nome}
+          warning="Esta ação é irreversível. O banco será removido permanentemente da base de dados."
+          onDeleted={handleDeletedBanco}
+        />
+      )}
     </>
   );
 };
