@@ -164,6 +164,10 @@ const tipoContaLabel: Record<string, string> = {
   poupanca: "Poupança",
   investimento: "Investimento",
   caixa: "Caixa",
+  banco: "Banco",
+  fintech: "Fintech / Conta digital",
+  cooperativa: "Cooperativa",
+  corretora: "Corretora",
 };
 
 function getTipoLabel(tipo: string | undefined) {
