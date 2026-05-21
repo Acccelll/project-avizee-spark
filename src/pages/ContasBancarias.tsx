@@ -206,6 +206,40 @@ const ContasBancarias = () => {
   const { isAdmin } = useIsAdmin();
   const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
 
+  // Quick-add banco dialog
+  const [novoBancoOpen, setNovoBancoOpen] = useState(false);
+  const [novoBancoNome, setNovoBancoNome] = useState("");
+  const [novoBancoTipo, setNovoBancoTipo] = useState<string>("banco");
+  const [savingBanco, setSavingBanco] = useState(false);
+
+  const handleCreateBanco = async () => {
+    const nome = novoBancoNome.trim();
+    if (!nome) {
+      toast.error("Informe o nome do banco.");
+      return;
+    }
+    if (bancos.some((b) => b.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error("Já existe um banco com este nome.");
+      return;
+    }
+    setSavingBanco(true);
+    try {
+      const novo = await createBanco({ nome, tipo: novoBancoTipo });
+      toast.success("Banco cadastrado!");
+      // Atualiza lista e seleciona o novo banco no formulário
+      const novosBancos = await listBancosAtivos();
+      setBancos(novosBancos);
+      updateForm({ banco_id: novo.id });
+      setNovoBancoOpen(false);
+      setNovoBancoNome("");
+      setNovoBancoTipo("banco");
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setSavingBanco(false);
+    }
+  };
+
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
