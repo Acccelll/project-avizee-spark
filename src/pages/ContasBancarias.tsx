@@ -41,6 +41,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2, Plus,
+  Settings2, Pencil,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
