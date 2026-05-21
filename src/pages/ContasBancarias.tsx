@@ -675,6 +675,18 @@ const ContasBancarias = () => {
           )}
         </AdvancedFilterBar>
 
+        <div className="flex justify-end -mt-2 mb-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1"
+            onClick={openGerenciarBancos}
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Gerenciar bancos
+          </Button>
+        </div>
+
         {isAdmin && bancosSemFornecedor.length > 0 && (
           <Alert className="border-warning/40 bg-warning/5 [&>svg]:text-warning">
             <AlertTriangle className="h-4 w-4" />
