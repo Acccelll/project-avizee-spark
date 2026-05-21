@@ -29,6 +29,7 @@ import {
   updateContaBancaria,
   inativarContaBancaria,
   setBancoFornecedor,
+  createBanco,
 } from "@/services/contasBancarias.service";
 import { listFornecedoresAtivos } from "@/services/pedidosCompra.service";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
@@ -36,8 +37,9 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2, Plus,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 function formatCnpj(v: string | null | undefined): string {
@@ -203,6 +205,40 @@ const ContasBancarias = () => {
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
   const { isAdmin } = useIsAdmin();
   const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
+
+  // Quick-add banco dialog
+  const [novoBancoOpen, setNovoBancoOpen] = useState(false);
+  const [novoBancoNome, setNovoBancoNome] = useState("");
+  const [novoBancoTipo, setNovoBancoTipo] = useState<string>("banco");
+  const [savingBanco, setSavingBanco] = useState(false);
+
+  const handleCreateBanco = async () => {
+    const nome = novoBancoNome.trim();
+    if (!nome) {
+      toast.error("Informe o nome do banco.");
+      return;
+    }
+    if (bancos.some((b) => b.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error("Já existe um banco com este nome.");
+      return;
+    }
+    setSavingBanco(true);
+    try {
+      const novo = await createBanco({ nome, tipo: novoBancoTipo });
+      toast.success("Banco cadastrado!");
+      // Atualiza lista e seleciona o novo banco no formulário
+      const novosBancos = await listBancosAtivos();
+      setBancos(novosBancos);
+      updateForm({ banco_id: novo.id });
+      setNovoBancoOpen(false);
+      setNovoBancoNome("");
+      setNovoBancoTipo("banco");
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setSavingBanco(false);
+    }
+  };
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -652,6 +688,15 @@ const ContasBancarias = () => {
                   {bancos.map(b => <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-primary hover:text-primary"
+                onClick={() => setNovoBancoOpen(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Cadastrar novo banco
+              </Button>
             </div>
             <div className="space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={e => updateForm({ descricao: e.target.value })} placeholder="Ex: Conta Corrente Principal" required /></div>
             <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => updateForm({ agencia: e.target.value })} /></div>
@@ -755,6 +800,52 @@ const ContasBancarias = () => {
           fetchData();
         }}
       />
+
+      <Dialog open={novoBancoOpen} onOpenChange={(o) => !savingBanco && setNovoBancoOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cadastrar novo banco</DialogTitle>
+            <DialogDescription>
+              Adiciona uma instituição à lista de bancos disponíveis para contas bancárias e cartões.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="novo-banco-nome">Nome *</Label>
+              <Input
+                id="novo-banco-nome"
+                autoFocus
+                value={novoBancoNome}
+                onChange={(e) => setNovoBancoNome(e.target.value)}
+                placeholder="Ex.: Banco do Brasil"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="novo-banco-tipo">Tipo</Label>
+              <Select value={novoBancoTipo} onValueChange={setNovoBancoTipo}>
+                <SelectTrigger id="novo-banco-tipo"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="banco">Banco</SelectItem>
+                  <SelectItem value="fintech">Fintech / Conta digital</SelectItem>
+                  <SelectItem value="cooperativa">Cooperativa</SelectItem>
+                  <SelectItem value="corretora">Corretora</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O vínculo com fornecedor (DDA) pode ser feito a seguir, no campo "Fornecedor do banco".
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNovoBancoOpen(false)} disabled={savingBanco}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateBanco} disabled={savingBanco}>
+              {savingBanco ? "Salvando..." : "Cadastrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
