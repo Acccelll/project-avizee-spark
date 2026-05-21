@@ -216,6 +216,15 @@ const ContasBancarias = () => {
   const [novoBancoTipo, setNovoBancoTipo] = useState<string>("banco");
   const [savingBanco, setSavingBanco] = useState(false);
 
+  // Gerenciar bancos dialog
+  const [gerenciarBancosOpen, setGerenciarBancosOpen] = useState(false);
+  const [todosBancos, setTodosBancos] = useState<Banco[]>([]);
+  const [loadingBancos, setLoadingBancos] = useState(false);
+  const [editingBanco, setEditingBanco] = useState<Banco | null>(null);
+  const [editBancoNome, setEditBancoNome] = useState("");
+  const [editBancoTipo, setEditBancoTipo] = useState<string>("banco");
+  const [savingBancoEdit, setSavingBancoEdit] = useState(false);
+
   const handleCreateBanco = async () => {
     const nome = novoBancoNome.trim();
     if (!nome) {
@@ -241,6 +250,71 @@ const ContasBancarias = () => {
       notifyError(err);
     } finally {
       setSavingBanco(false);
+    }
+  };
+
+  const fetchTodosBancos = async () => {
+    setLoadingBancos(true);
+    try {
+      const data = await listBancos();
+      setTodosBancos(data);
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setLoadingBancos(false);
+    }
+  };
+
+  const openGerenciarBancos = () => {
+    setGerenciarBancosOpen(true);
+    fetchTodosBancos();
+  };
+
+  const startEditBanco = (b: Banco) => {
+    setEditingBanco(b);
+    setEditBancoNome(b.nome);
+    setEditBancoTipo(b.tipo || "banco");
+  };
+
+  const handleUpdateBanco = async () => {
+    if (!editingBanco) return;
+    const nome = editBancoNome.trim();
+    if (!nome) {
+      toast.error("Informe o nome do banco.");
+      return;
+    }
+    setSavingBancoEdit(true);
+    try {
+      await updateBanco(editingBanco.id, { nome, tipo: editBancoTipo });
+      toast.success("Banco atualizado!");
+      setEditingBanco(null);
+      await fetchTodosBancos();
+      // Atualiza também a lista de bancos ativos usada nos selects
+      const ativos = await listBancosAtivos();
+      setBancos(ativos);
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setSavingBancoEdit(false);
+    }
+  };
+
+  const handleInativarBanco = async (b: Banco) => {
+    const ok = await confirm({
+      title: "Inativar banco?",
+      description: `O banco "${b.nome}" será inativado. Contas bancárias vinculadas permanecerão, mas novas contas não poderão ser criadas para este banco.`,
+      confirmLabel: "Inativar",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await inativarBanco(b.id);
+      toast.success("Banco inativado!");
+      await fetchTodosBancos();
+      const ativos = await listBancosAtivos();
+      setBancos(ativos);
+    } catch (err) {
+      notifyError(err);
     }
   };
 
