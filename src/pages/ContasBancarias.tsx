@@ -800,6 +800,52 @@ const ContasBancarias = () => {
           fetchData();
         }}
       />
+
+      <Dialog open={novoBancoOpen} onOpenChange={(o) => !savingBanco && setNovoBancoOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cadastrar novo banco</DialogTitle>
+            <DialogDescription>
+              Adiciona uma instituição à lista de bancos disponíveis para contas bancárias e cartões.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="novo-banco-nome">Nome *</Label>
+              <Input
+                id="novo-banco-nome"
+                autoFocus
+                value={novoBancoNome}
+                onChange={(e) => setNovoBancoNome(e.target.value)}
+                placeholder="Ex.: Banco do Brasil"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="novo-banco-tipo">Tipo</Label>
+              <Select value={novoBancoTipo} onValueChange={setNovoBancoTipo}>
+                <SelectTrigger id="novo-banco-tipo"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="banco">Banco</SelectItem>
+                  <SelectItem value="fintech">Fintech / Conta digital</SelectItem>
+                  <SelectItem value="cooperativa">Cooperativa</SelectItem>
+                  <SelectItem value="corretora">Corretora</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O vínculo com fornecedor (DDA) pode ser feito a seguir, no campo "Fornecedor do banco".
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNovoBancoOpen(false)} disabled={savingBanco}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateBanco} disabled={savingBanco}>
+              {savingBanco ? "Salvando..." : "Cadastrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
