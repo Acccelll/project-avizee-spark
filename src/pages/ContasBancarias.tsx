@@ -23,6 +23,7 @@ import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import {
   listBancosAtivos,
+  listBancos,
   listContasBancarias,
   getContaInUseCounts,
   createContaBancaria,
@@ -30,6 +31,8 @@ import {
   inativarContaBancaria,
   setBancoFornecedor,
   createBanco,
+  updateBanco,
+  inativarBanco,
 } from "@/services/contasBancarias.service";
 import { listFornecedoresAtivos } from "@/services/pedidosCompra.service";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
@@ -38,6 +41,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2, Plus,
+  Settings2, Pencil,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
@@ -160,6 +164,10 @@ const tipoContaLabel: Record<string, string> = {
   poupanca: "Poupança",
   investimento: "Investimento",
   caixa: "Caixa",
+  banco: "Banco",
+  fintech: "Fintech / Conta digital",
+  cooperativa: "Cooperativa",
+  corretora: "Corretora",
 };
 
 function getTipoLabel(tipo: string | undefined) {
@@ -212,6 +220,15 @@ const ContasBancarias = () => {
   const [novoBancoTipo, setNovoBancoTipo] = useState<string>("banco");
   const [savingBanco, setSavingBanco] = useState(false);
 
+  // Gerenciar bancos dialog
+  const [gerenciarBancosOpen, setGerenciarBancosOpen] = useState(false);
+  const [todosBancos, setTodosBancos] = useState<Banco[]>([]);
+  const [loadingBancos, setLoadingBancos] = useState(false);
+  const [editingBanco, setEditingBanco] = useState<Banco | null>(null);
+  const [editBancoNome, setEditBancoNome] = useState("");
+  const [editBancoTipo, setEditBancoTipo] = useState<string>("banco");
+  const [savingBancoEdit, setSavingBancoEdit] = useState(false);
+
   const handleCreateBanco = async () => {
     const nome = novoBancoNome.trim();
     if (!nome) {
@@ -237,6 +254,71 @@ const ContasBancarias = () => {
       notifyError(err);
     } finally {
       setSavingBanco(false);
+    }
+  };
+
+  const fetchTodosBancos = async () => {
+    setLoadingBancos(true);
+    try {
+      const data = await listBancos();
+      setTodosBancos(data);
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setLoadingBancos(false);
+    }
+  };
+
+  const openGerenciarBancos = () => {
+    setGerenciarBancosOpen(true);
+    fetchTodosBancos();
+  };
+
+  const startEditBanco = (b: Banco) => {
+    setEditingBanco(b);
+    setEditBancoNome(b.nome);
+    setEditBancoTipo(b.tipo || "banco");
+  };
+
+  const handleUpdateBanco = async () => {
+    if (!editingBanco) return;
+    const nome = editBancoNome.trim();
+    if (!nome) {
+      toast.error("Informe o nome do banco.");
+      return;
+    }
+    setSavingBancoEdit(true);
+    try {
+      await updateBanco(editingBanco.id, { nome, tipo: editBancoTipo });
+      toast.success("Banco atualizado!");
+      setEditingBanco(null);
+      await fetchTodosBancos();
+      // Atualiza também a lista de bancos ativos usada nos selects
+      const ativos = await listBancosAtivos();
+      setBancos(ativos);
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setSavingBancoEdit(false);
+    }
+  };
+
+  const handleInativarBanco = async (b: Banco) => {
+    const ok = await confirm({
+      title: "Inativar banco?",
+      description: `O banco "${b.nome}" será inativado. Contas bancárias vinculadas permanecerão, mas novas contas não poderão ser criadas para este banco.`,
+      confirmLabel: "Inativar",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await inativarBanco(b.id);
+      toast.success("Banco inativado!");
+      await fetchTodosBancos();
+      const ativos = await listBancosAtivos();
+      setBancos(ativos);
+    } catch (err) {
+      notifyError(err);
     }
   };
 
@@ -597,6 +679,18 @@ const ContasBancarias = () => {
           )}
         </AdvancedFilterBar>
 
+        <div className="flex justify-end -mt-2 mb-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1"
+            onClick={openGerenciarBancos}
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Gerenciar bancos
+          </Button>
+        </div>
+
         {isAdmin && bancosSemFornecedor.length > 0 && (
           <Alert className="border-warning/40 bg-warning/5 [&>svg]:text-warning">
             <AlertTriangle className="h-4 w-4" />
@@ -844,6 +938,120 @@ const ContasBancarias = () => {
               {savingBanco ? "Salvando..." : "Cadastrar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gerenciarBancosOpen} onOpenChange={(o) => {
+        if (!o) {
+          setGerenciarBancosOpen(false);
+          setEditingBanco(null);
+        } else {
+          setGerenciarBancosOpen(true);
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar bancos</DialogTitle>
+            <DialogDescription>
+              Edite ou inative instituições financeiras cadastradas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {loadingBancos ? (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : todosBancos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum banco cadastrado.</p>
+            ) : (
+              todosBancos.map((b) => (
+                <div
+                  key={b.id}
+                  className="rounded-lg border p-3 space-y-2"
+                >
+                  {editingBanco?.id === b.id ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-banco-nome-${b.id}`}>Nome</Label>
+                        <Input
+                          id={`edit-banco-nome-${b.id}`}
+                          autoFocus
+                          value={editBancoNome}
+                          onChange={(e) => setEditBancoNome(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-banco-tipo-${b.id}`}>Tipo</Label>
+                        <Select value={editBancoTipo} onValueChange={setEditBancoTipo}>
+                          <SelectTrigger id={`edit-banco-tipo-${b.id}`}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="banco">Banco</SelectItem>
+                            <SelectItem value="fintech">Fintech / Conta digital</SelectItem>
+                            <SelectItem value="cooperativa">Cooperativa</SelectItem>
+                            <SelectItem value="corretora">Corretora</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingBanco(null)}
+                          disabled={savingBancoEdit}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleUpdateBanco}
+                          disabled={savingBancoEdit}
+                        >
+                          {savingBancoEdit ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Landmark className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{b.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getTipoLabel(b.tipo)} · {b.ativo ? "Ativo" : "Inativo"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => startEditBanco(b)}
+                          disabled={!b.ativo}
+                          title={b.ativo ? "Editar" : "Banco inativo — não editável"}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        {b.ativo && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleInativarBanco(b)}
+                            title="Inativar"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
