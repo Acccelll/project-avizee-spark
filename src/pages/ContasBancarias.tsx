@@ -29,6 +29,7 @@ import {
   updateContaBancaria,
   inativarContaBancaria,
   setBancoFornecedor,
+  createBanco,
 } from "@/services/contasBancarias.service";
 import { listFornecedoresAtivos } from "@/services/pedidosCompra.service";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
@@ -36,8 +37,9 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2, Plus,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 function formatCnpj(v: string | null | undefined): string {
