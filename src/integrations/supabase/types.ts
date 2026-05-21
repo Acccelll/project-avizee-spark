@@ -4578,6 +4578,7 @@ export type Database = {
           cliente_id: string | null
           cofins_valor: number | null
           condicao_pagamento: string | null
+          confirmada_em: string | null
           conta_contabil_id: string | null
           created_at: string
           cte_cfop: string | null
@@ -4700,6 +4701,7 @@ export type Database = {
           cliente_id?: string | null
           cofins_valor?: number | null
           condicao_pagamento?: string | null
+          confirmada_em?: string | null
           conta_contabil_id?: string | null
           created_at?: string
           cte_cfop?: string | null
@@ -4822,6 +4824,7 @@ export type Database = {
           cliente_id?: string | null
           cofins_valor?: number | null
           condicao_pagamento?: string | null
+          confirmada_em?: string | null
           conta_contabil_id?: string | null
           created_at?: string
           cte_cfop?: string | null
