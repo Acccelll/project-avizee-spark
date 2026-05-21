@@ -1,65 +1,66 @@
-## Objetivo
+## Diagnóstico revisto
 
-Adicionar em **Relatórios** a opção de **exportar XMLs arquivados em um único `.zip`**, respeitando filtros (período, fornecedor/cliente, tipo entrada/saída, status). Reaproveita os XMLs já persistidos em `dbavizee/fiscal/{ano}/{mes}/{tipo}/{chave}.xml` (feature de arquivamento já implementada).
+O que está acontecendo agora (BRT, 20/05 21:36):
+- Servidor Postgres roda em UTC → `CURRENT_DATE = 2026-05-21`.
+- O título do sistema tem `data_vencimento = 2026-05-21` (já está no "amanhã" do servidor, mas para o usuário é amanhã também — 21/05).
+- RPC `kpis_financeiro` usa `CURRENT_DATE` (UTC), então conta 1 em `vence_hoje` mesmo o usuário estando em 20/05 BRT.
+- Filtro de período "hoje" no cliente usa `Date` local (BRT) → `dateRange = [2026-05-20, 2026-05-20]`, que exclui o registro de 21/05. Daí o "0".
 
-## UX
+A regra correta, segundo o usuário, é **tudo em horário de Brasília**:
+- "Hoje" = 00:00 a 23:59 de 20/05 BRT.
+- O título de 21/05 só deve aparecer como "Vence Hoje" amanhã.
+- `Todos` também deve refletir o conceito BRT de hoje no KPI "Vence Hoje" (mostrando 0 hoje, 1 amanhã).
 
-Novo relatório dedicado **"XMLs Arquivados"** na categoria *Fiscal/Faturamento* (ao lado de "NF-e de Entrada" e "Faturamento"). Mantém o padrão visual do workspace de Relatórios — tabela com colunas Tipo / Emissão / Nº / Chave / Parceiro / Valor / Status / "XML arquivado" (badge sim/não).
+## Correções
 
-Filtros disponíveis (via `FiltroRelatorio` padrão):
-- **Período** (data de emissão) — obrigatório
-- **Tipo**: Entrada / Saída / Ambos (novo `statusOptions`)
-- **Fornecedor** (quando tipo = entrada/ambos)
-- **Cliente** (quando tipo = saída/ambos)
-- **Status SEFAZ** (autorizada, cancelada, denegada, etc.) — reutilizando filtro de status já existente
-- **Apenas com XML arquivado** (default ligado)
+### 1. RPC `kpis_financeiro` — calcular "hoje" em BRT
+Nova migração trocando `CURRENT_DATE` por uma data fixa em America/Sao_Paulo:
 
-CTA principal: substituir o `ExportMenu` padrão (PDF/Excel/CSV) por uma versão estendida que adiciona a opção **"XMLs (.zip)"**. Só nesse relatório.
+```sql
+WITH params AS (SELECT (now() AT TIME ZONE 'America/Sao_Paulo')::date AS hoje_brt)
+```
 
-Confirmação antes de zips grandes (>500 arquivos ou >100 MB estimados) via `useConfirmDialog`.
+E aplicar em todos os pontos do RPC:
+- `CASE WHEN status='aberto' AND data_vencimento < (SELECT hoje_brt FROM params) THEN 'vencido' ...`
+- `WHERE data_vencimento > (SELECT hoje_brt FROM params)` em `a_vencer`
+- `data_vencimento = (SELECT hoje_brt FROM params)` em `vence_hoje`
 
-## Comportamento do export ZIP
+Manter `SET search_path = public` e `STABLE`.
 
-1. A partir das linhas filtradas atualmente visíveis, coleta `caminho_xml` (ignora linhas sem XML, contabilizando "X NF-e sem XML arquivado — não incluídas").
-2. Baixa em paralelo (concorrência 6) via `getNfeXmlSignedUrl` → fetch → Blob (reusa `src/services/fiscal/xmlStorage.service.ts`).
-3. Monta `.zip` com `jszip` (já no projeto) estruturado:
-   ```text
-   xmls_{periodo}/
-     entrada/{AAAA-MM}/{chave}.xml
-     saida/{AAAA-MM}/{chave}.xml
-     _resumo.csv   # chave, tipo, emissao, parceiro, valor, status, caminho
-   ```
-4. Toast em fases ("Coletando", "Compactando X/Y", "Concluído") seguindo o padrão de `useRelatorioExport`.
-5. Nome do arquivo: `xmls_nfe_{YYYYMMDD}_{YYYYMMDD}.zip`.
+### 2. `src/lib/periodFilter.ts` — manter cálculo local (já é BRT para o usuário) e corrigir `'todos'`/`'vencidos'`
+- `periodToFinancialRange('hoje')` continua devolvendo `[hoje_local, hoje_local]` — para usuários em BRT isso já é correto.
+- Para `'vencidos'`, o `dateTo` precisa usar a mesma data local que o RPC enxerga (BRT). Hoje em BRT === local; já é coerente.
+- Nenhuma mudança funcional necessária aqui depois que o RPC passar a usar BRT — ambos os lados ficam alinhados em "hoje BRT".
 
-Falhas individuais não abortam o lote — entram em `_falhas.txt` dentro do zip, e o toast final indica "N XMLs · M falhas".
+### 3. `src/pages/Financeiro.tsx`
+- Trocar `hojeStr` de `toISOString().split("T")[0]` (UTC) para a data local em `YYYY-MM-DD`:
+  ```ts
+  const yyyy = hoje.getFullYear();
+  const mm = String(hoje.getMonth()+1).padStart(2,'0');
+  const dd = String(hoje.getDate()).padStart(2,'0');
+  const hojeStr = `${yyyy}-${mm}-${dd}`;
+  ```
+  Assim `dateRange` (cliente) e `kpis_financeiro` (servidor BRT) usam a mesma referência de "hoje".
 
-## Implementação técnica
+### 4. Default do filtro: `30d` → `todos`
+Em `src/pages/financeiro/hooks/useFinanceiroFiltros.ts`:
+- Fallback de `period` passa a ser `"todos"`.
+- Sentinela de "limpar URL" passa a ser `v === "todos" ? "" : v`.
 
-**Arquivos novos**
-- `src/services/fiscal/xmlBatchExport.ts` — função `exportarXmlsZip({ rows, onProgress })` com pool de concorrência + jszip + dispatch de download. Sem lógica de UI.
-- `src/services/relatorios/loaders/xmlsArquivados.ts` — query em `notas_fiscais` retornando linhas tipadas (`XmlArquivadoRow`) com filtros de período/tipo/parceiro/status e flag `temXml = caminho_xml IS NOT NULL`.
-- `src/types/relatorios.ts` — interface `XmlArquivadoRow`.
+## Validação manual
 
-**Arquivos editados (mínimos)**
-- `src/services/relatorios.service.ts` — registrar novo `case 'xmls_arquivados'` no dispatcher.
-- `src/services/relatorios/lib/shared.ts` — adicionar `'xmls_arquivados'` ao union `TipoRelatorio`.
-- `src/config/relatoriosConfig.ts` — novo `xmlsArquivadosConfig` (colunas, filtros, meta `kind: 'list'`).
-- `src/pages/relatorios/hooks/useRelatorioExport.tsx` — aceitar `enableXmlZip?: boolean` e expor `handleExportXmlZip` + estado `isExportingZip`.
-- `src/pages/relatorios/components/ExportMenu.tsx` — prop opcional `onExportXmlZip`; quando presente, adiciona `DropdownMenuItem` "XMLs (.zip)" com ícone `FileArchive` e hint `"N XMLs · ~M MB"`.
-- `src/pages/Relatorios.tsx` — passar `onExportXmlZip` apenas quando `tipo === 'xmls_arquivados'`.
+Hoje (20/05 BRT):
+1. `/financeiro` sem querystring → chip "Todos" ativo, lista completa, KPI "Vence Hoje" = 0 (título é 21/05).
+2. Clicar "Vence hoje" → lista vazia + KPI 0 (consistente).
+3. Amanhã (21/05 BRT, > 03:00 UTC) → KPI "Vence Hoje" = 1 tanto em "Todos" quanto em "Vence hoje".
 
-**Sem mudanças** em: schema de banco, migrações, RLS, edge functions, bucket (`dbavizee/fiscal/` já existe com policies corretas), nem em `xmlStorage.service.ts` (apenas consumido).
+## Arquivos impactados
 
-## Fora de escopo
+- `supabase/migrations/<novo>.sql` — recria `public.kpis_financeiro` com BRT.
+- `src/pages/Financeiro.tsx` — `hojeStr` local em vez de UTC.
+- `src/pages/financeiro/hooks/useFinanceiroFiltros.ts` — default `todos`.
 
-- Export direto para Google Drive (já descartado em decisão anterior — armazenamento interno é canônico).
-- Geração retroativa de XML para NF-e antigas sem `caminho_xml` (mostrar contagem e instruir reimportação).
-- Inclusão de DANFE PDF no zip (pode ser feature futura separada).
+## Fora do escopo
 
-## Verificação
-
-- Smoke: gerar zip com 1 NF-e e abrir/inspecionar estrutura.
-- Caso "0 XMLs no filtro": toast de aviso, sem download.
-- Caso "linhas filtradas mas nenhuma com `caminho_xml`": toast com instrução.
-- Mobile: dropdown do `ExportMenu` exibe a nova opção com `min-h-11`.
+- Mudar timezone global do banco.
+- Alterar outros RPCs que usem `CURRENT_DATE` (revisar caso a caso em pedido específico).
