@@ -228,6 +228,7 @@ const ContasBancarias = () => {
   const [editBancoNome, setEditBancoNome] = useState("");
   const [editBancoTipo, setEditBancoTipo] = useState<string>("banco");
   const [savingBancoEdit, setSavingBancoEdit] = useState(false);
+  const [bancoToDelete, setBancoToDelete] = useState<Banco | null>(null);
 
   const handleCreateBanco = async () => {
     const nome = novoBancoNome.trim();
@@ -320,6 +321,14 @@ const ContasBancarias = () => {
     } catch (err) {
       notifyError(err);
     }
+  };
+
+  const handleDeletedBanco = async () => {
+    setBancoToDelete(null);
+    toast.success("Banco excluído definitivamente!");
+    await fetchTodosBancos();
+    const ativos = await listBancosAtivos();
+    setBancos(ativos);
   };
 
   // Filter state
