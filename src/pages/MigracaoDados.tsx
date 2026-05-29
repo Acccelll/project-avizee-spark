@@ -472,13 +472,26 @@ export default function MigracaoDados() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportDatabase}
+              onClick={() => handleExportDatabase("csv")}
               disabled={isExporting}
               className="gap-2"
               title="Exporta todas as tabelas do schema public em CSV (zip)"
             >
               <Download className={`h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
               {isExporting ? "Exportando..." : "Exportar DB (CSV)"}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExportDatabase("sql")}
+              disabled={isExporting}
+              className="gap-2"
+              title="Exporta o schema public como dump SQL (CREATE TABLE + INSERTs)"
+            >
+              <Download className={`h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
+              {isExporting ? "Exportando..." : "Exportar DB (SQL)"}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
