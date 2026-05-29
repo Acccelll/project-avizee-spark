@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, RefreshCw, Database, ArrowRight, ArrowLeft, CheckCircle2, ChevronRight, FileUp, ClipboardCheck, ArrowRightCircle } from "lucide-react";
+import { Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
@@ -49,6 +50,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Monitor } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Interface comum dos hooks de importação consumidos por esta tela. */
 interface IImportacaoHook {
@@ -253,6 +255,50 @@ export default function MigracaoDados() {
     toast.info("Dados atualizados.");
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExportDatabase = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    const toastId = toast.loading("Exportando banco de dados completo... pode levar alguns minutos.");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        toast.error("Sessão inválida. Faça login novamente.", { id: toastId });
+        return;
+      }
+      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/export-database-csv`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        toast.error(`Falha na exportação (${res.status})`, { id: toastId, description: errText.slice(0, 200) });
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("content-disposition") || "";
+      const match = /filename="([^"]+)"/.exec(cd);
+      const filename = match?.[1] ?? `avizee_db_export_${new Date().toISOString().slice(0, 10)}.zip`;
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(objUrl);
+      toast.success("Exportação concluída", { id: toastId, description: filename });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error("Erro ao exportar banco de dados", { id: toastId, description: message });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleOpenImport = (type: string) => {
     if (type === "estoque_inicial") {
       setActiveImportSource("estoque");
@@ -417,6 +463,19 @@ export default function MigracaoDados() {
         <div className="flex items-center gap-2">
           {isAdmin && <CargaInicialDialog onCompleted={refreshLotes} />}
           {isAdmin && <LimparDadosMigracaoButton onCleaned={refreshLotes} />}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportDatabase}
+              disabled={isExporting}
+              className="gap-2"
+              title="Exporta todas as tabelas do schema public em CSV (zip)"
+            >
+              <Download className={`h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
+              {isExporting ? "Exportando..." : "Exportar DB (CSV)"}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
             Atualizar
