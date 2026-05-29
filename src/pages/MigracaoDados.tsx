@@ -256,10 +256,12 @@ export default function MigracaoDados() {
   };
 
   const [isExporting, setIsExporting] = useState(false);
-  const handleExportDatabase = async () => {
+  const handleExportDatabase = async (format: "csv" | "sql" = "csv") => {
     if (isExporting) return;
     setIsExporting(true);
-    const toastId = toast.loading("Exportando banco de dados completo... pode levar alguns minutos.");
+    const toastId = toast.loading(
+      `Exportando banco de dados completo (${format.toUpperCase()})... pode levar alguns minutos.`
+    );
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -267,13 +269,15 @@ export default function MigracaoDados() {
         toast.error("Sessão inválida. Faça login novamente.", { id: toastId });
         return;
       }
-      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/export-database-csv`;
+      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/export-database-csv?format=${format}`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ format }),
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -283,7 +287,8 @@ export default function MigracaoDados() {
       const blob = await res.blob();
       const cd = res.headers.get("content-disposition") || "";
       const match = /filename="([^"]+)"/.exec(cd);
-      const filename = match?.[1] ?? `avizee_db_export_${new Date().toISOString().slice(0, 10)}.zip`;
+      const ext = format === "sql" ? "sql" : "zip";
+      const filename = match?.[1] ?? `avizee_db_export_${new Date().toISOString().slice(0, 10)}.${ext}`;
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
@@ -467,13 +472,26 @@ export default function MigracaoDados() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportDatabase}
+              onClick={() => handleExportDatabase("csv")}
               disabled={isExporting}
               className="gap-2"
               title="Exporta todas as tabelas do schema public em CSV (zip)"
             >
               <Download className={`h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
               {isExporting ? "Exportando..." : "Exportar DB (CSV)"}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExportDatabase("sql")}
+              disabled={isExporting}
+              className="gap-2"
+              title="Exporta o schema public como dump SQL (CREATE TABLE + INSERTs)"
+            >
+              <Download className={`h-4 w-4 ${isExporting ? 'animate-pulse' : ''}`} />
+              {isExporting ? "Exportando..." : "Exportar DB (SQL)"}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
