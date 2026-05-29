@@ -9904,6 +9904,17 @@ export type Database = {
       }
       ler_secret_vault: { Args: { p_name: string }; Returns: string }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
+      list_public_schema: {
+        Args: never
+        Returns: {
+          column_default: string
+          column_name: string
+          data_type: string
+          is_nullable: string
+          ordinal_position: number
+          table_name: string
+        }[]
+      }
       listar_financeiro_lancamentos_ids: {
         Args: {
           p_ascending?: boolean
