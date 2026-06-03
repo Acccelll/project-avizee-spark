@@ -889,22 +889,25 @@ export function NotaFiscalDrawer({
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
           {onAnexarXml && selected.tipo === "entrada"
-            && !["autorizada", "cancelada_sefaz"].includes(selected.status_sefaz || "nao_enviada") && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              aria-label="Anexar XML à nota fiscal"
-              title={
-                selected.caminho_xml
-                  ? "Substituir XML anexado e refazer a tradução"
-                  : "Anexar XML do fornecedor e aplicar a tradução"
-              }
-              onClick={() => onAnexarXml(selected)}
-            >
-              <FileText className="h-3.5 w-3.5" /> {selected.caminho_xml ? "Substituir XML" : "Anexar XML"}
-            </Button>
-          )}
+            && !["autorizada", "cancelada_sefaz"].includes(selected.status_sefaz || "nao_enviada") && (() => {
+              const temXml = !!(selected as { caminho_xml?: string | null }).caminho_xml;
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  aria-label="Anexar XML à nota fiscal"
+                  title={
+                    temXml
+                      ? "Substituir XML anexado e refazer a tradução"
+                      : "Anexar XML do fornecedor e aplicar a tradução"
+                  }
+                  onClick={() => onAnexarXml(selected)}
+                >
+                  <FileText className="h-3.5 w-3.5" /> {temXml ? "Substituir XML" : "Anexar XML"}
+                </Button>
+              );
+            })()}
           <Button
             variant="outline"
             size="sm"
