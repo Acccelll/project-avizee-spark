@@ -1,15 +1,6 @@
 /**
  * Busca de NF-e por chave de acesso (44 dígitos).
- *
- * Estratégia OFICIAL em 2 níveis (mem://features/fiscal-consulta-por-chave):
- *   1. Cache local — `nfe_distribuicao.xml_nfe` (alimentado por DistDFe cron).
- *   2. SEFAZ — edge `sefaz-distdfe` action `consultar-chave` (consChNFe via
- *      mTLS com o A1 do Vault). Limitação legal: só devolve XML cuja NF é
- *      destinada ao CNPJ do certificado (cStat 137/138 caso contrário).
- *
- * Fallback opcional `consultadanfe-proxy` (API paga de terceiro) é exposto
- * apenas se `VITE_FEATURE_FALLBACK_CONSULTADANFE=true` e usado quando o
- * destinatário do XML não é o CNPJ do A1.
+ * Ordem: cache local -> consultadanfe (primário) -> SEFAZ (último recurso).
  */
 
 import { useEffect, useState } from "react";
@@ -19,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormModal } from "@/components/FormModal";
-import { consultarNFePorChave } from "@/services/fiscal/sefaz/distdfe.service";
-import { consultarDanfePorChave } from "@/services/fiscal/danfe.service";
-
-const FALLBACK_CONSULTADANFE_ENABLED =
-  import.meta.env.VITE_FEATURE_FALLBACK_CONSULTADANFE === "true";
+import { obterXmlNFePorChave } from "@/services/fiscal/sefaz/distdfe.service";
 
 interface BuscarPorChaveDialogProps {
   open: boolean;
@@ -35,42 +22,6 @@ interface BuscarPorChaveDialogProps {
 }
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
-
-/** Decodifica base64 (UTF-8) para string. */
-function fromBase64Utf8(b64: string): string {
-  try {
-    const bin = atob(b64.replace(/\s+/g, ""));
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder("utf-8").decode(bytes);
-  } catch {
-    return "";
-  }
-}
-
-/** Extrai o XML do payload da API consultadanfe. */
-function extrairXml(data: unknown): string | null {
-  if (!data || typeof data !== "object") return null;
-  const obj = data as Record<string, unknown>;
-  // Formato canônico: xml_base64
-  if (typeof obj.xml_base64 === "string" && obj.xml_base64.length > 0) {
-    const decoded = fromBase64Utf8(obj.xml_base64);
-    if (decoded.includes("<")) return decoded;
-  }
-  // Fallbacks: xml já decodificado
-  const candidatos = [obj.xml, obj.xmlNfe, obj.xml_nfe];
-  for (const c of candidatos) {
-    if (typeof c === "string" && c.includes("<")) return c;
-  }
-  return null;
-}
-
-function extrairMensagem(data: unknown): string | null {
-  if (!data || typeof data !== "object") return null;
-  const obj = data as Record<string, unknown>;
-  const m = obj.message ?? obj.error ?? obj.mensagem;
-  return typeof m === "string" ? m : null;
-}
 
 export function BuscarPorChaveDialog({
   open,
@@ -103,43 +54,18 @@ export function BuscarPorChaveDialog({
 
     setLoading(true);
     try {
-      // Caminho oficial: cache local + DistDFe.
-      const result = await consultarNFePorChave({ chave: chaveLimpa });
+      const result = await obterXmlNFePorChave({ chave: chaveLimpa });
       if (result.sucesso && result.xml) {
-        const origemLabel = result.origem === "cache"
-          ? "cache local (DistDFe)"
-          : "DistDFe SEFAZ";
+        const origemLabel =
+          result.origem === "cache" ? "cache local"
+          : result.origem === "sefaz" ? "SEFAZ (DistDFe)"
+          : "consultadanfe";
         toast.success(`XML obtido via ${origemLabel}.`);
         onXmlObtido(result.xml, result.origem);
         onClose();
         return;
       }
-
-      // Falha no caminho oficial: oferece fallback opcional somente se
-      // habilitado e a falha for do tipo "documento não destinado ao CNPJ".
-      const podeFallback =
-        FALLBACK_CONSULTADANFE_ENABLED &&
-        (result.cStat === "138" || result.cStat === "137");
-      if (!podeFallback) {
-        toast.error(result.erro ?? "Falha ao consultar a NF-e.", { duration: 10000 });
-        return;
-      }
-
-      // Fallback: consultadanfe-proxy (API paga, sem restrição de destinatário).
-      const resp = await consultarDanfePorChave(chaveLimpa);
-      if (!resp?.ok) {
-        const msg = extrairMensagem(resp?.data) ?? resp?.error ?? `Status ${resp?.status}`;
-        toast.error(`Fallback falhou: ${msg}`, { duration: 10000 });
-        return;
-      }
-      const xmlFallback = extrairXml(resp.data);
-      if (!xmlFallback) {
-        toast.error("Fallback respondeu sem XML.");
-        return;
-      }
-      toast.success("XML obtido via consultadanfe (fallback).");
-      onXmlObtido(xmlFallback, "api");
-      onClose();
+      toast.error(result.erro ?? "Não foi possível obter o XML desta chave.", { duration: 10000 });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Erro na consulta: ${msg}`);
@@ -209,24 +135,18 @@ export function BuscarPorChaveDialog({
         <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-foreground space-y-1.5">
           <p className="font-semibold flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-info" />
-            Como funciona (caminho oficial)
+            Como funciona
           </p>
           <p className="text-muted-foreground">
-            Consultamos primeiro o <strong>cache local</strong> (alimentado pelo
-            DistDFe automático) e, em seguida, a <strong>SEFAZ via mTLS</strong>{" "}
-            usando o certificado A1 da empresa.
+            Buscamos primeiro no <strong>cache local</strong>, depois na base{" "}
+            <strong>consultadanfe</strong> (resolve qualquer chave) e, por fim,
+            na <strong>SEFAZ</strong> como último recurso. O XML obtido fica em
+            cache para a próxima consulta.
           </p>
           <p className="flex items-start gap-1.5 text-warning">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            A SEFAZ só devolve o XML quando a NF-e é destinada ao CNPJ do
-            certificado A1. Se não for, peça o XML ao emissor.
+            Se a chave não existir ou a base não tiver o documento, peça o XML ao emissor.
           </p>
-          {FALLBACK_CONSULTADANFE_ENABLED && (
-            <p className="text-muted-foreground">
-              Fallback <strong>consultadanfe</strong> habilitado — usado apenas
-              quando a SEFAZ retorna cStat 137/138.
-            </p>
-          )}
         </div>
       </div>
     </FormModal>
