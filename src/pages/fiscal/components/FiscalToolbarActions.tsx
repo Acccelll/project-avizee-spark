@@ -20,11 +20,9 @@ interface FiscalToolbarActionsProps {
 }
 
 /**
- * Kill-switch (Sprint 7.1 P0) para a busca por chave via API pública.
- * Default = habilitado. Para desativar em runtime, defina
- *   VITE_FEATURE_BUSCA_CHAVE=false
- * em build secret. Quando desligado, escondemos os botões de busca-por-chave
- * e scanner — `consultadanfe-proxy` não é mais acessível pela UI.
+ * Kill-switch da busca por chave. consultadanfe é o caminho PRINCIPAL
+ * (resolve qualquer chave); SEFAZ é último recurso. Para desativar
+ * (custo/SLA/incidente), defina VITE_FEATURE_BUSCA_CHAVE=false.
  */
 const BUSCA_CHAVE_ENABLED =
   String(import.meta.env.VITE_FEATURE_BUSCA_CHAVE ?? "true").toLowerCase() !== "false";
