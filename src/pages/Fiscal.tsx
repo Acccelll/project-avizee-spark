@@ -1930,8 +1930,22 @@ const Fiscal = () => {
         onEstornar={handleEstornar}
         onDevolucao={openDevolucao}
         onDanfe={(nf) => { setDrawerOpen(false); openDanfe(nf); }}
+        onAnexarXml={(nf) => {
+          setAnexarTargetNf(nf);
+          // Pequeno delay para garantir que o ref já está montado antes do click.
+          setTimeout(() => anexarXmlInputRef.current?.click(), 0);
+        }}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
         onRefresh={fetchData}
+      />
+
+      {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}
+      <input
+        ref={anexarXmlInputRef}
+        type="file"
+        accept=".xml,text/xml,application/xml"
+        className="hidden"
+        onChange={handleAnexarXmlChange}
       />
 
       <FiscalDevolucaoFlow ref={devolucaoFlowRef} onSuccess={fetchData} />
