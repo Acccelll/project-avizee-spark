@@ -110,6 +110,8 @@ interface NotaFiscalDrawerProps {
   onEstornar: (nf: NotaFiscal) => void;
   onDevolucao: (nf: NotaFiscal) => void;
   onDanfe: (nf: NotaFiscal) => void;
+  /** Anexar XML a uma NF de entrada lançada manualmente. */
+  onAnexarXml?: (nf: NotaFiscal) => void;
   /** Chamado após exclusão permanente bem-sucedida (admin). */
   onPermanentlyDeleted?: () => void;
   /** Chamado quando o drawer precisa que a lista pai recarregue (sem fechar). */
@@ -120,7 +122,7 @@ interface NotaFiscalDrawerProps {
 
 export function NotaFiscalDrawer({
   open, onClose, selected,
-  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
+  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
   onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
