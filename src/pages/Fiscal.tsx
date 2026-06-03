@@ -893,12 +893,14 @@ const Fiscal = () => {
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
     if (pendingXmlImport) {
       // Fluxo "tinha pendência": agora aplica e abre o form.
-      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText } = pendingXmlImport;
+      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText, anexarNa } = pendingXmlImport;
       if (tipo === "entrada") await salvarDeParaFornecedor(fornecedorId, linhas);
-      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText);
+      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText, anexarNa);
       setPendingXmlImport(null);
       setTraducaoOpen(false);
-      toast.success("Tradução confirmada. Revise a NF e salve.");
+      toast.success(anexarNa
+        ? `Tradução confirmada. Revise a anexação na NF ${anexarNa.numero} e salve.`
+        : "Tradução confirmada. Revise a NF e salve.");
     } else if (xmlOriginInfo) {
       // Reabertura via banner em modo edição (caso usuário queira ajustar): atualiza items e salva de-para.
       await salvarDeParaFornecedor(xmlOriginInfo.fornecedorId, linhas);
