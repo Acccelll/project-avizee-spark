@@ -225,6 +225,8 @@ const Fiscal = () => {
     clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
     xmlText?: string;
+    /** Quando preenchido, o XML deve ser anexado a esta NF existente em vez de criar uma nova. */
+    anexarNa?: NotaFiscal;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
