@@ -613,6 +613,7 @@ const Fiscal = () => {
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
     xmlText?: string,
+    anexarNa?: NotaFiscal,
   ) => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
@@ -647,18 +648,39 @@ const Fiscal = () => {
         toast.warning("XML importado, mas não foi arquivado no Storage (download original ficará indisponível).");
       }
     }
+    const baseForm: typeof emptyForm = anexarNa
+      ? {
+          ...emptyForm,
+          // Preserva campos não-fiscais da NF original.
+          movimenta_estoque: anexarNa.movimenta_estoque !== false,
+          gera_financeiro: anexarNa.gera_financeiro !== false,
+          forma_pagamento: anexarNa.forma_pagamento || "",
+          condicao_pagamento: anexarNa.condicao_pagamento || "a_vista",
+          ordem_venda_id: anexarNa.ordem_venda_id || "",
+          conta_contabil_id: anexarNa.conta_contabil_id || "",
+          observacoes: anexarNa.observacoes || "",
+        }
+      : { ...emptyForm };
     setForm({
-      ...emptyForm,
+      ...baseForm,
       tipo,
       numero: nfe.numero,
       serie: nfe.serie,
       modelo_documento: nfe.modelo || "55",
       chave_acesso: nfe.chaveAcesso,
       data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-      fornecedor_id: tipo === "entrada" ? fornecedorId : "",
-      cliente_id: tipo === "saida" ? clienteId : "",
-      status: temProtocolo ? "importada" : "pendente",
-      status_sefaz: temProtocolo ? "importada_externa" : "nao_enviada",
+      fornecedor_id: anexarNa
+        ? (anexarNa.fornecedor_id || (tipo === "entrada" ? fornecedorId : ""))
+        : (tipo === "entrada" ? fornecedorId : ""),
+      cliente_id: anexarNa
+        ? (anexarNa.cliente_id || (tipo === "saida" ? clienteId : ""))
+        : (tipo === "saida" ? clienteId : ""),
+      // Em anexação, preservamos o status atual da NF — só atualizamos status_sefaz
+      // se o XML trouxer protocolo SEFAZ (substitui "nao_enviada" por "importada_externa").
+      status: anexarNa ? anexarNa.status : (temProtocolo ? "importada" : "pendente"),
+      status_sefaz: anexarNa
+        ? (temProtocolo ? "importada_externa" : (anexarNa.status_sefaz || "nao_enviada"))
+        : (temProtocolo ? "importada_externa" : "nao_enviada"),
       frete_valor: nfe.valorFrete,
       icms_valor: nfe.icmsTotal,
       ipi_valor: nfe.ipiTotal,
@@ -668,17 +690,27 @@ const Fiscal = () => {
       desconto_valor: nfe.valorDesconto,
       outras_despesas: nfe.valorOutrasDespesas,
       valor_total: nfe.valorTotal,
-      origem: "xml_importado",
+      origem: anexarNa ? "xml_anexado" : "xml_importado",
       caminho_xml: caminhoXmlInicial,
     });
     setItems(newItems);
-    setMode("create");
-    setSelected(null);
+    if (anexarNa) {
+      setMode("edit");
+      setSelected(anexarNa);
+    } else {
+      setMode("create");
+      setSelected(null);
+    }
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
     setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
     setModalOpen(true);
+    if (anexarNa) {
+      toast.info(
+        `XML anexado à NF ${anexarNa.numero}. Revise os itens traduzidos e clique em Salvar para confirmar.`,
+      );
+    }
   };
 
   /** Persiste o de-para (produtos_fornecedores) para as linhas marcadas como "salvar tradução". */
