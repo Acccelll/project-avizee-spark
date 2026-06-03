@@ -749,6 +749,80 @@ const Fiscal = () => {
     if (xmlInputRef.current) xmlInputRef.current.value = "";
   };
 
+  /** Handler do input dedicado a anexar XML em uma NF existente. */
+  const handleAnexarXmlChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const targetNf = anexarTargetNf;
+    if (anexarXmlInputRef.current) anexarXmlInputRef.current.value = "";
+    if (!file || !targetNf) return;
+    try {
+      await processarXmlParaAnexar(file, targetNf);
+    } catch (err: unknown) {
+      logger.error("[fiscal] anexar XML:", err);
+      toast.error(`Erro ao anexar XML: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAnexarTargetNf(null);
+    }
+  };
+
+  /**
+   * Importa o XML reaproveitando o pipeline (parser + tradução), mas em vez de
+   * criar uma nova NF, anexa o resultado a `targetNf`. Mantém o `fornecedor_id`
+   * da NF existente e força `origem='xml_anexado'`.
+   */
+  const processarXmlParaAnexar = async (input: File | string, targetNf: NotaFiscal) => {
+    const result = await importXml(input);
+    if (!result) return;
+    const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
+    // Validação leve: NF de entrada precisa bater CNPJ do emitente com o fornecedor da NF.
+    if (targetNf.tipo === "entrada" && tipo !== "entrada") {
+      toast.error("XML não corresponde a uma NF de entrada (emitente é a própria empresa).");
+      return;
+    }
+    const fornecedorParaAnexar = targetNf.fornecedor_id || fornecedorId || "";
+    const clienteParaAnexar = targetNf.cliente_id || clienteId || "";
+    const fornecedorNome =
+      fornecedoresCrud.data.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
+      || nfe.emitente.razaoSocial
+      || "—";
+    const clienteNome =
+      clientesCrud.data.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
+      || nfe.destinatario?.razaoSocial
+      || "—";
+
+    setDrawerOpen(false);
+
+    if (traducaoOk) {
+      aplicarImportacaoXml(
+        nfe,
+        tipo,
+        fornecedorParaAnexar,
+        fornecedorNome,
+        clienteParaAnexar,
+        clienteNome,
+        traducao,
+        fiscalMap as Record<number, NfItemFiscalData>,
+        xmlText,
+        targetNf,
+      );
+    } else {
+      setPendingXmlImport({
+        nfe,
+        tipo,
+        fornecedorId: fornecedorParaAnexar,
+        fornecedorNome,
+        clienteId: clienteParaAnexar,
+        clienteNome,
+        fiscalMap: fiscalMap as Record<number, NfItemFiscalData>,
+        xmlText,
+        anexarNa: targetNf,
+      });
+      setTraducaoLinhas(traducao);
+      setTraducaoReadOnly(false);
+      setTraducaoOpen(true);
+    }
+  };
+
   /**
    * Núcleo do fluxo de importação de XML, agnóstico à origem (upload manual
    * ou consulta por chave de acesso). Centralizar aqui evita divergência
