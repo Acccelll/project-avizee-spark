@@ -202,6 +202,8 @@ const Fiscal = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
+  const anexarXmlInputRef = useRef<HTMLInputElement>(null);
+  const [anexarTargetNf, setAnexarTargetNf] = useState<NotaFiscal | null>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [buscarChaveInicial, setBuscarChaveInicial] = useState<string | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
