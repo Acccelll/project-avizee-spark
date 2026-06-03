@@ -212,18 +212,20 @@ export async function consultarNFePorChave(params: {
   // Procura o doc com a chave e schema procNFe (XML completo). cStat 138 +
   // documentos = sucesso da chamada (pode vir 1 procNFe). 137 = não encontrado.
   const docs = (data.docs ?? []).filter((d) => d.chave === chave && d.xml);
-  const doc = docs.find((d) => /procNFe|nfeProc/.test(d.schema)) ?? docs[0];
+  const doc = docs.find((d) => /procNFe|nfeProc/.test(d.schema)); // NÃO cair em docs[0]
   const xml = doc?.xml;
 
   if (!xml) {
+    const soResumo = docs.length > 0;
     return {
       sucesso: false,
       origem: "sefaz",
       cStat: data.cStat,
       xMotivo: data.xMotivo,
       mensagemCstat: data.mensagemCstat ?? null,
-      erro:
-        data.cStat === "137" || data.cStat === "138"
+      erro: soResumo
+        ? "A SEFAZ devolveu apenas o resumo (resNFe) desta NF-e, sem o XML completo. Manifeste a nota (Ciência/Confirmação) ou solicite o XML ao emissor."
+        : data.cStat === "137" || data.cStat === "138"
           ? `${data.xMotivo ?? "Documento não encontrado"} — ${data.cStat === "138"
               ? "a chave existe mas a NF-e não é destinada ao CNPJ deste certificado A1. Solicite o XML ao emissor."
               : "verifique se a chave está correta."}`
@@ -260,4 +262,125 @@ export async function consultarNFePorChave(params: {
     xMotivo: data.xMotivo,
     mensagemCstat: data.mensagemCstat ?? null,
   };
+}
+
+/** Decodifica base64 (UTF-8) para string. */
+function fromBase64Utf8(b64: string): string {
+  try {
+    const bin = atob(b64.replace(/\s+/g, ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+/** Extrai XML completo do payload da API consultadanfe. */
+function extrairXmlConsultaDanfe(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const obj = data as Record<string, unknown>;
+  if (typeof obj.xml_base64 === "string" && obj.xml_base64.length > 0) {
+    const decoded = fromBase64Utf8(obj.xml_base64);
+    if (decoded.includes("<")) return decoded;
+  }
+  const candidatos = [obj.xml, obj.xmlNfe, obj.xml_nfe];
+  for (const c of candidatos) {
+    if (typeof c === "string" && c.includes("<")) return c;
+  }
+  return null;
+}
+
+function extrairMensagemConsultaDanfe(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const obj = data as Record<string, unknown>;
+  const m = obj.message ?? obj.error ?? obj.mensagem;
+  return typeof m === "string" ? m : null;
+}
+
+/** Cacheia o XML obtido em nfe_distribuicao (best-effort). */
+async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("nfe_distribuicao").upsert(
+      {
+        chave_acesso: chave,
+        xml_nfe: xml,
+        nsu: "0",
+        status_manifestacao: "sem_manifestacao",
+        usuario_id: user?.id ?? null,
+      },
+      { onConflict: "chave_acesso", ignoreDuplicates: false },
+    );
+  } catch { /* cache best-effort */ }
+}
+
+export type OrigemXmlChave = "cache" | "api" | "sefaz";
+
+/**
+ * Caminho oficial de consulta de NF-e por chave.
+ * Ordem: cache local -> consultadanfe (primário) -> SEFAZ consChNFe (último recurso).
+ */
+export async function obterXmlNFePorChave(params: {
+  chave: string;
+}): Promise<{
+  sucesso: boolean;
+  origem: OrigemXmlChave;
+  xml?: string;
+  erro?: string;
+}> {
+  const chave = (params.chave || "").replace(/\D/g, "");
+  if (chave.length !== 44) {
+    return { sucesso: false, origem: "api", erro: "Chave de acesso inválida (exige 44 dígitos)." };
+  }
+
+  // 1) Cache local
+  try {
+    const { data: cache } = await supabase
+      .from("nfe_distribuicao")
+      .select("xml_nfe")
+      .eq("chave_acesso", chave)
+      .maybeSingle();
+    const xmlCache = (cache as { xml_nfe?: string } | null)?.xml_nfe;
+    if (xmlCache && xmlCache.includes("<")) {
+      return { sucesso: true, origem: "cache", xml: xmlCache };
+    }
+  } catch { /* segue para consultadanfe */ }
+
+  // 2) consultadanfe (primário)
+  let erroConsultaDanfe = "Falha ao consultar a NF-e.";
+  try {
+    const { data, error } = await supabase.functions.invoke("consultadanfe-proxy", {
+      body: { action: "consulta", chave },
+    });
+    if (error) {
+      erroConsultaDanfe = error.message ?? erroConsultaDanfe;
+    } else {
+      const resp = data as { ok?: boolean; status?: number; data?: unknown; error?: string };
+      if (resp?.ok) {
+        const xml = extrairXmlConsultaDanfe(resp.data);
+        if (xml) {
+          await cachearXmlPorChave(chave, xml);
+          return { sucesso: true, origem: "api", xml };
+        }
+        erroConsultaDanfe = "consultadanfe respondeu sem XML.";
+      } else {
+        const msg = extrairMensagemConsultaDanfe(resp?.data) ?? resp?.error ?? `Status ${resp?.status}`;
+        erroConsultaDanfe = `consultadanfe: ${msg}`;
+      }
+    }
+  } catch (err) {
+    erroConsultaDanfe = err instanceof Error ? err.message : String(err);
+  }
+
+  // 3) SEFAZ consChNFe (último recurso, best-effort)
+  try {
+    const sefaz = await consultarNFePorChave({ chave });
+    if (sefaz.sucesso && sefaz.xml) {
+      await cachearXmlPorChave(chave, sefaz.xml);
+      return { sucesso: true, origem: "sefaz", xml: sefaz.xml };
+    }
+  } catch { /* ignora — mantém erro do consultadanfe */ }
+
+  return { sucesso: false, origem: "api", erro: erroConsultaDanfe };
 }
