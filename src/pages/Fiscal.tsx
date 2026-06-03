@@ -202,6 +202,8 @@ const Fiscal = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
+  const anexarXmlInputRef = useRef<HTMLInputElement>(null);
+  const [anexarTargetNf, setAnexarTargetNf] = useState<NotaFiscal | null>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [buscarChaveInicial, setBuscarChaveInicial] = useState<string | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -223,6 +225,8 @@ const Fiscal = () => {
     clienteNome?: string;
     fiscalMap: Record<number, NfItemFiscalData>;
     xmlText?: string;
+    /** Quando preenchido, o XML deve ser anexado a esta NF existente em vez de criar uma nova. */
+    anexarNa?: NotaFiscal;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{
@@ -609,6 +613,7 @@ const Fiscal = () => {
     linhas: TraducaoLinha[],
     fiscalMap: Record<number, NfItemFiscalData>,
     xmlText?: string,
+    anexarNa?: NotaFiscal,
   ) => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
@@ -643,18 +648,39 @@ const Fiscal = () => {
         toast.warning("XML importado, mas não foi arquivado no Storage (download original ficará indisponível).");
       }
     }
+    const baseForm: typeof emptyForm = anexarNa
+      ? {
+          ...emptyForm,
+          // Preserva campos não-fiscais da NF original.
+          movimenta_estoque: anexarNa.movimenta_estoque !== false,
+          gera_financeiro: anexarNa.gera_financeiro !== false,
+          forma_pagamento: anexarNa.forma_pagamento || "",
+          condicao_pagamento: anexarNa.condicao_pagamento || "a_vista",
+          ordem_venda_id: anexarNa.ordem_venda_id || "",
+          conta_contabil_id: anexarNa.conta_contabil_id || "",
+          observacoes: anexarNa.observacoes || "",
+        }
+      : { ...emptyForm };
     setForm({
-      ...emptyForm,
+      ...baseForm,
       tipo,
       numero: nfe.numero,
       serie: nfe.serie,
       modelo_documento: nfe.modelo || "55",
       chave_acesso: nfe.chaveAcesso,
       data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-      fornecedor_id: tipo === "entrada" ? fornecedorId : "",
-      cliente_id: tipo === "saida" ? clienteId : "",
-      status: temProtocolo ? "importada" : "pendente",
-      status_sefaz: temProtocolo ? "importada_externa" : "nao_enviada",
+      fornecedor_id: anexarNa
+        ? (anexarNa.fornecedor_id || (tipo === "entrada" ? fornecedorId : ""))
+        : (tipo === "entrada" ? fornecedorId : ""),
+      cliente_id: anexarNa
+        ? (anexarNa.cliente_id || (tipo === "saida" ? clienteId : ""))
+        : (tipo === "saida" ? clienteId : ""),
+      // Em anexação, preservamos o status atual da NF — só atualizamos status_sefaz
+      // se o XML trouxer protocolo SEFAZ (substitui "nao_enviada" por "importada_externa").
+      status: anexarNa ? anexarNa.status : (temProtocolo ? "importada" : "pendente"),
+      status_sefaz: anexarNa
+        ? (temProtocolo ? "importada_externa" : (anexarNa.status_sefaz || "nao_enviada"))
+        : (temProtocolo ? "importada_externa" : "nao_enviada"),
       frete_valor: nfe.valorFrete,
       icms_valor: nfe.icmsTotal,
       ipi_valor: nfe.ipiTotal,
@@ -664,17 +690,27 @@ const Fiscal = () => {
       desconto_valor: nfe.valorDesconto,
       outras_despesas: nfe.valorOutrasDespesas,
       valor_total: nfe.valorTotal,
-      origem: "xml_importado",
+      origem: anexarNa ? "xml_anexado" : "xml_importado",
       caminho_xml: caminhoXmlInicial,
     });
     setItems(newItems);
-    setMode("create");
-    setSelected(null);
+    if (anexarNa) {
+      setMode("edit");
+      setSelected(anexarNa);
+    } else {
+      setMode("create");
+      setSelected(null);
+    }
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
     setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
     setModalOpen(true);
+    if (anexarNa) {
+      toast.info(
+        `XML anexado à NF ${anexarNa.numero}. Revise os itens traduzidos e clique em Salvar para confirmar.`,
+      );
+    }
   };
 
   /** Persiste o de-para (produtos_fornecedores) para as linhas marcadas como "salvar tradução". */
@@ -711,6 +747,80 @@ const Fiscal = () => {
       toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (xmlInputRef.current) xmlInputRef.current.value = "";
+  };
+
+  /** Handler do input dedicado a anexar XML em uma NF existente. */
+  const handleAnexarXmlChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const targetNf = anexarTargetNf;
+    if (anexarXmlInputRef.current) anexarXmlInputRef.current.value = "";
+    if (!file || !targetNf) return;
+    try {
+      await processarXmlParaAnexar(file, targetNf);
+    } catch (err: unknown) {
+      logger.error("[fiscal] anexar XML:", err);
+      toast.error(`Erro ao anexar XML: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAnexarTargetNf(null);
+    }
+  };
+
+  /**
+   * Importa o XML reaproveitando o pipeline (parser + tradução), mas em vez de
+   * criar uma nova NF, anexa o resultado a `targetNf`. Mantém o `fornecedor_id`
+   * da NF existente e força `origem='xml_anexado'`.
+   */
+  const processarXmlParaAnexar = async (input: File | string, targetNf: NotaFiscal) => {
+    const result = await importXml(input);
+    if (!result) return;
+    const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
+    // Validação leve: NF de entrada precisa bater CNPJ do emitente com o fornecedor da NF.
+    if (targetNf.tipo === "entrada" && tipo !== "entrada") {
+      toast.error("XML não corresponde a uma NF de entrada (emitente é a própria empresa).");
+      return;
+    }
+    const fornecedorParaAnexar = targetNf.fornecedor_id || fornecedorId || "";
+    const clienteParaAnexar = targetNf.cliente_id || clienteId || "";
+    const fornecedorNome =
+      fornecedoresCrud.data.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
+      || nfe.emitente.razaoSocial
+      || "—";
+    const clienteNome =
+      clientesCrud.data.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
+      || nfe.destinatario?.razaoSocial
+      || "—";
+
+    setDrawerOpen(false);
+
+    if (traducaoOk) {
+      aplicarImportacaoXml(
+        nfe,
+        tipo,
+        fornecedorParaAnexar,
+        fornecedorNome,
+        clienteParaAnexar,
+        clienteNome,
+        traducao,
+        fiscalMap as Record<number, NfItemFiscalData>,
+        xmlText,
+        targetNf,
+      );
+    } else {
+      setPendingXmlImport({
+        nfe,
+        tipo,
+        fornecedorId: fornecedorParaAnexar,
+        fornecedorNome,
+        clienteId: clienteParaAnexar,
+        clienteNome,
+        fiscalMap: fiscalMap as Record<number, NfItemFiscalData>,
+        xmlText,
+        anexarNa: targetNf,
+      });
+      setTraducaoLinhas(traducao);
+      setTraducaoReadOnly(false);
+      setTraducaoOpen(true);
+    }
   };
 
   /**
@@ -783,12 +893,14 @@ const Fiscal = () => {
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
     if (pendingXmlImport) {
       // Fluxo "tinha pendência": agora aplica e abre o form.
-      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText } = pendingXmlImport;
+      const { nfe, tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, fiscalMap, xmlText, anexarNa } = pendingXmlImport;
       if (tipo === "entrada") await salvarDeParaFornecedor(fornecedorId, linhas);
-      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText);
+      aplicarImportacaoXml(nfe, tipo, fornecedorId, fornecedorNome, clienteId || "", clienteNome || "", linhas, fiscalMap, xmlText, anexarNa);
       setPendingXmlImport(null);
       setTraducaoOpen(false);
-      toast.success("Tradução confirmada. Revise a NF e salve.");
+      toast.success(anexarNa
+        ? `Tradução confirmada. Revise a anexação na NF ${anexarNa.numero} e salve.`
+        : "Tradução confirmada. Revise a NF e salve.");
     } else if (xmlOriginInfo) {
       // Reabertura via banner em modo edição (caso usuário queira ajustar): atualiza items e salva de-para.
       await salvarDeParaFornecedor(xmlOriginInfo.fornecedorId, linhas);
@@ -1818,8 +1930,22 @@ const Fiscal = () => {
         onEstornar={handleEstornar}
         onDevolucao={openDevolucao}
         onDanfe={(nf) => { setDrawerOpen(false); openDanfe(nf); }}
+        onAnexarXml={(nf) => {
+          setAnexarTargetNf(nf);
+          // Pequeno delay para garantir que o ref já está montado antes do click.
+          setTimeout(() => anexarXmlInputRef.current?.click(), 0);
+        }}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
         onRefresh={fetchData}
+      />
+
+      {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}
+      <input
+        ref={anexarXmlInputRef}
+        type="file"
+        accept=".xml,text/xml,application/xml"
+        className="hidden"
+        onChange={handleAnexarXmlChange}
       />
 
       <FiscalDevolucaoFlow ref={devolucaoFlowRef} onSuccess={fetchData} />

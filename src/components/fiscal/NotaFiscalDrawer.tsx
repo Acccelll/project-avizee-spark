@@ -110,6 +110,8 @@ interface NotaFiscalDrawerProps {
   onEstornar: (nf: NotaFiscal) => void;
   onDevolucao: (nf: NotaFiscal) => void;
   onDanfe: (nf: NotaFiscal) => void;
+  /** Anexar XML a uma NF de entrada lançada manualmente. */
+  onAnexarXml?: (nf: NotaFiscal) => void;
   /** Chamado após exclusão permanente bem-sucedida (admin). */
   onPermanentlyDeleted?: () => void;
   /** Chamado quando o drawer precisa que a lista pai recarregue (sem fechar). */
@@ -120,7 +122,7 @@ interface NotaFiscalDrawerProps {
 
 export function NotaFiscalDrawer({
   open, onClose, selected,
-  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
+  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
   onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
@@ -886,6 +888,26 @@ export function NotaFiscalDrawer({
           <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar nota fiscal" disabled={editPending} onClick={() => runEdit(() => { onEdit(selected); onClose(); })}>
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
+          {onAnexarXml && selected.tipo === "entrada"
+            && !["autorizada", "cancelada_sefaz"].includes(selected.status_sefaz || "nao_enviada") && (() => {
+              const temXml = !!(selected as { caminho_xml?: string | null }).caminho_xml;
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  aria-label="Anexar XML à nota fiscal"
+                  title={
+                    temXml
+                      ? "Substituir XML anexado e refazer a tradução"
+                      : "Anexar XML do fornecedor e aplicar a tradução"
+                  }
+                  onClick={() => onAnexarXml(selected)}
+                >
+                  <FileText className="h-3.5 w-3.5" /> {temXml ? "Substituir XML" : "Anexar XML"}
+                </Button>
+              );
+            })()}
           <Button
             variant="outline"
             size="sm"
@@ -897,13 +919,15 @@ export function NotaFiscalDrawer({
           >
             <XCircle className="h-3.5 w-3.5" /> Inativar
           </Button>
-          {isAdmin && selected.status === "rascunho" && (selected.status_sefaz || "nao_enviada") === "nao_enviada" && (
+          {isAdmin
+            && !["autorizada", "cancelada_sefaz"].includes(selected.status_sefaz || "nao_enviada")
+            && ["rascunho", "pendente", "cancelada", "rejeitada"].includes(selected.status) && (
             <Button
               variant="outline"
               size="sm"
               className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
               aria-label="Excluir nota fiscal permanentemente"
-              title="Exclusão definitiva — permitida apenas em rascunhos não enviados à SEFAZ. NFs canceladas devem ser preservadas por exigência fiscal."
+              title="Exclusão definitiva — permitida apenas para NFs que nunca foram autorizadas pela SEFAZ (rascunho, pendente, cancelada ou rejeitada sem autorização)."
               onClick={() => setPermDeleteOpen(true)}
             >
               <XCircle className="h-3.5 w-3.5" /> Excluir definitivamente
