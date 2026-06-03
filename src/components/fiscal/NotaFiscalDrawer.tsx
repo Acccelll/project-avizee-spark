@@ -897,13 +897,15 @@ export function NotaFiscalDrawer({
           >
             <XCircle className="h-3.5 w-3.5" /> Inativar
           </Button>
-          {isAdmin && selected.status === "rascunho" && (selected.status_sefaz || "nao_enviada") === "nao_enviada" && (
+          {isAdmin
+            && !["autorizada", "cancelada_sefaz"].includes(selected.status_sefaz || "nao_enviada")
+            && ["rascunho", "pendente", "cancelada", "rejeitada"].includes(selected.status) && (
             <Button
               variant="outline"
               size="sm"
               className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
               aria-label="Excluir nota fiscal permanentemente"
-              title="Exclusão definitiva — permitida apenas em rascunhos não enviados à SEFAZ. NFs canceladas devem ser preservadas por exigência fiscal."
+              title="Exclusão definitiva — permitida apenas para NFs que nunca foram autorizadas pela SEFAZ (rascunho, pendente, cancelada ou rejeitada sem autorização)."
               onClick={() => setPermDeleteOpen(true)}
             >
               <XCircle className="h-3.5 w-3.5" /> Excluir definitivamente
