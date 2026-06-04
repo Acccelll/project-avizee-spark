@@ -372,7 +372,7 @@ export async function loadPosicaoEstoqueData(filtros: FiltroRelatorio): Promise<
     meta: {
       kind: 'list',
       valueNature: 'misto',
-      timeAxis: { field: 'data_corte', label: 'data de corte', required: false },
+      timeAxis: { field: 'criacao', label: 'data de corte', required: false },
       drillDownReady: true,
     },
   };
