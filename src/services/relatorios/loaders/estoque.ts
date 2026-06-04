@@ -280,3 +280,100 @@ export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<Relat
     meta: { kind: 'list', valueNature: 'misto', drillDownReady: true },
   };
 }
+
+/**
+ * Posição de estoque em uma data específica.
+ *
+ * Usa a RPC `posicao_estoque_em_data`, que retorna, para cada produto, o
+ * `saldo_atual` do último movimento <= data informada. Produtos sem
+ * movimentos até a data ficam com saldo 0.
+ *
+ * Convencionamos `filtros.dataFim` como a "data de corte". Quando ausente,
+ * usa o instante atual (igual à posição corrente).
+ */
+export async function loadPosicaoEstoqueData(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
+  const dataCorte = filtros.dataFim
+    ? `${filtros.dataFim}T23:59:59.999Z`
+    : new Date().toISOString();
+
+  // Busca todos os produtos ativos (filtrando por grupo se informado).
+  const produtos = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("produtos")
+      .select("id, sku, codigo_interno, nome, unidade_medida, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
+      .eq("ativo", true)
+      .order("nome");
+    if (filtros.grupoProdutoIds?.length) q = q.in('grupo_id', filtros.grupoProdutoIds);
+    return q;
+  });
+
+  // RPC: saldo por produto na data de corte.
+  const { data: saldosData, error: saldoErr } = await (supabase as unknown as {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: Array<{ produto_id: string; saldo: number | string }> | null; error: { message: string } | null }>;
+  }).rpc("posicao_estoque_em_data", { p_data: dataCorte });
+  if (saldoErr) throw new Error(saldoErr.message);
+
+  const saldoPorProduto = new Map<string, number>();
+  for (const row of saldosData ?? []) {
+    saldoPorProduto.set(row.produto_id, Number(row.saldo ?? 0));
+  }
+
+  const rows = produtos.map((item) => {
+    const id = item.id as string;
+    const custo = Number(item.preco_custo || 0);
+    const venda = Number(item.preco_venda || 0);
+    const qty = saldoPorProduto.get(id) ?? 0;
+    const min = Number(item.estoque_minimo || 0);
+    let criticidade: string;
+    if (qty <= 0) criticidade = "Zerado";
+    else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
+    else criticidade = "OK";
+    return {
+      produtoId: id,
+      codigo: (item.codigo_interno as string | null) || (item.sku as string | null) || "-",
+      produto: item.nome as string,
+      grupo: ((item.grupos_produto as { nome?: string } | null)?.nome) || "-",
+      unidade: (item.unidade_medida as string | null) || "UN",
+      estoqueNaData: qty,
+      estoqueMinimo: min,
+      criticidade,
+      criticidadeKind: estoqueCriticidadeKind(criticidade),
+      statusKey: criticidade === 'Zerado' ? 'zerado' : criticidade === 'Abaixo do mínimo' ? 'abaixo_minimo' : 'ok',
+      statusKind: estoqueCriticidadeKind(criticidade),
+      custoUnit: custo,
+      vendaUnit: venda,
+      totalCusto: qty * custo,
+      totalVenda: qty * venda,
+    };
+  });
+
+  const totalItens = rows.length;
+  const totalQtd = rows.reduce((s, r) => s + r.estoqueNaData, 0);
+  const totalCusto = rows.reduce((s, r) => s + r.totalCusto, 0);
+  const totalVenda = rows.reduce((s, r) => s + r.totalVenda, 0);
+  const itensZerados = rows.filter((r) => r.criticidade === "Zerado").length;
+  const itensCriticos = rows.filter((r) => r.criticidade === "Abaixo do mínimo").length;
+
+  const dataLabel = filtros.dataFim
+    ? new Date(filtros.dataFim).toLocaleDateString('pt-BR')
+    : 'hoje';
+
+  return {
+    title: "Posição de Estoque em Data",
+    subtitle: `Saldo reconstruído por produto a partir dos movimentos de estoque (corte: ${dataLabel}).`,
+    rows,
+    chartData: [
+      { name: "Zerado", value: itensZerados },
+      { name: "Abaixo do mínimo", value: itensCriticos },
+      { name: "Estoque OK", value: rows.filter((r) => r.criticidade === "OK").length },
+    ],
+    totals: { totalQtd, totalCusto, totalVenda },
+    kpis: { totalItens, totalQtd, totalCusto, itensCriticos, itensZerados },
+    meta: {
+      kind: 'list',
+      valueNature: 'misto',
+      timeAxis: { field: 'data_corte', label: 'data de corte', required: false },
+      drillDownReady: true,
+    },
+  };
+}
