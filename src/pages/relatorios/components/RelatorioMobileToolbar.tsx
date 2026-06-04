@@ -24,6 +24,7 @@ interface Props {
   dataFim: string;
   setDataInicio: (v: string) => void;
   setDataFim: (v: string) => void;
+  setPeriodo?: (range: { dataInicio: string; dataFim: string }) => void;
 
   filtrosState: FiltrosRelatorioState;
   setFiltrosState: (partial: Partial<FiltrosRelatorioState>) => void;
@@ -55,6 +56,7 @@ export function RelatorioMobileToolbar({
   dataFim,
   setDataInicio,
   setDataFim,
+  setPeriodo,
   filtrosState,
   setFiltrosState,
   clientes,
@@ -94,7 +96,10 @@ export function RelatorioMobileToolbar({
                 dataInicio={dataInicio}
                 dataFim={dataFim}
                 axisLabel={selectedMeta.timeAxis?.label ?? reportMeta?.timeAxis?.label}
-                onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
+                onChange={({ dataInicio: di, dataFim: df }) => {
+                  if (setPeriodo) setPeriodo({ dataInicio: di, dataFim: df });
+                  else { setDataInicio(di); setDataFim(df); }
+                }}
               />
             )}
             <FiltrosRelatorio
