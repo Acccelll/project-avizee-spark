@@ -422,9 +422,16 @@ const Estoque = () => {
   ];
 
   const movColumns = [
-    { key: "produto", label: "Produto", mobilePrimary: true, render: (m: Movimento) => (
-      <div><span className="font-medium">{m.produtos?.nome ?? "—"}{formatVariacoesSuffix((m.produtos as { variacoes?: unknown } | null | undefined)?.variacoes)}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
-    )},
+    { key: "produto", label: "Produto", mobilePrimary: true, render: (m: Movimento) => {
+      const variacoes = formatVariacoesSuffix((m.produtos as { variacoes?: unknown } | null | undefined)?.variacoes);
+      return (
+        <div className="whitespace-normal">
+          <div className="font-medium truncate">{m.produtos?.nome ?? "—"}</div>
+          {variacoes && <div className="text-xs text-muted-foreground truncate">{variacoes.replace(/^\s+/, "")}</div>}
+          {m.produtos?.sku && <div className="text-xs text-muted-foreground font-mono truncate">{m.produtos.sku}</div>}
+        </div>
+      );
+    }},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
       const cfg = getTipoMovConfig(m.tipo);
       const Icon = cfg.icon;
@@ -458,9 +465,16 @@ const Estoque = () => {
   ];
 
   const posColumns = [
-    { key: "nome", label: "Produto", mobilePrimary: true, render: (p: ProdutoPosicao) => (
-      <div><span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
-    )},
+    { key: "nome", label: "Produto", mobilePrimary: true, render: (p: ProdutoPosicao) => {
+      const variacoes = formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes);
+      return (
+        <div className="whitespace-normal">
+          <div className="font-medium truncate">{p.nome}</div>
+          {variacoes && <div className="text-xs text-muted-foreground truncate">{variacoes.replace(/^\s+/, "")}</div>}
+          {p.sku && <div className="text-xs text-muted-foreground font-mono truncate">{p.sku}</div>}
+        </div>
+      );
+    }},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
     { key: "estoque_atual", label: "Estoque Atual", headerTooltip: "Saldo físico/sistêmico do produto.", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
     { key: "estoque_reservado", label: "Reservado", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{formatNumber(Number(p.estoque_reservado ?? 0))}</span>, hidden: true },
