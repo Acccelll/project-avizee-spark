@@ -92,7 +92,7 @@ function SituacaoEstoqueBadge({ situacao }: { situacao: SituacaoEstoque }) {
 
 const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
-    table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
+    table: "estoque_movimentos", select: "*, produtos(nome, sku, variacoes)", hasAtivo: false,
   });
   const isMobile = useIsMobile();
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
