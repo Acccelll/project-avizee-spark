@@ -20,7 +20,6 @@ import {
   type RawEstoqueMinimoItem,
 } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
-import { supabase as supabaseClient } from "@/integrations/supabase/client";
 
 export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   const data = await fetchAllPages<Record<string, unknown>>(() => {
