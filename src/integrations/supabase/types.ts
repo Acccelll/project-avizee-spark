@@ -10020,6 +10020,13 @@ export type Database = {
       normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
       peek_proximo_numero_orcamento: { Args: never; Returns: string }
+      posicao_estoque_em_data: {
+        Args: { p_data: string }
+        Returns: {
+          produto_id: string
+          saldo: number
+        }[]
+      }
       processar_nfe_distribuicao: {
         Args: {
           p_data_vencimento: string
