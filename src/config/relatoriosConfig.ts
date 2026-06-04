@@ -1010,6 +1010,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   estoque: estoqueConfig,
   estoque_minimo: estoqueMinConfig,
   movimentos_estoque: movimentosConfig,
+  posicao_estoque_data: posicaoEstoqueDataConfig,
   financeiro: financeiroConfig,
   fluxo_caixa: fluxoCaixaConfig,
   vendas: vendasConfig,
@@ -1064,6 +1065,13 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     typeMeaning: 'Tipo representa entrada, saída ou ajuste no estoque.',
     highlightFilters: ['periodo', 'grupos'],
     investigableField: 'documento',
+  },
+  posicao_estoque_data: {
+    statusField: 'criticidade',
+    valueSortField: 'totalCusto',
+    periodAxisLabel: 'data de corte da posição',
+    highlightFilters: ['periodo', 'grupos'],
+    investigableField: 'produto',
   },
   financeiro: {
     statusField: 'status',
