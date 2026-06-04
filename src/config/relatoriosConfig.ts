@@ -270,6 +270,49 @@ const movimentosConfig: ReportConfig = {
   ],
 };
 
+const posicaoEstoqueDataConfig: ReportConfig = {
+  id: 'posicao_estoque_data',
+  title: 'Posição de Estoque em Data',
+  description: 'Reconstrói o saldo por produto numa data passada',
+  objective: 'Posição reconstruída do estoque na data informada (corte = data final)',
+  category: 'estoque_suprimentos',
+  icon: Package,
+  chartType: 'pie',
+  columns: [
+    { key: 'codigo', label: 'Código' },
+    { key: 'produto', label: 'Produto' },
+    { key: 'grupo', label: 'Grupo' },
+    { key: 'unidade', label: 'UN', align: 'center' },
+    { key: 'estoqueNaData', label: 'Saldo na Data', format: 'quantity', align: 'right', footerTotal: true },
+    { key: 'estoqueMinimo', label: 'Mínimo', format: 'quantity', align: 'right' },
+    { key: 'criticidade', label: 'Situação', format: 'badge' },
+    { key: 'custoUnit', label: 'Custo Unit.', format: 'currency', align: 'right' },
+    { key: 'totalCusto', label: 'Total Custo', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'vendaUnit', label: 'Preço Venda', format: 'currency', align: 'right' },
+    { key: 'totalVenda', label: 'Total Venda', format: 'currency', align: 'right', footerTotal: true },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: false,
+    showFornecedores: false,
+    showGrupos: true,
+    showStatus: false,
+    showTipos: false,
+  },
+  timeAxis: { field: 'criacao', label: 'data de corte', required: false },
+  kpis: [
+    { key: 'totalItens', label: 'Total de Itens', format: 'number', variation: 'produtos ativos' },
+    { key: 'totalQtd', label: 'Qtd na Data', format: 'number', variation: 'unidades' },
+    { key: 'totalCusto', label: 'Custo Total', format: 'currency', variation: 'valor na data' },
+    { key: 'itensCriticos', label: 'Itens Críticos', format: 'number', variant: 'warning', variation: 'abaixo do mínimo' },
+    { key: 'itensZerados', label: 'Zerados', format: 'number', variant: 'danger', variation: 'sem estoque' },
+  ],
+  drillDown: [
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
+    { key: 'movimentos', label: 'Ver movimentações', route: '/relatorios?tipo=movimentos_estoque', targetField: 'produtoId', available: true },
+  ],
+};
+
 const financeiroConfig: ReportConfig = {
   id: 'financeiro',
   title: 'Financeiro',
