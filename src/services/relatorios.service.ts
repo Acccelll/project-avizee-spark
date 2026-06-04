@@ -26,6 +26,7 @@ import {
   loadMovimentosEstoque,
   loadMargemProdutos,
   loadEstoqueMinimo,
+  loadPosicaoEstoqueData,
 } from "@/services/relatorios/loaders/estoque";
 import {
   loadFinanceiro,
@@ -77,6 +78,8 @@ export async function carregarRelatorio(
       return loadEstoque(filtros);
     case "movimentos_estoque":
       return loadMovimentosEstoque(filtros);
+    case "posicao_estoque_data":
+      return loadPosicaoEstoqueData(filtros);
     case "margem_produtos":
       return loadMargemProdutos(filtros);
     case "estoque_minimo":

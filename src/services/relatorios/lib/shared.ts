@@ -12,6 +12,7 @@ import type { ReportMeta } from "@/types/relatorios";
 export type TipoRelatorio =
   | "estoque"
   | "movimentos_estoque"
+  | "posicao_estoque_data"
   | "financeiro"
   | "fluxo_caixa"
   | "vendas"
