@@ -27,6 +27,7 @@ export interface RelatorioUrlState {
   setSearchParams: ReturnType<typeof useSearchParams>[1];
   setDataInicio: (v: string) => void;
   setDataFim: (v: string) => void;
+  setPeriodo: (range: { dataInicio: string; dataFim: string }) => void;
   setFiltrosState: (partial: Partial<FiltrosRelatorioState>) => void;
   updateParams: (patch: Record<string, string | string[] | undefined>) => void;
 }
@@ -86,6 +87,17 @@ export function useRelatorioUrlState(): RelatorioUrlState {
 
   const setDataInicio = (v: string) => updateParams({ di: v });
   const setDataFim = (v: string) => updateParams({ df: v });
+  /**
+   * Atualiza início e fim do período em uma única chamada.
+   *
+   * Necessário porque `setSearchParams` (react-router) captura o
+   * `searchParams` do closure no momento da criação: duas chamadas
+   * consecutivas (setDataInicio + setDataFim) partem do mesmo estado e a
+   * segunda sobrescreve a primeira, perdendo o `di` na URL. Por isso o
+   * período custom precisa ir num único patch.
+   */
+  const setPeriodo = (range: { dataInicio: string; dataFim: string }) =>
+    updateParams({ di: range.dataInicio, df: range.dataFim });
 
   const setFiltrosState = (partial: Partial<FiltrosRelatorioState>) => {
     const patch: Record<string, string | string[] | undefined> = {};
@@ -114,6 +126,7 @@ export function useRelatorioUrlState(): RelatorioUrlState {
     setSearchParams,
     setDataInicio,
     setDataFim,
+    setPeriodo,
     setFiltrosState,
     updateParams,
   };

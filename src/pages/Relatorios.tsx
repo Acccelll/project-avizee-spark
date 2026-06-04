@@ -66,6 +66,7 @@ export default function Relatorios() {
     setSearchParams,
     setDataInicio,
     setDataFim,
+    setPeriodo,
     setFiltrosState,
     updateParams,
   } = useRelatorioUrlState();
@@ -369,6 +370,7 @@ export default function Relatorios() {
                 dataFim={dataFim}
                 setDataInicio={setDataInicio}
                 setDataFim={setDataFim}
+                setPeriodo={setPeriodo}
                 filtrosState={filtrosState}
                 setFiltrosState={setFiltrosState}
                 clientes={clientes}
@@ -414,6 +416,7 @@ export default function Relatorios() {
                 dataFim={dataFim}
                 setDataInicio={setDataInicio}
                 setDataFim={setDataFim}
+                setPeriodo={setPeriodo}
                 filtrosState={filtrosState}
                 setFiltrosState={setFiltrosState}
                 clientes={clientes}
