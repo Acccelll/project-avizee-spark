@@ -20,6 +20,7 @@ import {
   type RawEstoqueMinimoItem,
 } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 
 export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   const data = await fetchAllPages<Record<string, unknown>>(() => {
@@ -115,7 +116,14 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
       .from("estoque_movimentos")
       .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, sku, codigo_interno)")
       .order("created_at", { ascending: false });
-    q = withDateRange(q, "created_at", filtros);
+    // `created_at` é timestamp; o filtro vem como "YYYY-MM-DD". Sem ajuste, o
+    // `lte` casa apenas com 00:00:00 do dia final, escondendo movimentos do
+    // próprio dia. Estendemos para o fim do dia (23:59:59.999).
+    const filtrosAjustados = {
+      ...filtros,
+      dataFim: filtros.dataFim ? `${filtros.dataFim}T23:59:59.999` : undefined,
+    };
+    q = withDateRange(q, "created_at", filtrosAjustados);
     if (produtoIds) q = q.in('produto_id', produtoIds);
     return q;
   });
