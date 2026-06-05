@@ -236,31 +236,6 @@ export default function CartoesCredito() {
     }
   };
 
-  const openFatura = (c: CartaoCredito) => {
-    setFaturaCartao(c);
-    setFaturaOpen(true);
-  };
-
-  const handleGerarFatura = async () => {
-    if (!faturaCartao) return;
-    setFaturaSaving(true);
-    try {
-      const res = await gerarFaturaCartao(faturaCartao.id, faturaCompetencia);
-      if (!res.ok) {
-        toast.error(res.erro || "Falha ao gerar fatura");
-      } else {
-        toast.success(
-          `Fatura ${faturaCompetencia} gerada — total ${formatCurrency(res.valor_total || 0)}`,
-        );
-        setFaturaOpen(false);
-      }
-    } catch (e) {
-      notifyError(e);
-    } finally {
-      setFaturaSaving(false);
-    }
-  };
-
   const openFaturasList = async (c: CartaoCredito) => {
     setFaturasListCartao(c);
     setFaturasListOpen(true);
@@ -393,7 +368,7 @@ export default function CartoesCredito() {
           loading={loading}
           moduleKey="cartoes-credito"
           showColumnToggle
-          onEdit={openEdit}
+          onEdit={openFaturasList}
           onDelete={handleDelete}
           rowExtraActions={(c: CartaoCredito) =>
             c.ativo ? (
@@ -403,20 +378,10 @@ export default function CartoesCredito() {
                   variant="ghost"
                   onClick={(e) => {
                     e.stopPropagation();
-                    openFaturasList(c);
+                    openEdit(c);
                   }}
                 >
-                  <Receipt className="w-3.5 h-3.5 mr-1" /> Faturas
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openFatura(c);
-                  }}
-                >
-                  <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> Editar cartão
                 </Button>
               </div>
             ) : isAdmin ? (
@@ -458,11 +423,11 @@ export default function CartoesCredito() {
                 className="gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
-                  openFatura(c);
+                  openEdit(c);
                 }}
               >
-                <FileText className="w-4 h-4" />
-                Gerar
+                <Pencil className="w-4 h-4" />
+                Editar
               </Button>
             ) : null
           }
@@ -471,8 +436,6 @@ export default function CartoesCredito() {
         />
       </ModulePage>
 
-      <Dialog open={faturaOpen} onOpenChange={(o) => !o && setFaturaOpen(false)}>
-        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Gerar fatura — {faturaCartao?.nome}</DialogTitle>
             <DialogDescription>
