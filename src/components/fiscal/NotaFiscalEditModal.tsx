@@ -918,9 +918,17 @@ export function NotaFiscalEditModal({
                     <Label>Forma de Pagamento</Label>
                     <Select
                       value={form.forma_pagamento}
-                      onValueChange={(v) =>
-                        setForm({ ...form, forma_pagamento: v })
-                      }
+                      onValueChange={(v) => {
+                        const next: Record<string, any> = {
+                          ...form,
+                          forma_pagamento: v,
+                          cartao_id: v === "cartao_credito" ? form.cartao_id : "",
+                        };
+                        if (v === "cartao_credito") {
+                          next.condicao_pagamento = Number(parcelas) > 1 ? "a_prazo" : "a_vista";
+                        }
+                        setForm(next);
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione..." />
@@ -937,37 +945,82 @@ export function NotaFiscalEditModal({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Condição</Label>
-                    <Select
-                      value={form.condicao_pagamento}
-                      onValueChange={(v) =>
-                        setForm({ ...form, condicao_pagamento: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="a_vista">À Vista</SelectItem>
-                        <SelectItem value="a_prazo">A Prazo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {form.condicao_pagamento === "a_prazo" && (
-                    <div className="space-y-2">
-                      <Label>Nº Parcelas</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={48}
-                        value={parcelas}
-                        onChange={(e) => setParcelas(Number(e.target.value))}
-                      />
-                    </div>
+                  {form.forma_pagamento === "cartao_credito" ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Cartão *</Label>
+                        <Select
+                          value={String(form.cartao_id || "")}
+                          onValueChange={(v) => setForm({ ...form, cartao_id: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o cartão..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cartoes.length === 0 ? (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                Nenhum cartão ativo.
+                              </div>
+                            ) : cartoes.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nº Parcelas</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={48}
+                          value={parcelas}
+                          onChange={(e) => {
+                            const n = Math.max(1, Number(e.target.value) || 1);
+                            setParcelas(n);
+                            setForm({ ...form, condicao_pagamento: n > 1 ? "a_prazo" : "a_vista" });
+                          }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Condição</Label>
+                        <Select
+                          value={form.condicao_pagamento}
+                          onValueChange={(v) =>
+                            setForm({ ...form, condicao_pagamento: v })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="a_vista">À Vista</SelectItem>
+                            <SelectItem value="a_prazo">A Prazo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {form.condicao_pagamento === "a_prazo" && (
+                        <div className="space-y-2">
+                          <Label>Nº Parcelas</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={48}
+                            value={parcelas}
+                            onChange={(e) => setParcelas(Number(e.target.value))}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
               </div>
-              {form.condicao_pagamento === "a_prazo" && parcelasPlano && setParcelasPlano && (
+              {(form.condicao_pagamento === "a_prazo" ||
+                (form.forma_pagamento === "cartao_credito" && form.cartao_id))
+                && parcelasPlano && setParcelasPlano && (
                 <div className="mt-3">
                   <ParcelasFiscalEditor
                     total={totalNF}
@@ -987,6 +1040,14 @@ export function NotaFiscalEditModal({
                       setForm({ ...form, intervalo_parcelas_dias: v })
                     }
                     onParcelasChange={setParcelasPlano}
+                    cartao={
+                      form.forma_pagamento === "cartao_credito" && form.cartao_id
+                        ? (() => {
+                            const c = cartoes.find((x) => x.id === form.cartao_id);
+                            return c ? { dia_fechamento: c.dia_fechamento, dia_vencimento: c.dia_vencimento } : null;
+                          })()
+                        : null
+                    }
                   />
                 </div>
               )}
