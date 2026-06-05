@@ -21,7 +21,6 @@ import {
   updateCartao,
   inativarCartao,
   getCartaoInUseCounts,
-  gerarFaturaCartao,
   listFaturasPorCartao,
   baixarFaturaCartao,
   listLancamentosDaFatura,
@@ -33,7 +32,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt, Loader2 } from "lucide-react";
+import { CreditCard, CheckCircle, Ban, Wallet, Receipt, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,13 +79,6 @@ export default function CartoesCredito() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [selected, setSelected] = useState<CartaoCredito | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [faturaOpen, setFaturaOpen] = useState(false);
-  const [faturaCartao, setFaturaCartao] = useState<CartaoCredito | null>(null);
-  const [faturaCompetencia, setFaturaCompetencia] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
-  const [faturaSaving, setFaturaSaving] = useState(false);
   const [faturasListOpen, setFaturasListOpen] = useState(false);
   const [faturasListCartao, setFaturasListCartao] = useState<CartaoCredito | null>(null);
   const [faturasList, setFaturasList] = useState<CartaoFatura[]>([]);
