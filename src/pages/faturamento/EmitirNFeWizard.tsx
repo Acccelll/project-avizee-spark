@@ -552,34 +552,35 @@ interface ProdutoRow {
 }
 
 function ItemRow({ index, onRemove }: { index: number; onRemove: () => void }) {
-  const { register, watch, setValue, formState } = useFormContext<WizardData>();
+  const { register, watch, setValue, getValues, formState } = useFormContext<WizardData>();
   const item = watch(`itens.${index}`);
   const ufDestino = watch("cliente_uf");
 
   const recalc = () => {
-    const q = Number(item.quantidade || 0);
-    const v = Number(item.valor_unitario || 0);
+    const current = getValues(`itens.${index}`);
+    const q = Number(current.quantidade || 0);
+    const v = Number(current.valor_unitario || 0);
     const total = +(q * v).toFixed(2);
     setValue(`itens.${index}.valor_total`, total, { shouldDirty: true });
     setValue(`itens.${index}.icms_base`, total, { shouldDirty: true });
     setValue(
       `itens.${index}.icms_valor`,
-      +((total * Number(item.icms_aliquota || 0)) / 100).toFixed(2),
+      +((total * Number(current.icms_aliquota || 0)) / 100).toFixed(2),
       { shouldDirty: true },
     );
     setValue(
       `itens.${index}.pis_valor`,
-      +((total * Number(item.pis_aliquota || 0)) / 100).toFixed(2),
+      +((total * Number(current.pis_aliquota || 0)) / 100).toFixed(2),
       { shouldDirty: true },
     );
     setValue(
       `itens.${index}.cofins_valor`,
-      +((total * Number(item.cofins_aliquota || 0)) / 100).toFixed(2),
+      +((total * Number(current.cofins_aliquota || 0)) / 100).toFixed(2),
       { shouldDirty: true },
     );
     setValue(
       `itens.${index}.ipi_valor`,
-      +((total * Number(item.ipi_aliquota || 0)) / 100).toFixed(2),
+      +((total * Number(current.ipi_aliquota || 0)) / 100).toFixed(2),
       { shouldDirty: true },
     );
   };
