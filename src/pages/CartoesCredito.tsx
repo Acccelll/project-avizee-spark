@@ -419,6 +419,7 @@ export default function CartoesCredito() {
           moduleKey="cartoes-credito"
           showColumnToggle
           onEdit={openEdit}
+          onView={(c: CartaoCredito) => c.ativo && openFaturasList(c)}
           onRowClick={(c: CartaoCredito) => c.ativo && openFaturasList(c)}
           onDelete={handleDelete}
           rowExtraActions={(c: CartaoCredito) =>
