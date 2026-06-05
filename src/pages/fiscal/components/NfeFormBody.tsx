@@ -7,6 +7,10 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosSection";
+import { TipoDocumentoSelector } from "@/components/fiscal/TipoDocumentoSelector";
+import { NfseFieldsSection } from "@/components/fiscal/NfseFieldsSection";
+import { CteFieldsSection } from "@/components/fiscal/CteFieldsSection";
+import type { TipoDocumentoFiscal } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -88,8 +92,47 @@ export function NfeFormBody(props: NfeFormBodyProps) {
   const chaveDigits = String(form.chave_acesso || "").replace(/\D/g, "");
   const chaveInvalid = chaveDigits.length > 0 && chaveDigits.length !== 44;
 
+  const tipoDoc = (form.tipo_documento ?? "nfe") as TipoDocumentoFiscal;
+  const isNfe = tipoDoc === "nfe";
+  const isNfse = tipoDoc === "nfse";
+  const isCte = tipoDoc === "cte";
+  // Modelos válidos por tipo de documento.
+  const modelosPorTipo: Record<TipoDocumentoFiscal, Array<{ value: string; label: string }>> = {
+    nfe: [
+      { value: "55", label: "NF-e (Modelo 55)" },
+      { value: "65", label: "NFC-e (Modelo 65)" },
+    ],
+    cte: [
+      { value: "57", label: "CT-e (Modelo 57)" },
+      { value: "67", label: "CT-e OS (Modelo 67)" },
+    ],
+    nfse: [{ value: "nfse", label: "NFS-e (Serviço)" }],
+  };
+  const modelosDisponiveis = modelosPorTipo[tipoDoc] ?? modelosPorTipo.nfe;
+  // Garante que o modelo selecionado seja válido para o tipo atual.
+  const modeloSelecionado = (() => {
+    const atual = String(form.modelo_documento || modelosDisponiveis[0].value);
+    return modelosDisponiveis.some((m) => m.value === atual) ? atual : modelosDisponiveis[0].value;
+  })();
+
   return (
     <div className="space-y-5">
+      {/* Tipo de documento — escolha primária, gate as seções NF-e/NFS-e/CT-e. */}
+      <TipoDocumentoSelector
+        value={tipoDoc}
+        onChange={(v) => {
+          const next: Record<string, string | number | boolean> = { ...form, tipo_documento: v };
+          // Ajusta modelo para um válido do novo tipo.
+          next.modelo_documento = (modelosPorTipo[v] ?? modelosPorTipo.nfe)[0].value;
+          setForm(next);
+        }}
+      />
+      {isNfse && (
+        <NfseFieldsSection form={form as Record<string, unknown>} setForm={setForm as (p: Record<string, unknown>) => void} />
+      )}
+      {isCte && (
+        <CteFieldsSection form={form as Record<string, unknown>} setForm={setForm as (p: Record<string, unknown>) => void} />
+      )}
       {xmlOriginInfo && traducaoLinhasCount > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
           <div>
@@ -107,7 +150,14 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           <Select value={String(form.tipo)} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent></Select>
         </div>
         <div className="space-y-2"><Label>Modelo</Label>
-          <Select value={String(form.modelo_documento || "55")} onValueChange={(v) => setForm({ ...form, modelo_documento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="55">NF-e (Modelo 55)</SelectItem><SelectItem value="65">NFC-e (Modelo 65)</SelectItem><SelectItem value="57">CT-e (Modelo 57)</SelectItem><SelectItem value="67">CT-e OS (Modelo 67)</SelectItem><SelectItem value="nfse">NFS-e (Serviço)</SelectItem><SelectItem value="outro">Outro</SelectItem></SelectContent></Select>
+          <Select value={modeloSelecionado} onValueChange={(v) => setForm({ ...form, modelo_documento: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {modelosDisponiveis.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2"><Label>Número *</Label><Input value={String(form.numero)} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" /></div>
         <div className="space-y-2"><Label>Série</Label><Input value={String(form.serie)} onChange={(e) => setForm({ ...form, serie: e.target.value })} /></div>
@@ -154,15 +204,19 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           <Select value={String(form.ordem_venda_id || "none")} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
         </div>
       )}
-      <SectionHeader title="Itens" />
-      <ItemsGrid
-        items={items}
-        onChange={setItems}
-        produtos={produtos}
-        title="Itens da Nota"
-        onCreateProduto={onCriarProdutoQuick}
-      />
-      {items.length > 0 && contasContabeis.length > 0 && (
+      {isNfe && (
+        <>
+          <SectionHeader title="Itens" />
+          <ItemsGrid
+            items={items}
+            onChange={setItems}
+            produtos={produtos}
+            title="Itens da Nota"
+            onCreateProduto={onCriarProdutoQuick}
+          />
+        </>
+      )}
+      {isNfe && items.length > 0 && contasContabeis.length > 0 && (
         <div className="space-y-2"><Label className="text-sm font-semibold">Conta Contábil por Item</Label>
           <div className="space-y-2 rounded-lg border p-3">
             {items.map((item, idx) => (
@@ -181,12 +235,16 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           </div>
         </div>
       )}
-      <SectionHeader title="Tributos" />
-      <FiscalImpostosSection
-        values={form}
-        onChange={(key, value) => setForm({ ...form, [key]: value })}
-        modelo={String(form.modelo_documento || "55")}
-      />
+      {isNfe && (
+        <>
+          <SectionHeader title="Tributos" />
+          <FiscalImpostosSection
+            values={form}
+            onChange={(key, value) => setForm({ ...form, [key]: value })}
+            modelo={modeloSelecionado}
+          />
+        </>
+      )}
       <SectionHeader title="Pagamento" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
