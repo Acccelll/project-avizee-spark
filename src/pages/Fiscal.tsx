@@ -1926,7 +1926,7 @@ const Fiscal = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         onEdit={openEdit}
-        onEditPagamento={(nf) => setEditPagamentoTarget(nf)}
+        onEditPagamento={(nf) => { setDrawerOpen(false); openEdit(nf); }}
         onDelete={handleInativar}
         onConfirmar={handleConfirmar}
         onEstornar={handleEstornar}
@@ -1939,16 +1939,6 @@ const Fiscal = () => {
         }}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
         onRefresh={fetchData}
-      />
-
-      <EditarPagamentoNotaModal
-        open={!!editPagamentoTarget}
-        onClose={() => setEditPagamentoTarget(null)}
-        nota={editPagamentoTarget}
-        onSaved={() => {
-          setEditPagamentoTarget(null);
-          fetchData();
-        }}
       />
 
       {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}
