@@ -105,6 +105,8 @@ interface NotaFiscalDrawerProps {
   onClose: () => void;
   selected: NotaFiscal | null;
   onEdit: (nf: NotaFiscal) => void;
+  /** Abre modal dedicado de definir/alterar pagamento (forma + condição + parcelas). */
+  onEditPagamento?: (nf: NotaFiscal) => void;
   onDelete: (id: string) => void;
   onConfirmar: (nf: NotaFiscal) => void;
   onEstornar: (nf: NotaFiscal) => void;
@@ -122,7 +124,7 @@ interface NotaFiscalDrawerProps {
 
 export function NotaFiscalDrawer({
   open, onClose, selected,
-  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
+  onEdit, onEditPagamento, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
   onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
