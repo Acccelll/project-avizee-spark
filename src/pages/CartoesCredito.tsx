@@ -650,10 +650,14 @@ export default function CartoesCredito() {
                   {baixaLancamentos.map((l) => (
                     <div key={l.id} className="flex items-center justify-between px-2 py-1.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{l.descricao}</p>
-                        <p className="text-muted-foreground">
-                          Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")} • {l.status}
-                        </p>
+                        <p className="truncate font-medium">{l.descricao || "—"}</p>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <span>Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")}</span>
+                          {l.parcela_numero ? (
+                            <span>· {l.parcela_numero}/{l.parcela_total}</span>
+                          ) : null}
+                          <StatusBadge status={l.status} />
+                        </div>
                       </div>
                       <span className="ml-2 font-medium tabular-nums">
                         {formatCurrency(l.saldo)}
