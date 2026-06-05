@@ -106,6 +106,8 @@ interface NotaFiscalEditModalProps {
   valorProdutos: number;
   totalImpostos: number;
   totalNF: number;
+  /** Cartões ativos para o fluxo cartão de crédito (Ideia 1). Opcional. */
+  cartoes?: Array<{ id: string; nome: string; ultimos4?: string | null; dia_fechamento: number; dia_vencimento: number }>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
