@@ -41,6 +41,8 @@ import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { BaixaLoteModal } from "@/components/financeiro/BaixaLoteModal";
 import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
+import { PendenciasPanel } from "@/components/financeiro/PendenciasPanel";
+import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
 import { getEffectiveStatus, cancelarLancamento } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
 import type { Lancamento, Cliente, Fornecedor } from "@/types/domain";
