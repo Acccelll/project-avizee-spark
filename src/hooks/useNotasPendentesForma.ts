@@ -10,9 +10,7 @@ export interface NotaPendente {
   condicao_pagamento: string | null;
   tipo: string;
   fornecedor_id: string | null;
-  cnpj_emitente: string | null;
-  nome_emitente: string | null;
-  fornecedores?: { nome_razao_social: string } | null;
+  fornecedores?: { nome_razao_social: string; cpf_cnpj: string | null } | null;
 }
 
 /**
@@ -26,7 +24,7 @@ export function useNotasPendentesForma() {
       const { data, error } = await supabase
         .from("notas_fiscais")
         .select(
-          "id, numero, data_emissao, valor_total, forma_pagamento, condicao_pagamento, tipo, fornecedor_id, cnpj_emitente, nome_emitente, fornecedores(nome_razao_social)",
+          "id, numero, data_emissao, valor_total, forma_pagamento, condicao_pagamento, tipo, fornecedor_id, fornecedores(nome_razao_social, cpf_cnpj)",
         )
         .eq("ativo", true)
         .eq("tipo", "entrada")
@@ -37,7 +35,7 @@ export function useNotasPendentesForma() {
         .order("data_emissao", { ascending: true })
         .limit(100);
       if (error) throw error;
-      return (data || []) as NotaPendente[];
+      return (data ?? []) as unknown as NotaPendente[];
     },
     staleTime: 60 * 1000,
     refetchOnWindowFocus: true,
