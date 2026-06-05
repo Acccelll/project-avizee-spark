@@ -89,6 +89,8 @@ const Financeiro = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<LancamentoForm>({ ...emptyLancamentoForm });
   const [viewMode, setViewMode] = useState<"lista" | "calendario">("lista");
+  const [pendenciasOpen, setPendenciasOpen] = useState(false);
+  const { data: notasPendentes = [] } = useNotasPendentesForma();
   const [baixaLoteOpen, setBaixaLoteOpen] = useState(false);
   const [baixaParcialOpen, setBaixaParcialOpen] = useState(false);
   const [baixaParcialTarget, setBaixaParcialTarget] = useState<Lancamento | null>(null);
