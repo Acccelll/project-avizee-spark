@@ -147,13 +147,18 @@ export async function autorizarNFe(
     return { sucesso: false, motivo: resposta.erro };
   }
 
-  // Parsear protocolo e status do XML de retorno
+  // No modo síncrono (indSinc=1) o status da NF-e vem em protNFe/infProt/cStat;
+  // o cStat de topo é do LOTE (104). Quando o lote é rejeitado não há
+  // protNFe — caímos no envelope para extrair o motivo.
   const xmlRetorno = resposta.xmlRetorno ?? "";
-  const protocolo = xmlRetorno.match(/<nProt>(.*?)<\/nProt>/)?.[1];
-  const status = xmlRetorno.match(/<cStat>(.*?)<\/cStat>/)?.[1];
-  const motivo = xmlRetorno.match(/<xMotivo>(.*?)<\/xMotivo>/)?.[1];
+  const blocoProt =
+    xmlRetorno.match(/<protNFe[^>]*>[\s\S]*?<\/protNFe>/)?.[0] ?? xmlRetorno;
+  const protocolo = blocoProt.match(/<nProt>(.*?)<\/nProt>/)?.[1];
+  const status = blocoProt.match(/<cStat>(\d+)<\/cStat>/)?.[1];
+  const motivo = blocoProt.match(/<xMotivo>(.*?)<\/xMotivo>/)?.[1];
 
-  const autorizado = status === "100";
+  // 100 = Autorizado o uso da NF-e; 150 = Autorizado fora de prazo.
+  const autorizado = status === "100" || status === "150";
 
   return {
     sucesso: autorizado,

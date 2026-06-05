@@ -144,39 +144,56 @@ function canonicalize(xml: string): string {
 function assinarXml(xml: string, base64Pfx: string, senha: string): string {
   const { privateKey, cert } = extrairChaveECertificado(base64Pfx, senha);
 
-  // Extrair o conteúdo de <infNFe>...</infNFe>
-  const infNFeMatch = xml.match(/<infNFe[^>]*>([\s\S]*?)<\/infNFe>/);
-  if (!infNFeMatch) throw new Error("Elemento <infNFe> não encontrado no XML.");
+  const infNFeOriginal = xml.match(/<infNFe[^>]*>[\s\S]*?<\/infNFe>/)?.[0];
+  if (!infNFeOriginal) throw new Error("Elemento <infNFe> não encontrado no XML.");
 
-  const infNFeCompleto = xml.match(/<infNFe[^>]*>[\s\S]*?<\/infNFe>/)?.[0] || "";
-  const idMatch = infNFeCompleto.match(/Id="([^"]+)"/);
-  const referenceUri = idMatch ? `#${idMatch[1]}` : "";
+  const idMatch = infNFeOriginal.match(/Id="([^"]+)"/);
+  if (!idMatch) throw new Error("Atributo Id do <infNFe> não encontrado.");
+  const referenceUri = `#${idMatch[1]}`;
 
-  // Calcular digest SHA-1 do <infNFe> canonicalizado
-  const infNFeCanonico = canonicalize(infNFeCompleto);
+  // C14N: o subtree assinado herda xmlns do <NFe> pai. A SEFAZ inclui o
+  // namespace no infNFe ao canonicalizar; precisamos digerir EXATAMENTE
+  // o mesmo. XML já compacto (sem espaços entre tags).
+  const infNFeC14N = /<infNFe[^>]*\sxmlns=/.test(infNFeOriginal)
+    ? infNFeOriginal
+    : infNFeOriginal.replace(
+        /^<infNFe(\s)/,
+        '<infNFe xmlns="http://www.portalfiscal.inf.br/nfe"$1',
+      );
+
   const digestMd = forge.md.sha1.create();
-  digestMd.update(infNFeCanonico, "utf8");
+  digestMd.update(infNFeC14N, "utf8");
   const digestBase64 = forge.util.encode64(digestMd.digest().getBytes());
 
-  // Montar SignedInfo
-  const signedInfo = `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><Reference URI="${referenceUri}"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><DigestValue>${digestBase64}</DigestValue></Reference></SignedInfo>`;
+  const signedInfo =
+    '<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">' +
+    '<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>' +
+    '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
+    `<Reference URI="${referenceUri}">` +
+    '<Transforms>' +
+    '<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>' +
+    '<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>' +
+    '</Transforms>' +
+    '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+    `<DigestValue>${digestBase64}</DigestValue>` +
+    '</Reference></SignedInfo>';
 
-  // Assinar SignedInfo com RSA-SHA1
   const signatureMd = forge.md.sha1.create();
-  signatureMd.update(canonicalize(signedInfo), "utf8");
+  signatureMd.update(signedInfo, "utf8");
   const signatureBytes = (privateKey as any).sign(signatureMd);
   const signatureBase64 = forge.util.encode64(signatureBytes);
 
-  // Certificado X.509 em base64 (DER)
   const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
   const certBase64 = forge.util.encode64(certDer);
 
-  // Montar bloco <Signature>
-  const signatureBlock = `<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">${signedInfo}<SignatureValue>${signatureBase64}</SignatureValue><KeyInfo><X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data></KeyInfo></Signature>`;
+  const signatureBlock =
+    '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
+    signedInfo +
+    `<SignatureValue>${signatureBase64}</SignatureValue>` +
+    `<KeyInfo><X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data></KeyInfo>` +
+    '</Signature>';
 
-  // Inserir após </infNFe>
-  const xmlAssinado = xml.replace("</infNFe>", `</infNFe>${signatureBlock}`);
-  return xmlAssinado;
+  return xml.replace("</infNFe>", `</infNFe>${signatureBlock}`);
 }
 
 // ── Envio SOAP para SEFAZ ────────────────────────────────────────
@@ -467,7 +484,23 @@ Deno.serve(async (req) => {
         return json({ sucesso: false, erro: `Erro na assinatura: ${e.message}` });
       }
 
-      const resultado = await enviarSoap(xmlAssinado, url, soapAction);
+      let certPem: string;
+      let keyPem: string;
+      try {
+        const r = pfxToPem(certBase64, senha);
+        certPem = r.certPem;
+        keyPem = r.keyPem;
+      } catch (e: any) {
+        return json({ sucesso: false, erro: `Falha ao ler PFX: ${e.message ?? String(e)}` });
+      }
+
+      const resultado = await enviarSoapMtls(
+        xmlAssinado,
+        url,
+        soapAction,
+        certPem,
+        keyPem,
+      );
       return json(resultado);
     }
 
