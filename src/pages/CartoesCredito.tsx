@@ -102,6 +102,55 @@ export default function CartoesCredito() {
     }>
   >([]);
   const [baixaLancsLoading, setBaixaLancsLoading] = useState(false);
+  // Cache dos lançamentos por fatura para o accordion "Ver itens" no Sheet de faturas.
+  const [faturaItens, setFaturaItens] = useState<
+    Record<
+      string,
+      {
+        loading: boolean;
+        expanded: boolean;
+        items: Array<{
+          id: string;
+          descricao: string | null;
+          valor: number;
+          saldo: number;
+          status: string;
+          data_vencimento: string;
+          parcela_numero: number | null;
+          parcela_total: number | null;
+        }>;
+      }
+    >
+  >({});
+
+  const toggleFaturaItens = async (faturaId: string) => {
+    const current = faturaItens[faturaId];
+    if (current?.expanded) {
+      setFaturaItens((p) => ({ ...p, [faturaId]: { ...current, expanded: false } }));
+      return;
+    }
+    if (current?.items?.length) {
+      setFaturaItens((p) => ({ ...p, [faturaId]: { ...current, expanded: true } }));
+      return;
+    }
+    setFaturaItens((p) => ({
+      ...p,
+      [faturaId]: { loading: true, expanded: true, items: [] },
+    }));
+    try {
+      const items = await listLancamentosDaFatura(faturaId);
+      setFaturaItens((p) => ({
+        ...p,
+        [faturaId]: { loading: false, expanded: true, items },
+      }));
+    } catch (e) {
+      notifyError(e);
+      setFaturaItens((p) => ({
+        ...p,
+        [faturaId]: { loading: false, expanded: false, items: [] },
+      }));
+    }
+  };
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -422,41 +471,104 @@ export default function CartoesCredito() {
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma fatura encontrada.</p>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto divide-y border rounded-md">
-              {faturasList.map((f) => (
-                <div key={f.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                  <div>
-                    <p className="font-medium">{f.competencia}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Vence {new Date(f.data_vencimento).toLocaleDateString("pt-BR")} • {formatCurrency(Number(f.valor_total || 0))}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={f.status} />
-                    {f.status !== "paga" && Number(f.valor_total || 0) > 0 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          setBaixaFatura(f);
-                          setBaixaData(new Date().toISOString().split("T")[0]);
-                          setBaixaForma("boleto_dda");
-                          setBaixaLancsLoading(true);
-                          try {
-                            const lancs = await listLancamentosDaFatura(f.id);
-                            setBaixaLancamentos(lancs);
-                          } catch (e) {
-                            notifyError(e);
-                          } finally {
-                            setBaixaLancsLoading(false);
-                          }
-                        }}
+              {faturasList.map((f) => {
+                const exp = faturaItens[f.id];
+                const isOpen = !!exp?.expanded;
+                return (
+                  <div key={f.id} className="text-sm">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleFaturaItens(f.id)}
+                        className="flex flex-1 items-center gap-2 text-left hover:opacity-80"
+                        aria-expanded={isOpen}
+                        aria-label={isOpen ? "Ocultar itens da fatura" : "Ver itens da fatura"}
                       >
-                        Baixar
-                      </Button>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                            isOpen && "rotate-180",
+                          )}
+                        />
+                        <div>
+                          <p className="font-medium">{f.competencia}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Vence {new Date(f.data_vencimento).toLocaleDateString("pt-BR")} • {formatCurrency(Number(f.valor_total || 0))}
+                          </p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={f.status} />
+                        {f.status !== "paga" && Number(f.valor_total || 0) > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setBaixaFatura(f);
+                              setBaixaData(new Date().toISOString().split("T")[0]);
+                              setBaixaForma("boleto_dda");
+                              setBaixaLancsLoading(true);
+                              try {
+                                const lancs = await listLancamentosDaFatura(f.id);
+                                setBaixaLancamentos(lancs);
+                              } catch (err) {
+                                notifyError(err);
+                              } finally {
+                                setBaixaLancsLoading(false);
+                              }
+                            }}
+                          >
+                            Baixar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {isOpen && (
+                      <div className="border-t bg-muted/20 px-3 py-2">
+                        {exp?.loading ? (
+                          <div className="space-y-1.5 py-1">
+                            {[1, 2].map((i) => (
+                              <Skeleton key={i} className="h-7 w-full rounded" />
+                            ))}
+                          </div>
+                        ) : !exp?.items.length ? (
+                          <p className="py-2 text-center text-xs text-muted-foreground">
+                            Nenhum lançamento vinculado a esta fatura.
+                          </p>
+                        ) : (
+                          <ul className="divide-y">
+                            {exp.items.map((l) => (
+                              <li
+                                key={l.id}
+                                className="flex items-start justify-between gap-3 py-1.5 text-xs"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-medium text-foreground">
+                                    {l.descricao || "—"}
+                                    {l.parcela_numero && l.parcela_total ? (
+                                      <span className="ml-1 text-muted-foreground">
+                                        ({l.parcela_numero}/{l.parcela_total})
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="font-mono">{formatCurrency(l.valor)}</span>
+                                  <StatusBadge status={l.status} />
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
         );
         const titulo = `Faturas — ${faturasListCartao?.nome ?? ""}`;
