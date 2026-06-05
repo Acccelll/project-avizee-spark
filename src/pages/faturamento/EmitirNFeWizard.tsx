@@ -542,7 +542,9 @@ function Step2Destinatario() {
 interface ProdutoRow {
   id: string;
   codigo_interno: string | null;
-  descricao: string;
+  sku: string | null;
+  nome: string | null;
+  descricao: string | null;
   ncm: string | null;
   unidade_medida: string | null;
   preco_venda: number | null;
