@@ -542,7 +542,9 @@ function Step2Destinatario() {
 interface ProdutoRow {
   id: string;
   codigo_interno: string | null;
-  descricao: string;
+  sku: string | null;
+  nome: string | null;
+  descricao: string | null;
   ncm: string | null;
   unidade_medida: string | null;
   preco_venda: number | null;
@@ -777,12 +779,15 @@ function Step3Itens() {
     queryFn: async () => {
       let q = supabase
         .from("produtos")
-        .select("id, codigo_interno, descricao, ncm, unidade_medida, preco_venda")
+        .select("id, codigo_interno, sku, nome, descricao, ncm, unidade_medida, preco_venda, variacoes")
         .eq("ativo", true)
-        .order("descricao")
+        .order("nome")
         .limit(20);
       if (debouncedBusca) {
-        q = q.or(`descricao.ilike.%${debouncedBusca}%,codigo_interno.ilike.%${debouncedBusca}%`);
+        const term = debouncedBusca.replace(/[,()]/g, "");
+        q = q.or(
+          `nome.ilike.%${term}%,descricao.ilike.%${term}%,codigo_interno.ilike.%${term}%,sku.ilike.%${term}%`,
+        );
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -794,10 +799,17 @@ function Step3Itens() {
   const adicionarProduto = (p: ProdutoRow) => {
     const qtd = 1;
     const vu = Number(p.preco_venda || 0);
+    const variacoesArr = Array.isArray(p.variacoes)
+      ? (p.variacoes as unknown[]).filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      : [];
+    const descricaoCompleta = [p.nome, ...variacoesArr]
+      .filter((s) => typeof s === "string" && s.trim().length > 0)
+      .join(" ")
+      .trim() || (p.descricao ?? "");
     append({
       produto_id: p.id,
       codigo_produto: p.codigo_interno ?? "",
-      descricao: p.descricao,
+      descricao: descricaoCompleta,
       ncm: (p.ncm ?? "").padStart(8, "0").slice(0, 8) || "00000000",
       cfop: "",
       cst: cstDefault,
@@ -874,20 +886,31 @@ function Step3Itens() {
             </PopoverTrigger>
             <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-0" align="end">
               <Command shouldFilter={false}>
-                <CommandInput value={busca} onValueChange={setBusca} placeholder="Código ou descrição…" />
+                <CommandInput value={busca} onValueChange={setBusca} placeholder="Código, SKU ou nome…" />
                 <CommandList>
                   <CommandEmpty>Nenhum produto.</CommandEmpty>
                   <CommandGroup>
-                    {(produtos ?? []).map((p) => (
-                      <CommandItem key={p.id} value={p.id} onSelect={() => adicionarProduto(p)}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{p.descricao}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {p.codigo_interno ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
-                          </span>
-                        </div>
-                      </CommandItem>
-                    ))}
+                    {(produtos ?? []).map((p) => {
+                      const variacoesArr = Array.isArray(p.variacoes)
+                        ? (p.variacoes as unknown[]).filter(
+                            (v): v is string => typeof v === "string" && v.trim().length > 0,
+                          )
+                        : [];
+                      const nomeCompleto = [p.nome, ...variacoesArr]
+                        .filter((s) => typeof s === "string" && s.trim().length > 0)
+                        .join(" ")
+                        .trim() || (p.descricao ?? "—");
+                      return (
+                        <CommandItem key={p.id} value={p.id} onSelect={() => adicionarProduto(p)}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{nomeCompleto}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {p.codigo_interno ?? p.sku ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
+                            </span>
+                          </div>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>
