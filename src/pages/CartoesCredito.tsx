@@ -32,7 +32,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet, Receipt, Pencil } from "lucide-react";
+import { CreditCard, CheckCircle, Ban, Wallet, Receipt, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -368,23 +368,11 @@ export default function CartoesCredito() {
           loading={loading}
           moduleKey="cartoes-credito"
           showColumnToggle
-          onEdit={openFaturasList}
+          onEdit={openEdit}
+          onRowClick={(c: CartaoCredito) => c.ativo && openFaturasList(c)}
           onDelete={handleDelete}
           rowExtraActions={(c: CartaoCredito) =>
-            c.ativo ? (
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEdit(c);
-                  }}
-                >
-                  <Pencil className="w-3.5 h-3.5 mr-1" /> Editar cartão
-                </Button>
-              </div>
-            ) : isAdmin ? (
+            !c.ativo && isAdmin ? (
               <Button
                 size="sm"
                 variant="ghost"
@@ -416,20 +404,7 @@ export default function CartoesCredito() {
             ) : null
           }
           mobileInlineActions={(c: CartaoCredito) =>
-            c.ativo ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openEdit(c);
-                }}
-              >
-                <Pencil className="w-4 h-4" />
-                Editar
-              </Button>
-            ) : null
+            null
           }
           emptyTitle="Nenhum cartão cadastrado"
           emptyDescription="Cadastre um cartão para gerar faturas e amarrar lançamentos."
