@@ -8,7 +8,6 @@ import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosSection";
 import { formatCurrency } from "@/lib/format";
-import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
@@ -191,26 +190,62 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       <SectionHeader title="Pagamento" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
-          <Select value={String(form.forma_pagamento)} onValueChange={(v) => setForm({ ...form, forma_pagamento: v, cartao_id: v === "cartao_credito" ? form.cartao_id : "" })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto_dda">Boleto/DDA</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
+          <Select
+            value={String(form.forma_pagamento)}
+            onValueChange={(v) => {
+              const next: Record<string, string | number | boolean> = {
+                ...form,
+                forma_pagamento: v,
+                cartao_id: v === "cartao_credito" ? form.cartao_id : "",
+              };
+              // Cartão de crédito: condição passa a ser derivada do nº de parcelas
+              // (1 → a_vista, >1 → a_prazo). O usuário não escolhe condição.
+              if (v === "cartao_credito") {
+                next.condicao_pagamento = Number(parcelas) > 1 ? "a_prazo" : "a_vista";
+              }
+              setForm(next);
+            }}
+          ><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto_dda">Boleto/DDA</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
         </div>
-        {form.forma_pagamento === "cartao_credito" && (
-          <div className="space-y-2"><Label>Cartão *</Label>
-            <Select value={String(form.cartao_id || "")} onValueChange={(v) => setForm({ ...form, cartao_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione o cartão..." /></SelectTrigger>
-              <SelectContent>
-                {cartoes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {form.forma_pagamento === "cartao_credito" ? (
+          <>
+            <div className="space-y-2"><Label>Cartão *</Label>
+              <Select value={String(form.cartao_id || "")} onValueChange={(v) => setForm({ ...form, cartao_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o cartão..." /></SelectTrigger>
+                <SelectContent>
+                  {cartoes.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum cartão ativo.</div>
+                  ) : cartoes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Nº Parcelas</Label>
+              <Input
+                type="number"
+                min={1}
+                max={48}
+                value={parcelas}
+                onChange={(e) => {
+                  const n = Math.max(1, Number(e.target.value) || 1);
+                  setParcelas(n);
+                  // Mantém condicao sincronizada para cartão.
+                  setForm({ ...form, condicao_pagamento: n > 1 ? "a_prazo" : "a_vista" });
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-2"><Label>Condição</Label>
+              <Select value={String(form.condicao_pagamento)} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
+            </div>
+            {form.condicao_pagamento === "a_prazo" && <div className="space-y-2"><Label>Nº Parcelas</Label><Input type="number" min={1} max={48} value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} /></div>}
+          </>
         )}
-        <div className="space-y-2"><Label>Condição</Label>
-          <Select value={String(form.condicao_pagamento)} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
-        </div>
-        {form.condicao_pagamento === "a_prazo" && <div className="space-y-2"><Label>Nº Parcelas</Label><Input type="number" min={1} max={48} value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} /></div>}
       </div>
       <div className="flex flex-wrap items-center gap-6 rounded-lg border bg-muted/20 px-3 py-2.5">
         <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -235,7 +270,9 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       {form.gera_financeiro && (
         <RecorrenciaBlock form={form} setForm={setForm} />
       )}
-      {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && !form.recorrente && (
+      {((form.condicao_pagamento === "a_prazo") ||
+        (form.forma_pagamento === "cartao_credito" && form.cartao_id))
+        && form.gera_financeiro && !form.recorrente && (
         <ParcelasFiscalEditor
           total={totalNF || Number(form.valor_total)}
           qtdParcelas={parcelas}
@@ -256,23 +293,6 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           }
         />
       )}
-      {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && form.condicao_pagamento === "a_vista" && !form.recorrente && (() => {
-        const cartao = cartoes.find((c) => c.id === form.cartao_id);
-        if (!cartao) return null;
-        const previews = calcularFaturasParcelas(String(form.data_emissao), cartao.dia_fechamento, cartao.dia_vencimento, 1);
-        return (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-            <p className="font-medium text-foreground">Fatura prevista para este cartão:</p>
-            <ul className="space-y-0.5 text-muted-foreground">
-              {previews.map((p, i) => (
-                <li key={i}>
-                  Competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })()}
       {contasContabeis.length > 0 && (
         <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
           <AutocompleteSearch

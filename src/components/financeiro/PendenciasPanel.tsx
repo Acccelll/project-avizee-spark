@@ -1,13 +1,10 @@
-import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, FileText, RefreshCw, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNotasPendentesForma, type NotaPendente } from "@/hooks/useNotasPendentesForma";
-import { EditarPagamentoNotaModal } from "@/components/fiscal/EditarPagamentoNotaModal";
-import type { NotaFiscal } from "@/types/domain";
+import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   open: boolean;
@@ -24,16 +21,7 @@ function formatCnpj(doc: string | null | undefined): string {
 
 export function PendenciasPanel({ open, onClose }: Props) {
   const { data: notas = [], isLoading, refetch, isFetching } = useNotasPendentesForma();
-  const [editTarget, setEditTarget] = useState<NotaPendente | null>(null);
-  const qc = useQueryClient();
-
-  const handleSaved = () => {
-    qc.invalidateQueries({ queryKey: ["notas-pendentes-forma"] });
-    qc.invalidateQueries({ queryKey: ["sidebar-alerts"] });
-    qc.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
-    qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
-    setEditTarget(null);
-  };
+  const navigate = useNavigate();
 
   return (
     <>
@@ -113,7 +101,10 @@ export function PendenciasPanel({ open, onClose }: Props) {
                           size="sm"
                           variant="outline"
                           className="h-7 gap-1 text-xs"
-                          onClick={() => setEditTarget(nota)}
+                          onClick={() => {
+                            onClose();
+                            navigate(`/fiscal/${nota.id}/editar`);
+                          }}
                         >
                           <FileText className="h-3 w-3" /> Definir
                         </Button>
@@ -129,13 +120,6 @@ export function PendenciasPanel({ open, onClose }: Props) {
           )}
         </SheetContent>
       </Sheet>
-
-      <EditarPagamentoNotaModal
-        open={!!editTarget}
-        onClose={() => setEditTarget(null)}
-        nota={editTarget as unknown as NotaFiscal | null}
-        onSaved={handleSaved}
-      />
     </>
   );
 }
