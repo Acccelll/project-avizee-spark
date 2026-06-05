@@ -886,20 +886,31 @@ function Step3Itens() {
             </PopoverTrigger>
             <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-0" align="end">
               <Command shouldFilter={false}>
-                <CommandInput value={busca} onValueChange={setBusca} placeholder="Código ou descrição…" />
+                <CommandInput value={busca} onValueChange={setBusca} placeholder="Código, SKU ou nome…" />
                 <CommandList>
                   <CommandEmpty>Nenhum produto.</CommandEmpty>
                   <CommandGroup>
-                    {(produtos ?? []).map((p) => (
-                      <CommandItem key={p.id} value={p.id} onSelect={() => adicionarProduto(p)}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{p.descricao}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {p.codigo_interno ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
-                          </span>
-                        </div>
-                      </CommandItem>
-                    ))}
+                    {(produtos ?? []).map((p) => {
+                      const variacoesArr = Array.isArray(p.variacoes)
+                        ? (p.variacoes as unknown[]).filter(
+                            (v): v is string => typeof v === "string" && v.trim().length > 0,
+                          )
+                        : [];
+                      const nomeCompleto = [p.nome, ...variacoesArr]
+                        .filter((s) => typeof s === "string" && s.trim().length > 0)
+                        .join(" ")
+                        .trim() || (p.descricao ?? "—");
+                      return (
+                        <CommandItem key={p.id} value={p.id} onSelect={() => adicionarProduto(p)}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{nomeCompleto}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {p.codigo_interno ?? p.sku ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
+                            </span>
+                          </div>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>
