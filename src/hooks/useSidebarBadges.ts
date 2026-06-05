@@ -26,8 +26,14 @@ export function useSidebarBadges(): SidebarBadges {
   const alerts = useSidebarAlerts();
 
   return useMemo(() => {
-    const financeiroTotal = alerts.financeiroVencidos + alerts.financeiroVencer;
-    const financeiroTone: BadgeTone = alerts.financeiroVencidos > 0 ? 'danger' : 'info';
+    const financeiroTotal =
+      alerts.financeiroVencidos + alerts.financeiroVencer + alerts.notasSemFormaPagamento;
+    const financeiroTone: BadgeTone =
+      alerts.financeiroVencidos > 0
+        ? 'danger'
+        : alerts.notasSemFormaPagamento > 0
+          ? 'warning'
+          : 'info';
     // Fiscal soma NF-e rejeitadas (saída) + NF-e de entrada sem manifestação
     const fiscalTotal = alerts.nfRejeitadas + alerts.nfeEntradaSemManifestacao;
     const fiscalTone: BadgeTone = alerts.nfRejeitadas > 0 ? 'danger' : 'warning';
