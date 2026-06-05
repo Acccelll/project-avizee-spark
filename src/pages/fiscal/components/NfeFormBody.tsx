@@ -97,7 +97,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
   const isNfse = tipoDoc === "nfse";
   const isCte = tipoDoc === "cte";
   // Modelos válidos por tipo de documento.
-  const modelosPorTipo: Record<TipoDocumentoFiscal, Array<{ value: string; label: string }>> = {
+  const modelosPorTipo: Partial<Record<TipoDocumentoFiscal, Array<{ value: string; label: string }>>> = {
     nfe: [
       { value: "55", label: "NF-e (Modelo 55)" },
       { value: "65", label: "NFC-e (Modelo 65)" },
