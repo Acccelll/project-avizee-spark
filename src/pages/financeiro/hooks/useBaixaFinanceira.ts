@@ -46,8 +46,10 @@ export function useRegistrarBaixa() {
 export function useEstornarBaixa() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { baixaId: string; motivo?: string }) => estornarBaixaFinanceira(input),
-    onSuccess: () => {
+    mutationFn: (input: { baixaId: string; motivo?: string; lancamentoId?: string }) =>
+      estornarBaixaFinanceira({ baixaId: input.baixaId, motivo: input.motivo }),
+    onSuccess: (_, vars) => {
+      if (vars.lancamentoId) void posProcessarBaixaCartao(vars.lancamentoId);
       qc.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
