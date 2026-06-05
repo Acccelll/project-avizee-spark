@@ -435,6 +435,19 @@ const Financeiro = () => {
           >
             <FileDown className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Exportar
           </Button>
+          <Button
+            size="sm"
+            variant={pendenciasOpen ? "default" : "outline"}
+            className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0 relative"
+            onClick={() => setPendenciasOpen(true)}
+          >
+            <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Pendências
+            {notasPendentes.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-warning text-warning-foreground text-[10px] font-semibold flex items-center justify-center px-1">
+                {notasPendentes.length > 99 ? "99+" : notasPendentes.length}
+              </span>
+            )}
+          </Button>
         </div>
 
         {/* Mobile: banner "Vence Hoje" tappable acima dos KPIs (filtra para hoje) */}
