@@ -194,7 +194,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
           <Select
             value={String(form.forma_pagamento)}
             onValueChange={(v) => {
-              const next: Record<string, unknown> = {
+              const next: Record<string, string | number | boolean> = {
                 ...form,
                 forma_pagamento: v,
                 cartao_id: v === "cartao_credito" ? form.cartao_id : "",
