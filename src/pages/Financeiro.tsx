@@ -37,6 +37,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { BaixaLoteModal } from "@/components/financeiro/BaixaLoteModal";
