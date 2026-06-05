@@ -99,6 +99,14 @@ function num(el: Element | null, tag: string): number {
   return Number(text(el, tag)) || 0;
 }
 
+/**
+ * Escapa `&` que não pertencem a uma entidade XML válida (&amp; &lt; &gt; &quot; &apos; &#123; &#xAB;).
+ * Útil para corrigir XMLs vindos de APIs que perderam o escape original em campos de texto.
+ */
+function sanitizeBareAmpersands(xml: string): string {
+  return xml.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;");
+}
+
 export function parseNFeXml(xmlString: string): NFeData {
   const parser = new DOMParser();
   let doc = parser.parseFromString(xmlString, "text/xml");
