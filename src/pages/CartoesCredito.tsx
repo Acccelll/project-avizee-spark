@@ -24,6 +24,7 @@ import {
   gerarFaturaCartao,
   listFaturasPorCartao,
   baixarFaturaCartao,
+  listLancamentosDaFatura,
   type CartaoFatura,
   type CartaoCredito,
 } from "@/services/cartoesCredito.service";
@@ -97,7 +98,16 @@ export default function CartoesCredito() {
   const [baixaSaving, setBaixaSaving] = useState(false);
   const [baixaForma, setBaixaForma] = useState<string>("boleto_dda");
   const [baixaLancamentos, setBaixaLancamentos] = useState<
-    Array<{ id: string; descricao: string; valor: number; saldo: number; status: string; data_vencimento: string }>
+    Array<{
+      id: string;
+      descricao: string | null;
+      valor: number;
+      saldo: number;
+      status: string;
+      data_vencimento: string;
+      parcela_numero: number | null;
+      parcela_total: number | null;
+    }>
   >([]);
   const [baixaLancsLoading, setBaixaLancsLoading] = useState(false);
   const { saving, submit } = useSubmitLock();
@@ -544,24 +554,8 @@ export default function CartoesCredito() {
                           setBaixaForma("boleto_dda");
                           setBaixaLancsLoading(true);
                           try {
-                            const { data, error } = await supabase
-                              .from("financeiro_lancamentos")
-                              .select("id, descricao, valor, valor_pago, saldo_restante, status, data_vencimento, origem_tipo, ativo")
-                              .eq("cartao_fatura_id", f.id)
-                              .eq("ativo", true)
-                              .neq("origem_tipo", "cartao_fatura")
-                              .order("data_vencimento");
-                            if (error) throw error;
-                            setBaixaLancamentos(
-                              (data || []).map((l: any) => ({
-                                id: l.id,
-                                descricao: l.descricao,
-                                valor: Number(l.valor || 0),
-                                saldo: Number(l.saldo_restante ?? Number(l.valor || 0) - Number(l.valor_pago || 0)),
-                                status: l.status,
-                                data_vencimento: l.data_vencimento,
-                              })),
-                            );
+                            const lancs = await listLancamentosDaFatura(f.id);
+                            setBaixaLancamentos(lancs);
                           } catch (e) {
                             notifyError(e);
                           } finally {
@@ -656,10 +650,14 @@ export default function CartoesCredito() {
                   {baixaLancamentos.map((l) => (
                     <div key={l.id} className="flex items-center justify-between px-2 py-1.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{l.descricao}</p>
-                        <p className="text-muted-foreground">
-                          Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")} • {l.status}
-                        </p>
+                        <p className="truncate font-medium">{l.descricao || "—"}</p>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <span>Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")}</span>
+                          {l.parcela_numero ? (
+                            <span>· {l.parcela_numero}/{l.parcela_total}</span>
+                          ) : null}
+                          <StatusBadge status={l.status} />
+                        </div>
                       </div>
                       <span className="ml-2 font-medium tabular-nums">
                         {formatCurrency(l.saldo)}

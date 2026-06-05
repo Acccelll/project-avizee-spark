@@ -142,3 +142,51 @@ export async function baixarFaturaCartao(
     valor_total: 0,
   };
 }
+
+/**
+ * Recalcula e persiste o status de uma fatura baseando-se no status dos
+ * lançamentos filhos no Financeiro. Chamar após baixa/estorno de qualquer
+ * lançamento com `cartao_fatura_id` (fire-and-forget).
+ */
+export async function syncFaturaStatus(faturaId: string): Promise<void> {
+  const { error } = await supabase.rpc("rpc_sync_fatura_status", {
+    p_fatura_id: faturaId,
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn("[cartao] syncFaturaStatus falhou:", error.message);
+  }
+}
+
+export interface LancamentoFatura {
+  id: string;
+  descricao: string | null;
+  valor: number;
+  saldo: number;
+  status: string;
+  data_vencimento: string;
+  parcela_numero: number | null;
+  parcela_total: number | null;
+}
+
+/** Lançamentos vinculados a uma fatura de cartão (exclui o consolidado). */
+export async function listLancamentosDaFatura(faturaId: string): Promise<LancamentoFatura[]> {
+  const { data, error } = await supabase
+    .from("financeiro_lancamentos")
+    .select("id, descricao, valor, valor_pago, saldo_restante, status, data_vencimento, parcela_numero, parcela_total")
+    .eq("cartao_fatura_id", faturaId)
+    .eq("ativo", true)
+    .neq("origem_tipo", "cartao_fatura")
+    .order("data_vencimento");
+  if (error) throw error;
+  return (data || []).map((l) => ({
+    id: l.id,
+    descricao: l.descricao,
+    valor: Number(l.valor || 0),
+    saldo: Number(l.saldo_restante ?? Number(l.valor || 0) - Number(l.valor_pago || 0)),
+    status: l.status ?? "aberto",
+    data_vencimento: l.data_vencimento,
+    parcela_numero: l.parcela_numero ?? null,
+    parcela_total: l.parcela_total ?? null,
+  }));
+}

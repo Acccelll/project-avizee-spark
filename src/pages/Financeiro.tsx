@@ -37,10 +37,13 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { BaixaLoteModal } from "@/components/financeiro/BaixaLoteModal";
 import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
+import { PendenciasPanel } from "@/components/financeiro/PendenciasPanel";
+import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
 import { getEffectiveStatus, cancelarLancamento } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
 import type { Lancamento, Cliente, Fornecedor } from "@/types/domain";
@@ -86,6 +89,8 @@ const Financeiro = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<LancamentoForm>({ ...emptyLancamentoForm });
   const [viewMode, setViewMode] = useState<"lista" | "calendario">("lista");
+  const [pendenciasOpen, setPendenciasOpen] = useState(false);
+  const { data: notasPendentes = [] } = useNotasPendentesForma();
   const [baixaLoteOpen, setBaixaLoteOpen] = useState(false);
   const [baixaParcialOpen, setBaixaParcialOpen] = useState(false);
   const [baixaParcialTarget, setBaixaParcialTarget] = useState<Lancamento | null>(null);
@@ -430,6 +435,19 @@ const Financeiro = () => {
           >
             <FileDown className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Exportar
           </Button>
+          <Button
+            size="sm"
+            variant={pendenciasOpen ? "default" : "outline"}
+            className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0 relative"
+            onClick={() => setPendenciasOpen(true)}
+          >
+            <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Pendências
+            {notasPendentes.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-warning text-warning-foreground text-[10px] font-semibold flex items-center justify-center px-1">
+                {notasPendentes.length > 99 ? "99+" : notasPendentes.length}
+              </span>
+            )}
+          </Button>
         </div>
 
         {/* Mobile: banner "Vence Hoje" tappable acima dos KPIs (filtra para hoje) */}
@@ -710,6 +728,11 @@ const Financeiro = () => {
             setCancelMotivo("");
           }
         }}
+      />
+
+      <PendenciasPanel
+        open={pendenciasOpen}
+        onClose={() => setPendenciasOpen(false)}
       />
 
       <BaixaLoteModal

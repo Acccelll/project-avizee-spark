@@ -30,6 +30,7 @@ export type StatusVariant =
 export const STATUS_VARIANT_MAP: Record<string, StatusVariant> = {
   // success — terminais positivos
   pago:                 "success",
+  paga:                 "success",
   concluido:            "success",
   concluída:            "success",
   ativo:                "success",
@@ -56,6 +57,8 @@ export const STATUS_VARIANT_MAP: Record<string, StatusVariant> = {
   pendente:             "warning",
   aberto:               "warning",
   aberta:               "warning",
+  em_aberto:            "warning",
+  parcialmente_paga:    "warning",
   aguardando:           "warning",
   aguardando_aprovacao: "warning",
   aguardando_recebimento: "warning",

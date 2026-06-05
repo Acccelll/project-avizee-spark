@@ -14,6 +14,7 @@ export interface SidebarAlerts {
   filaEmailDLQ: number;
   pedidosCompraPendentes: number;
   nfeEntradaPendentes: number;
+  notasSemFormaPagamento: number;
   lastUpdatedAt?: string;
 }
 
@@ -53,6 +54,7 @@ export function useSidebarAlerts(): SidebarAlerts {
       filaEmailDLQ: 0,
       pedidosCompraPendentes: 0,
       nfeEntradaPendentes: 0,
+      notasSemFormaPagamento: 0,
       lastUpdatedAt: undefined,
     }
   );

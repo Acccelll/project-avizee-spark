@@ -18,6 +18,8 @@ export interface SidebarAlertsRaw {
   pedidosCompraPendentes: number;
   /** Notas Fiscais de Entrada com status pendente */
   nfeEntradaPendentes: number;
+  /** Notas Fiscais de Entrada com gera_financeiro=true e forma_pagamento vazia */
+  notasSemFormaPagamento: number;
 }
 
 export async function fetchSidebarAlertsRaw(
@@ -36,6 +38,7 @@ export async function fetchSidebarAlertsRaw(
     nfe_sem_manifestacao?: number;
     pedidos_compra_pendentes?: number;
     nfe_entrada_pendentes?: number;
+    notas_sem_forma_pagamento?: number;
   };
 
   // Fila DLQ — só admin tem GRANT na RPC; para os demais a chamada é pulada.
@@ -69,5 +72,6 @@ export async function fetchSidebarAlertsRaw(
     filaEmailDLQ,
     pedidosCompraPendentes: row.pedidos_compra_pendentes ?? 0,
     nfeEntradaPendentes: row.nfe_entrada_pendentes ?? 0,
+    notasSemFormaPagamento: row.notas_sem_forma_pagamento ?? 0,
   };
 }

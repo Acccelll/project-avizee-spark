@@ -24,7 +24,7 @@ export interface FinanceiroPagedFilters {
 const DEFAULT_PAGE_SIZE = 50;
 
 const SELECT_RELATIONAL =
-  "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo)";
+  "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo), cartao_faturas(id, competencia, status, data_vencimento, valor_total, cartoes_credito(nome, bandeira, ultimos4))";
 
 interface PageResult {
   rows: Lancamento[];

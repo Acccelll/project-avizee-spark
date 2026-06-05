@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { EditarPagamentoNotaModal } from "@/components/fiscal/EditarPagamentoNotaModal";
 import {
   registrarEventoFiscal,
   cancelarNotaFiscal,
@@ -167,6 +168,7 @@ const Fiscal = () => {
   const { can } = useCan();
   const canEstornarNF = can("faturamento_fiscal:cancelar") || can("faturamento_fiscal:admin_fiscal");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editPagamentoTarget, setEditPagamentoTarget] = useState<NotaFiscal | null>(null);
   // Filtro mês de emissão é elevado para o componente para que o range
   // possa ser empurrado server-side via `dateRange` e o LIMIT/OFFSET do
   // Supabase trabalhe sobre o conjunto já filtrado (Sprint 7.3 #11).
@@ -1925,6 +1927,7 @@ const Fiscal = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         onEdit={openEdit}
+        onEditPagamento={(nf) => setEditPagamentoTarget(nf)}
         onDelete={handleInativar}
         onConfirmar={handleConfirmar}
         onEstornar={handleEstornar}
@@ -1937,6 +1940,16 @@ const Fiscal = () => {
         }}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
         onRefresh={fetchData}
+      />
+
+      <EditarPagamentoNotaModal
+        open={!!editPagamentoTarget}
+        onClose={() => setEditPagamentoTarget(null)}
+        nota={editPagamentoTarget}
+        onSaved={() => {
+          setEditPagamentoTarget(null);
+          fetchData();
+        }}
       />
 
       {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}

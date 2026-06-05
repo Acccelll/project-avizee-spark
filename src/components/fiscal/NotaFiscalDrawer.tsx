@@ -105,6 +105,8 @@ interface NotaFiscalDrawerProps {
   onClose: () => void;
   selected: NotaFiscal | null;
   onEdit: (nf: NotaFiscal) => void;
+  /** Abre modal dedicado de definir/alterar pagamento (forma + condição + parcelas). */
+  onEditPagamento?: (nf: NotaFiscal) => void;
   onDelete: (id: string) => void;
   onConfirmar: (nf: NotaFiscal) => void;
   onEstornar: (nf: NotaFiscal) => void;
@@ -122,7 +124,7 @@ interface NotaFiscalDrawerProps {
 
 export function NotaFiscalDrawer({
   open, onClose, selected,
-  onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
+  onEdit, onEditPagamento, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe, onAnexarXml,
   onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
@@ -320,9 +322,22 @@ export function NotaFiscalDrawer({
           </ViewField>
         </div>
         {!["cancelada", "cancelada_sefaz", "inativada"].includes(selected.status) && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Para alterar forma, condição ou parcelas, use <strong>Editar</strong> no topo do drawer.
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[11px] text-muted-foreground">
+              Alterar forma, condição ou parcelas regrava os lançamentos vinculados.
+            </p>
+            {onEditPagamento && selected.tipo === "entrada" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 text-xs"
+                onClick={() => onEditPagamento(selected)}
+              >
+                <Edit className="h-3 w-3" />
+                {selected.forma_pagamento ? "Alterar pagamento" : "Definir pagamento"}
+              </Button>
+            )}
+          </div>
         )}
       </ViewSection>
 
