@@ -157,64 +157,73 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function buildItem(item: NFeItemData): string {
+// ── Helper: grupo ICMS conforme regime (CST normal vs CSOSN do Simples) ──
+function buildIcmsGroup(item: NFeItemData, crt: CRT): string {
+  // Simples Nacional (CRT=1 ou 2) usa grupos ICMSSN + CSOSN.
+  // Regime Normal (CRT=3) usa grupos ICMS + CST.
+  const isSimples = crt === "1" || crt === "2";
+  if (isSimples) {
+    const csosn = (item.icms.cst || "").padStart(3, "0");
+    if (csosn === "101") {
+      return `<ICMSSN101><orig>0</orig><CSOSN>101</CSOSN>` +
+        `<pCredSN>${fmt2(item.icms.aliquota)}</pCredSN>` +
+        `<vCredICMSSN>${fmt2(item.icms.valor)}</vCredICMSSN></ICMSSN101>`;
+    }
+    if (csosn === "500") {
+      return `<ICMSSN500><orig>0</orig><CSOSN>500</CSOSN></ICMSSN500>`;
+    }
+    if (csosn === "900") {
+      return `<ICMSSN900><orig>0</orig><CSOSN>900</CSOSN>` +
+        `<modBC>${item.icms.modalidade}</modBC>` +
+        `<vBC>${fmt2(item.icms.base)}</vBC>` +
+        `<pICMS>${fmt2(item.icms.aliquota)}</pICMS>` +
+        `<vICMS>${fmt2(item.icms.valor)}</vICMS></ICMSSN900>`;
+    }
+    return `<ICMSSN102><orig>0</orig><CSOSN>${csosn}</CSOSN></ICMSSN102>`;
+  }
+  const grupo = `ICMS${item.icms.cst.padStart(2, "0")}`;
+  return `<${grupo}><orig>0</orig><CST>${item.icms.cst}</CST>` +
+    `<modBC>${item.icms.modalidade}</modBC>` +
+    `<vBC>${fmt2(item.icms.base)}</vBC>` +
+    `<pICMS>${fmt2(item.icms.aliquota)}</pICMS>` +
+    `<vICMS>${fmt2(item.icms.valor)}</vICMS></${grupo}>`;
+}
+
+function buildItem(item: NFeItemData, crt: CRT): string {
   const ipiXml = item.ipi
-    ? `<IPI>
-        <IPITrib>
-          <CST>${item.ipi.cst}</CST>
-          <pIPI>${fmt4(item.ipi.aliquota)}</pIPI>
-          <vIPI>${fmt2(item.ipi.valor)}</vIPI>
-        </IPITrib>
-      </IPI>`
+    ? `<IPI><IPITrib><CST>${item.ipi.cst}</CST>` +
+      `<pIPI>${fmt4(item.ipi.aliquota)}</pIPI>` +
+      `<vIPI>${fmt2(item.ipi.valor)}</vIPI></IPITrib></IPI>`
     : "";
 
-  return `<det nItem="${item.numero}">
-    <prod>
-      <cProd>${escapeXml(item.codigo)}</cProd>
-      <cEAN>SEM GTIN</cEAN>
-      <xProd>${escapeXml(item.descricao)}</xProd>
-      <NCM>${item.ncm}</NCM>
-      <CFOP>${item.cfop}</CFOP>
-      <uCom>${escapeXml(item.unidade)}</uCom>
-      <qCom>${fmt4(item.quantidade)}</qCom>
-      <vUnCom>${fmt10(item.valorUnitario)}</vUnCom>
-      <vProd>${fmt2(item.valorTotal)}</vProd>
-      <cEANTrib>SEM GTIN</cEANTrib>
-      <uTrib>${escapeXml(item.unidade)}</uTrib>
-      <qTrib>${fmt4(item.quantidade)}</qTrib>
-      <vUnTrib>${fmt10(item.valorUnitario)}</vUnTrib>
-      <indTot>1</indTot>
-    </prod>
-    <imposto>
-      <ICMS>
-        <ICMS${item.icms.cst.padStart(2, "0")}>
-          <orig>0</orig>
-          <CST>${item.icms.cst}</CST>
-          <modBC>${item.icms.modalidade}</modBC>
-          <vBC>${fmt2(item.icms.base)}</vBC>
-          <pICMS>${fmt2(item.icms.aliquota)}</pICMS>
-          <vICMS>${fmt2(item.icms.valor)}</vICMS>
-        </ICMS${item.icms.cst.padStart(2, "0")}>
-      </ICMS>
-      ${ipiXml}
-      <PIS>
-        <PISAliq>
-          <CST>${item.pis.cst}</CST>
-          <vBC>${fmt2(item.valorTotal)}</vBC>
-          <pPIS>${fmt2(item.pis.aliquota)}</pPIS>
-          <vPIS>${fmt2(item.pis.valor)}</vPIS>
-        </PISAliq>
-      </PIS>
-      <COFINS>
-        <COFINSAliq>
-          <CST>${item.cofins.cst}</CST>
-          <vBC>${fmt2(item.valorTotal)}</vBC>
-          <pCOFINS>${fmt2(item.cofins.aliquota)}</pCOFINS>
-          <vCOFINS>${fmt2(item.cofins.valor)}</vCOFINS>
-        </COFINSAliq>
-      </COFINS>
-    </imposto>
-  </det>`;
+  return `<det nItem="${item.numero}">` +
+    `<prod>` +
+    `<cProd>${escapeXml(item.codigo)}</cProd>` +
+    `<cEAN>SEM GTIN</cEAN>` +
+    `<xProd>${escapeXml(item.descricao)}</xProd>` +
+    `<NCM>${item.ncm}</NCM>` +
+    `<CFOP>${item.cfop}</CFOP>` +
+    `<uCom>${escapeXml(item.unidade)}</uCom>` +
+    `<qCom>${fmt4(item.quantidade)}</qCom>` +
+    `<vUnCom>${fmt10(item.valorUnitario)}</vUnCom>` +
+    `<vProd>${fmt2(item.valorTotal)}</vProd>` +
+    `<cEANTrib>SEM GTIN</cEANTrib>` +
+    `<uTrib>${escapeXml(item.unidade)}</uTrib>` +
+    `<qTrib>${fmt4(item.quantidade)}</qTrib>` +
+    `<vUnTrib>${fmt10(item.valorUnitario)}</vUnTrib>` +
+    `<indTot>1</indTot>` +
+    `</prod>` +
+    `<imposto>` +
+    `<ICMS>${buildIcmsGroup(item, crt)}</ICMS>` +
+    ipiXml +
+    `<PIS><PISAliq><CST>${item.pis.cst}</CST>` +
+    `<vBC>${fmt2(item.valorTotal)}</vBC><pPIS>${fmt2(item.pis.aliquota)}</pPIS>` +
+    `<vPIS>${fmt2(item.pis.valor)}</vPIS></PISAliq></PIS>` +
+    `<COFINS><COFINSAliq><CST>${item.cofins.cst}</CST>` +
+    `<vBC>${fmt2(item.valorTotal)}</vBC><pCOFINS>${fmt2(item.cofins.aliquota)}</pCOFINS>` +
+    `<vCOFINS>${fmt2(item.cofins.valor)}</vCOFINS></COFINSAliq></COFINS>` +
+    `</imposto>` +
+    `</det>`;
 }
 
 /**
@@ -225,116 +234,112 @@ function buildItem(item: NFeItemData): string {
  * fiscal real do emitente e o status do destinatário.
  */
 export function construirXMLNFe(dados: NFeData): string {
-  const destDoc = dados.destinatario.cpfCnpj.replace(/\D/g, "").length === 14
-    ? `<CNPJ>${dados.destinatario.cpfCnpj.replace(/\D/g, "")}</CNPJ>`
-    : `<CPF>${dados.destinatario.cpfCnpj.replace(/\D/g, "")}</CPF>`;
-
+  const destDocLimpo = dados.destinatario.cpfCnpj.replace(/\D/g, "");
+  const destDoc = destDocLimpo.length === 14
+    ? `<CNPJ>${destDocLimpo}</CNPJ>`
+    : `<CPF>${destDocLimpo}</CPF>`;
   const emiDoc = `<CNPJ>${dados.emitente.cnpj.replace(/\D/g, "")}</CNPJ>`;
 
-  const itensXml = dados.itens.map(buildItem).join("\n");
+  const itensXml = dados.itens.map((i) => buildItem(i, dados.crt)).join("");
 
   const pagamentosXml = dados.pagamentos
     .map((p) => `<detPag><tPag>${p.forma}</tPag><vPag>${fmt2(p.valor)}</vPag></detPag>`)
-    .join("\n");
+    .join("");
 
   const ieDestXml =
     dados.destinatario.indIEDest === "1" && dados.destinatario.ie
       ? `<IE>${dados.destinatario.ie}</IE>`
       : "";
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
-    <infNFe Id="NFe${dados.chave}" versao="4.00">
-      <ide>
-        <cUF>${dados.emitente.uf}</cUF>
-        <cNF>${dados.chave.slice(35, 43)}</cNF>
-        <natOp>${escapeXml(dados.naturezaOperacao)}</natOp>
-        <mod>55</mod>
-        <serie>${dados.serie}</serie>
-        <nNF>${dados.numero}</nNF>
-        <dhEmi>${dados.dataEmissao}</dhEmi>
-        <tpNF>${dados.tipoDocumento}</tpNF>
-        <idDest>1</idDest>
-        <cMunFG>${dados.emitente.codigoMunicipio}</cMunFG>
-        <tpImp>1</tpImp>
-        <tpEmis>1</tpEmis>
-        <cDV>${dados.chave.slice(43)}</cDV>
-        <tpAmb>${dados.ambiente}</tpAmb>
-        <finNFe>${dados.finalidade}</finNFe>
-        <indFinal>1</indFinal>
-        <indPres>1</indPres>
-        <procEmi>0</procEmi>
-        <verProc>1.0</verProc>
-      </ide>
-      <emit>
-        ${emiDoc}
-        <xNome>${escapeXml(dados.emitente.razaoSocial)}</xNome>
-        <enderEmit>
-          <xLgr>${escapeXml(dados.emitente.logradouro)}</xLgr>
-          <nro>${escapeXml(dados.emitente.numero)}</nro>
-          <xMun>${escapeXml(dados.emitente.municipio)}</xMun>
-          <cMun>${dados.emitente.codigoMunicipio}</cMun>
-          <UF>${dados.emitente.uf}</UF>
-          <CEP>${dados.emitente.cep.replace(/\D/g, "")}</CEP>
-          <cPais>1058</cPais>
-          <xPais>Brasil</xPais>
-        </enderEmit>
-        <IE>${dados.emitente.ie}</IE>
-        <CRT>${dados.crt}</CRT>
-      </emit>
-      <dest>
-        ${destDoc}
-        <xNome>${escapeXml(dados.destinatario.razaoSocial)}</xNome>
-        <enderDest>
-          <xLgr>${escapeXml(dados.destinatario.logradouro)}</xLgr>
-          <nro>${escapeXml(dados.destinatario.numero)}</nro>
-          <xMun>${escapeXml(dados.destinatario.municipio)}</xMun>
-          <cMun>${dados.destinatario.codigoMunicipio}</cMun>
-          <UF>${dados.destinatario.uf}</UF>
-          <CEP>${dados.destinatario.cep.replace(/\D/g, "")}</CEP>
-          <cPais>1058</cPais>
-          <xPais>Brasil</xPais>
-        </enderDest>
-        <indIEDest>${dados.destinatario.indIEDest}</indIEDest>
-        ${ieDestXml}
-      </dest>
-      ${itensXml}
-      <total>
-        <ICMSTot>
-          <vBC>${fmt2(dados.totais.baseIcms)}</vBC>
-          <vICMS>${fmt2(dados.totais.valorIcms)}</vICMS>
-          <vICMSDeson>0.00</vICMSDeson>
-          <vFCP>0.00</vFCP>
-          <vBCST>0.00</vBCST>
-          <vST>${fmt2(dados.totais.valorIcmsSt)}</vST>
-          <vFCPST>0.00</vFCPST>
-          <vFCPSTRet>0.00</vFCPSTRet>
-          <vProd>${fmt2(dados.totais.valorProdutos)}</vProd>
-          <vFrete>${fmt2(dados.totais.valorFrete)}</vFrete>
-          <vSeg>${fmt2(dados.totais.valorSeguro)}</vSeg>
-          <vDesc>${fmt2(dados.totais.valorDesconto)}</vDesc>
-          <vII>0.00</vII>
-          <vIPI>${fmt2(dados.totais.valorIpi)}</vIPI>
-          <vIPIDevol>0.00</vIPIDevol>
-          <vPIS>${fmt2(dados.totais.valorPis)}</vPIS>
-          <vCOFINS>${fmt2(dados.totais.valorCofins)}</vCOFINS>
-          <vOutro>${fmt2(dados.totais.outrasDespesas)}</vOutro>
-          <vNF>${fmt2(dados.totais.valorNF)}</vNF>
-        </ICMSTot>
-      </total>
-      <transp>
-        <modFrete>9</modFrete>
-      </transp>
-      <pag>
-        ${pagamentosXml}
-      </pag>
-      <infAdic>
-        <infCpl>Documento emitido pelo sistema Avizee Spark</infCpl>
-      </infAdic>
-    </infNFe>
-  </NFe>
-</nfeProc>`;
+  // Regra E04-20 / Rejeição 598: em homologação (tpAmb=2) o xNome do
+  // destinatário DEVE ser a literal abaixo, senão a SEFAZ rejeita.
+  const destNome = dados.ambiente === "2"
+    ? "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+    : escapeXml(dados.destinatario.razaoSocial);
+
+  const infNFe =
+    `<infNFe Id="NFe${dados.chave}" versao="4.00">` +
+    `<ide>` +
+    `<cUF>${dados.emitente.uf}</cUF>` +
+    `<cNF>${dados.chave.slice(35, 43)}</cNF>` +
+    `<natOp>${escapeXml(dados.naturezaOperacao)}</natOp>` +
+    `<mod>55</mod>` +
+    `<serie>${dados.serie}</serie>` +
+    `<nNF>${dados.numero}</nNF>` +
+    `<dhEmi>${dados.dataEmissao}</dhEmi>` +
+    `<tpNF>${dados.tipoDocumento}</tpNF>` +
+    `<idDest>1</idDest>` +
+    `<cMunFG>${dados.emitente.codigoMunicipio}</cMunFG>` +
+    `<tpImp>1</tpImp>` +
+    `<tpEmis>1</tpEmis>` +
+    `<cDV>${dados.chave.slice(43)}</cDV>` +
+    `<tpAmb>${dados.ambiente}</tpAmb>` +
+    `<finNFe>${dados.finalidade}</finNFe>` +
+    `<indFinal>1</indFinal>` +
+    `<indPres>1</indPres>` +
+    `<procEmi>0</procEmi>` +
+    `<verProc>1.0</verProc>` +
+    `</ide>` +
+    `<emit>` +
+    emiDoc +
+    `<xNome>${escapeXml(dados.emitente.razaoSocial)}</xNome>` +
+    `<enderEmit>` +
+    `<xLgr>${escapeXml(dados.emitente.logradouro)}</xLgr>` +
+    `<nro>${escapeXml(dados.emitente.numero)}</nro>` +
+    `<xMun>${escapeXml(dados.emitente.municipio)}</xMun>` +
+    `<cMun>${dados.emitente.codigoMunicipio}</cMun>` +
+    `<UF>${dados.emitente.uf}</UF>` +
+    `<CEP>${dados.emitente.cep.replace(/\D/g, "")}</CEP>` +
+    `<cPais>1058</cPais><xPais>Brasil</xPais>` +
+    `</enderEmit>` +
+    `<IE>${dados.emitente.ie}</IE>` +
+    `<CRT>${dados.crt}</CRT>` +
+    `</emit>` +
+    `<dest>` +
+    destDoc +
+    `<xNome>${destNome}</xNome>` +
+    `<enderDest>` +
+    `<xLgr>${escapeXml(dados.destinatario.logradouro)}</xLgr>` +
+    `<nro>${escapeXml(dados.destinatario.numero)}</nro>` +
+    `<xMun>${escapeXml(dados.destinatario.municipio)}</xMun>` +
+    `<cMun>${dados.destinatario.codigoMunicipio}</cMun>` +
+    `<UF>${dados.destinatario.uf}</UF>` +
+    `<CEP>${dados.destinatario.cep.replace(/\D/g, "")}</CEP>` +
+    `<cPais>1058</cPais><xPais>Brasil</xPais>` +
+    `</enderDest>` +
+    `<indIEDest>${dados.destinatario.indIEDest}</indIEDest>` +
+    ieDestXml +
+    `</dest>` +
+    itensXml +
+    `<total><ICMSTot>` +
+    `<vBC>${fmt2(dados.totais.baseIcms)}</vBC>` +
+    `<vICMS>${fmt2(dados.totais.valorIcms)}</vICMS>` +
+    `<vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP><vBCST>0.00</vBCST>` +
+    `<vST>${fmt2(dados.totais.valorIcmsSt)}</vST>` +
+    `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet>` +
+    `<vProd>${fmt2(dados.totais.valorProdutos)}</vProd>` +
+    `<vFrete>${fmt2(dados.totais.valorFrete)}</vFrete>` +
+    `<vSeg>${fmt2(dados.totais.valorSeguro)}</vSeg>` +
+    `<vDesc>${fmt2(dados.totais.valorDesconto)}</vDesc>` +
+    `<vII>0.00</vII>` +
+    `<vIPI>${fmt2(dados.totais.valorIpi)}</vIPI><vIPIDevol>0.00</vIPIDevol>` +
+    `<vPIS>${fmt2(dados.totais.valorPis)}</vPIS>` +
+    `<vCOFINS>${fmt2(dados.totais.valorCofins)}</vCOFINS>` +
+    `<vOutro>${fmt2(dados.totais.outrasDespesas)}</vOutro>` +
+    `<vNF>${fmt2(dados.totais.valorNF)}</vNF>` +
+    `</ICMSTot></total>` +
+    `<transp><modFrete>9</modFrete></transp>` +
+    `<pag>${pagamentosXml}</pag>` +
+    `<infAdic><infCpl>Documento emitido pelo sistema AviZee ERP</infCpl></infAdic>` +
+    `</infNFe>`;
+
+  // XML compacto, sem <?xml?>, sem espaços entre tags (MOC §4.2.1.3).
+  // Lote síncrono (indSinc=1) — resposta traz protNFe direto.
+  return `<enviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+    `<idLote>1</idLote>` +
+    `<indSinc>1</indSinc>` +
+    `<NFe xmlns="http://www.portalfiscal.inf.br/nfe">${infNFe}</NFe>` +
+    `</enviNFe>`;
 }
 
 /**
