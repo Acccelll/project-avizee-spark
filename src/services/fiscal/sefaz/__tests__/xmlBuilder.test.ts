@@ -79,9 +79,10 @@ describe("construirXMLNFe", () => {
     expect(xml.length).toBeGreaterThan(0);
   });
 
-  it("contém a tag raiz nfeProc", () => {
+  it("contém a tag raiz enviNFe (lote síncrono)", () => {
     const xml = construirXMLNFe(DADOS_NFE_MINIMOS);
-    expect(xml).toContain("<nfeProc");
+    expect(xml).toContain("<enviNFe");
+    expect(xml).toContain("<indSinc>1</indSinc>");
   });
 
   it("contém o CNPJ do emitente", () => {
