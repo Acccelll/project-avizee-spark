@@ -198,57 +198,7 @@ function assinarXml(xml: string, base64Pfx: string, senha: string): string {
 
 // ── Envio SOAP para SEFAZ ────────────────────────────────────────
 
-async function enviarSoap(
-  xmlAssinado: string,
-  url: string,
-  soapAction: string,
-): Promise<{ sucesso: boolean; xmlRetorno?: string; erro?: string }> {
-  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl">
-  <soapenv:Header/>
-  <soapenv:Body>
-    <nfe:nfeDadosMsg>${xmlAssinado}</nfe:nfeDadosMsg>
-  </soapenv:Body>
-</soapenv:Envelope>`;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30_000);
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        SOAPAction: soapAction,
-      },
-      body: envelope,
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    const xmlRetorno = await response.text();
-
-    if (!response.ok) {
-      return {
-        sucesso: false,
-        erro: `HTTP ${response.status}: ${response.statusText}`,
-      };
-    }
-
-    return { sucesso: true, xmlRetorno };
-  } catch (err) {
-    clearTimeout(timer);
-    const message =
-      err instanceof Error
-        ? err.name === "AbortError"
-          ? "Timeout de 30s ao conectar com a SEFAZ"
-          : err.message
-        : String(err);
-    return { sucesso: false, erro: message };
-  }
-}
-
-// ── Envio SOAP com mTLS (sem assinatura) ─────────────────────────
+// ── Envio SOAP com mTLS ──────────────────────────────────────────
 
 // `pfxToPem` agora vem de _shared/pfx.ts (com leaf-detection + cadeia completa).
 
@@ -268,11 +218,15 @@ async function enviarSoapMtls(
   erro?: string;
   statusHttp?: number;
 }> {
+  // Namespace do nfeDadosMsg = parte do serviço do SOAPAction.
+  // Ex.: http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote
+  //   →  http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4
+  const dadosMsgNs = soapAction.replace(/\/[^/]+$/, "");
   const envelope = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
   <soapenv:Header/>
   <soapenv:Body>
-    <nfe:nfeDadosMsg>${xmlConteudo}</nfe:nfeDadosMsg>
+    <nfe:nfeDadosMsg xmlns:nfe="${dadosMsgNs}">${xmlConteudo}</nfe:nfeDadosMsg>
   </soapenv:Body>
 </soapenv:Envelope>`;
 
