@@ -126,13 +126,13 @@ export function RelatorioBody(props: RelatorioBodyProps) {
       </div>
 
       {/* Resultado: tabela + chart */}
-      <div className={isSideBySide ? 'grid gap-6 xl:grid-cols-[2fr_1fr]' : 'grid gap-6'}>
-        <Card>
+      <div className={isSideBySide ? 'grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : 'grid gap-6 min-w-0'}>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader className="pb-3 hidden md:block">
             <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
             <CardDescription>{resultado?.subtitle}</CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 min-w-0 overflow-x-auto">
             {(activeFilterChips.length > 0 || hasExportableData) && (
               <ActiveFiltersBar
                 chips={activeFilterChips}

@@ -12,6 +12,7 @@ import {
   DrawerDescription,
   DrawerFooter,
 } from "@/components/ui/drawer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface FilterChip {
@@ -183,7 +184,9 @@ export function AdvancedFilterBar({
     );
   }
 
-  // Desktop layout
+  // Desktop layout — filtros agrupados em um Popover "Filtros" para reduzir
+  // poluição visual. A busca e o botão de filtros ficam sempre visíveis;
+  // os selects de domínio (children) abrem em um painel sob demanda.
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -209,7 +212,37 @@ export function AdvancedFilterBar({
               )}
             </div>
           )}
-          {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+          {children && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="relative gap-2" aria-label="Abrir filtros">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="text-sm">Filtros</span>
+                  {activeCount > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+                      {activeCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-[min(92vw,520px)] max-h-[70vh] overflow-y-auto p-4"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold">Filtros</span>
+                  {onClearAll && activeCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearAll}>
+                      Limpar filtros
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3 [&>*]:!w-full [&_button[role=combobox]]:!w-full">
+                  {children}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-3 lg:justify-end">

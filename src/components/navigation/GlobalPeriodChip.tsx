@@ -36,9 +36,11 @@ export function GlobalPeriodChip({ className }: { className?: string }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ctx = useSafeGlobalPeriod();
   const location = useLocation();
-  // Esconder no Dashboard (`/`): a tela já tem seu próprio seletor de período
-  // (DashboardHeader/MobileDashboardHeader). Evita dois controles redundantes.
-  if (!ctx || location.pathname === "/") return null;
+  // Mostrar apenas nas rotas que efetivamente consomem o período global.
+  // Dashboard (`/`) tem seu próprio seletor; demais módulos têm filtros locais
+  // e o chip global apenas polui o header.
+  const GLOBAL_PERIOD_ROUTES = ["/fluxo-caixa", "/fiscal/dashboard"];
+  if (!ctx || !GLOBAL_PERIOD_ROUTES.includes(location.pathname)) return null;
 
   const {
     period,
