@@ -376,7 +376,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                                       ],
                                     },
                                     async (motivo) => {
-                                      await estornarBaixa.mutateAsync({ baixaId: b.id, motivo });
+                                      await estornarBaixa.mutateAsync({ baixaId: b.id, motivo, lancamentoId: selected.id });
                                     },
                                   )
                                 }
