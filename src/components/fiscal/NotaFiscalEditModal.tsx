@@ -454,24 +454,39 @@ export function NotaFiscalEditModal({
                 </div>
                 <div className="space-y-2">
                   <Label>Modelo</Label>
-                  <Select
-                    value={form.modelo_documento || "55"}
-                    onValueChange={(v) =>
-                      setForm({ ...form, modelo_documento: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="55">NF-e (Modelo 55)</SelectItem>
-                      <SelectItem value="65">NFC-e (Modelo 65)</SelectItem>
-                      <SelectItem value="57">CT-e (Modelo 57)</SelectItem>
-                      <SelectItem value="67">CT-e OS (Modelo 67)</SelectItem>
-                      <SelectItem value="nfse">NFS-e (Serviço)</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {(() => {
+                    const td = (form.tipo_documento ?? "nfe") as TipoDocumentoFiscal;
+                    const opts =
+                      td === "cte"
+                        ? [
+                            { value: "57", label: "CT-e (Modelo 57)" },
+                            { value: "67", label: "CT-e OS (Modelo 67)" },
+                          ]
+                        : td === "nfse"
+                        ? [{ value: "nfse", label: "NFS-e (Serviço)" }]
+                        : [
+                            { value: "55", label: "NF-e (Modelo 55)" },
+                            { value: "65", label: "NFC-e (Modelo 65)" },
+                          ];
+                    const current = opts.some((o) => o.value === (form.modelo_documento || ""))
+                      ? (form.modelo_documento as string)
+                      : opts[0].value;
+                    return (
+                      <Select
+                        value={current}
+                        onValueChange={(v) => setForm({ ...form, modelo_documento: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {opts.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <Label>Número *</Label>
