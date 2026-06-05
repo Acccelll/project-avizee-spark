@@ -7,6 +7,7 @@ import {
   estornarBaixaFinanceira,
   gerarParcelasFinanceirasRpc,
   gerarFinanceiroFolhaRpc,
+  posProcessarBaixaCartao,
   type RegistrarBaixaParams,
   type GerarParcelasBase,
 } from "@/services/financeiro/baixaRpc";
@@ -21,12 +22,15 @@ export function useRegistrarBaixa() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: RegistrarBaixaParams) => registrarBaixaFinanceira(params),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
+      // Sincroniza status da fatura do cartão (se houver).
+      void posProcessarBaixaCartao(vars.lancamentoId);
       qc.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
       qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["cartao_faturas"] });
       toast.success("Baixa registrada com sucesso");
     },
     onError: (error) => {
@@ -49,6 +53,7 @@ export function useEstornarBaixa() {
       qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
       qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["cartao_faturas"] });
       toast.success("Baixa estornada com sucesso");
     },
     onError: (error) => {
