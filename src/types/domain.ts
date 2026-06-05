@@ -120,6 +120,18 @@ export type LancamentoFinanceiro = TableRow<"financeiro_lancamentos"> & {
   fornecedores?: { nome_razao_social: string } | null;
   contas_bancarias?: { descricao: string; bancos?: { nome: string } | null } | null;
   contas_contabeis?: { codigo: string; descricao: string } | null;
+  cartao_faturas?: {
+    id: string;
+    competencia: string;
+    status: string;
+    data_vencimento: string;
+    valor_total: number;
+    cartoes_credito?: {
+      nome: string;
+      bandeira: string | null;
+      ultimos4: string | null;
+    } | null;
+  } | null;
 };
 
 /**
