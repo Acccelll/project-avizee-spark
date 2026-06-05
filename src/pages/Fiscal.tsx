@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { EditarPagamentoNotaModal } from "@/components/fiscal/EditarPagamentoNotaModal";
 import {
   registrarEventoFiscal,
   cancelarNotaFiscal,
