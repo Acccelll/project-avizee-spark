@@ -8,7 +8,6 @@ import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { ParcelasFiscalEditor, type ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosSection";
 import { formatCurrency } from "@/lib/format";
-import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
