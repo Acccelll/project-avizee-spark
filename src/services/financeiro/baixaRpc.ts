@@ -4,6 +4,7 @@ import {
   registrarBaixaLoteFinanceiraRpc,
   estornarBaixaFinanceiraRpc,
 } from "@/types/rpc";
+import { syncFaturaStatus } from "@/services/cartoesCredito.service";
 
 /* -------- Baixa transacional (RPCs) -------- */
 
@@ -93,6 +94,24 @@ export async function estornarBaixaFinanceira(input: {
     p_baixa_id: input.baixaId,
     p_motivo: input.motivo,
   });
+}
+
+/**
+ * Sincroniza o status da fatura de cartão associada a `lancamentoId`,
+ * caso exista. Fire-and-forget — erros não propagam.
+ */
+export async function posProcessarBaixaCartao(lancamentoId: string): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from("financeiro_lancamentos")
+      .select("cartao_fatura_id")
+      .eq("id", lancamentoId)
+      .maybeSingle();
+    const faturaId = (data as { cartao_fatura_id?: string | null } | null)?.cartao_fatura_id;
+    if (faturaId) await syncFaturaStatus(faturaId);
+  } catch {
+    // silencioso
+  }
 }
 
 /* -------- Geração de parcelas -------- */
