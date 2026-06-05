@@ -1918,6 +1918,7 @@ const Fiscal = () => {
           valorProdutos={valorProdutos}
           totalImpostos={totalImpostos}
           totalNF={totalNF}
+          cartoes={cartoes}
         />
       )}
 
