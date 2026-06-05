@@ -1,58 +1,73 @@
-# Plano — Limpeza de filtros e ajustes em Cartões
+# Plano — Faturas/Cartões + Tipo de Documento Fiscal + Refresh global
 
-## 1) Chip global "Hoje" (período do header) — restringir a rotas que consomem
+## 1) Faturas do cartão — listar itens da fatura sem precisar abrir "Baixar"
 
-**Problema:** O `GlobalPeriodChip` (ver `src/components/navigation/GlobalPeriodChip.tsx`) aparece em todas as rotas exceto `/`, mas só é lido por: Dashboard (`/`), `FluxoCaixa`, `FiscalDashboard` e alguns componentes de dashboard. Em telas como `Fiscal/Notas`, `Orçamentos`, `Financeiro`, `Cartões`, etc., ele não faz nada — confunde o usuário.
+**Arquivo:** `src/pages/CartoesCredito.tsx` (Sheet `faturasListOpen`).
 
-**Solução:** Trocar a regra de visibilidade por uma allow-list explícita por rota.
+- Tornar cada linha de fatura expansível (Accordion/Collapsible) com botão "Ver itens".
+- Ao expandir, chamar `listLancamentosDaFatura(f.id)` (já existe) e renderizar lista com `descricao`, `data_vencimento`, `parcela_numero/total`, `valor`, `saldo`, `StatusBadge`.
+- Manter o botão **Baixar** ao lado, separado.
+- Cachear o resultado por fatura em estado local `Record<string, LancamentoFatura[]>` para evitar refetch toda vez que reabre.
 
-- Criar `GLOBAL_PERIOD_ROUTES = ['/fluxo-caixa', '/fiscal/dashboard']` (Dashboard `/` continua com seu seletor próprio).
-- `GlobalPeriodChip` renderiza apenas quando `location.pathname` casa com a allow-list.
-- Manter o `DashboardPeriodProvider` no app (não quebra consumidores).
+## 2) Cartões — remover botão "Editar cartão" inline
 
-## 2) Barra de filtros — reduzir poluição visual
+**Arquivo:** `src/pages/CartoesCredito.tsx`.
 
-**Problema:** Páginas como Orçamentos (imagens 2 e 3) mostram 6–8 controles soltos (Status, Clientes, Período com presets em linha, Validade, Legados, etc.). Em Fiscal Notas (imagem 2), idem com Modelos/Origem/Status ERP/Status SEFAZ/Emissão/Vencimento.
+- Remover o botão "Editar cartão" do `rowExtraActions` e do `mobileInlineActions`. A edição continuará disponível no menu de 3 pontos (já fornecido pelo `DataTable` via `onEdit`). Trocar `onEdit={openFaturasList}` por: `onEdit={openEdit}` (editar) e mover a abertura de faturas para o `onRowClick` (clique na linha) **ou** manter como ação primária mobile via `mobilePrimaryAction` (já existe).
+- Resultado: clique na linha = abrir faturas; menu 3 pontos contém "Editar".
 
-**Solução — padronizar via `AdvancedFilterBar` em duas zonas:**
+## 3) Fiscal — Tipo de documento também no CRIAR + filtro por contexto
 
-1. **Zona primária (sempre visível):** busca + 1 seletor de período compacto (chip "Período: 30d" abrindo Popover) + botão "Filtros (n)".
-2. **Zona secundária (Popover/Sheet "Filtros"):** todos os selects de domínio (Status, Modelo, Origem, Cliente, Validade, Legados, etc.). Mostra contagem ativa no botão.
+### 3.1 Mostrar "Tipo de documento" ao criar
+**Arquivo:** `src/pages/fiscal/components/NfeFormBody.tsx` (usado por criar e editar via `NfeCreateFormModal`/`NotaFiscalEditModal`).
 
-Aplicar em: `Orcamentos.tsx`, `Pedidos.tsx`, `Fiscal.tsx`, `Financeiro.tsx`, `Estoque.tsx`, `Logistica.tsx`, `Clientes.tsx`, `Fornecedores.tsx`, `Produtos.tsx`. Aproveitar slots já existentes do `AdvancedFilterBar` (props `extraFilters` / `advancedFilters`) — sem nova lib.
+- Hoje o `TipoDocumentoSelector` só aparece em `NotaFiscalEditModal`. Mover o seletor para o topo do `NfeFormBody` (sempre visível), controlado por `form.tipo_documento` (`"nfe" | "nfse" | "cte"`).
+- Remover a duplicação no `NotaFiscalEditModal` (passa a delegar ao body).
 
-**Períodos:** padronizar usando `PeriodFilter` canônico (memo `contrato-de-periodos`) dentro do Popover, com presets verticais ao invés de em fileira horizontal.
+### 3.2 Filtrar opções de "modelo_documento" pelo tipo
+**Arquivo:** `NotaFiscalEditModal.tsx` linha ~110 e `NfeFormBody.tsx` (se também tiver dropdown de modelo).
 
-## 3) Relatórios saindo do tamanho da tela (imagem 4)
+- Hoje o Select de "Modelo" lista todos: 55/65/57/67/nfse mesmo quando o tipo é `nfe`.
+- Aplicar tabela `MODELOS_POR_TIPO`:
+  - `nfe` → 55 (NF-e), 65 (NFC-e)
+  - `cte` → 57 (CT-e), 67 (CT-e OS)
+  - `nfse` → nfse (Serviço)
+- Quando o tipo muda, resetar `modelo_documento` para o default do tipo.
 
-**Problema:** Em `Posição de Estoque em Data` e outros relatórios largos, a tabela quebra o container do `ModulePage`.
+### 3.3 Revisar campos por tipo (CT-e / NFS-e não mostram campos exclusivos de NF-e)
+**Arquivos:** `NfeFormBody.tsx`, `NfseFieldsSection.tsx`, `CteFieldsSection.tsx`.
 
-**Solução em `src/pages/relatorios/`:**
+- Identificar blocos que só fazem sentido para NF-e e renderizá-los condicionalmente:
+  - Itens de produto / Impostos ICMS/IPI/PIS-COFINS → só `tipo_documento === 'nfe'`.
+  - Tomador / Discriminação do serviço → só `nfse`.
+  - CFOP de transporte, modal, remetente/destinatário/tomador do frete → só `cte`.
+- Manter campos comuns (número, série, data emissão, valor total, observações, parcelas) sempre.
 
-- Embrulhar a tabela do relatório num `<div className="w-full overflow-x-auto">` com `min-w-0` no pai flex.
-- Garantir `table-auto` + `whitespace-nowrap` apenas em colunas numéricas; resto com `break-words`.
-- Conferir que `RelatorioFiltrosBar` e o card de resultado usam `min-w-0` para permitir shrink dentro do grid.
-- No modo "Lado a lado" (gráfico + tabela), usar `grid-cols-[minmax(0,1fr)_minmax(0,1fr)]` em vez de `1fr 1fr`.
+## 4) Refresh automático após mutações (problema global)
 
-## 4) Cartões de Crédito (`src/pages/CartoesCredito.tsx`)
+**Diagnóstico:** Várias telas chamam `fetchData()` manual em vez de invalidar a query do `useQuery`. Quando outra aba/realtime altera os dados, ou quando o `mutation.onSuccess` é executado, nem todas as queries são invalidadas.
 
-- **Remover "Gerar fatura"** (botão e fluxo): a função `gerarFaturaCartao` consolida lançamentos que já existem no Financeiro → duplicaria. Remover:
-  - Botão `Gerar fatura` em `rowExtraActions` e `mobileInlineActions`.
-  - Dialog `faturaOpen` e estados `faturaCartao/faturaCompetencia/faturaSaving/handleGerarFatura`.
-  - Import `gerarFaturaCartao` do service (manter a função no service para retro-compat, mas sem consumo no UI — opcional remover depois).
-- **"Visualizar" deve abrir as faturas, não a edição:**
-  - O `DataTable` chama `onEdit` no clique da linha / botão "Visualizar". Trocar a ação primária da linha para `openFaturasList(c)` e mover edição para um item secundário ("Editar cartão") no menu de ações.
-  - Em mobile, `mobilePrimaryAction` já chama `openFaturasList` — manter.
-- Conferir que o Sheet de faturas (`faturasListOpen`) lista as faturas existentes (já implementado) com ação de **Baixar fatura** preservada.
+**Estratégia (sem mexer em backend):**
+
+1. Padronizar `mutation.onSuccess` para invalidar a queryKey canônica do recurso afetado **e** as queryKeys agregadas relacionadas. Exemplo: ao criar/editar `financeiro_lancamentos`, invalidar `["financeiro_lancamentos"]`, `["fluxo-caixa"]`, `["dashboard-pendencias"]`.
+2. Aplicar `refetchOnWindowFocus: true` no `QueryClient` default (`src/main.tsx` ou onde o `QueryClientProvider` é montado) — hoje provavelmente está `false`.
+3. Auditar mutações nas telas com queixas mais frequentes e converter `fetchData()` manual em `queryClient.invalidateQueries({ queryKey: [...] })`. Foco em: Financeiro, Cartões de Crédito, Fiscal, Orçamentos, Pedidos.
+4. Para a tela atual de Cartões: após `baixarFaturaCartao`, invalidar `["financeiro_lancamentos"]` e refazer `listFaturasPorCartao` (já faz). Trocar `fetchData` por invalidateQueries onde aplicável.
+
+**Escopo:** Não é viável fazer 100% num único passo. Vou:
+- Ligar `refetchOnWindowFocus: true` (ganho imediato e amplo).
+- Padronizar 4 telas-piloto (Cartões, Financeiro, Fiscal, Orçamentos) — as demais ficam para passes futuros.
 
 ## Arquivos impactados
 
-- `src/components/navigation/GlobalPeriodChip.tsx` — allow-list de rotas.
-- `src/pages/Orcamentos.tsx`, `Pedidos.tsx`, `Fiscal.tsx`, `Financeiro.tsx`, `Estoque.tsx`, `Logistica.tsx`, `Clientes.tsx`, `Fornecedores.tsx`, `Produtos.tsx` — consolidar filtros em `AdvancedFilterBar` + Popover "Filtros".
-- `src/components/AdvancedFilterBar.tsx` — (se necessário) ajustar slot para Popover de filtros agrupados.
-- `src/pages/relatorios/Relatorios.tsx` e componentes de tabela do relatório — overflow/min-w-0.
-- `src/pages/CartoesCredito.tsx` — remover Gerar Fatura, trocar ação primária para Faturas.
+- `src/pages/CartoesCredito.tsx` — itens 1, 2, 4.
+- `src/pages/fiscal/components/NfeFormBody.tsx` — itens 3.1, 3.2, 3.3.
+- `src/components/fiscal/NotaFiscalEditModal.tsx` — itens 3.1, 3.2 (remover duplicação).
+- `src/components/fiscal/NfseFieldsSection.tsx`, `CteFieldsSection.tsx` — item 3.3 (revisão de campos).
+- `src/main.tsx` (ou onde está o `QueryClient`) — item 4 (refetchOnWindowFocus).
+- Hooks afetados: `useNotasFiscaisPaged`, `useFinanceiroLancamentosPaged`, `useBaixaFinanceira` — invalidar query keys corretas no `onSuccess`.
 
 ## Fora do escopo
-
-- Mudança de design system, novas libs de filtros, refactor de roteamento ou de backend (RPCs `gerar_fatura_cartao` permanecem no DB).
+- Mudanças no backend (RPCs/triggers).
+- Implementar realtime websocket onde ainda não existe — só ajustar invalidação client-side.
+- Refactor completo de todos os módulos para o padrão de invalidação (apenas as 4 telas-piloto).

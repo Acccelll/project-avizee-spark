@@ -32,7 +32,10 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 10,
       retry: 1,
-      refetchOnWindowFocus: false,
+      // Refetch ao voltar à aba/janela — garante que mudanças feitas em
+      // outras telas/abas apareçam sem F5. Hooks que querem desligar isso
+      // pontualmente podem sobrescrever na própria query.
+      refetchOnWindowFocus: true,
     },
   },
 });
