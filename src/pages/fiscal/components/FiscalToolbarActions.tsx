@@ -1,6 +1,14 @@
 import { forwardRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, KeyRound, ScanLine, FileCode2, Download } from "lucide-react";
+import { Upload, KeyRound, ScanLine, FileCode2, Download, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -103,40 +111,40 @@ export const FiscalToolbarActions = forwardRef<HTMLInputElement, FiscalToolbarAc
     return (
       <>
         <input ref={ref} type="file" accept=".xml" className="hidden" onChange={onXmlChange} />
-        {BUSCA_CHAVE_ENABLED && (
-          <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               size="sm"
               className="gap-1.5 min-h-11 md:min-h-9 px-3"
-              onClick={onBuscarChaveClick}
-              aria-label="Buscar NF-e pela chave de acesso"
+              aria-label="Importar NF-e"
             >
-              <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-              <span className="hidden xs:inline">Buscar por </span>chave
+              <Download className="h-4 w-4 md:h-3.5 md:w-3.5" />
+              <span className="hidden xs:inline">Importar </span>NF-e
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 min-h-11 md:min-h-9 px-3"
-              onClick={onScannerClick}
-              aria-label="Ler chave por código de barras ou QR Code"
-            >
-              <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-              <span className="hidden xs:inline">Ler </span>QR/Código
-            </Button>
-          </>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 min-h-11 md:min-h-9 px-3"
-          onClick={onImportClick}
-          aria-label="Importar XML de NF-e"
-        >
-          <Upload className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-          <span className="hidden xs:inline">Importar </span>XML
-        </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Importar NF-e</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {BUSCA_CHAVE_ENABLED && (
+              <DropdownMenuItem onClick={onBuscarChaveClick} className="gap-2">
+                <KeyRound className="h-4 w-4 text-muted-foreground" />
+                Buscar por chave
+              </DropdownMenuItem>
+            )}
+            {BUSCA_CHAVE_ENABLED && (
+              <DropdownMenuItem onClick={onScannerClick} className="gap-2">
+                <ScanLine className="h-4 w-4 text-muted-foreground" />
+                Ler QR / Código de barras
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onImportClick} className="gap-2">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              Importar arquivo XML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     );
   }

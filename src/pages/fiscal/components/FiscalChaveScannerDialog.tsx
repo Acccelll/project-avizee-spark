@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Search,
-  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -156,23 +155,16 @@ export function FiscalChaveScannerDialog({
             Fechar
           </Button>
           <Button
-            variant="secondary"
-            disabled={!podeAcionarCtas || !onBuscarXml}
-            onClick={() => resultado && onBuscarXml?.(resultado.chave)}
+            disabled={!podeAcionarCtas || !(onBuscarXml || onConsultarSituacao)}
+            onClick={() => {
+              if (!resultado) return;
+              (onBuscarXml ?? onConsultarSituacao)?.(resultado.chave);
+            }}
             className="gap-2"
-            title="NFeDistribuicaoDFe (consChNFe) — só retorna XML destinado ao CNPJ do certificado."
-          >
-            <Download className="h-4 w-4" />
-            Buscar XML (DistDFe)
-          </Button>
-          <Button
-            disabled={!podeAcionarCtas || !onConsultarSituacao}
-            onClick={() => resultado && onConsultarSituacao?.(resultado.chave)}
-            className="gap-2"
-            title="NFeConsultaProtocolo4 — situação atual e protocolo."
+            title="Abre a consulta de NF-e pela chave (cache local, consultadanfe e SEFAZ)."
           >
             <Search className="h-4 w-4" />
-            Consultar situação
+            Buscar NF-e por chave
           </Button>
         </div>
       }
