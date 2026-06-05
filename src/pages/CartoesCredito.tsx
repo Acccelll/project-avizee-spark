@@ -21,7 +21,6 @@ import {
   updateCartao,
   inativarCartao,
   getCartaoInUseCounts,
-  gerarFaturaCartao,
   listFaturasPorCartao,
   baixarFaturaCartao,
   listLancamentosDaFatura,
@@ -33,7 +32,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt, Loader2 } from "lucide-react";
+import { CreditCard, CheckCircle, Ban, Wallet, Receipt, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,13 +79,6 @@ export default function CartoesCredito() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [selected, setSelected] = useState<CartaoCredito | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [faturaOpen, setFaturaOpen] = useState(false);
-  const [faturaCartao, setFaturaCartao] = useState<CartaoCredito | null>(null);
-  const [faturaCompetencia, setFaturaCompetencia] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
-  const [faturaSaving, setFaturaSaving] = useState(false);
   const [faturasListOpen, setFaturasListOpen] = useState(false);
   const [faturasListCartao, setFaturasListCartao] = useState<CartaoCredito | null>(null);
   const [faturasList, setFaturasList] = useState<CartaoFatura[]>([]);
@@ -244,31 +236,6 @@ export default function CartoesCredito() {
     }
   };
 
-  const openFatura = (c: CartaoCredito) => {
-    setFaturaCartao(c);
-    setFaturaOpen(true);
-  };
-
-  const handleGerarFatura = async () => {
-    if (!faturaCartao) return;
-    setFaturaSaving(true);
-    try {
-      const res = await gerarFaturaCartao(faturaCartao.id, faturaCompetencia);
-      if (!res.ok) {
-        toast.error(res.erro || "Falha ao gerar fatura");
-      } else {
-        toast.success(
-          `Fatura ${faturaCompetencia} gerada — total ${formatCurrency(res.valor_total || 0)}`,
-        );
-        setFaturaOpen(false);
-      }
-    } catch (e) {
-      notifyError(e);
-    } finally {
-      setFaturaSaving(false);
-    }
-  };
-
   const openFaturasList = async (c: CartaoCredito) => {
     setFaturasListCartao(c);
     setFaturasListOpen(true);
@@ -401,7 +368,7 @@ export default function CartoesCredito() {
           loading={loading}
           moduleKey="cartoes-credito"
           showColumnToggle
-          onEdit={openEdit}
+          onEdit={openFaturasList}
           onDelete={handleDelete}
           rowExtraActions={(c: CartaoCredito) =>
             c.ativo ? (
@@ -411,20 +378,10 @@ export default function CartoesCredito() {
                   variant="ghost"
                   onClick={(e) => {
                     e.stopPropagation();
-                    openFaturasList(c);
+                    openEdit(c);
                   }}
                 >
-                  <Receipt className="w-3.5 h-3.5 mr-1" /> Faturas
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openFatura(c);
-                  }}
-                >
-                  <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> Editar cartão
                 </Button>
               </div>
             ) : isAdmin ? (
@@ -466,11 +423,11 @@ export default function CartoesCredito() {
                 className="gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
-                  openFatura(c);
+                  openEdit(c);
                 }}
               >
-                <FileText className="w-4 h-4" />
-                Gerar
+                <Pencil className="w-4 h-4" />
+                Editar
               </Button>
             ) : null
           }
@@ -478,50 +435,6 @@ export default function CartoesCredito() {
           emptyDescription="Cadastre um cartão para gerar faturas e amarrar lançamentos."
         />
       </ModulePage>
-
-      <Dialog open={faturaOpen} onOpenChange={(o) => !o && setFaturaOpen(false)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Gerar fatura — {faturaCartao?.nome}</DialogTitle>
-            <DialogDescription>
-              Agrega lançamentos do cartão na competência e cria um título consolidado no Financeiro.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Competência (YYYY-MM)</Label>
-              <Input
-                type="month"
-                value={faturaCompetencia}
-                onChange={(e) => setFaturaCompetencia(e.target.value)}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              A operação é idempotente — pode ser repetida; o título será atualizado se ainda estiver em aberto.
-            </p>
-          </div>
-          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setFaturaOpen(false)}
-              className="max-sm:h-11 max-sm:w-full"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleGerarFatura}
-              disabled={faturaSaving}
-              className="max-sm:h-11 max-sm:w-full gap-2"
-            >
-              {faturaSaving ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
-              ) : (
-                <><FileText className="h-4 w-4" /> Gerar fatura</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {(() => {
         const faturasBody = faturasLoading ? (
