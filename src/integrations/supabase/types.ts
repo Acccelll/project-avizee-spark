@@ -10173,6 +10173,10 @@ export type Database = {
         Args: { p_execucao: string }
         Returns: Json
       }
+      rpc_sync_fatura_status: {
+        Args: { p_fatura_id: string }
+        Returns: undefined
+      }
       salvar_nota_fiscal: {
         Args: { p_itens: Json; p_nf_id: string; p_payload: Json }
         Returns: string
@@ -10258,6 +10262,7 @@ export type Database = {
           nf_rejeitadas: number
           nfe_entrada_pendentes: number
           nfe_sem_manifestacao: number
+          notas_sem_forma_pagamento: number
           orcamentos_pendentes: number
           pedidos_compra_pendentes: number
         }[]
@@ -10352,6 +10357,10 @@ export type Database = {
           lancamento_id: string
           score: number
         }[]
+      }
+      sync_fatura_status_from_lancamentos: {
+        Args: { p_fatura_id: string }
+        Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }
       vincular_nf_pedido_compra: {
