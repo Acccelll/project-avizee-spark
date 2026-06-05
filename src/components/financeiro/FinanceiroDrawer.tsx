@@ -464,6 +464,38 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 </ViewField>
               )}
             </ViewSection>
+            {selected.cartao_fatura_id && selected.cartao_faturas && (
+              <ViewSection title="Cartão de Crédito">
+                <ViewField label="Cartão">
+                  <span className="inline-flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    {selected.cartao_faturas.cartoes_credito?.nome ?? "—"}
+                    {selected.cartao_faturas.cartoes_credito?.ultimos4
+                      ? ` •••• ${selected.cartao_faturas.cartoes_credito.ultimos4}`
+                      : ""}
+                  </span>
+                </ViewField>
+                <ViewField label="Fatura">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="font-mono">{selected.cartao_faturas.competencia}</span>
+                    <StatusBadge status={selected.cartao_faturas.status} />
+                  </span>
+                </ViewField>
+                <ViewField label="Vencimento da fatura">
+                  {new Date(selected.cartao_faturas.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR")}
+                </ViewField>
+                <ViewField label="Total da fatura">
+                  <span className="font-mono">
+                    {formatCurrency(Number(selected.cartao_faturas.valor_total || 0))}
+                  </span>
+                </ViewField>
+                <ViewField label="Gerenciar fatura">
+                  <RelationalLink to="/cartoes-credito" behavior="route">
+                    Abrir tela de Cartões ›
+                  </RelationalLink>
+                </ViewField>
+              </ViewSection>
+            )}
           </div>
         )},
         { value: "historico", label: "Histórico", content: (
