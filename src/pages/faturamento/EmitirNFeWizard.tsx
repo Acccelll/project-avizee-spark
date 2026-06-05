@@ -779,12 +779,15 @@ function Step3Itens() {
     queryFn: async () => {
       let q = supabase
         .from("produtos")
-        .select("id, codigo_interno, descricao, ncm, unidade_medida, preco_venda")
+        .select("id, codigo_interno, sku, nome, descricao, ncm, unidade_medida, preco_venda, variacoes")
         .eq("ativo", true)
-        .order("descricao")
+        .order("nome")
         .limit(20);
       if (debouncedBusca) {
-        q = q.or(`descricao.ilike.%${debouncedBusca}%,codigo_interno.ilike.%${debouncedBusca}%`);
+        const term = debouncedBusca.replace(/[,()]/g, "");
+        q = q.or(
+          `nome.ilike.%${term}%,descricao.ilike.%${term}%,codigo_interno.ilike.%${term}%,sku.ilike.%${term}%`,
+        );
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -796,10 +799,17 @@ function Step3Itens() {
   const adicionarProduto = (p: ProdutoRow) => {
     const qtd = 1;
     const vu = Number(p.preco_venda || 0);
+    const variacoesArr = Array.isArray(p.variacoes)
+      ? (p.variacoes as unknown[]).filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      : [];
+    const descricaoCompleta = [p.nome, ...variacoesArr]
+      .filter((s) => typeof s === "string" && s.trim().length > 0)
+      .join(" ")
+      .trim() || (p.descricao ?? "");
     append({
       produto_id: p.id,
       codigo_produto: p.codigo_interno ?? "",
-      descricao: p.descricao,
+      descricao: descricaoCompleta,
       ncm: (p.ncm ?? "").padStart(8, "0").slice(0, 8) || "00000000",
       cfop: "",
       cst: cstDefault,
