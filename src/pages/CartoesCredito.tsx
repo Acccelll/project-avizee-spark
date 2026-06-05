@@ -41,6 +41,7 @@ import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 type Banco = Tables<"bancos">;
 
