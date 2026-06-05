@@ -1942,6 +1942,16 @@ const Fiscal = () => {
         onRefresh={fetchData}
       />
 
+      <EditarPagamentoNotaModal
+        open={!!editPagamentoTarget}
+        onClose={() => setEditPagamentoTarget(null)}
+        nota={editPagamentoTarget}
+        onSaved={() => {
+          setEditPagamentoTarget(null);
+          fetchData();
+        }}
+      />
+
       {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}
       <input
         ref={anexarXmlInputRef}
