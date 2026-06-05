@@ -436,48 +436,6 @@ export default function CartoesCredito() {
         />
       </ModulePage>
 
-          <DialogHeader>
-            <DialogTitle>Gerar fatura — {faturaCartao?.nome}</DialogTitle>
-            <DialogDescription>
-              Agrega lançamentos do cartão na competência e cria um título consolidado no Financeiro.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Competência (YYYY-MM)</Label>
-              <Input
-                type="month"
-                value={faturaCompetencia}
-                onChange={(e) => setFaturaCompetencia(e.target.value)}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              A operação é idempotente — pode ser repetida; o título será atualizado se ainda estiver em aberto.
-            </p>
-          </div>
-          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setFaturaOpen(false)}
-              className="max-sm:h-11 max-sm:w-full"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleGerarFatura}
-              disabled={faturaSaving}
-              className="max-sm:h-11 max-sm:w-full gap-2"
-            >
-              {faturaSaving ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
-              ) : (
-                <><FileText className="h-4 w-4" /> Gerar fatura</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {(() => {
         const faturasBody = faturasLoading ? (
             <div className="space-y-2 py-2">
