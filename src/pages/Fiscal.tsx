@@ -1927,6 +1927,7 @@ const Fiscal = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         onEdit={openEdit}
+        onEditPagamento={(nf) => setEditPagamentoTarget(nf)}
         onDelete={handleInativar}
         onConfirmar={handleConfirmar}
         onEstornar={handleEstornar}
