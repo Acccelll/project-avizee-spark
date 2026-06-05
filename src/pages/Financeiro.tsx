@@ -730,6 +730,11 @@ const Financeiro = () => {
         }}
       />
 
+      <PendenciasPanel
+        open={pendenciasOpen}
+        onClose={() => setPendenciasOpen(false)}
+      />
+
       <BaixaLoteModal
         open={baixaLoteOpen}
         onClose={() => setBaixaLoteOpen(false)}
