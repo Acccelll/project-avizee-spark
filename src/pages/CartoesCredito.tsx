@@ -24,6 +24,7 @@ import {
   gerarFaturaCartao,
   listFaturasPorCartao,
   baixarFaturaCartao,
+  listLancamentosDaFatura,
   type CartaoFatura,
   type CartaoCredito,
 } from "@/services/cartoesCredito.service";
@@ -97,7 +98,16 @@ export default function CartoesCredito() {
   const [baixaSaving, setBaixaSaving] = useState(false);
   const [baixaForma, setBaixaForma] = useState<string>("boleto_dda");
   const [baixaLancamentos, setBaixaLancamentos] = useState<
-    Array<{ id: string; descricao: string; valor: number; saldo: number; status: string; data_vencimento: string }>
+    Array<{
+      id: string;
+      descricao: string | null;
+      valor: number;
+      saldo: number;
+      status: string;
+      data_vencimento: string;
+      parcela_numero: number | null;
+      parcela_total: number | null;
+    }>
   >([]);
   const [baixaLancsLoading, setBaixaLancsLoading] = useState(false);
   const { saving, submit } = useSubmitLock();
