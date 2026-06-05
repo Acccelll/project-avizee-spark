@@ -212,6 +212,7 @@ export function NotaFiscalEditModal({
   valorProdutos,
   totalImpostos,
   totalNF,
+  cartoes = [],
 }: NotaFiscalEditModalProps) {
   const statusSefaz = (selected as { status_sefaz?: string }).status_sefaz ?? null;
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
