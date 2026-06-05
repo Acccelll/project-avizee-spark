@@ -99,11 +99,30 @@ function num(el: Element | null, tag: string): number {
   return Number(text(el, tag)) || 0;
 }
 
+/**
+ * Escapa `&` que não pertencem a uma entidade XML válida (&amp; &lt; &gt; &quot; &apos; &#123; &#xAB;).
+ * Útil para corrigir XMLs vindos de APIs que perderam o escape original em campos de texto.
+ */
+function sanitizeBareAmpersands(xml: string): string {
+  return xml.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;");
+}
+
 export function parseNFeXml(xmlString: string): NFeData {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlString, "text/xml");
+  let doc = parser.parseFromString(xmlString, "text/xml");
+  let parserError = doc.querySelector("parsererror");
 
-  const parserError = doc.querySelector("parsererror");
+  // Algumas APIs de fallback (ex.: consultadanfe) retornam XML com `&` cru
+  // dentro de valores de campos (xNome, infCpl, etc.), o que faz o parser
+  // estourar com "xmlParseEntityRef: no name". Tentamos sanitizar e re-parsear.
+  if (parserError) {
+    const sanitized = sanitizeBareAmpersands(xmlString);
+    if (sanitized !== xmlString) {
+      doc = parser.parseFromString(sanitized, "text/xml");
+      parserError = doc.querySelector("parsererror");
+    }
+  }
+
   if (parserError) throw new Error("XML inválido: " + parserError.textContent);
 
   // Find the NFe/infNFe element
