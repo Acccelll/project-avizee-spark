@@ -4181,7 +4181,10 @@ export type Database = {
       }
       nfe_distribuicao: {
         Row: {
+          cancelamento_protocolo: string | null
+          cancelamento_recebido_at: string | null
           chave_acesso: string
+          ciencia_automatica_at: string | null
           cnpj_emitente: string | null
           created_at: string
           data_emissao: string | null
@@ -4193,6 +4196,7 @@ export type Database = {
           ie_emitente: string | null
           natureza_operacao: string | null
           nome_emitente: string | null
+          nota_fiscal_id: string | null
           nsu: string | null
           numero: string | null
           observacao: string | null
@@ -4200,6 +4204,7 @@ export type Database = {
           protocolo_autorizacao: string | null
           serie: string | null
           status_manifestacao: string
+          tipo_documento: string
           uf_emitente: string | null
           updated_at: string
           usuario_id: string | null
@@ -4210,7 +4215,10 @@ export type Database = {
           xml_nfe: string | null
         }
         Insert: {
+          cancelamento_protocolo?: string | null
+          cancelamento_recebido_at?: string | null
           chave_acesso: string
+          ciencia_automatica_at?: string | null
           cnpj_emitente?: string | null
           created_at?: string
           data_emissao?: string | null
@@ -4222,6 +4230,7 @@ export type Database = {
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
+          nota_fiscal_id?: string | null
           nsu?: string | null
           numero?: string | null
           observacao?: string | null
@@ -4229,6 +4238,7 @@ export type Database = {
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
+          tipo_documento?: string
           uf_emitente?: string | null
           updated_at?: string
           usuario_id?: string | null
@@ -4239,7 +4249,10 @@ export type Database = {
           xml_nfe?: string | null
         }
         Update: {
+          cancelamento_protocolo?: string | null
+          cancelamento_recebido_at?: string | null
           chave_acesso?: string
+          ciencia_automatica_at?: string | null
           cnpj_emitente?: string | null
           created_at?: string
           data_emissao?: string | null
@@ -4251,6 +4264,7 @@ export type Database = {
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
+          nota_fiscal_id?: string | null
           nsu?: string | null
           numero?: string | null
           observacao?: string | null
@@ -4258,6 +4272,7 @@ export type Database = {
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
+          tipo_documento?: string
           uf_emitente?: string | null
           updated_at?: string
           usuario_id?: string | null
@@ -4295,6 +4310,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fornecedores"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
           },
         ]
       }
@@ -9840,6 +9876,10 @@ export type Database = {
       }
       importacao_garantir_pessoa: {
         Args: { p_codigo_legado: string; p_nome?: string; p_tipo: string }
+        Returns: string
+      }
+      importar_nfe_distribuicao_como_entrada: {
+        Args: { p_id: string }
         Returns: string
       }
       importar_nfe_entrada: {
