@@ -13,6 +13,7 @@ import {
   PackagePlus,
   CheckCheck,
   RefreshCw,
+  FileInput,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   enviarManifestacao,
   statusManifestacaoFromEvento,
@@ -99,6 +101,13 @@ const STATUS_LABEL: Record<string, { label: string; variant: "default" | "second
   confirmada: { label: "Confirmada", variant: "default" },
   desconhecida: { label: "Desconhecida", variant: "destructive" },
   nao_realizada: { label: "Não realizada", variant: "destructive" },
+};
+
+const TIPO_DOC_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+  procNFe: { label: "Completa", variant: "default" },
+  resNFe: { label: "Resumo", variant: "secondary" },
+  resEvento: { label: "Evento", variant: "outline" },
+  procEventoNFe: { label: "Evento", variant: "outline" },
 };
 
 function chaveValida(c: string): boolean {
