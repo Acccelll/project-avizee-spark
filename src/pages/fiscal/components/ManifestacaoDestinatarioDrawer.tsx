@@ -309,6 +309,29 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     }
   };
 
+  const [importandoEntrada, setImportandoEntrada] = useState<string | null>(null);
+  const handleImportarComoEntrada = async (nf: NfeCapturada) => {
+    if (!nf.xml_nfe) {
+      toast.error("XML da NF-e ainda não disponível. Aguarde a Ciência automática.");
+      return;
+    }
+    setImportandoEntrada(nf.id);
+    try {
+      const { error } = await supabase.rpc(
+        "importar_nfe_distribuicao_como_entrada",
+        { p_id: nf.id },
+      );
+      if (error) throw error;
+      toast.success("NF-e importada como entrada com sucesso.");
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
+      qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setImportandoEntrada(null);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
