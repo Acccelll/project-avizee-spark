@@ -29,6 +29,12 @@ export interface NfeCapturadaRow {
   xml_importado: boolean;
   processado?: boolean;
   data_processamento?: string | null;
+  xml_nfe?: string | null;
+  tipo_documento?: string | null;
+  ciencia_automatica_at?: string | null;
+  cancelamento_recebido_at?: string | null;
+  cancelamento_protocolo?: string | null;
+  nota_fiscal_id?: string | null;
 }
 
 export interface NfeDistItemRow {
@@ -132,7 +138,7 @@ export async function listNfeCapturadas(limit = 100): Promise<NfeCapturadaRow[]>
   const { data, error } = await supabase
     .from("nfe_distribuicao")
     .select(
-      "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento",
+      "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento, xml_nfe, tipo_documento, ciencia_automatica_at, cancelamento_recebido_at, cancelamento_protocolo, nota_fiscal_id",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
