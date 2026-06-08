@@ -482,6 +482,20 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <Badge variant={st.variant}>{st.label}</Badge>
+                            {nf.tipo_documento && TIPO_DOC_BADGE[nf.tipo_documento] && (
+                              <Badge
+                                variant={TIPO_DOC_BADGE[nf.tipo_documento].variant}
+                                className="text-[10px]"
+                              >
+                                {TIPO_DOC_BADGE[nf.tipo_documento].label}
+                              </Badge>
+                            )}
+                            {nf.cancelamento_recebido_at && (
+                              <Badge variant="destructive" className="text-[10px] gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Cancelada
+                              </Badge>
+                            )}
                             {nf.xml_importado && (
                               <Badge variant="secondary" className="text-[10px]">XML</Badge>
                             )}
@@ -490,9 +504,42 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
                                 <CheckCheck className="h-3 w-3" /> Processada
                               </Badge>
                             )}
+                            {nf.ciencia_automatica_at && (
+                              <span className="text-[10px] text-muted-foreground">
+                                Ciência auto.{" "}
+                                {format(new Date(nf.ciencia_automatica_at), "dd/MM/yy", {
+                                  locale: ptBR,
+                                })}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              !nf.xml_nfe ||
+                              !!nf.nota_fiscal_id ||
+                              importandoEntrada === nf.id
+                            }
+                            onClick={() => handleImportarComoEntrada(nf)}
+                            className="gap-1"
+                            title={
+                              !nf.xml_nfe
+                                ? "Aguardando XML da Ciência automática"
+                                : nf.nota_fiscal_id
+                                  ? "Já importada como NF-e de entrada"
+                                  : "Cria uma NF-e de entrada a partir desta NF capturada"
+                            }
+                          >
+                            {importandoEntrada === nf.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <FileInput className="h-3 w-3" />
+                            )}
+                            {nf.nota_fiscal_id ? "Já importada" : "Importar como entrada"}
+                          </Button>
                           {nf.xml_importado && (
                             <Button
                               size="sm"
