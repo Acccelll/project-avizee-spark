@@ -222,6 +222,40 @@ Deno.serve(async (req) => {
 
       for (const d of docs) {
         const r = d.resumo ?? {};
+
+        // Classifica o schema retornado pelo DistDFe.
+        // procNFe = NF-e completa autorizada; resNFe = resumo (precisa Ciência);
+        // resEvento/procEventoNFe = evento sobre NF-e existente (ex.: cancelamento).
+        const schema = (d.schema ?? "").toLowerCase();
+        let tipoDoc: "procNFe" | "resNFe" | "resEvento" | "procEventoNFe" = "resNFe";
+        if (schema.includes("proceventonfe")) tipoDoc = "procEventoNFe";
+        else if (schema.includes("resevento")) tipoDoc = "resEvento";
+        else if (schema.includes("procnfe")) tipoDoc = "procNFe";
+        else if (schema.includes("resnfe")) tipoDoc = "resNFe";
+
+        // Eventos: tenta extrair tpEvento + protocolo do XML para detectar cancelamento.
+        if (tipoDoc === "resEvento" || tipoDoc === "procEventoNFe") {
+          const tpEvento = d.xml?.match(/<tpEvento>(\d+)<\/tpEvento>/)?.[1] ?? null;
+          const nProt = d.xml?.match(/<nProt>([^<]+)<\/nProt>/)?.[1] ?? null;
+          const dhEvento = d.xml?.match(/<dhEvento>([^<]+)<\/dhEvento>/)?.[1] ?? null;
+          const xMotivo = d.xml?.match(/<xMotivo>([^<]+)<\/xMotivo>/)?.[1] ?? "";
+
+          if (tpEvento === "110111") {
+            // Cancelamento — atualiza o registro existente por chave_acesso
+            await admin
+              .from("nfe_distribuicao")
+              .update({
+                cancelamento_recebido_at: dhEvento ?? new Date().toISOString(),
+                cancelamento_protocolo: nProt,
+                observacao: `CANCELADA. Protocolo: ${nProt ?? "—"}. Motivo: ${xMotivo}`,
+                data_processamento: new Date().toISOString(),
+              })
+              .eq("chave_acesso", d.chave!);
+          }
+          // Para qualquer evento, segue para próximo doc (não cria linha nova).
+          continue;
+        }
+
         const payload = {
           chave_acesso: d.chave!,
           nsu: d.nsu,
@@ -232,6 +266,9 @@ Deno.serve(async (req) => {
           data_emissao: r.dataEmissao ?? null,
           valor_total: r.valorTotal ?? null,
           status_manifestacao: "sem_manifestacao",
+          tipo_documento: tipoDoc,
+          // procNFe traz a NF-e completa autorizada — guardamos o XML.
+          xml_nfe: tipoDoc === "procNFe" ? d.xml ?? null : null,
           usuario_id: null,
         };
         const { error: upErr, data: upData } = await admin
