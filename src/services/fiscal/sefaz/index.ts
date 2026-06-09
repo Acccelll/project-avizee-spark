@@ -52,5 +52,5 @@ export type { SefazServico } from "./sefazUrls.service";
 export type { CRT, AmbienteSefaz, IndIEDest } from "./xmlBuilder.service";
 export { calcularIndIEDest } from "./xmlBuilder.service";
 
-export { sincronizarDistDFe } from "./distdfe.service";
-export type { DistDFeDoc, DistDFeResponse } from "./distdfe.service";
+export { sincronizarDistDFe, obterStatusDistDFe } from "./distdfe.service";
+export type { DistDFeDoc, DistDFeResponse, DistDFeStatus } from "./distdfe.service";
