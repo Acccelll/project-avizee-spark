@@ -1717,6 +1717,18 @@ const Fiscal = () => {
           loading={loading}
           pageSize={PAGE_SIZE}
           serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
+          initialSortKey={sortKey}
+          initialSortDir={sortAsc ? "asc" : "desc"}
+          onServerSort={(key, dir) => {
+            if (!key || !dir) {
+              setSortKey("data_emissao");
+              setSortAsc(false);
+            } else {
+              setSortKey(key as FiscalSortKey);
+              setSortAsc(dir === "asc");
+            }
+            setPage(0);
+          }}
           moduleKey={tipoConfig.moduleKey}
           showColumnToggle={true}
           onView={openView}
