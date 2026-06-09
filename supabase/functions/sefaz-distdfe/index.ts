@@ -384,20 +384,28 @@ Deno.serve(async (req) => {
         const preview = text.slice(0, 240);
         let diagnostico = "";
         const ok200 = resp.status === 200 && /<(wsdl:)?definitions|<\?xml/i.test(text);
+        // 405 é esperado num GET ao .asmx (SEFAZ só aceita POST SOAP).
+        // Qualquer resposta HTTP do SEFAZ (mesmo 4xx) prova que: TCP+TLS+mTLS do Worker estão OK e o binding cobre o hostname.
+        const reachable = resp.status === 405 || (resp.status >= 200 && resp.status < 500);
+        const success = ok200 || reachable;
         if (ok200) {
-          diagnostico = "OK — Worker alcança o endpoint e o mTLS está válido para este hostname.";
+          diagnostico = "OK — Worker alcança o endpoint e o mTLS está válido para este hostname (WSDL retornado).";
+        } else if (resp.status === 405) {
+          diagnostico = "OK — Worker alcançou o SEFAZ e o handshake mTLS funcionou. O 405 é esperado: este endpoint exige POST SOAP, não aceita GET. Binding/certificado válidos para este hostname.";
         } else if (resp.status === 520) {
-          diagnostico = "HTTP 520 — Worker lança exceção (provável binding mTLS não cobre este hostname no wrangler.toml).";
+          diagnostico = "HTTP 520 — Worker lança exceção (provável binding mTLS não cobre este hostname no wrangler.toml, ou cert inválido para o ambiente).";
         } else if (resp.status === 525 || resp.status === 526) {
           diagnostico = `HTTP ${resp.status} — Falha de TLS no Worker. Verifique cadeia ICP-Brasil e validade do certificado A1.`;
-        } else if ((resp.status === 400 || resp.status === 401) && text.length < 200) {
-          diagnostico = `HTTP ${resp.status} — Worker rejeitou a requisição (secret ou header x-target-url).`;
+        } else if ((resp.status === 400 || resp.status === 401 || resp.status === 403) && text.length < 200) {
+          diagnostico = `HTTP ${resp.status} — Worker rejeitou a requisição antes de chamar o SEFAZ (secret incorreto ou header x-target-url ausente/bloqueado pelo allowlist do Worker).`;
+        } else if (resp.status >= 500) {
+          diagnostico = `HTTP ${resp.status} — Worker ou upstream com erro. Rode 'npx wrangler tail' para ver o stack trace.`;
         } else {
-          diagnostico = `HTTP ${resp.status} ${resp.statusText || ""}`.trim();
+          diagnostico = `HTTP ${resp.status} ${resp.statusText || ""} — Worker alcançável.`.trim();
         }
         log.info("worker-ping", { ambiente: ambientePing, statusHttp: resp.status, bytes: text.length });
         return json({
-          sucesso: ok200,
+          sucesso: success,
           ambiente: ambientePing,
           targetUrl,
           statusHttp: resp.status,
