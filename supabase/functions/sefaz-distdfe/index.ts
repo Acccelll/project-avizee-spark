@@ -349,8 +349,77 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
+    if (action === "worker-ping") {
+      const ambientePing: "1" | "2" = body.ambiente === "1" ? "1" : "2";
+      const proxyFlagRaw = Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "";
+      const proxyFlagNorm = proxyFlagRaw.trim().toLowerCase();
+      const flagAtiva = ["true", "1", "on", "yes"].includes(proxyFlagNorm);
+      const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL") ?? "";
+      const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET") ?? "";
+      if (!flagAtiva || !proxyUrl || !proxySecret) {
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          diagnostico:
+            "Proxy mTLS inativo. Configure SEFAZ_USE_MTLS_PROXY=true, SEFAZ_MTLS_PROXY_URL e SEFAZ_MTLS_PROXY_SECRET.",
+          erro: "proxy-desabilitado",
+        }, 200);
+      }
+      const targetUrl = ambientePing === "1"
+        ? "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl"
+        : "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl";
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const resp = await fetch(proxyUrl, {
+          method: "GET",
+          headers: {
+            "x-proxy-secret": proxySecret,
+            "x-target-url": targetUrl,
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const text = await resp.text();
+        const preview = text.slice(0, 240);
+        let diagnostico = "";
+        const ok200 = resp.status === 200 && /<(wsdl:)?definitions|<\?xml/i.test(text);
+        if (ok200) {
+          diagnostico = "OK — Worker alcança o endpoint e o mTLS está válido para este hostname.";
+        } else if (resp.status === 520) {
+          diagnostico = "HTTP 520 — Worker lança exceção (provável binding mTLS não cobre este hostname no wrangler.toml).";
+        } else if (resp.status === 525 || resp.status === 526) {
+          diagnostico = `HTTP ${resp.status} — Falha de TLS no Worker. Verifique cadeia ICP-Brasil e validade do certificado A1.`;
+        } else if ((resp.status === 400 || resp.status === 401) && text.length < 200) {
+          diagnostico = `HTTP ${resp.status} — Worker rejeitou a requisição (secret ou header x-target-url).`;
+        } else {
+          diagnostico = `HTTP ${resp.status} ${resp.statusText || ""}`.trim();
+        }
+        log.info("worker-ping", { ambiente: ambientePing, statusHttp: resp.status, bytes: text.length });
+        return json({
+          sucesso: ok200,
+          ambiente: ambientePing,
+          targetUrl,
+          statusHttp: resp.status,
+          statusText: resp.statusText,
+          bytes: text.length,
+          preview,
+          diagnostico,
+        }, 200);
+      } catch (e: any) {
+        clearTimeout(timer);
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          targetUrl,
+          diagnostico: `Falha de transporte ao chamar o Worker: ${e?.message ?? String(e)}`,
+          erro: e?.message ?? String(e),
+        }, 200);
+      }
+    }
+
     if (action !== "consultar-nsu" && action !== "consultar-chave") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave' ou 'status'.` }, 400);
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave', 'status' ou 'worker-ping'.` }, 400);
     }
 
     // Autorização granular: ambas as actions exigem ao menos `visualizar`
