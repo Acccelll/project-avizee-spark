@@ -58,6 +58,119 @@ interface DistDFeResponse {
   erro?: string;
 }
 
+// ── Helper: URL do AN por ambiente ───────────────────────────────
+function urlAnRecepcaoEvento(ambiente: "1" | "2"): string {
+  return ambiente === "1"
+    ? "https://www.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx"
+    : "https://hom.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx";
+}
+const SOAP_ACTION_EVENTO =
+  "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento";
+
+// ── Helper: XML de Ciência da Operação (evento 210210) ───────────
+function xmlCiencia(
+  chave: string,
+  cnpj: string,
+  ambiente: "1" | "2",
+  dhEvento: string,
+): string {
+  const cnpjLimpo = cnpj.replace(/\D/g, "");
+  return (
+    `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+    `<idLote>1</idLote>` +
+    `<evento versao="1.00">` +
+    `<infEvento Id="ID210210${chave}01">` +
+    `<cOrgao>91</cOrgao>` +
+    `<tpAmb>${ambiente}</tpAmb>` +
+    `<CNPJ>${cnpjLimpo}</CNPJ>` +
+    `<chNFe>${chave}</chNFe>` +
+    `<dhEvento>${dhEvento}</dhEvento>` +
+    `<tpEvento>210210</tpEvento>` +
+    `<nSeqEvento>1</nSeqEvento>` +
+    `<verEvento>1.00</verEvento>` +
+    `<detEvento versao="1.00">` +
+    `<descEvento>Ciencia da Operacao</descEvento>` +
+    `</detEvento>` +
+    `</infEvento>` +
+    `</evento>` +
+    `</envEvento>`
+  );
+}
+
+// ── Helper: envia Ciência via sefaz-proxy (server-side) ──────────
+async function enviarCienciaServerSide(
+  chave: string,
+  cnpj: string,
+  ambiente: "1" | "2",
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  anonKey: string,
+): Promise<{ sucesso: boolean; protocolo?: string; cStat?: string; motivo?: string }> {
+  const dhEvento = new Date().toISOString().replace(/\.\d+Z$/, "-03:00");
+  const xml = xmlCiencia(chave, cnpj, ambiente, dhEvento);
+  const url = urlAnRecepcaoEvento(ambiente);
+
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/sefaz-proxy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": anonKey,
+      },
+      body: JSON.stringify({
+        action: "assinar-e-enviar-vault",
+        xml,
+        url,
+        soapAction: SOAP_ACTION_EVENTO,
+      }),
+    });
+    const data = await resp.json() as { sucesso: boolean; xmlRetorno?: string; erro?: string };
+    if (!data.sucesso) {
+      return { sucesso: false, motivo: data.erro ?? "Falha ao enviar Ciência" };
+    }
+    const xmlRet = data.xmlRetorno ?? "";
+    const cStat = xmlRet.match(/<cStat>(\d+)<\/cStat>/)?.[1];
+    const protocolo = xmlRet.match(/<nProt>(\d+)<\/nProt>/)?.[1];
+    const xMotivo = xmlRet.match(/<xMotivo>([^<]+)<\/xMotivo>/)?.[1];
+    const sucesso = cStat === "135" || cStat === "136";
+    return { sucesso, protocolo, cStat, motivo: xMotivo };
+  } catch (e) {
+    return { sucesso: false, motivo: (e as Error).message };
+  }
+}
+
+// ── Helper: baixa XML completo via consultar-chave (DistDFe) ─────
+async function baixarXmlCompletoChave(
+  chave: string,
+  ambiente: "1" | "2",
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  anonKey: string,
+): Promise<string | null> {
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/sefaz-distdfe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": anonKey,
+      },
+      body: JSON.stringify({ action: "consultar-chave", chNFe: chave, ambiente }),
+    });
+    const data = await resp.json() as {
+      sucesso: boolean;
+      docs?: Array<{ xml: string; schema: string }>;
+      erro?: string;
+    };
+    if (!data.sucesso || !data.docs?.length) return null;
+    const completo = data.docs.find((d) => d.schema.startsWith("procNFe"));
+    return completo?.xml ?? data.docs[0]?.xml ?? null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
