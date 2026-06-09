@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
+import { sincronizarDistDFe, obterStatusDistDFe, type DistDFeStatus } from "@/services/fiscal/sefaz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -63,6 +63,20 @@ export default function DistDFeHistorico() {
     loading: loadingFlag,
   } = useAppConfig<boolean>("distdfe_auto_ciencia", false);
   const [aplicandoLote, setAplicandoLote] = useState(false);
+  const [status, setStatus] = useState<DistDFeStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  const carregarStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    try {
+      const s = await obterStatusDistDFe();
+      setStatus(s);
+    } finally {
+      setLoadingStatus(false);
+    }
+  }, []);
+
+  useEffect(() => { void carregarStatus(); }, [carregarStatus]);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -139,7 +153,7 @@ export default function DistDFeHistorico() {
             ) : (
               <PlayCircle className="h-4 w-4 mr-2" />
             )}
-            {running ? "Executando..." : "Executar agora (Hom.)"}
+            {running ? "Sincronizando..." : "Sincronizar (Hom.)"}
           </Button>
           <Button variant="secondary" onClick={() => void executarAgora("1")} disabled={running}>
             {running ? (
@@ -147,10 +161,56 @@ export default function DistDFeHistorico() {
             ) : (
               <PlayCircle className="h-4 w-4 mr-2" />
             )}
-            Produção
+            Sincronizar (Prod.)
           </Button>
         </div>
       </div>
+
+      {/* Indicador de transporte / Worker mTLS */}
+      {loadingStatus ? (
+        <Skeleton className="h-14 w-full" />
+      ) : status?.proxyEnabled ? (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="text-sm">
+            <div className="font-medium text-emerald-700 dark:text-emerald-300">Proxy mTLS ativo</div>
+            <div className="text-xs text-muted-foreground">
+              Todas as chamadas SEFAZ saem por Cloudflare Worker com IP brasileiro. Transporte: <code className="font-mono">{status.transporte}</code>.
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void carregarStatus()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : status ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="text-sm flex-1">
+            <div className="font-medium text-destructive">Proxy mTLS inativo — sincronização vai falhar com CONNECTION_RESET</div>
+            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+              <div>
+                <strong>Flag SEFAZ_USE_MTLS_PROXY:</strong>{" "}
+                {status.flagAtiva ? "ativa ✓" : `inativa (valor com ${status.flagLen} caractere(s); deve ser exatamente "true")`}
+              </div>
+              <div>
+                <strong>URL do Worker:</strong> {status.hasProxyUrl ? "configurada ✓" : "ausente ✗"}
+              </div>
+              <div>
+                <strong>Secret do Worker:</strong> {status.hasProxySecret ? "configurado ✓" : "ausente ✗"}
+              </div>
+              <div className="pt-1">Corrija os secrets em Cloud → Secrets para que o transporte resolva como <code className="font-mono">cf-worker-mtls</code>.</div>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void carregarStatus()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-md border border-muted px-4 py-3 flex items-center gap-3">
+          <ShieldQuestion className="h-5 w-5 text-muted-foreground shrink-0" />
+          <div className="text-sm text-muted-foreground">Status de transporte SEFAZ indisponível.</div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>

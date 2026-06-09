@@ -331,8 +331,26 @@ Deno.serve(async (req) => {
     const action: string = body.action ?? "consultar-nsu";
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
+    if (action === "status") {
+      const proxyFlagRaw = Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "";
+      const proxyFlagNorm = proxyFlagRaw.trim().toLowerCase();
+      const flagAtiva = proxyFlagNorm === "true" || proxyFlagNorm === "1" || proxyFlagNorm === "on" || proxyFlagNorm === "yes";
+      const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL") ?? "";
+      const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET") ?? "";
+      const proxyEnabled = flagAtiva && proxyUrl.length > 0 && proxySecret.length > 0;
+      return json({
+        sucesso: true,
+        proxyEnabled,
+        hasProxyUrl: proxyUrl.length > 0,
+        hasProxySecret: proxySecret.length > 0,
+        flagAtiva,
+        flagLen: proxyFlagRaw.length,
+        transporte: proxyEnabled ? "cf-worker-mtls" : "deno-mtls-direto",
+      }, 200);
+    }
+
     if (action !== "consultar-nsu" && action !== "consultar-chave") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu' ou 'consultar-chave'.` }, 400);
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave' ou 'status'.` }, 400);
     }
 
     // Autorização granular: ambas as actions exigem ao menos `visualizar`
