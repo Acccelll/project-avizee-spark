@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { sincronizarDistDFe, obterStatusDistDFe, type DistDFeStatus } from "@/services/fiscal/sefaz";
+import { sincronizarDistDFe, obterStatusDistDFe, testarWorkerDistDFe, type DistDFeStatus, type WorkerPingResult } from "@/services/fiscal/sefaz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -65,6 +65,8 @@ export default function DistDFeHistorico() {
   const [aplicandoLote, setAplicandoLote] = useState(false);
   const [status, setStatus] = useState<DistDFeStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [pinging, setPinging] = useState<"1" | "2" | null>(null);
+  const [pingResult, setPingResult] = useState<(WorkerPingResult & { ranAt: string }) | null>(null);
   const [lastResult, setLastResult] = useState<
     | {
         ambiente: "1" | "2";
@@ -90,6 +92,24 @@ export default function DistDFeHistorico() {
   }, []);
 
   useEffect(() => { void carregarStatus(); }, [carregarStatus]);
+
+  const testarWorker = async (ambiente: "1" | "2") => {
+    setPinging(ambiente);
+    try {
+      const r = await testarWorkerDistDFe(ambiente);
+      setPingResult({ ...r, ranAt: new Date().toISOString() });
+      toast({
+        title: r.sucesso ? "Worker OK" : "Worker com problema",
+        description: r.diagnostico ?? r.erro ?? "Sem detalhes",
+        variant: r.sucesso ? "default" : "destructive",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Erro ao testar Worker", description: msg, variant: "destructive" });
+    } finally {
+      setPinging(null);
+    }
+  };
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -202,6 +222,14 @@ export default function DistDFeHistorico() {
             )}
             Sincronizar (Prod.)
           </Button>
+          <Button variant="outline" onClick={() => void testarWorker("2")} disabled={pinging !== null}>
+            {pinging === "2" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2" />}
+            Testar Worker (Hom.)
+          </Button>
+          <Button variant="outline" onClick={() => void testarWorker("1")} disabled={pinging !== null}>
+            {pinging === "1" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2" />}
+            Testar Worker (Prod.)
+          </Button>
         </div>
       </div>
 
@@ -284,6 +312,36 @@ export default function DistDFeHistorico() {
               <div className="break-words">
                 <strong>Erro:</strong> {lastResult.erro}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {pingResult && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            pingResult.sucesso ? "border-emerald-500/40 bg-emerald-500/5" : "border-destructive/40 bg-destructive/5"
+          }`}
+        >
+          <div className="font-medium">
+            Teste do Worker — Ambiente {pingResult.ambiente === "1" ? "Produção" : "Homologação"} (
+            {format(new Date(pingResult.ranAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })})
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+            {pingResult.targetUrl && (
+              <div className="break-all"><strong>URL alvo:</strong> <code className="font-mono">{pingResult.targetUrl}</code></div>
+            )}
+            {typeof pingResult.statusHttp === "number" && (
+              <div><strong>HTTP:</strong> {pingResult.statusHttp} {pingResult.statusText ?? ""}</div>
+            )}
+            {typeof pingResult.bytes === "number" && (
+              <div><strong>Bytes:</strong> {pingResult.bytes}</div>
+            )}
+            {pingResult.diagnostico && (
+              <div className="break-words"><strong>Diagnóstico:</strong> {pingResult.diagnostico}</div>
+            )}
+            {pingResult.preview && (
+              <pre className="mt-2 text-[11px] bg-muted/40 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">{pingResult.preview}</pre>
             )}
           </div>
         </div>
