@@ -16,6 +16,8 @@ export interface AutorizacaoResult {
   xmlAutorizado?: string;
   status?: string;
   motivo?: string;
+  /** Caminho do nfeProc no Storage (dbavizee/nfe-autorizadas/<chave>.xml). */
+  caminhoXml?: string | null;
 }
 
 /**
@@ -164,7 +166,10 @@ export async function autorizarNFe(
     sucesso: autorizado,
     protocolo,
     chave: dadosCompletos.chave,
-    xmlAutorizado: autorizado ? xmlRetorno : undefined,
+    // nfeProc montado pelo sefaz-proxy (NFe assinada + protNFe) — documento
+    // fiscal legal. Fallback para o envelope retEnviNFe quando ausente.
+    xmlAutorizado: autorizado ? (resposta.xmlNfeProc ?? xmlRetorno) : undefined,
+    caminhoXml: resposta.caminhoXml ?? null,
     status,
     motivo,
   };

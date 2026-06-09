@@ -520,6 +520,69 @@ Deno.serve(async (req) => {
         certPem,
         keyPem,
       );
+
+      // ── Pós-autorização: montar e guardar o nfeProc ──────────────
+      // O documento fiscal legal (MOC 7.0) é nfeProc = NFe ASSINADA + protNFe,
+      // guardado por 5 anos e distribuído ao destinatário. Sem ele não há
+      // DANFE nem SPED.
+      const ehAutorizacao = soapAction.includes("NFeAutorizacao4");
+      if (ehAutorizacao && resultado.sucesso && resultado.xmlRetorno) {
+        try {
+          const blocoProt = resultado.xmlRetorno
+            .match(/<protNFe[^>]*>[\s\S]*?<\/protNFe>/)?.[0];
+          const cStatNFe = blocoProt?.match(/<cStat>(\d+)<\/cStat>/)?.[1];
+          const autorizada = cStatNFe === "100" || cStatNFe === "150";
+
+          if (autorizada && blocoProt) {
+            const nfeAssinada = xmlAssinado.match(/<NFe[\s\S]*?<\/NFe>/)?.[0];
+            const chave = nfeAssinada?.match(/Id="NFe(\d{44})"/)?.[1];
+
+            if (nfeAssinada && chave) {
+              const nfeProc =
+                `<?xml version="1.0" encoding="UTF-8"?>` +
+                `<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+                nfeAssinada +
+                blocoProt +
+                `</nfeProc>`;
+
+              const caminhoXml = `nfe-autorizadas/${chave}.xml`;
+              const { error: upXmlErr } = await adminClient.storage
+                .from("dbavizee")
+                .upload(
+                  caminhoXml,
+                  new Blob([nfeProc], { type: "application/xml" }),
+                  { upsert: true, contentType: "application/xml" },
+                );
+
+              if (upXmlErr) {
+                // Não derruba a autorização — a NF-e FOI autorizada na SEFAZ.
+                log.error("Falha ao subir nfeProc no Storage", {
+                  chave,
+                  erro: upXmlErr.message,
+                });
+                return json({
+                  ...resultado,
+                  xmlNfeProc: nfeProc,
+                  caminhoXml: null,
+                  chave,
+                });
+              }
+
+              return json({
+                ...resultado,
+                xmlNfeProc: nfeProc,
+                caminhoXml,
+                chave,
+              });
+            }
+          }
+        } catch (e) {
+          log.error("Falha ao montar nfeProc (autorização preservada)", {
+            erro: (e as Error).message,
+          });
+        }
+      }
+
       return json(resultado);
     }
 
