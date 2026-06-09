@@ -41,6 +41,50 @@ export interface DistDFeResponse {
   erro?: string;
 }
 
+export interface DistDFeStatus {
+  sucesso: boolean;
+  proxyEnabled: boolean;
+  hasProxyUrl: boolean;
+  hasProxySecret: boolean;
+  flagAtiva: boolean;
+  flagLen: number;
+  transporte: "cf-worker-mtls" | "deno-mtls-direto" | string;
+  erro?: string;
+}
+
+/**
+ * Consulta status de transporte (Worker mTLS) sem disparar SEFAZ.
+ * Usado pelo Histórico DistDF-e para exibir indicador visual de saúde.
+ */
+export async function obterStatusDistDFe(): Promise<DistDFeStatus> {
+  const { data, error } = await supabase.functions.invoke<DistDFeStatus>(
+    "sefaz-distdfe",
+    { body: { action: "status" } },
+  );
+  if (error) {
+    return {
+      sucesso: false,
+      proxyEnabled: false,
+      hasProxyUrl: false,
+      hasProxySecret: false,
+      flagAtiva: false,
+      flagLen: 0,
+      transporte: "desconhecido",
+      erro: error.message,
+    };
+  }
+  return data ?? {
+    sucesso: false,
+    proxyEnabled: false,
+    hasProxyUrl: false,
+    hasProxySecret: false,
+    flagAtiva: false,
+    flagLen: 0,
+    transporte: "desconhecido",
+    erro: "Sem resposta",
+  };
+}
+
 /**
  * Consulta documentos novos a partir do último NSU sincronizado para o CNPJ.
  * Persiste resultados e devolve estatística da sincronização.
