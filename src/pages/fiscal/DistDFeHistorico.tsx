@@ -65,6 +65,19 @@ export default function DistDFeHistorico() {
   const [aplicandoLote, setAplicandoLote] = useState(false);
   const [status, setStatus] = useState<DistDFeStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [lastResult, setLastResult] = useState<
+    | {
+        ambiente: "1" | "2";
+        ranAt: string;
+        sucesso: boolean;
+        novos: number;
+        duplicados: number;
+        cStat?: string;
+        xMotivo?: string;
+        erro?: string;
+      }
+    | null
+  >(null);
 
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -98,12 +111,34 @@ export default function DistDFeHistorico() {
 
   const executarAgora = async (ambiente: "1" | "2") => {
     setRunning(true);
+    const startedAt = new Date().toISOString();
     try {
       const r = await sincronizarDistDFe(ambiente);
-      if (r.sucesso) {
+      const nada = (r.novos ?? 0) === 0 && (r.duplicados ?? 0) === 0;
+      const cStat656 = r.cStat === "656";
+      setLastResult({
+        ambiente,
+        ranAt: startedAt,
+        sucesso: r.sucesso,
+        novos: r.novos,
+        duplicados: r.duplicados,
+        cStat: r.cStat,
+        xMotivo: r.xMotivo,
+        erro: r.erro,
+      });
+      if (r.sucesso && !cStat656) {
         toast({
           title: "Sincronização concluída",
-          description: `${r.novos} nova(s), ${r.duplicados} existente(s).`,
+          description: nada
+            ? `Nenhum documento novo no Ambiente Nacional (cStat ${r.cStat ?? "—"} ${r.xMotivo ?? ""}).`
+            : `${r.novos} nova(s), ${r.duplicados} existente(s).`,
+        });
+      } else if (cStat656) {
+        toast({
+          title: "SEFAZ recusou (cStat 656 — Consumo Indevido)",
+          description:
+            "O Ambiente Nacional pediu para aguardar ~1 hora antes da próxima consulta deste CNPJ. Tente novamente mais tarde.",
+          variant: "destructive",
         });
       } else {
         toast({
@@ -112,6 +147,10 @@ export default function DistDFeHistorico() {
           variant: "destructive",
         });
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLastResult({ ambiente, ranAt: startedAt, sucesso: false, novos: 0, duplicados: 0, erro: msg });
+      toast({ title: "Erro ao chamar edge function", description: msg, variant: "destructive" });
     } finally {
       setRunning(false);
       void carregar();
@@ -209,6 +248,44 @@ export default function DistDFeHistorico() {
         <div className="rounded-md border border-muted px-4 py-3 flex items-center gap-3">
           <ShieldQuestion className="h-5 w-5 text-muted-foreground shrink-0" />
           <div className="text-sm text-muted-foreground">Status de transporte SEFAZ indisponível.</div>
+        </div>
+      )}
+
+      {lastResult && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            lastResult.sucesso && lastResult.cStat !== "656"
+              ? "border-emerald-500/40 bg-emerald-500/5"
+              : "border-destructive/40 bg-destructive/5"
+          }`}
+        >
+          <div className="font-medium">
+            Última execução manual — Ambiente {lastResult.ambiente === "1" ? "Produção" : "Homologação"} (
+            {format(new Date(lastResult.ranAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })})
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+            <div>
+              <strong>Resultado:</strong>{" "}
+              {lastResult.sucesso
+                ? lastResult.cStat === "656"
+                  ? "Recusado — Consumo Indevido (cStat 656)"
+                  : "Concluído"
+                : "Falha"}
+            </div>
+            {lastResult.cStat && (
+              <div>
+                <strong>cStat:</strong> {lastResult.cStat} {lastResult.xMotivo ? `— ${lastResult.xMotivo}` : ""}
+              </div>
+            )}
+            <div>
+              <strong>Documentos:</strong> {lastResult.novos} nova(s), {lastResult.duplicados} existente(s)
+            </div>
+            {lastResult.erro && (
+              <div className="break-words">
+                <strong>Erro:</strong> {lastResult.erro}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
