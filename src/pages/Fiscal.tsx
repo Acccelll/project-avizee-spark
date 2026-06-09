@@ -1717,8 +1717,10 @@ const Fiscal = () => {
           loading={loading}
           pageSize={PAGE_SIZE}
           serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
-          initialSortKey={sortKey}
-          initialSortDir={sortAsc ? "asc" : "desc"}
+          defaultSortKey={sortKey}
+          defaultSortDir={sortAsc ? "asc" : "desc"}
+          serverSortKey={sortKey}
+          serverSortDir={sortAsc ? "asc" : "desc"}
           onServerSort={(key, dir) => {
             if (!key || !dir) {
               setSortKey("data_emissao");
