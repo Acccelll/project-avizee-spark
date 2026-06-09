@@ -251,6 +251,44 @@ export default function DistDFeHistorico() {
         </div>
       )}
 
+      {lastResult && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            lastResult.sucesso && lastResult.cStat !== "656"
+              ? "border-emerald-500/40 bg-emerald-500/5"
+              : "border-destructive/40 bg-destructive/5"
+          }`}
+        >
+          <div className="font-medium">
+            Última execução manual — Ambiente {lastResult.ambiente === "1" ? "Produção" : "Homologação"} (
+            {format(new Date(lastResult.ranAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })})
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+            <div>
+              <strong>Resultado:</strong>{" "}
+              {lastResult.sucesso
+                ? lastResult.cStat === "656"
+                  ? "Recusado — Consumo Indevido (cStat 656)"
+                  : "Concluído"
+                : "Falha"}
+            </div>
+            {lastResult.cStat && (
+              <div>
+                <strong>cStat:</strong> {lastResult.cStat} {lastResult.xMotivo ? `— ${lastResult.xMotivo}` : ""}
+              </div>
+            )}
+            <div>
+              <strong>Documentos:</strong> {lastResult.novos} nova(s), {lastResult.duplicados} existente(s)
+            </div>
+            {lastResult.erro && (
+              <div className="break-words">
+                <strong>Erro:</strong> {lastResult.erro}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Execuções (últimas 50)</CardTitle></CardHeader>
