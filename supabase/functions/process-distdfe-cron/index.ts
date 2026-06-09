@@ -387,13 +387,62 @@ Deno.serve(async (req) => {
         const { error: upErr, data: upData } = await admin
           .from("nfe_distribuicao")
           .upsert(payload, { onConflict: "chave_acesso", ignoreDuplicates: false })
-          .select("id")
+          .select("id, status_manifestacao")
           .maybeSingle();
         if (upErr) {
           if ((upErr as { code?: string }).code === "23505") duplicados++;
           continue;
         }
         if (upData) novos++;
+
+        // Para resumos (resNFe) ainda sem manifestação, dispara Ciência
+        // server-side (210210) e, se aceita, baixa o XML completo da chave.
+        if (tipoDoc === "resNFe") {
+          const statusAtual = (upData as { status_manifestacao?: string } | null)
+            ?.status_manifestacao ?? "sem_manifestacao";
+          const cnpjEmpresa = data.cnpj ?? "";
+          if (statusAtual === "sem_manifestacao" && cnpjEmpresa) {
+            const cienciaResult = await enviarCienciaServerSide(
+              d.chave!,
+              cnpjEmpresa,
+              ambiente,
+              supabaseUrl,
+              serviceRoleKey,
+              anonKey,
+            );
+            if (cienciaResult.sucesso) {
+              await admin
+                .from("nfe_distribuicao")
+                .update({
+                  status_manifestacao: "ciencia_operacao",
+                  data_manifestacao: new Date().toISOString(),
+                  ciencia_automatica_at: new Date().toISOString(),
+                  protocolo_autorizacao: cienciaResult.protocolo ?? null,
+                })
+                .eq("chave_acesso", d.chave!);
+
+              const xmlCompleto = await baixarXmlCompletoChave(
+                d.chave!,
+                ambiente,
+                supabaseUrl,
+                serviceRoleKey,
+                anonKey,
+              );
+              if (xmlCompleto) {
+                await admin
+                  .from("nfe_distribuicao")
+                  .update({ xml_nfe: xmlCompleto })
+                  .eq("chave_acesso", d.chave!);
+              }
+            } else {
+              log.warn("Ciência automática falhou", {
+                chave: d.chave,
+                cStat: cienciaResult.cStat,
+                motivo: cienciaResult.motivo,
+              });
+            }
+          }
+        }
       }
 
       // Atualiza nfe_distdfe_sync
