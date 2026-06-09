@@ -1345,12 +1345,17 @@ const Fiscal = () => {
 
   useResetPageOnFiltersChange(serverFilters, setPage);
 
+  // Ordenação server-side (RPC `listar_notas_fiscais_ids` aceita data_emissao, numero, valor_total, created_at)
+  type FiscalSortKey = "data_emissao" | "numero" | "valor_total" | "created_at";
+  const [sortKey, setSortKey] = useState<FiscalSortKey>("data_emissao");
+  const [sortAsc, setSortAsc] = useState<boolean>(false);
+
   const {
     data: pagedData,
     totalCount,
     loading,
     refetch: refetchPaged,
-  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE);
+  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE, { orderBy: sortKey, ascending: sortAsc });
 
   // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
   const data = pagedData;
