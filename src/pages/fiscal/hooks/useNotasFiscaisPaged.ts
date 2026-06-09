@@ -43,9 +43,12 @@ export function useNotasFiscaisPaged(
   filters: NotasFiscaisPagedFilters,
   page: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
+  sort: { orderBy?: "data_emissao" | "numero" | "valor_total" | "created_at"; ascending?: boolean } = {},
 ) {
   const qc = useQueryClient();
-  const queryKey = ["notas_fiscais", "paged", filters, page, pageSize] as const;
+  const orderBy = sort.orderBy ?? "data_emissao";
+  const ascending = sort.ascending ?? false;
+  const queryKey = ["notas_fiscais", "paged", filters, page, pageSize, orderBy, ascending] as const;
 
   const query = useQuery<PageResult>({
     queryKey,
@@ -64,8 +67,8 @@ export function useNotasFiscaisPaged(
           p_fornecedores: filters.fornecedores?.length ? filters.fornecedores : null,
           p_clientes: filters.clientes?.length ? filters.clientes : null,
           p_search: filters.search?.trim() || null,
-          p_order_by: "data_emissao",
-          p_ascending: false,
+          p_order_by: orderBy,
+          p_ascending: ascending,
           p_offset: offset,
           p_limit: pageSize,
         },

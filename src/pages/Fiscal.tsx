@@ -1345,12 +1345,17 @@ const Fiscal = () => {
 
   useResetPageOnFiltersChange(serverFilters, setPage);
 
+  // Ordenação server-side (RPC `listar_notas_fiscais_ids` aceita data_emissao, numero, valor_total, created_at)
+  type FiscalSortKey = "data_emissao" | "numero" | "valor_total" | "created_at";
+  const [sortKey, setSortKey] = useState<FiscalSortKey>("data_emissao");
+  const [sortAsc, setSortAsc] = useState<boolean>(false);
+
   const {
     data: pagedData,
     totalCount,
     loading,
     refetch: refetchPaged,
-  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE);
+  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE, { orderBy: sortKey, ascending: sortAsc });
 
   // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
   const data = pagedData;
@@ -1454,6 +1459,7 @@ const Fiscal = () => {
     {
       key: "numero",
       label: "Nº Nota",
+      serverSortable: true,
       render: (n: NotaFiscal) => (
         <span className="font-mono text-sm font-bold text-primary">{n.numero}</span>
       ),
@@ -1477,6 +1483,7 @@ const Fiscal = () => {
       key: "data_emissao",
       label: "Emissão",
       sortable: true,
+      serverSortable: true,
       render: (n: NotaFiscal) => formatDate(n.data_emissao),
     },
     {
@@ -1488,6 +1495,7 @@ const Fiscal = () => {
       key: "valor_total",
       label: "Total",
       sortable: true,
+      serverSortable: true,
       render: (n: NotaFiscal) => (
         <span className="font-semibold font-mono">{formatCurrency(Number(n.valor_total))}</span>
       ),
@@ -1709,6 +1717,20 @@ const Fiscal = () => {
           loading={loading}
           pageSize={PAGE_SIZE}
           serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
+          defaultSortKey={sortKey}
+          defaultSortDir={sortAsc ? "asc" : "desc"}
+          serverSortKey={sortKey}
+          serverSortDir={sortAsc ? "asc" : "desc"}
+          onServerSort={(key, dir) => {
+            if (!key || !dir) {
+              setSortKey("data_emissao");
+              setSortAsc(false);
+            } else {
+              setSortKey(key as FiscalSortKey);
+              setSortAsc(dir === "asc");
+            }
+            setPage(0);
+          }}
           moduleKey={tipoConfig.moduleKey}
           showColumnToggle={true}
           onView={openView}
