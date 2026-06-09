@@ -1,34 +1,44 @@
-## Correções para habilitar emissão de NF-e (modelo 55) na SEFAZ
+## Diagnóstico (confirmado pelos logs)
 
-Aplicar as 4 correções (3 obrigatórias + 1 opcional recomendada) nos arquivos indicados. Escopo restrito: apenas o que bloqueia a transmissão da autorização. Nada do restante do módulo fiscal (consulta, DistDFe, eventos, pré-validação) é tocado.
+Toda chamada do `sefaz-distdfe` falha em transporte com `Connection reset by peer (os error 104)` antes mesmo de a SEFAZ olhar o envelope SOAP. Isso ocorre porque o egress do edge runtime sai por IPs fora do Brasil, e a SEFAZ reseta a conexão TLS.
 
-### Arquivos modificados
+A linha `transporte resolvido` no log prova que o **Cloudflare Worker mTLS proxy já está provisionado** (`hasProxyUrl: true`, `hasProxySecret: true`, `proxySecretLen: 64`), mas a flag de ativação está com valor inválido:
 
-1. **`src/services/fiscal/sefaz/xmlBuilder.service.ts`**
-   - Substituir `construirXMLNFe` para gerar `<enviNFe versao="4.00">` compacto (síncrono, `idLote=1`, `indSinc=1`), sem `<?xml?>` e sem espaços/quebras entre tags (MOC §4.2.1.3).
-   - Substituir `buildItem` para aceitar `crt` e delegar o grupo ICMS a um novo helper `buildIcmsGroup`.
-   - Adicionar `buildIcmsGroup(item, crt)` com ramos ICMSSN/CSOSN (CRT=1/2) e ICMS/CST (CRT=3). Cobre CSOSN 101/102/103/300/400/500/900.
-   - Forçar `dest/xNome = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"` quando `tpAmb=2` (regra E04-20 / Rej. 598).
-   - Verificar se a função `buildItem` é chamada em outros pontos (testes) e ajustar a assinatura.
+```
+"proxyEnabled": false,
+"proxyFlagLen": 23,
+"usarProxy": false,
+"transporte": "deno-mtls"
+```
 
-2. **`supabase/functions/sefaz-proxy/index.ts`**
-   - Substituir `assinarXml` para injetar `xmlns="http://www.portalfiscal.inf.br/nfe"` no `<infNFe>` antes do digest SHA-1 (corrige Rej. 297/298).
-   - Na action `assinar-e-enviar-vault`, trocar `enviarSoap(...)` por `enviarSoapMtls(...)` usando `pfxToPem` (cert+key) — mTLS obrigatório (MOC §4.2.2).
-   - Em `enviarSoapMtls`, derivar `dadosMsgNs = soapAction.replace(/\/[^/]+$/, "")` e usar no `xmlns:nfe` do `nfeDadosMsg` (passo 4 opcional, recomendado).
-   - Manter `enviarSoap` removida ou marcada como morta (sem uso).
+`proxyFlagLen: 23` significa que o secret `SEFAZ_USE_MTLS_PROXY` contém 23 caracteres (provavelmente algo como `"ativar"`, um UUID curto, ou texto descritivo). O código só ativa o Worker quando o valor é exatamente `"true"`, `"1"` ou `"on"` — então cai no transporte direto `deno-mtls` e leva RST.
 
-3. **`src/services/fiscal/sefaz/autorizacao.service.ts`**
-   - Já contém o parsing correto de `protNFe/infProt/cStat` com aceitação de `100` e `150`. Conferir que continua intacto após os demais passos (nenhuma reescrita).
+O mesmo defeito afeta `sefaz-proxy` (emissão de NF-e modelo 55), pois ambas as functions compartilham a mesma lógica de seleção de transporte. Nenhuma chamada à SEFAZ vai funcionar enquanto a flag não estiver correta.
 
-### Pós-implementação
+## Correção
 
-- Re-deploy automático do `sefaz-proxy` (Lovable Cloud).
-- Validações sugeridas em homologação (cStat=100, nProt) ficam por conta do usuário com `ambiente_sefaz="2"` e A1 já no Storage.
+Atualizar o valor do secret `SEFAZ_USE_MTLS_PROXY` para exatamente `true` (sem aspas, sem espaços).
 
-### Fora de escopo
+Passos:
 
-- Modo assíncrono (`indSinc=0` + `NfeRetAutorizacao`).
-- Montagem e persistência do `nfeProc` autorizado.
-- Validação XSD local.
-- `vTotTrib` por item.
-- Ajustes em `nfeBuilders.service.ts` para popular CSOSN a partir do cadastro (só necessário se a empresa for Simples Nacional — fica como follow-up condicional).
+1. Abrir o formulário seguro de update de secret para `SEFAZ_USE_MTLS_PROXY` e você digita `true`.
+2. Aguardar o cold-start das edge functions (poucos segundos — o secret é lido a cada request).
+3. Validar:
+   - chamar `sefaz-distdfe` action `consultar-nsu` em homologação (`ambiente=2`) pela própria UI `/fiscal/distdfe-historico`;
+   - inspecionar o log e confirmar que aparece `"proxyEnabled": true`, `"usarProxy": true`, `"transporte": "cf-worker"` (ou rótulo equivalente do Worker) e cStat válido (`137`/`138` se sem documentos, `656`/`108` se ambiente caiu — não mais `CONNECTION_RESET`);
+   - testar o mesmo caminho em produção (`ambiente=1`).
+
+## O que NÃO muda
+
+- Nenhum arquivo de código é alterado.
+- Nenhuma migração de banco.
+- Nenhuma mudança no XML, C14N, certificado A1, schema da `nfe_distribuicao` ou no fluxo de Ciência automática.
+- Worker no Cloudflare permanece como está (já provisionado e testado por `proxySecretLen: 64`).
+
+## Risco
+
+Baixíssimo: a única mudança é um secret de configuração. Se o valor ficar incorreto novamente, o comportamento volta ao estado atual (RST) — não há regressão silenciosa.
+
+## Pós-correção (opcional, fora deste plano)
+
+Se quiser, posso em um segundo passo tornar o código tolerante a `True`/`TRUE`/`yes`/`on` e logar explicitamente o valor recebido (mascarado) quando o proxy for ignorado, para evitar que este mesmo erro retorne. Diga depois se quer que eu faça.
