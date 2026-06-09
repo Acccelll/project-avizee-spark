@@ -12,6 +12,10 @@ export interface SefazResponse {
   xmlRetorno?: string;
   erro?: string;
   statusHttp?: number;
+  /** nfeProc montado server-side (NFe assinada + protNFe). */
+  xmlNfeProc?: string;
+  /** Caminho do nfeProc no Storage privado (dbavizee/nfe-autorizadas/<chave>.xml). */
+  caminhoXml?: string | null;
 }
 
 export interface SefazRequestOptions {
@@ -88,6 +92,8 @@ export async function enviarParaSefaz(
           sucesso: data.sucesso ?? false,
           xmlRetorno: data.xmlRetorno,
           erro: data.erro,
+          xmlNfeProc: data.xmlNfeProc,
+          caminhoXml: data.caminhoXml ?? null,
         };
       }
 

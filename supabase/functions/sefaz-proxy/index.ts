@@ -225,6 +225,7 @@ async function enviarSoapMtls(
   xmlRetorno?: string;
   erro?: string;
   statusHttp?: number;
+  codigoTransporte?: string;
 }> {
   // Namespace do nfeDadosMsg = parte do serviço do SOAPAction.
   // Ex.: http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote
@@ -238,42 +239,94 @@ async function enviarSoapMtls(
   </soapenv:Body>
 </soapenv:Envelope>`;
 
-  let client: Deno.HttpClient | undefined;
-  try {
-    // @ts-ignore — http1/http2 são opções específicas do Deno e os legados
-    // SEFAZ exigem HTTP/1.1.
-    client = Deno.createHttpClient({
-      cert: certPem,
-      key: keyPem,
-      http1: true,
-      http2: false,
-    });
-  } catch (e) {
+  // ── Gate de transporte (mesmo padrão do sefaz-distdfe) ──────────
+  // Opt-in: o Worker mTLS só é usado quando SEFAZ_USE_MTLS_PROXY estiver
+  // EXPLICITAMENTE setada (1/true/yes/on/sim) E os dois secrets do Worker
+  // existirem. Default = deno-mtls direto contra a SEFAZ. O Ambiente Nacional
+  // geo-bloqueia chamadas fora do Brasil e EXIGE o Worker.
+  const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
+  const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
+  const proxyFlagRaw = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim()
+    .replace(/^["']|["']$/g, "").toLowerCase();
+  const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagRaw);
+  const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
+
+  if (proxyEnabled && (!proxyUrl || !proxySecret)) {
     return {
       sucesso: false,
-      erro: `Falha ao criar cliente mTLS: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
+      erro:
+        "SEFAZ_USE_MTLS_PROXY=1 está ativo mas faltam SEFAZ_MTLS_PROXY_URL e/ou SEFAZ_MTLS_PROXY_SECRET. Reconfigure os secrets do Worker mTLS.",
+      codigoTransporte: "WORKER_CONFIG_MISSING",
     };
+  }
+
+  let client: Deno.HttpClient | undefined;
+  if (!usarProxy) {
+    try {
+      // @ts-ignore — http1/http2 são opções específicas do Deno e os legados
+      // SEFAZ exigem HTTP/1.1.
+      client = Deno.createHttpClient({
+        cert: certPem,
+        key: keyPem,
+        http1: true,
+        http2: false,
+      });
+    } catch (e) {
+      return {
+        sucesso: false,
+        erro: `Falha ao criar cliente mTLS: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      };
+    }
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        SOAPAction: soapAction,
-      },
-      body: envelope,
-      // @ts-ignore — option client é específica do Deno
-      client,
-      signal: controller.signal,
-    });
+    const response = usarProxy
+      ? await fetch(proxyUrl!, {
+          method: "POST",
+          headers: {
+            "x-proxy-secret": proxySecret!,
+            "x-target-url": url,
+            "Content-Type": "text/xml; charset=utf-8",
+            soapaction: soapAction,
+          },
+          body: envelope,
+          signal: controller.signal,
+        })
+      : await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/xml; charset=utf-8",
+            SOAPAction: soapAction,
+          },
+          body: envelope,
+          // @ts-ignore — option client é específica do Deno
+          client: client!,
+          signal: controller.signal,
+        });
     clearTimeout(timer);
     const xmlRetorno = await response.text();
+
+    // 401/400 curtos do Worker = erro de configuração do próprio Worker
+    // (secret errado, URL inválida), não resposta da SEFAZ.
+    if (
+      usarProxy &&
+      (response.status === 401 || response.status === 400) &&
+      xmlRetorno.length < 200
+    ) {
+      return {
+        sucesso: false,
+        erro: `Worker mTLS rejeitou requisição (HTTP ${response.status}): ${xmlRetorno}`,
+        statusHttp: response.status,
+        xmlRetorno,
+        codigoTransporte: "WORKER_ERROR",
+      };
+    }
+
     if (!response.ok) {
       return {
         sucesso: false,
@@ -467,6 +520,69 @@ Deno.serve(async (req) => {
         certPem,
         keyPem,
       );
+
+      // ── Pós-autorização: montar e guardar o nfeProc ──────────────
+      // O documento fiscal legal (MOC 7.0) é nfeProc = NFe ASSINADA + protNFe,
+      // guardado por 5 anos e distribuído ao destinatário. Sem ele não há
+      // DANFE nem SPED.
+      const ehAutorizacao = soapAction.includes("NFeAutorizacao4");
+      if (ehAutorizacao && resultado.sucesso && resultado.xmlRetorno) {
+        try {
+          const blocoProt = resultado.xmlRetorno
+            .match(/<protNFe[^>]*>[\s\S]*?<\/protNFe>/)?.[0];
+          const cStatNFe = blocoProt?.match(/<cStat>(\d+)<\/cStat>/)?.[1];
+          const autorizada = cStatNFe === "100" || cStatNFe === "150";
+
+          if (autorizada && blocoProt) {
+            const nfeAssinada = xmlAssinado.match(/<NFe[\s\S]*?<\/NFe>/)?.[0];
+            const chave = nfeAssinada?.match(/Id="NFe(\d{44})"/)?.[1];
+
+            if (nfeAssinada && chave) {
+              const nfeProc =
+                `<?xml version="1.0" encoding="UTF-8"?>` +
+                `<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+                nfeAssinada +
+                blocoProt +
+                `</nfeProc>`;
+
+              const caminhoXml = `nfe-autorizadas/${chave}.xml`;
+              const { error: upXmlErr } = await adminClient.storage
+                .from("dbavizee")
+                .upload(
+                  caminhoXml,
+                  new Blob([nfeProc], { type: "application/xml" }),
+                  { upsert: true, contentType: "application/xml" },
+                );
+
+              if (upXmlErr) {
+                // Não derruba a autorização — a NF-e FOI autorizada na SEFAZ.
+                log.error("Falha ao subir nfeProc no Storage", {
+                  chave,
+                  erro: upXmlErr.message,
+                });
+                return json({
+                  ...resultado,
+                  xmlNfeProc: nfeProc,
+                  caminhoXml: null,
+                  chave,
+                });
+              }
+
+              return json({
+                ...resultado,
+                xmlNfeProc: nfeProc,
+                caminhoXml,
+                chave,
+              });
+            }
+          }
+        } catch (e) {
+          log.error("Falha ao montar nfeProc (autorização preservada)", {
+            erro: (e as Error).message,
+          });
+        }
+      }
+
       return json(resultado);
     }
 

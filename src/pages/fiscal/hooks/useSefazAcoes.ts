@@ -198,6 +198,18 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
           xmlRetorno: result.xmlAutorizado ?? null,
           payloadResumido: { protocolo: result.protocolo, status: result.status },
         });
+        // Persiste o caminho do nfeProc no Storage + flag de XML gerado.
+        if (result.sucesso && result.caminhoXml) {
+          try {
+            await updateNotaFiscalCampo(nfAtual.id, {
+              caminho_xml: result.caminhoXml,
+              xml_gerado: true,
+            });
+          } catch (e) {
+            // Falha ao registrar caminho não invalida a autorização SEFAZ.
+            console.warn("Falha ao persistir caminho_xml da NF-e:", e);
+          }
+        }
         setUltimoRetorno({
           protocolo: result.protocolo,
           status: result.status,

@@ -106,7 +106,12 @@ async function enviarCienciaServerSide(
   serviceRoleKey: string,
   anonKey: string,
 ): Promise<{ sucesso: boolean; protocolo?: string; cStat?: string; motivo?: string }> {
-  const dhEvento = new Date().toISOString().replace(/\.\d+Z$/, "-03:00");
+  // Horário de Brasília (UTC-3 fixo — BR não tem horário de verão desde 2019).
+  // toISOString() devolve UTC; subtraímos 3h para que o instante representado
+  // por "<hora>-03:00" seja o agora real, e não 3h no futuro (rejeição 578).
+  const dhEvento = new Date(Date.now() - 3 * 60 * 60 * 1000)
+    .toISOString()
+    .replace(/\.\d+Z$/, "-03:00");
   const xml = xmlCiencia(chave, cnpj, ambiente, dhEvento);
   const url = urlAnRecepcaoEvento(ambiente);
 
