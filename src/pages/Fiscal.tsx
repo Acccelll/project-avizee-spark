@@ -1459,6 +1459,7 @@ const Fiscal = () => {
     {
       key: "numero",
       label: "Nº Nota",
+      serverSortable: true,
       render: (n: NotaFiscal) => (
         <span className="font-mono text-sm font-bold text-primary">{n.numero}</span>
       ),
@@ -1482,6 +1483,7 @@ const Fiscal = () => {
       key: "data_emissao",
       label: "Emissão",
       sortable: true,
+      serverSortable: true,
       render: (n: NotaFiscal) => formatDate(n.data_emissao),
     },
     {
@@ -1493,6 +1495,7 @@ const Fiscal = () => {
       key: "valor_total",
       label: "Total",
       sortable: true,
+      serverSortable: true,
       render: (n: NotaFiscal) => (
         <span className="font-semibold font-mono">{formatCurrency(Number(n.valor_total))}</span>
       ),
