@@ -85,6 +85,42 @@ export async function obterStatusDistDFe(): Promise<DistDFeStatus> {
   };
 }
 
+export interface WorkerPingResult {
+  sucesso: boolean;
+  ambiente: "1" | "2";
+  targetUrl?: string;
+  statusHttp?: number;
+  statusText?: string;
+  bytes?: number;
+  preview?: string;
+  diagnostico?: string;
+  erro?: string;
+}
+
+/**
+ * Faz um GET ao WSDL do NFeDistribuicaoDFe através do Cloudflare Worker mTLS,
+ * sem montar envelope SOAP. Isola binding/allowlist do envelope.
+ */
+export async function testarWorkerDistDFe(
+  ambiente: "1" | "2",
+): Promise<WorkerPingResult> {
+  const { data, error } = await supabase.functions.invoke<WorkerPingResult>(
+    "sefaz-distdfe",
+    { body: { action: "worker-ping", ambiente } },
+  );
+  if (error) {
+    return { sucesso: false, ambiente, erro: error.message, diagnostico: error.message };
+  }
+  return (
+    data ?? {
+      sucesso: false,
+      ambiente,
+      erro: "Sem resposta",
+      diagnostico: "Sem resposta",
+    }
+  );
+}
+
 /**
  * Consulta documentos novos a partir do último NSU sincronizado para o CNPJ.
  * Persiste resultados e devolve estatística da sincronização.
