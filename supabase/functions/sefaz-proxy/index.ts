@@ -51,19 +51,27 @@ async function getVaultSecretByName(
 
 // ── Autenticação JWT ─────────────────────────────────────────────
 
-async function requireAuth(req: Request) {
+async function requireAuth(
+  req: Request,
+): Promise<{ id: string; email?: string; isService: boolean }> {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Token de autenticação ausente.");
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  // Chamadas sistema-a-sistema (pg_cron, process-distdfe-cron) enviam o
+  // SERVICE_ROLE_KEY diretamente — não são sessões de usuário. Bypass seguro:
+  // o secret só existe no runtime das edge functions, nunca no client.
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (token === serviceRoleKey) {
+    return { id: "service", email: "", isService: true };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
-  return data.user;
+  return { id: data.user.id, email: data.user.email, isService: false };
 }
 
 /**
@@ -324,12 +332,16 @@ Deno.serve(async (req) => {
         400,
       );
     }
-    try {
-      await requireAnyPermission(user.id, allowed);
-    } catch (permErr: any) {
-      const status = permErr?.status === 403 ? 403 : 500;
-      log.warn("permission denied", { action, userId: user.id, message: permErr?.message });
-      return json({ error: permErr.message ?? "Permissão negada" }, status);
+    // Chamadas de serviço (cron) têm privilégio implícito — o token service
+    // role só existe no backend, nunca exposto ao client.
+    if (!user.isService) {
+      try {
+        await requireAnyPermission(user.id, allowed);
+      } catch (permErr: any) {
+        const status = permErr?.status === 403 ? 403 : 500;
+        log.warn("permission denied", { action, userId: user.id, message: permErr?.message });
+        return json({ error: permErr.message ?? "Permissão negada" }, status);
+      }
     }
 
     // ── Health check leve ──────────────────────────────────────────
