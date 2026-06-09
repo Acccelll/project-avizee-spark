@@ -65,6 +65,19 @@ export default function DistDFeHistorico() {
   const [aplicandoLote, setAplicandoLote] = useState(false);
   const [status, setStatus] = useState<DistDFeStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [lastResult, setLastResult] = useState<
+    | {
+        ambiente: "1" | "2";
+        ranAt: string;
+        sucesso: boolean;
+        novos: number;
+        duplicados: number;
+        cStat?: string;
+        xMotivo?: string;
+        erro?: string;
+      }
+    | null
+  >(null);
 
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -98,12 +111,34 @@ export default function DistDFeHistorico() {
 
   const executarAgora = async (ambiente: "1" | "2") => {
     setRunning(true);
+    const startedAt = new Date().toISOString();
     try {
       const r = await sincronizarDistDFe(ambiente);
-      if (r.sucesso) {
+      const nada = (r.novos ?? 0) === 0 && (r.duplicados ?? 0) === 0;
+      const cStat656 = r.cStat === "656";
+      setLastResult({
+        ambiente,
+        ranAt: startedAt,
+        sucesso: r.sucesso,
+        novos: r.novos,
+        duplicados: r.duplicados,
+        cStat: r.cStat,
+        xMotivo: r.xMotivo,
+        erro: r.erro,
+      });
+      if (r.sucesso && !cStat656) {
         toast({
           title: "Sincronização concluída",
-          description: `${r.novos} nova(s), ${r.duplicados} existente(s).`,
+          description: nada
+            ? `Nenhum documento novo no Ambiente Nacional (cStat ${r.cStat ?? "—"} ${r.xMotivo ?? ""}).`
+            : `${r.novos} nova(s), ${r.duplicados} existente(s).`,
+        });
+      } else if (cStat656) {
+        toast({
+          title: "SEFAZ recusou (cStat 656 — Consumo Indevido)",
+          description:
+            "O Ambiente Nacional pediu para aguardar ~1 hora antes da próxima consulta deste CNPJ. Tente novamente mais tarde.",
+          variant: "destructive",
         });
       } else {
         toast({
@@ -112,6 +147,10 @@ export default function DistDFeHistorico() {
           variant: "destructive",
         });
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLastResult({ ambiente, ranAt: startedAt, sucesso: false, novos: 0, duplicados: 0, erro: msg });
+      toast({ title: "Erro ao chamar edge function", description: msg, variant: "destructive" });
     } finally {
       setRunning(false);
       void carregar();
