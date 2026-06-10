@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllPages } from '@/services/relatorios/lib/fetchAllPages';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { FluxoCaixaFinanceiroRow } from '@/types/database-views';
@@ -41,19 +42,20 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
           ? range.dateFrom
           : sixMonthsAgoStr;
 
-      const { data: rows } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            gte: (col: string, val: string) => Promise<{
-              data: FluxoCaixaFinanceiroRow[] | null;
-              error: unknown;
-            }>;
+      // Frente 4 — paginação universal: a view consolida realizados+previstos
+      // num horizonte >6 meses; pode ultrapassar 1000 linhas em volumes médios.
+      const rows = await fetchAllPages<FluxoCaixaFinanceiroRow>(() =>
+        (supabase as unknown as {
+          from: (t: string) => {
+            select: (cols: string) => {
+              gte: (col: string, val: string) => unknown;
+            };
           };
-        };
-      })
-        .from('vw_fluxo_caixa_financeiro')
-        .select('tipo, valor, data_ref, categoria')
-        .gte('data_ref', dateFrom);
+        })
+          .from('vw_fluxo_caixa_financeiro')
+          .select('tipo, valor, data_ref, categoria')
+          .gte('data_ref', dateFrom) as never,
+      );
 
       const realMap = new Map<string, { entradas_real: number; saidas_real: number }>();
       const prevMap = new Map<string, { entradas_prev: number; saidas_prev: number }>();

@@ -100,6 +100,9 @@ export function GrupoEconomicoView({ id }: Props) {
     const empresaIds = (empresas || []).map((e) => e.id);
     let financeiro: FinanceiroAggRow[] = [];
     if (empresaIds.length > 0) {
+      // TODO(agregacao-sql): saldo consolidado + contagem de vencidos por
+      // grupo deve virar RPC. Hoje materializa todos os títulos no client e
+      // está exposto a truncamento em 1000 linhas (Frente 4).
       const { data: fin } = await supabase
         .from("financeiro_lancamentos")
         .select("cliente_id, status, saldo_restante, valor, data_vencimento")

@@ -247,6 +247,9 @@ const GruposEconomicos = () => {
       setModalEmpresas(clientesList);
       const clienteIds = clientesList.map((c) => c.id);
       if (clienteIds.length > 0) {
+        // TODO(agregacao-sql): consolidação de saldo/vencidos por grupo deve
+        // virar RPC (SUM/COUNT no banco). Hoje agrega no cliente e está
+        // exposta a truncamento em 1000 títulos por grupo (Frente 4).
         const { data: titulos } = await supabase
           .from("financeiro_lancamentos")
           .select("valor, status")
