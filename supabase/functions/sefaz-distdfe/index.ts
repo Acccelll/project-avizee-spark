@@ -371,12 +371,19 @@ Deno.serve(async (req) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15_000);
       try {
+        // IMPORTANTE: o Worker só aceita POST (GET retorna 405 do PRÓPRIO Worker,
+        // sem nunca tocar a SEFAZ — o que tornava este ping inútil). Enviamos um
+        // POST com corpo mínimo: se o handshake mTLS Worker→SEFAZ funcionar, a
+        // SEFAZ devolve ALGUMA resposta HTTP (400/415/500 com corpo HTML/SOAP).
+        // Se o binding mTLS falhar, o Worker estoura exceção → 520/502.
         const resp = await fetch(proxyUrl, {
-          method: "GET",
+          method: "POST",
           headers: {
             "x-proxy-secret": proxySecret,
             "x-target-url": targetUrl,
+            "Content-Type": "application/soap+xml; charset=utf-8",
           },
+          body: "<ping/>",
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -384,20 +391,24 @@ Deno.serve(async (req) => {
         const preview = text.slice(0, 240);
         let diagnostico = "";
         const ok200 = resp.status === 200 && /<(wsdl:)?definitions|<\?xml/i.test(text);
-        // 405 é esperado num GET ao .asmx (SEFAZ só aceita POST SOAP).
-        // Qualquer resposta HTTP do SEFAZ (mesmo 4xx) prova que: TCP+TLS+mTLS do Worker estão OK e o binding cobre o hostname.
-        const reachable = resp.status === 405 || (resp.status >= 200 && resp.status < 500);
+        // Qualquer resposta HTTP da SEFAZ (mesmo 4xx/500 com corpo) prova que
+        // TCP+TLS+mTLS do Worker estão OK e o binding cobre o hostname.
+        // 500 SEM corpo ou 520 = exceção no Worker (handshake mTLS falhou).
+        const reachable = (resp.status >= 200 && resp.status < 500) ||
+          (resp.status === 500 && text.length > 0);
         const success = ok200 || reachable;
         if (ok200) {
           diagnostico = "OK — Worker alcança o endpoint e o mTLS está válido para este hostname (WSDL retornado).";
-        } else if (resp.status === 405) {
-          diagnostico = "OK — Worker alcançou o SEFAZ e o handshake mTLS funcionou. O 405 é esperado: este endpoint exige POST SOAP, não aceita GET. Binding/certificado válidos para este hostname.";
+        } else if (reachable && resp.status >= 400) {
+          diagnostico = `OK — Worker alcançou a SEFAZ e o handshake mTLS funcionou (HTTP ${resp.status} com ${text.length} bytes de corpo é resposta da própria SEFAZ ao corpo de teste). Binding/certificado válidos para este hostname.`;
         } else if (resp.status === 520) {
           diagnostico = "HTTP 520 — Worker lança exceção (provável binding mTLS não cobre este hostname no wrangler.toml, ou cert inválido para o ambiente).";
         } else if (resp.status === 525 || resp.status === 526) {
           diagnostico = `HTTP ${resp.status} — Falha de TLS no Worker. Verifique cadeia ICP-Brasil e validade do certificado A1.`;
         } else if ((resp.status === 400 || resp.status === 401 || resp.status === 403) && text.length < 200) {
           diagnostico = `HTTP ${resp.status} — Worker rejeitou a requisição antes de chamar o SEFAZ (secret incorreto ou header x-target-url ausente/bloqueado pelo allowlist do Worker).`;
+        } else if (resp.status === 500 && text.length === 0) {
+          diagnostico = "HTTP 500 sem corpo — exceção dentro do Worker ao falar com a SEFAZ (handshake mTLS falhou ou binding não cobre este hostname). Rode 'npx wrangler tail' para ver o stack trace.";
         } else if (resp.status >= 500) {
           diagnostico = `HTTP ${resp.status} — Worker ou upstream com erro. Rode 'npx wrangler tail' para ver o stack trace.`;
         } else {
