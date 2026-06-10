@@ -235,9 +235,9 @@ const Fiscal = () => {
   const confirmarMutation = useConfirmarNotaFiscal();
   const estornarMutation = useEstornarNotaFiscal();
   const { importXml } = useNFeXmlImport({
-    fornecedores: fornecedoresCrud.data,
-    produtos: produtosCrud.data,
-    clientes: clientesCrud.data,
+    fornecedores: fornecedores,
+    produtos: produtos,
+    clientes: clientes,
     cnpjEmpresa,
   });
 
@@ -538,7 +538,7 @@ const Fiscal = () => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
       const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
-      const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+      const matched = produtos.find((p) => p.id === t.produtoId);
       return {
         produto_id: t.produtoId,
         codigo: t.xmlCodigo,
@@ -731,11 +731,11 @@ const Fiscal = () => {
     const fornecedorParaAnexar = targetNf.fornecedor_id || fornecedorId || "";
     const clienteParaAnexar = targetNf.cliente_id || clienteId || "";
     const fornecedorNome =
-      fornecedoresCrud.data.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
+      fornecedores.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
       || nfe.emitente.razaoSocial
       || "—";
     const clienteNome =
-      clientesCrud.data.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
+      clientes.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
       || nfe.destinatario?.razaoSocial
       || "—";
 
@@ -783,8 +783,8 @@ const Fiscal = () => {
         return;
       }
       const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
-      const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
-      const clienteNome = clientesCrud.data.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
+      const fornecedorNome = fornecedores.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+      const clienteNome = clientes.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
 
       // NF de saída sem cliente cadastrado → quick-add com dados do destinatário.
       if (tipo === "saida" && !clienteId && nfe.destinatario?.cpfCnpj) {
@@ -856,7 +856,7 @@ const Fiscal = () => {
       const newItems: GridItem[] = linhas.map((t) => {
         const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
         const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
-        const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+        const matched = produtos.find((p) => p.id === t.produtoId);
         return {
           produto_id: t.produtoId,
           codigo: t.xmlCodigo,
@@ -1702,9 +1702,9 @@ const Fiscal = () => {
         setParcelasPlano={setParcelasPlano}
         saving={saving}
         onSubmit={handleSubmit}
-        fornecedores={fornecedoresCrud.data}
-        clientes={clientesCrud.data}
-        produtos={produtosCrud.data}
+        fornecedores={fornecedores}
+        clientes={clientes}
+        produtos={produtos}
         ordensVenda={ordensVenda}
         contasContabeis={contasContabeis}
         cartoes={cartoes}
@@ -1740,11 +1740,11 @@ const Fiscal = () => {
           saving={saving}
           onSubmit={handleSubmit}
           onCancelarRascunho={selected.status === "pendente" ? handleCancelarRascunho : undefined}
-          fornecedores={fornecedoresCrud.data}
-          clientes={clientesCrud.data}
+          fornecedores={fornecedores}
+          clientes={clientes}
           ordensVenda={ordensVenda}
           contasContabeis={contasContabeis}
-          produtosCrud={produtosCrud.data}
+          produtosCrud={produtos}
           valorProdutos={valorProdutos}
           totalImpostos={totalImpostos}
           totalNF={totalNF}
@@ -1828,7 +1828,7 @@ const Fiscal = () => {
         readOnly={traducaoReadOnly}
         fornecedorNome={pendingXmlImport?.fornecedorNome ?? xmlOriginInfo?.fornecedorNome ?? ""}
         fornecedorId={pendingXmlImport?.fornecedorId ?? xmlOriginInfo?.fornecedorId ?? ""}
-        produtos={produtosCrud.data}
+        produtos={produtos}
         linhas={traducaoLinhas}
         onCancel={handleTraducaoCancel}
         onConfirm={handleTraducaoConfirm}
@@ -1845,7 +1845,7 @@ const Fiscal = () => {
         onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
         onCreated={async (produtoId) => {
           const idx = quickProdutoLinhaIdx;
-          await produtosCrud.fetchData();
+          await refetchProdutos();
           if (idx !== null && idx >= 0) {
             setTraducaoLinhas((prev) => prev.map((l) =>
               l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
@@ -1855,7 +1855,7 @@ const Fiscal = () => {
             setItems((prev) => {
               const next = [...prev];
               const target = next.findIndex((i) => !i.produto_id);
-              const matched = produtosCrud.data.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
+              const matched = produtos.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
               const row = {
                 produto_id: produtoId,
                 codigo: String(matched?.codigo_interno || ""),
@@ -1879,7 +1879,7 @@ const Fiscal = () => {
         defaults={quickFornecedorDefaults}
         onClose={() => { setQuickFornecedorOpen(false); }}
         onCreated={async (fornecedorId) => {
-          await fornecedoresCrud.fetchData();
+          await refetchFornecedores();
           setQuickFornecedorOpen(false);
           // Retoma o fluxo de importação XML pendente
           if (pendingXmlImport) {
@@ -1902,7 +1902,7 @@ const Fiscal = () => {
         defaults={quickClienteDefaults}
         onClose={() => setQuickClienteOpen(false)}
         onCreated={async (clienteId) => {
-          await clientesCrud.fetchData();
+          await refetchClientes();
           setQuickClienteOpen(false);
           if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
             const clienteNome = quickClienteDefaults.nome_razao_social || "";
