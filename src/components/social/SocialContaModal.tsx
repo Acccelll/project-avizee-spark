@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { iniciarOAuthInstagram } from '@/services/social.service';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { SocialConnectionStatus, SocialCreateContaPayload, SocialPlatform } from '@/types/social';
 
 interface Props {
@@ -21,7 +21,6 @@ const statusOptions: SocialConnectionStatus[] = ['conectado', 'expirado', 'erro'
 export function SocialContaModal({ open, onOpenChange, onSubmit }: Props) {
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const { toast } = useToast();
   const [form, setForm] = useState<SocialCreateContaPayload>({
     plataforma: 'instagram_business',
     nome_conta: '',
@@ -69,10 +68,8 @@ export function SocialContaModal({ open, onOpenChange, onSubmit }: Props) {
       const url = await iniciarOAuthInstagram('/social');
       window.location.assign(url);
     } catch (err) {
-      toast({
-        title: 'Não foi possível conectar',
+      toast.error('Não foi possível conectar', {
         description: err instanceof Error ? err.message : 'Erro desconhecido',
-        variant: 'destructive',
       });
       setConnecting(false);
     }

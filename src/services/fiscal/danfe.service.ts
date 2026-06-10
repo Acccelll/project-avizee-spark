@@ -11,8 +11,9 @@
  * o documento é marcado como "SEM VALOR FISCAL".
  */
 
-import { jsPDF } from "jspdf";
-import JsBarcode from "jsbarcode";
+// jspdf e jsbarcode são pesados (~200KB) — carregados sob demanda
+// dentro de gerarDanfePdf via dynamic import.
+import type { jsPDF as JsPDFType } from "jspdf";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 
