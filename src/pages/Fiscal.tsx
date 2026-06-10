@@ -313,6 +313,7 @@ const Fiscal = () => {
   const estornarLock = useActionLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const invalidate = useInvalidateAfterMutation();
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
   const confirmarMutation = useConfirmarNotaFiscal();
   const estornarMutation = useEstornarNotaFiscal();
   const { importXml } = useNFeXmlImport({
