@@ -19,11 +19,9 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
 import { calcularTotalNF } from "@/lib/fiscal";
-import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon, Copy } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
