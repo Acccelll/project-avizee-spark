@@ -128,24 +128,28 @@ const Fiscal = () => {
   // delegados à RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
-  const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
-  const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
-  const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRef[]>([]);
-  const [contasContabeis, setContasContabeis] = useState<ContaContabilRef[]>([]);
-  const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
+  // Fase 2: estado canônico do modal extraído para `useFiscalModalState`.
+  const modalState = useFiscalModalState();
+  const {
+    fornecedores, clientes, produtos,
+    refetchFornecedores, refetchClientes, refetchProdutos,
+    ordensVenda, contasContabeis, cartoes,
+    modalOpen, setModalOpen,
+    mode, setMode,
+    saving, setSaving,
+    form, setForm,
+    items, setItems,
+    parcelas, setParcelas,
+    primeiroVencimento, setPrimeiroVencimento,
+    intervaloDias, setIntervaloDias,
+    parcelasPlano, setParcelasPlano,
+    itemContaContabil, setItemContaContabil,
+    itemFiscalData, setItemFiscalData,
+    valorProdutos, totalImpostos, totalNF,
+    resetItensEParcelas,
+  } = modalState;
   const [selected, setSelected] = useState<NotaFiscal | null>(null);
-  const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState({ ...emptyForm });
-  const [items, setItems] = useState<GridItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [parcelas, setParcelas] = useState(1);
-  const [primeiroVencimento, setPrimeiroVencimento] = useState<string>("");
-  const [intervaloDias, setIntervaloDias] = useState<number>(30);
-  const [parcelasPlano, setParcelasPlano] = useState<import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const anexarXmlInputRef = useRef<HTMLInputElement>(null);
   const [anexarTargetNf, setAnexarTargetNf] = useState<NotaFiscal | null>(null);
@@ -155,7 +159,6 @@ const Fiscal = () => {
   const danfeViewerRef = useRef<FiscalDanfeViewerHandle>(null);
   const devolucaoFlowRef = useRef<FiscalDevolucaoFlowHandle>(null);
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
-  const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
   const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
   const [traducaoOpen, setTraducaoOpen] = useState(false);
@@ -222,35 +225,6 @@ const Fiscal = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
-  const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
-  // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
-  // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
-  // ao total da nota — junto com frete e outras despesas; desconto subtrai.
-  // Regra unificada em calcularTotalNF.
-  const totalImpostos =
-    Number(form.ipi_valor || 0) + Number(form.icms_st_valor || 0);
-  const totalNF = calcularTotalNF(
-    valorProdutos,
-    Number(form.desconto_valor || 0),
-    Number(form.icms_st_valor || 0),
-    Number(form.ipi_valor || 0),
-    Number(form.frete_valor || 0),
-    Number(form.outras_despesas || 0),
-  );
-
-  useEffect(() => {
-    const load = async () => {
-      const [ovs, contas, cs] = await Promise.all([
-        listOrdensVendaParaFiscal(),
-        listContasContabeisLancaveis(),
-        listCartoesAtivos().catch(() => []),
-      ]);
-      setOrdensVenda(ovs);
-      setContasContabeis(contas);
-      setCartoes(cs);
-    };
-    load();
   }, []);
 
   const confirmarLock = useActionLock();
