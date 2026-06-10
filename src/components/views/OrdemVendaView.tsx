@@ -771,7 +771,7 @@ export function OrdemVendaView({ id }: Props) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-6 w-6 p-0"
+                      className="h-6 w-6 p-0 max-sm:h-11 max-sm:w-11"
                       onClick={() => pushView("nota_fiscal", nf.id)}
                     >
                       <FileText className="h-3.5 w-3.5" />
@@ -856,7 +856,7 @@ export function OrdemVendaView({ id }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 w-6 p-0"
+                    className="h-6 w-6 p-0 max-sm:h-11 max-sm:w-11"
                     onClick={() => pushView("nota_fiscal", d.id)}
                   >
                     <FileText className="h-3.5 w-3.5" />
