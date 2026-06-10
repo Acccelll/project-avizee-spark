@@ -18,7 +18,7 @@ import type { ContaBancaria } from "@/types/domain";
 import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -95,19 +95,15 @@ export function FinanceiroLancamentoForm({
   const handleSubmit = (e: FormEvent) => {
     if (isCartaoCredito && !form.cartao_id) {
       e.preventDefault();
-      toast({
-        title: "Cartão obrigatório",
+      toast.error("Cartão obrigatório", {
         description: "Selecione um cartão cadastrado para forma 'Cartão de Crédito'.",
-        variant: "destructive",
       });
       return;
     }
     if (showCancelMotivo && !canSubmitCancel) {
       e.preventDefault();
-      toast({
-        title: "Motivo obrigatório",
+      toast.error("Motivo obrigatório", {
         description: "Informe o motivo do cancelamento (mínimo 10 caracteres).",
-        variant: "destructive",
       });
       return;
     }

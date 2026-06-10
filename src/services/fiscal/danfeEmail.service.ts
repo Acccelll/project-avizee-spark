@@ -42,7 +42,7 @@ export async function enviarDanfePorEmail(
   }
 
   // 1. Gera o PDF como Blob
-  const blob = gerarDanfePdf(p.danfe, false);
+  const blob = await gerarDanfePdf(p.danfe, false);
   const buffer = await blob.arrayBuffer();
 
   // 2. Upload no bucket

@@ -133,7 +133,7 @@ const DrawerSlot = memo(function DrawerSlot({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted/60 focus-visible:ring-1"
+            className="h-6 w-6 max-sm:h-11 max-sm:w-11 text-muted-foreground hover:text-foreground hover:bg-muted/60 focus-visible:ring-1"
             onClick={onPop}
             aria-label="Fechar drawer"
           >

@@ -11,8 +11,9 @@
  * o documento é marcado como "SEM VALOR FISCAL".
  */
 
-import { jsPDF } from "jspdf";
-import JsBarcode from "jsbarcode";
+// jspdf e jsbarcode são pesados (~200KB) — carregados sob demanda
+// dentro de gerarDanfePdf via dynamic import.
+import type { jsPDF as JsPDFType } from "jspdf";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -85,7 +86,13 @@ function formatarChave(chave: string): string {
  * canvas off-screen e devolve o dataURL para `addImage`.
  * Retorna `null` se o ambiente não suportar canvas (SSR).
  */
-function gerarBarcodeChave(chave: string): string | null {
+type JsBarcodeFn = (
+  canvas: HTMLCanvasElement,
+  text: string,
+  options?: Record<string, unknown>,
+) => void;
+
+function gerarBarcodeChave(chave: string, JsBarcode: JsBarcodeFn): string | null {
   if (typeof document === "undefined") return null;
   try {
     const canvas = document.createElement("canvas");
@@ -111,8 +118,12 @@ function safe(value: unknown, fallback = "—"): string {
  * Gera o PDF da DANFE e retorna o Blob.
  * Use `salvar = true` para disparar download automático.
  */
-export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Blob> {
+  const [{ jsPDF }, { default: JsBarcode }] = await Promise.all([
+    import("jspdf"),
+    import("jsbarcode"),
+  ]);
+  const doc: JsPDFType = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 8;
   let y = margin;
@@ -183,7 +194,7 @@ export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
   }
 
   if (data.chave_acesso) {
-    const barcode = gerarBarcodeChave(data.chave_acesso);
+    const barcode = gerarBarcodeChave(data.chave_acesso, JsBarcode);
     if (barcode) {
       // Faixa do código de barras CODE-128C (largura ~120mm, altura 12mm)
       doc.addImage(barcode, "PNG", margin, y, 120, 12);

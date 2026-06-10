@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -52,7 +52,6 @@ interface ExecucaoLog {
 }
 
 export default function DistDFeHistorico() {
-  const { toast } = useToast();
   const [rows, setRows] = useState<ExecucaoLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -98,14 +97,12 @@ export default function DistDFeHistorico() {
     try {
       const r = await testarWorkerDistDFe(ambiente);
       setPingResult({ ...r, ranAt: new Date().toISOString() });
-      toast({
-        title: r.sucesso ? "Worker OK" : "Worker com problema",
-        description: r.diagnostico ?? r.erro ?? "Sem detalhes",
-        variant: r.sucesso ? "default" : "destructive",
-      });
+      const desc = r.diagnostico ?? r.erro ?? "Sem detalhes";
+      if (r.sucesso) toast.success("Worker OK", { description: desc });
+      else toast.error("Worker com problema", { description: desc });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast({ title: "Erro ao testar Worker", description: msg, variant: "destructive" });
+      toast.error("Erro ao testar Worker", { description: msg });
     } finally {
       setPinging(null);
     }
@@ -120,12 +117,12 @@ export default function DistDFeHistorico() {
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
-      toast({ title: "Erro ao carregar histórico", description: error.message, variant: "destructive" });
+      toast.error("Erro ao carregar histórico", { description: error.message });
     } else {
       setRows((data ?? []) as unknown as ExecucaoLog[]);
     }
     setLoading(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -147,30 +144,25 @@ export default function DistDFeHistorico() {
         erro: r.erro,
       });
       if (r.sucesso && !cStat656) {
-        toast({
-          title: "Sincronização concluída",
+        toast.success("Sincronização concluída", {
           description: nada
             ? `Nenhum documento novo no Ambiente Nacional (cStat ${r.cStat ?? "—"} ${r.xMotivo ?? ""}).`
             : `${r.novos} nova(s), ${r.duplicados} existente(s).`,
         });
       } else if (cStat656) {
-        toast({
-          title: "SEFAZ recusou (cStat 656 — Consumo Indevido)",
+        toast.error("SEFAZ recusou (cStat 656 — Consumo Indevido)", {
           description:
             "O Ambiente Nacional pediu para aguardar ~1 hora antes da próxima consulta deste CNPJ. Tente novamente mais tarde.",
-          variant: "destructive",
         });
       } else {
-        toast({
-          title: "Falha na sincronização",
+        toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? "Erro desconhecido",
-          variant: "destructive",
         });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setLastResult({ ambiente, ranAt: startedAt, sucesso: false, novos: 0, duplicados: 0, erro: msg });
-      toast({ title: "Erro ao chamar edge function", description: msg, variant: "destructive" });
+      toast.error("Erro ao chamar edge function", { description: msg });
     } finally {
       setRunning(false);
       void carregar();
@@ -401,21 +393,15 @@ export default function DistDFeHistorico() {
               try {
                 const notas = await buscarNfeSemManifestacao(100);
                 if (notas.length === 0) {
-                  toast({ title: "Nada a fazer", description: "Não há NF-e sem manifestação." });
+                  toast.info("Nada a fazer", { description: "Não há NF-e sem manifestação." });
                   return;
                 }
                 const r = await aplicarCienciaEmLote(notas);
-                toast({
-                  title: "Lote concluído",
-                  description: `${r.sucesso} ciência(s) aplicada(s) · ${r.falhas} falha(s).`,
-                  variant: r.falhas > 0 ? "destructive" : "default",
-                });
+                const msg = `${r.sucesso} ciência(s) aplicada(s) · ${r.falhas} falha(s).`;
+                if (r.falhas > 0) toast.error("Lote concluído com falhas", { description: msg });
+                else toast.success("Lote concluído", { description: msg });
               } catch (e) {
-                toast({
-                  title: "Falha no lote",
-                  description: (e as Error).message,
-                  variant: "destructive",
-                });
+                toast.error("Falha no lote", { description: (e as Error).message });
               } finally {
                 setAplicandoLote(false);
               }
