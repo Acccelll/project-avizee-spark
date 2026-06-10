@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,10 @@ import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
-import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import {
+  pedidoFormSchema,
+  type PedidoFormValues,
+} from "@/pages/pedidos/pedidoForm.schema";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 
 const SCOPE_COLLAPSED_KEY = "pedido-form-scope-collapsed";
@@ -50,14 +55,16 @@ const statusOptions = [
   { value: "entregue", label: "Entregue" },
 ];
 
-interface PedidoEditForm {
-  status: string;
-  po_number: string;
-  data_po_cliente: string;
-  data_prometida_despacho: string;
-  prazo_despacho_dias: string;
-  observacoes: string;
-}
+type PedidoEditForm = PedidoFormValues;
+
+const EMPTY_FORM: PedidoEditForm = {
+  status: "",
+  po_number: "",
+  data_po_cliente: "",
+  data_prometida_despacho: "",
+  prazo_despacho_dias: "",
+  observacoes: "",
+};
 
 interface PedidoRecord {
   id: string;
@@ -95,14 +102,30 @@ const PedidoForm = () => {
     setScopeOpen(open);
     try { localStorage.setItem(SCOPE_COLLAPSED_KEY, String(!open)); } catch { /* noop */ }
   };
-  const { form, updateForm, reset, markPristine, isDirty } = useEditDirtyForm<PedidoEditForm>({
-    status: "",
-    po_number: "",
-    data_po_cliente: "",
-    data_prometida_despacho: "",
-    prazo_despacho_dias: "",
-    observacoes: "",
+  const rhf = useForm<PedidoEditForm>({
+    resolver: zodResolver(pedidoFormSchema),
+    mode: "onChange",
+    defaultValues: EMPTY_FORM,
   });
+  const form = rhf.watch();
+  const {
+    formState: { isDirty, errors: fieldErrors },
+    reset: rhfReset,
+    getValues,
+    setValue,
+    handleSubmit,
+  } = rhf;
+  const reset = useCallback((next: PedidoEditForm) => rhfReset(next), [rhfReset]);
+  const updateForm = useCallback(
+    (patch: Partial<PedidoEditForm>) => {
+      (Object.entries(patch) as Array<[keyof PedidoEditForm, string]>).forEach(
+        ([k, v]) =>
+          setValue(k, v, { shouldDirty: true, shouldValidate: true, shouldTouch: true }),
+      );
+    },
+    [setValue],
+  );
+  const markPristine = useCallback(() => rhfReset(getValues()), [getValues, rhfReset]);
 
   useEffect(() => {
     if (!id) return;
@@ -150,9 +173,14 @@ const PedidoForm = () => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  const handleSave = async () => {
+  const onValid = async (values: PedidoEditForm) => {
     if (!id) return;
-    if (form.status && !validarTransicaoPedido(form.status, pedido?.status_faturamento ?? null)) {
+    // Regra de negócio (não é validação de campo): bloqueia transição
+    // de status incompatível com o faturamento atual do pedido.
+    if (
+      values.status &&
+      !validarTransicaoPedido(values.status, pedido?.status_faturamento ?? null)
+    ) {
       toast.error("Transição de status inválida para o faturamento atual do pedido.");
       return;
     }
@@ -160,12 +188,14 @@ const PedidoForm = () => {
       await salvarPedido.mutateAsync({
         id,
         patch: {
-          status: form.status || null,
-          po_number: form.po_number || null,
-          data_po_cliente: form.data_po_cliente || null,
-          data_prometida_despacho: form.data_prometida_despacho || null,
-          prazo_despacho_dias: form.prazo_despacho_dias ? Number(form.prazo_despacho_dias) : null,
-          observacoes: form.observacoes || null,
+          status: values.status || null,
+          po_number: values.po_number || null,
+          data_po_cliente: values.data_po_cliente || null,
+          data_prometida_despacho: values.data_prometida_despacho || null,
+          prazo_despacho_dias: values.prazo_despacho_dias
+            ? Number(values.prazo_despacho_dias)
+            : null,
+          observacoes: values.observacoes || null,
         },
       });
       markPristine();
@@ -174,6 +204,7 @@ const PedidoForm = () => {
       // erro já reportado via toast no hook
     }
   };
+  const handleSave = handleSubmit(onValid);
 
   const set = (field: keyof PedidoEditForm, value: string) =>
     updateForm({ [field]: value } as Partial<PedidoEditForm>);
