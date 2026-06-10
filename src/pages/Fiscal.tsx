@@ -73,7 +73,7 @@ import {
   isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
-import { useFiscalVencimentos } from "@/pages/fiscal/hooks/useFiscalVencimentos";
+import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
