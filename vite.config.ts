@@ -127,5 +127,26 @@ export default defineConfig(({ mode }) => {
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Chunks manuais para reduzir o tamanho do bundle inicial.
+        // Mantém libs estáveis em cache do navegador entre deploys.
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "query": ["@tanstack/react-query"],
+          "charts": ["recharts"],
+          "radix": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-tooltip",
+          ],
+        },
+      },
+    },
+  },
   };
 });
