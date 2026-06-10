@@ -215,6 +215,12 @@ export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa 
       }
 
       const norm = (s: string | null | undefined) => (s || "").trim().toUpperCase();
+      // Remove zeros à esquerda para tolerar XMLs que padronizam cProd com padding
+      // (ex.: "00000000FX001" deve casar com SKU "FX001").
+      const stripZeros = (s: string | null | undefined) => {
+        const n = norm(s);
+        return n.replace(/^0+/, "");
+      };
 
       // Index produtos por id, codigo_interno e sku para evitar varreduras
       // O(n×m) por linha do XML.
@@ -222,14 +228,25 @@ export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa 
       const produtosByCodigo = new Map<string, typeof produtos[number]>();
       produtos.forEach((p) => {
         produtosById.set(p.id, p);
-        if (p.codigo_interno) produtosByCodigo.set(p.codigo_interno, p);
-        if (p.sku) produtosByCodigo.set(p.sku, p);
+        if (p.codigo_interno) {
+          produtosByCodigo.set(norm(p.codigo_interno), p);
+          const sz = stripZeros(p.codigo_interno);
+          if (sz) produtosByCodigo.set(sz, p);
+        }
+        if (p.sku) {
+          produtosByCodigo.set(norm(p.sku), p);
+          const sz = stripZeros(p.sku);
+          if (sz) produtosByCodigo.set(sz, p);
+        }
       });
 
       const traducao: TraducaoLinha[] = nfe.itens.map((nfeItem, idx) => {
         const dp = deParaByCodigo.get(nfeItem.codigo);
         const matchedById = dp ? produtosById.get(dp.produto_id) : undefined;
-        const matchedByCodigo = !matchedById ? produtosByCodigo.get(nfeItem.codigo) : undefined;
+        const matchedByCodigo = !matchedById
+          ? (produtosByCodigo.get(norm(nfeItem.codigo)) ||
+             produtosByCodigo.get(stripZeros(nfeItem.codigo)))
+          : undefined;
         const matched = matchedById || matchedByCodigo;
         const unidadeInterna = matched?.unidade_medida ?? null;
         const xmlUni = norm(nfeItem.unidade);
