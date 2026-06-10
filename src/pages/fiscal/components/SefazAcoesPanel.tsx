@@ -86,7 +86,7 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
     setGerandoDanfe(true);
     try {
       const dados = await buildDanfeData(nf);
-      gerarDanfePdf(dados, true);
+      await gerarDanfePdf(dados, true);
       toast.success("DANFE gerada com sucesso.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao gerar DANFE.");

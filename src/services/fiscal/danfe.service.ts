@@ -194,7 +194,7 @@ export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Bl
   }
 
   if (data.chave_acesso) {
-    const barcode = gerarBarcodeChave(data.chave_acesso);
+    const barcode = gerarBarcodeChave(data.chave_acesso, JsBarcode);
     if (barcode) {
       // Faixa do código de barras CODE-128C (largura ~120mm, altura 12mm)
       doc.addImage(barcode, "PNG", margin, y, 120, 12);
