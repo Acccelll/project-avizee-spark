@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
@@ -7,13 +7,15 @@ import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
  * vencem no mês `vencimentoMes` (formato `YYYY-MM`). Usado pelo filtro/badge
  * "vence neste mês" na grid de Fiscal.
  *
- * Extraído de `src/pages/Fiscal.tsx` (Frente 1 — decomposição). Mantém o
- * `fetchAllPages` introduzido na Frente 4 para evitar truncamento silencioso
- * em 1000 lançamentos por mês.
+ * Recebe o setter externamente porque `vencimentoNotaIds` precisa ser
+ * declarado ANTES de `useFiscalFilters` (que o consome) — ordem de hooks no
+ * orquestrador. Extraído de `src/pages/Fiscal.tsx` (Frente 1 — decomposição).
+ * Mantém o `fetchAllPages` introduzido na Frente 4.
  */
-export function useFiscalVencimentos(vencimentoMes: string | null | undefined) {
-  const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
-
+export function useFiscalVencimentosLoader(
+  vencimentoMes: string | null | undefined,
+  setVencimentoNotaIds: (set: Set<string> | null) => void,
+) {
   useEffect(() => {
     if (!vencimentoMes) {
       setVencimentoNotaIds(null);
@@ -51,7 +53,6 @@ export function useFiscalVencimentos(vencimentoMes: string | null | undefined) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setter é estável (useState)
   }, [vencimentoMes]);
-
-  return vencimentoNotaIds;
 }
