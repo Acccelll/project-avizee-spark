@@ -4,10 +4,8 @@ import { OriginContextBanner } from "@/components/navigation/OriginContextBanner
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
 import { calcularFaturaParaData } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
-import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,7 +16,6 @@ import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
-import { calcularTotalNF } from "@/lib/fiscal";
 import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -27,8 +24,6 @@ import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
   registrarEventoFiscal,
   cancelarNotaFiscal,
-  listOrdensVendaParaFiscal,
-  listContasContabeisLancaveis,
   getPedidoCompraResumo,
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
@@ -72,6 +67,12 @@ import {
 } from "@/lib/fiscalStatus";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
+import { useFiscalModalState } from "@/pages/fiscal/hooks/useFiscalModalState";
+import {
+  emptyFiscalForm as emptyForm,
+  type FiscalFormState as FiscalForm,
+  type NfItemFiscalData,
+} from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
@@ -85,57 +86,12 @@ import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal
  */
 export type NotaFiscal = NotaFiscalDomain;
 
-interface FiscalForm {
-  tipo: string;
-  numero: string;
-  serie: string;
-  chave_acesso: string;
-  data_emissao: string;
-  fornecedor_id: string;
-  cliente_id: string;
-  valor_total: number;
-  status: string;
-  observacoes: string;
-  movimenta_estoque: boolean;
-  gera_financeiro: boolean;
-  forma_pagamento: string;
-  condicao_pagamento: string;
-  ordem_venda_id: string;
-  conta_contabil_id: string;
-  modelo_documento: string;
-  cartao_id: string;
-  frete_valor: number;
-  icms_valor: number;
-  ipi_valor: number;
-  pis_valor: number;
-  cofins_valor: number;
-  icms_st_valor: number;
-  desconto_valor: number;
-  outras_despesas: number;
-  origem: string;
-  [key: string]: string | number | boolean;
-}
-
-const emptyForm: FiscalForm = {
-  tipo: "entrada", numero: "", serie: "1", chave_acesso: "", data_emissao: new Date().toISOString().split("T")[0],
-  fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente", observacoes: "",
-  movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
-  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
-  frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
-  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual", caminho_xml: "",
-};
-
 const modeloLabels: Record<string, string> = {
   '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
 };
 
 const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", xml_importado: "Importação XML" };
 
-interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; variacoes: string[] | null; }
-interface OrdemVendaRef { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
-interface ContaContabilRef { id: string; codigo: string; descricao: string; }
 interface NfItemRow {
   id: string; produto_id: string; quantidade: number; valor_unitario: number;
   conta_contabil_id: string | null; cfop: string | null; cst: string | null;
@@ -148,18 +104,6 @@ interface NfItemRow {
   csosn: string | null; cst_pis: string | null; cst_cofins: string | null; cst_ipi: string | null;
   desconto: number | null; codigo_produto: string | null;
   produtos?: { nome: string; sku: string } | null;
-}
-
-/** Fiscal fields preserved per item index across edits. */
-interface NfItemFiscalData {
-  cfop?: string | null; cst?: string | null; ncm?: string | null; unidade?: string | null;
-  descricao?: string | null; icms_valor?: number | null; icms_aliquota?: number | null;
-  icms_base?: number | null; ipi_valor?: number | null; ipi_aliquota?: number | null;
-  pis_valor?: number | null; pis_aliquota?: number | null; base_pis?: number | null;
-  cofins_valor?: number | null; cofins_aliquota?: number | null; base_cofins?: number | null;
-  valor_st?: number | null; base_st?: number | null;
-  csosn?: string | null; cst_pis?: string | null; cst_cofins?: string | null;
-  cst_ipi?: string | null; desconto?: number | null; codigo_produto?: string | null;
 }
 
 const Fiscal = () => {
@@ -184,24 +128,28 @@ const Fiscal = () => {
   // delegados à RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
-  const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
-  const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
-  const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRef[]>([]);
-  const [contasContabeis, setContasContabeis] = useState<ContaContabilRef[]>([]);
-  const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
+  // Fase 2: estado canônico do modal extraído para `useFiscalModalState`.
+  const modalState = useFiscalModalState();
+  const {
+    fornecedores, clientes, produtos,
+    refetchFornecedores, refetchClientes, refetchProdutos,
+    ordensVenda, contasContabeis, cartoes,
+    modalOpen, setModalOpen,
+    mode, setMode,
+    saving, setSaving,
+    form, setForm,
+    items, setItems,
+    parcelas, setParcelas,
+    primeiroVencimento, setPrimeiroVencimento,
+    intervaloDias, setIntervaloDias,
+    parcelasPlano, setParcelasPlano,
+    itemContaContabil, setItemContaContabil,
+    itemFiscalData, setItemFiscalData,
+    valorProdutos, totalImpostos, totalNF,
+    resetItensEParcelas,
+  } = modalState;
   const [selected, setSelected] = useState<NotaFiscal | null>(null);
-  const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState({ ...emptyForm });
-  const [items, setItems] = useState<GridItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [parcelas, setParcelas] = useState(1);
-  const [primeiroVencimento, setPrimeiroVencimento] = useState<string>("");
-  const [intervaloDias, setIntervaloDias] = useState<number>(30);
-  const [parcelasPlano, setParcelasPlano] = useState<import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const anexarXmlInputRef = useRef<HTMLInputElement>(null);
   const [anexarTargetNf, setAnexarTargetNf] = useState<NotaFiscal | null>(null);
@@ -211,7 +159,6 @@ const Fiscal = () => {
   const danfeViewerRef = useRef<FiscalDanfeViewerHandle>(null);
   const devolucaoFlowRef = useRef<FiscalDevolucaoFlowHandle>(null);
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
-  const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
   const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
   const [traducaoOpen, setTraducaoOpen] = useState(false);
@@ -279,35 +226,6 @@ const Fiscal = () => {
     })();
     return () => { cancelled = true; };
   }, []);
-  const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
-  // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
-  // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
-  // ao total da nota — junto com frete e outras despesas; desconto subtrai.
-  // Regra unificada em calcularTotalNF.
-  const totalImpostos =
-    Number(form.ipi_valor || 0) + Number(form.icms_st_valor || 0);
-  const totalNF = calcularTotalNF(
-    valorProdutos,
-    Number(form.desconto_valor || 0),
-    Number(form.icms_st_valor || 0),
-    Number(form.ipi_valor || 0),
-    Number(form.frete_valor || 0),
-    Number(form.outras_despesas || 0),
-  );
-
-  useEffect(() => {
-    const load = async () => {
-      const [ovs, contas, cs] = await Promise.all([
-        listOrdensVendaParaFiscal(),
-        listContasContabeisLancaveis(),
-        listCartoesAtivos().catch(() => []),
-      ]);
-      setOrdensVenda(ovs);
-      setContasContabeis(contas);
-      setCartoes(cs);
-    };
-    load();
-  }, []);
 
   const confirmarLock = useActionLock();
   const estornarLock = useActionLock();
@@ -317,9 +235,9 @@ const Fiscal = () => {
   const confirmarMutation = useConfirmarNotaFiscal();
   const estornarMutation = useEstornarNotaFiscal();
   const { importXml } = useNFeXmlImport({
-    fornecedores: fornecedoresCrud.data,
-    produtos: produtosCrud.data,
-    clientes: clientesCrud.data,
+    fornecedores: fornecedores,
+    produtos: produtos,
+    clientes: clientes,
     cnpjEmpresa,
   });
 
@@ -620,7 +538,7 @@ const Fiscal = () => {
     const newItems: GridItem[] = linhas.map((t) => {
       const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
       const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
-      const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+      const matched = produtos.find((p) => p.id === t.produtoId);
       return {
         produto_id: t.produtoId,
         codigo: t.xmlCodigo,
@@ -813,11 +731,11 @@ const Fiscal = () => {
     const fornecedorParaAnexar = targetNf.fornecedor_id || fornecedorId || "";
     const clienteParaAnexar = targetNf.cliente_id || clienteId || "";
     const fornecedorNome =
-      fornecedoresCrud.data.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
+      fornecedores.find((f) => f.id === fornecedorParaAnexar)?.nome_razao_social
       || nfe.emitente.razaoSocial
       || "—";
     const clienteNome =
-      clientesCrud.data.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
+      clientes.find((c) => c.id === clienteParaAnexar)?.nome_razao_social
       || nfe.destinatario?.razaoSocial
       || "—";
 
@@ -865,8 +783,8 @@ const Fiscal = () => {
         return;
       }
       const { nfe, xmlText, tipo, fornecedorId, clienteId, fiscalMap, traducao, traducaoOk } = result;
-      const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
-      const clienteNome = clientesCrud.data.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
+      const fornecedorNome = fornecedores.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+      const clienteNome = clientes.find((c) => c.id === clienteId)?.nome_razao_social || nfe.destinatario?.razaoSocial || "—";
 
       // NF de saída sem cliente cadastrado → quick-add com dados do destinatário.
       if (tipo === "saida" && !clienteId && nfe.destinatario?.cpfCnpj) {
@@ -938,7 +856,7 @@ const Fiscal = () => {
       const newItems: GridItem[] = linhas.map((t) => {
         const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
         const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
-        const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+        const matched = produtos.find((p) => p.id === t.produtoId);
         return {
           produto_id: t.produtoId,
           codigo: t.xmlCodigo,
@@ -1784,9 +1702,9 @@ const Fiscal = () => {
         setParcelasPlano={setParcelasPlano}
         saving={saving}
         onSubmit={handleSubmit}
-        fornecedores={fornecedoresCrud.data}
-        clientes={clientesCrud.data}
-        produtos={produtosCrud.data}
+        fornecedores={fornecedores}
+        clientes={clientes}
+        produtos={produtos}
         ordensVenda={ordensVenda}
         contasContabeis={contasContabeis}
         cartoes={cartoes}
@@ -1822,11 +1740,11 @@ const Fiscal = () => {
           saving={saving}
           onSubmit={handleSubmit}
           onCancelarRascunho={selected.status === "pendente" ? handleCancelarRascunho : undefined}
-          fornecedores={fornecedoresCrud.data}
-          clientes={clientesCrud.data}
+          fornecedores={fornecedores}
+          clientes={clientes}
           ordensVenda={ordensVenda}
           contasContabeis={contasContabeis}
-          produtosCrud={produtosCrud.data}
+          produtosCrud={produtos}
           valorProdutos={valorProdutos}
           totalImpostos={totalImpostos}
           totalNF={totalNF}
@@ -1910,7 +1828,7 @@ const Fiscal = () => {
         readOnly={traducaoReadOnly}
         fornecedorNome={pendingXmlImport?.fornecedorNome ?? xmlOriginInfo?.fornecedorNome ?? ""}
         fornecedorId={pendingXmlImport?.fornecedorId ?? xmlOriginInfo?.fornecedorId ?? ""}
-        produtos={produtosCrud.data}
+        produtos={produtos}
         linhas={traducaoLinhas}
         onCancel={handleTraducaoCancel}
         onConfirm={handleTraducaoConfirm}
@@ -1927,7 +1845,7 @@ const Fiscal = () => {
         onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
         onCreated={async (produtoId) => {
           const idx = quickProdutoLinhaIdx;
-          await produtosCrud.fetchData();
+          await refetchProdutos();
           if (idx !== null && idx >= 0) {
             setTraducaoLinhas((prev) => prev.map((l) =>
               l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
@@ -1937,7 +1855,7 @@ const Fiscal = () => {
             setItems((prev) => {
               const next = [...prev];
               const target = next.findIndex((i) => !i.produto_id);
-              const matched = produtosCrud.data.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
+              const matched = produtos.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
               const row = {
                 produto_id: produtoId,
                 codigo: String(matched?.codigo_interno || ""),
@@ -1961,7 +1879,7 @@ const Fiscal = () => {
         defaults={quickFornecedorDefaults}
         onClose={() => { setQuickFornecedorOpen(false); }}
         onCreated={async (fornecedorId) => {
-          await fornecedoresCrud.fetchData();
+          await refetchFornecedores();
           setQuickFornecedorOpen(false);
           // Retoma o fluxo de importação XML pendente
           if (pendingXmlImport) {
@@ -1984,7 +1902,7 @@ const Fiscal = () => {
         defaults={quickClienteDefaults}
         onClose={() => setQuickClienteOpen(false)}
         onCreated={async (clienteId) => {
-          await clientesCrud.fetchData();
+          await refetchClientes();
           setQuickClienteOpen(false);
           if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
             const clienteNome = quickClienteDefaults.nome_razao_social || "";

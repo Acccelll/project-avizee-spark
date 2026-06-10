@@ -1,102 +1,49 @@
-## Frente 1 — Decompor `src/pages/Fiscal.tsx`
+## Phase 2 — Decompose Fiscal.tsx form state
 
-**Alvo:** 2.204 → ≤ 800 linhas (orquestrador + JSX).
-**Premissa inegociável:** zero mudança funcional, zero migration, mesmos handlers, mesmos toasts, mesmos modais. Apenas extração para arquivos coesos.
+### Goal
+Move the ~700 lines of inline form/items/parcelas/fiscal-data state from `src/pages/Fiscal.tsx` into a dedicated hook so the orchestrator drops from ~2.016 → ~1.200 lines, and so the create/edit modal stops duplicating logic that already exists in `useFiscalNotaForm` (used by the `/fiscal/novo` page).
 
-## Por que agora
+### Why not reuse `useFiscalNotaForm` directly
+`useFiscalNotaForm` is page-mode (one fixed `notaId`, navigates on save). The modal in `Fiscal.tsx` switches between create/edit/anexar-XML at runtime, drives the Tradução XML drawer, owns quick-add flows, and must reset on close. Forcing it into the page-hook would break the modal lifecycle. Instead, extract a sibling hook tailored to the modal — sharing the same `FiscalFormState`/`NfItemFiscalData` types and the same `buildItemsPayload` helper.
 
-A Frente 4 já encostou em `Fiscal.tsx` (linha 1448) e exigiu navegação por 2.200 linhas para uma mudança de 8 linhas. NFS-e e CT-e (próximas features) precisam acrescentar 3 ramos de discriminador (`tipo_documento`) ao mesmo arquivo — sem decomposição, isso vira regressão garantida.
+### Scope (one new hook + light orchestrator surgery)
 
-## Mapa de extração
+1. **Create `src/pages/fiscal/hooks/useFiscalModalForm.ts`** — owns:
+   - `form`/`setForm`, `items`/`setItems`
+   - `itemContaContabil`, `itemFiscalData`
+   - `parcelas`, `primeiroVencimento`, `intervaloDias`, `parcelasPlano`
+   - `mode` ("create" | "edit"), `selected` (NotaFiscal | null)
+   - `modalOpen`, `saving`
+   - lookups: `ordensVenda`, `contasContabeis`, `cartoes` (moved from inline `useEffect`)
+   - derived `valorProdutos`, `totalImpostos`, `totalNF`
+   - actions: `openCreate()`, `openEdit(nf)`, `closeModal()`, `resetForXml(baseForm, items, fiscalMap)`, `buildItemsPayload(nfId)`, `submit()`
+   - The `submit()` body is the current `handleSubmit` (lines 966–1.06x) lifted verbatim, parameterized by `onSavedRefresh` (callback for `refresh()` + invalidations) and `onClose` (closeModal + URL cleanup).
 
-| # | Novo arquivo | O que sai de `Fiscal.tsx` | Linhas est. |
-|---|---|---|---|
-| 1 | `src/pages/fiscal/hooks/useFiscalXmlActions.ts` | `handleXmlImport`, `handleAnexarXmlChange`, `processarXmlParaAnexar`, `handleTraducaoConfirm`, `handleTraducaoCancel`, estados `traducao*`, `pendingXmlImport`, `xmlOriginInfo`, `anexarTargetNf`, refs `xmlInputRef`/`anexarXmlInputRef` | ~280 |
-| 2 | `src/pages/fiscal/hooks/useFiscalLifecycleActions.ts` | `handleConfirmar`, `handleEstornar`, `handleCancelarRascunho`, `handleInativar`, `openDevolucao`, locks `confirmarLock`/`estornarLock`, `confirmDialog` | ~180 |
-| 3 | `src/pages/fiscal/hooks/useFiscalVencimentos.ts` | Loader `vencimentoNotaIds` (já corrigido na Frente 4 com `fetchAllPages`) + estado `vencimentoMes` | ~50 |
-| 4 | `src/pages/fiscal/components/FiscalTableColumns.tsx` | `renderFiscalStatus` + factory `buildFiscalColumns({ tipoParam, parceiroLabel, isMobile })` retornando o array de colunas | ~190 |
+2. **Reuse shared types**: import `FiscalFormState`, `NfItemFiscalData`, `emptyFiscalForm` from `useFiscalNotaForm.ts` instead of redeclaring `FiscalForm`/`emptyForm` in `Fiscal.tsx`. Delete the duplicated local declarations (lines 88–126).
 
-**Total extraído:** ~700 linhas. Orquestrador final: ~700–800 linhas.
+3. **Wire `Fiscal.tsx`**:
+   - Replace the ~20 `useState`/`useEffect` lines (190–214 region + lookups effect) with a single `const modalForm = useFiscalModalForm({ refresh, ... })`.
+   - Update every reference (`form` → `modalForm.form`, etc.) — pure rename, no behaviour change.
+   - Keep XML import (`useNFeXmlImport` integration), tradução drawer, quick-add modals, and lifecycle handlers (`handleConfirmar`/`handleEstornar`/etc.) in `Fiscal.tsx`. The hook exposes `setForm`/`setItems`/`setItemFiscalData` so those existing handlers keep working unchanged.
+   - Drop now-unused imports (`upsertNotaFiscalComItens`, `listOrdensVendaParaFiscal`, `listContasContabeisLancaveis`, `listNotaFiscalItensCompletos`, `calcularTotalNF`, `criarRecorrenciaParaNfe`, etc.) that migrate to the hook.
 
-## O que NÃO sai (decisão consciente)
+4. **Do NOT touch in this session**:
+   - JSX in lines 1.700–2.016 (form body, modal, drawers) — they will simply consume the renamed props.
+   - `useNFeXmlImport`, `useFiscalVencimentosLoader`, `FiscalTableColumns`, lifecycle hooks (already extracted in Phase 1).
+   - `useFiscalNotaForm` page hook stays as-is.
+   - No SQL, no migrations.
 
-- **Form state da NF** (`form`, `items`, `parcelas*`, `itemFiscalData`, `itemContaContabil`, quick-adds): já existe `useFiscalNotaForm` (401 linhas) para a versão modal, mas o estado *inline* da página alimenta o `NotaFiscalEditModal` legado em múltiplos pontos do JSX. Migrar para o hook é a Fase 2 da decomposição — fora do escopo desta sessão (alto risco de divergência de comportamento entre modal antigo e novo).
-- **JSX root** (linhas 1685–2200): permanece em `Fiscal.tsx` como orquestrador. Após a extração ele referencia apenas hooks + columns factory + componentes já existentes.
-- **`buildNfItemsPayload` e `handleSubmit`** (~770 linhas combinadas): acoplados ao state inline acima; saem na Fase 2 junto com a migração do form.
+### Expected outcome
+- `Fiscal.tsx`: 2.016 → ~1.250 lines.
+- New `useFiscalModalForm.ts`: ~480 lines (extracted, not new logic).
+- Duplicated `FiscalForm`/`emptyForm` declarations removed (single source of truth in `useFiscalNotaForm.ts`).
+- Behaviour unchanged: same create/edit/anexar-XML/recorrência/parcelas flows.
 
-## Detalhes técnicos
+### Verification
+- Open `/fiscal`, create new NF (entrada + saída), edit existing, import XML (with and without tradução pendente), anexar XML to existing NF, NF recorrente, NF a_prazo com parcelas customizadas. No regressions in console/network.
 
-### Hook 1 — `useFiscalXmlActions`
+### Risks
+- The current `handleSubmit` references several closures from `Fiscal.tsx` (`refresh`, `setSearchParams`, `setModalOpen`, `setSelected`, `setMode`, invalidation hooks). Solution: pass these as a single `deps` object to the hook factory. No magic.
+- `setForm` is called from XML import paths and quick-add modals — kept exposed by the hook so those paths still work.
 
-```ts
-function useFiscalXmlActions(deps: {
-  fornecedoresCrud, clientesCrud, produtosCrud,
-  cnpjEmpresa, onAfterImport: (result) => void,
-  // tradução abre/fecha modal controlado pelo orquestrador:
-  setTraducaoOpen, setTraducaoLinhas, setTraducaoReadOnly,
-}) {
-  // retorna: { xmlInputRef, anexarXmlInputRef, anexarTargetNf, setAnexarTargetNf,
-  //   xmlOriginInfo, setXmlOriginInfo, pendingXmlImport,
-  //   handleXmlImport, handleAnexarXmlChange,
-  //   handleTraducaoConfirm, handleTraducaoCancel }
-}
-```
-
-Mantém o `useNFeXmlImport` interno (já é hook) — só extrai os *handlers de página* que orquestram o resultado.
-
-### Hook 2 — `useFiscalLifecycleActions`
-
-```ts
-function useFiscalLifecycleActions(deps: {
-  confirmarMutation, estornarMutation, invalidate, can,
-  closeModal: () => void,
-}) {
-  const confirmarLock = useActionLock();
-  const estornarLock = useActionLock();
-  const { confirm, dialog } = useConfirmDialog();
-  // retorna: { handleConfirmar, handleEstornar, handleCancelarRascunho,
-  //   handleInativar, openDevolucao, devolucaoFlowRef, confirmDialog: dialog }
-}
-```
-
-Recebe `closeModal` para chamar após cancelar/estornar (substitui o `setModalOpen(false)` inline).
-
-### Hook 3 — `useFiscalVencimentos`
-
-Único loader; já paginado via `fetchAllPages`. Apenas encapsula `useState<Set<string> | null>` + `useEffect` por `vencimentoMes`.
-
-### Componente 4 — `FiscalTableColumns.tsx`
-
-Exporta `buildFiscalColumns(opts: BuildColumnsOpts): Column<NotaFiscal>[]`. As 13 colunas hoje inline viram declarativas. `renderFiscalStatus` é função interna do módulo (não exportada).
-
-## Sequência de execução
-
-1. **Extrair** os 4 arquivos em paralelo (são independentes entre si).
-2. **Adaptar** `Fiscal.tsx`:
-   - Adicionar 4 imports.
-   - Substituir blocos de handlers/states pelos retornos dos hooks (uma seção por vez).
-   - Substituir `const columns = [...]` por `const columns = useMemo(() => buildFiscalColumns({...}), [tipoParam, parceiroLabel, isMobile])`.
-3. **Verificação**:
-   - Build limpo (TypeScript estrito).
-   - Smoke manual: criar NF rascunho, importar XML, confirmar, estornar, cancelar, anexar XML, abrir devolução.
-
-## Riscos e mitigação
-
-| Risco | Mitigação |
-|---|---|
-| Hook 1 expõe muitas deps (acopla a `setTraducao*`) | Aceitar nesta fase; consolidação no `useFiscalNotaForm` é Fase 2 |
-| Quebra silenciosa de closure (handler usa state stale) | Cada hook devolve handlers via `useCallback` com deps explícitas |
-| Coluna `tipoParam`-dependente perde reatividade | Factory recebe `tipoParam` por argumento; `useMemo` no consumidor |
-
-## Não faz parte desta sessão
-
-- Migrar form inline para `useFiscalNotaForm` (Fase 2 da decomposição).
-- Tocar `handleSubmit`/`buildNfItemsPayload` (saem com Fase 2).
-- Qualquer SQL/migration.
-- Refatorar a árvore JSX dos 520 linhas finais (cosmético; baixa prioridade).
-
-## Critério de pronto
-
-- `wc -l src/pages/Fiscal.tsx` ≤ 800.
-- 0 erro TS, 0 warning novo.
-- Os 4 novos arquivos cobertos por imports apenas em `Fiscal.tsx` (nenhum vazamento de uso).
+Proceed?
