@@ -1042,15 +1042,27 @@ export function NotaFiscalEditModal({
                     qtdParcelas={parcelas}
                     dataEmissao={form.data_emissao || selected.data_emissao || ""}
                     primeiroVencimento={
-                      parcelasPlano[0]?.vencimento ||
+                      // form.data_vencimento é a fonte canônica: refletir
+                      // imediatamente o que o usuário digita. parcelasPlano[0]
+                      // é só fallback inicial enquanto data_vencimento estiver vazio.
                       form.data_vencimento ||
+                      parcelasPlano[0]?.vencimento ||
                       ""
                     }
                     intervaloDias={Number(form.intervalo_parcelas_dias) || 30}
                     parcelas={parcelasPlano}
-                    onPrimeiroVencimentoChange={(v) =>
-                      setForm({ ...form, data_vencimento: v })
-                    }
+                    onPrimeiroVencimentoChange={(v) => {
+                      setForm({ ...form, data_vencimento: v });
+                      // Sincroniza o plano de parcelas imediatamente para não
+                      // depender do useEffect (evita estado intermediário em
+                      // que o input "volta" ao valor antigo do plano).
+                      if (parcelasPlano.length > 0 && setParcelasPlano) {
+                        const next = parcelasPlano.map((p, idx) =>
+                          idx === 0 ? { ...p, vencimento: v } : p,
+                        );
+                        setParcelasPlano(next);
+                      }
+                    }}
                     onIntervaloChange={(v) =>
                       setForm({ ...form, intervalo_parcelas_dias: v })
                     }
