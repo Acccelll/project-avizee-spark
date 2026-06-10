@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,10 @@ import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
-import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import {
+  pedidoFormSchema,
+  type PedidoFormValues,
+} from "@/pages/pedidos/pedidoForm.schema";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 
 const SCOPE_COLLAPSED_KEY = "pedido-form-scope-collapsed";
@@ -50,14 +55,16 @@ const statusOptions = [
   { value: "entregue", label: "Entregue" },
 ];
 
-interface PedidoEditForm {
-  status: string;
-  po_number: string;
-  data_po_cliente: string;
-  data_prometida_despacho: string;
-  prazo_despacho_dias: string;
-  observacoes: string;
-}
+type PedidoEditForm = PedidoFormValues;
+
+const EMPTY_FORM: PedidoEditForm = {
+  status: "",
+  po_number: "",
+  data_po_cliente: "",
+  data_prometida_despacho: "",
+  prazo_despacho_dias: "",
+  observacoes: "",
+};
 
 interface PedidoRecord {
   id: string;
@@ -95,14 +102,30 @@ const PedidoForm = () => {
     setScopeOpen(open);
     try { localStorage.setItem(SCOPE_COLLAPSED_KEY, String(!open)); } catch { /* noop */ }
   };
-  const { form, updateForm, reset, markPristine, isDirty } = useEditDirtyForm<PedidoEditForm>({
-    status: "",
-    po_number: "",
-    data_po_cliente: "",
-    data_prometida_despacho: "",
-    prazo_despacho_dias: "",
-    observacoes: "",
+  const rhf = useForm<PedidoEditForm>({
+    resolver: zodResolver(pedidoFormSchema),
+    mode: "onChange",
+    defaultValues: EMPTY_FORM,
   });
+  const form = rhf.watch();
+  const {
+    formState: { isDirty, errors: fieldErrors },
+    reset: rhfReset,
+    getValues,
+    setValue,
+    handleSubmit,
+  } = rhf;
+  const reset = useCallback((next: PedidoEditForm) => rhfReset(next), [rhfReset]);
+  const updateForm = useCallback(
+    (patch: Partial<PedidoEditForm>) => {
+      (Object.entries(patch) as Array<[keyof PedidoEditForm, string]>).forEach(
+        ([k, v]) =>
+          setValue(k, v, { shouldDirty: true, shouldValidate: true, shouldTouch: true }),
+      );
+    },
+    [setValue],
+  );
+  const markPristine = useCallback(() => rhfReset(getValues()), [getValues, rhfReset]);
 
   useEffect(() => {
     if (!id) return;
@@ -150,9 +173,14 @@ const PedidoForm = () => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  const handleSave = async () => {
+  const onValid = async (values: PedidoEditForm) => {
     if (!id) return;
-    if (form.status && !validarTransicaoPedido(form.status, pedido?.status_faturamento ?? null)) {
+    // Regra de negócio (não é validação de campo): bloqueia transição
+    // de status incompatível com o faturamento atual do pedido.
+    if (
+      values.status &&
+      !validarTransicaoPedido(values.status, pedido?.status_faturamento ?? null)
+    ) {
       toast.error("Transição de status inválida para o faturamento atual do pedido.");
       return;
     }
@@ -160,12 +188,14 @@ const PedidoForm = () => {
       await salvarPedido.mutateAsync({
         id,
         patch: {
-          status: form.status || null,
-          po_number: form.po_number || null,
-          data_po_cliente: form.data_po_cliente || null,
-          data_prometida_despacho: form.data_prometida_despacho || null,
-          prazo_despacho_dias: form.prazo_despacho_dias ? Number(form.prazo_despacho_dias) : null,
-          observacoes: form.observacoes || null,
+          status: values.status || null,
+          po_number: values.po_number || null,
+          data_po_cliente: values.data_po_cliente || null,
+          data_prometida_despacho: values.data_prometida_despacho || null,
+          prazo_despacho_dias: values.prazo_despacho_dias
+            ? Number(values.prazo_despacho_dias)
+            : null,
+          observacoes: values.observacoes || null,
         },
       });
       markPristine();
@@ -174,6 +204,7 @@ const PedidoForm = () => {
       // erro já reportado via toast no hook
     }
   };
+  const handleSave = handleSubmit(onValid);
 
   const set = (field: keyof PedidoEditForm, value: string) =>
     updateForm({ [field]: value } as Partial<PedidoEditForm>);
@@ -338,7 +369,7 @@ const PedidoForm = () => {
             <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className={fieldErrors.status ? "border-destructive" : ""}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {/* M-05: só mostra status atingíveis a partir do status atual
                       (ordem operacional + matriz CHECK chk_ordens_venda_matriz_status).
@@ -356,12 +387,16 @@ const PedidoForm = () => {
                     ))}
                 </SelectContent>
               </Select>
+              {fieldErrors.status && (
+                <p className="text-[11px] text-destructive">{fieldErrors.status.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Data Prometida de Despacho</Label>
               <Input
                 type="date"
                 value={form.data_prometida_despacho}
+                className={fieldErrors.data_prometida_despacho ? "border-destructive" : ""}
                 onChange={(e) => {
                   const newDate = e.target.value;
                   const emissao = pedido?.data_emissao;
@@ -376,6 +411,9 @@ const PedidoForm = () => {
                   }
                 }}
               />
+              {fieldErrors.data_prometida_despacho && (
+                <p className="text-[11px] text-destructive">{fieldErrors.data_prometida_despacho.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Prazo de Despacho (dias)</Label>
@@ -383,6 +421,7 @@ const PedidoForm = () => {
                 type="number"
                 min={0}
                 value={form.prazo_despacho_dias}
+                className={fieldErrors.prazo_despacho_dias ? "border-destructive" : ""}
                 onChange={(e) => {
                   const dias = e.target.value;
                   const emissao = pedido?.data_emissao;
@@ -398,6 +437,9 @@ const PedidoForm = () => {
                 }}
                 placeholder="Ex: 5"
               />
+              {fieldErrors.prazo_despacho_dias && (
+                <p className="text-[11px] text-destructive">{fieldErrors.prazo_despacho_dias.message}</p>
+              )}
             </div>
             {form.prazo_despacho_dias && form.data_prometida_despacho && pedido?.data_emissao && (
               <p className="md:col-span-2 text-xs text-muted-foreground -mt-2">
@@ -417,7 +459,11 @@ const PedidoForm = () => {
                 value={form.po_number}
                 onChange={(e) => set("po_number", e.target.value)}
                 placeholder="Ex: PO-2024-0001"
+                className={fieldErrors.po_number ? "border-destructive" : ""}
               />
+              {fieldErrors.po_number && (
+                <p className="text-[11px] text-destructive">{fieldErrors.po_number.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Data do PO</Label>
@@ -425,7 +471,11 @@ const PedidoForm = () => {
                 type="date"
                 value={form.data_po_cliente}
                 onChange={(e) => set("data_po_cliente", e.target.value)}
+                className={fieldErrors.data_po_cliente ? "border-destructive" : ""}
               />
+              {fieldErrors.data_po_cliente && (
+                <p className="text-[11px] text-destructive">{fieldErrors.data_po_cliente.message}</p>
+              )}
             </div>
           </div>
         </div>
@@ -437,8 +487,11 @@ const PedidoForm = () => {
             value={form.observacoes}
             onChange={(e) => set("observacoes", e.target.value)}
             placeholder="Observações internas ou para o cliente..."
-            className="min-h-[100px]"
+            className={`min-h-[100px] ${fieldErrors.observacoes ? "border-destructive" : ""}`}
           />
+          {fieldErrors.observacoes && (
+            <p className="text-[11px] text-destructive">{fieldErrors.observacoes.message}</p>
+          )}
         </div>
 
         <div className="flex gap-3">

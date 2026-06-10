@@ -6,6 +6,8 @@
  * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
  */
 import { useCallback, useEffect, useState, type SetStateAction } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +40,10 @@ import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compra
 import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCompra";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { validarTransicaoPedidoCompra } from "@/lib/comprasTransitions";
+import {
+  pedidoCompraFormSchema,
+  type PedidoCompraFormValues,
+} from "@/pages/pedidos/pedidoCompraForm.schema";
 
 type ProdutoRow = TableRow<"produtos"> & { preco_custo?: number | null };
 type FornecedorRow = TableRow<"fornecedores">;
@@ -57,34 +63,52 @@ export default function PedidoCompraForm() {
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
   // Use a fresh date when initialising the form (avoid module-level
   // constant that would freeze "today" at bundle load time).
-  const [form, setForm] = useState({
-    fornecedor_id: "",
-    data_pedido: new Date().toISOString().slice(0, 10),
-    data_entrega_prevista: "",
-    data_entrega_real: "",
-    frete_valor: "",
-    condicao_pagamento: "",
-    status: "rascunho",
-    observacoes: "",
+  const rhf = useForm<PedidoCompraFormValues>({
+    resolver: zodResolver(pedidoCompraFormSchema),
+    mode: "onChange",
+    defaultValues: {
+      fornecedor_id: "",
+      data_pedido: new Date().toISOString().slice(0, 10),
+      data_entrega_prevista: "",
+      data_entrega_real: "",
+      frete_valor: "",
+      condicao_pagamento: "",
+      status: "rascunho",
+      observacoes: "",
+    },
   });
+  const form = rhf.watch();
+  const { formState: { errors: fieldErrors, isDirty: formIsDirty }, setValue, reset: rhfReset, getValues, handleSubmit } = rhf;
   const [items, setItems] = useState<GridItem[]>([]);
   const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [produtosOptionsData, setProdutosOptionsData] = useState<ProdutoRow[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormasPagRow[]>([]);
   const [viewCotacao, setViewCotacao] = useState<{ numero: string; status: string } | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const [itemsDirty, setItemsDirty] = useState(false);
+  const isDirty = formIsDirty || itemsDirty;
 
   // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
   useBeforeUnloadGuard(isDirty);
 
-  const updateForm = useCallback((next: SetStateAction<typeof form>) => {
-    setForm(next);
-    setIsDirty(true);
-  }, []);
+  const updateForm = useCallback(
+    (next: SetStateAction<PedidoCompraFormValues>) => {
+      const current = getValues();
+      const resolved =
+        typeof next === "function"
+          ? (next as (prev: PedidoCompraFormValues) => PedidoCompraFormValues)(current)
+          : next;
+      (Object.keys(resolved) as Array<keyof PedidoCompraFormValues>).forEach((k) => {
+        if (resolved[k] !== current[k]) {
+          setValue(k, resolved[k], { shouldDirty: true, shouldValidate: true, shouldTouch: true });
+        }
+      });
+    },
+    [getValues, setValue],
+  );
 
   const updateItems = useCallback((next: SetStateAction<GridItem[]>) => {
     setItems(next);
-    setIsDirty(true);
+    setItemsDirty(true);
   }, []);
 
   useEffect(() => {
@@ -103,7 +127,7 @@ export default function PedidoCompraForm() {
       if (!ped) { toast.error("Pedido não encontrado."); navigate("/pedidos-compra"); return; }
 
       setPedido(ped as PedidoCompra);
-      updateForm({
+      const initial: PedidoCompraFormValues = {
         fornecedor_id: ped.fornecedor_id ? String(ped.fornecedor_id) : "",
         data_pedido: ped.data_pedido || new Date().toISOString().split("T")[0],
         data_entrega_prevista: ped.data_entrega_prevista || "",
@@ -112,7 +136,8 @@ export default function PedidoCompraForm() {
         condicao_pagamento: ped.condicao_pagamento || ped.condicoes_pagamento || "",
         status: canonicalPedidoStatus(ped.status) || "rascunho",
         observacoes: ped.observacoes || "",
-      });
+      };
+      rhfReset(initial);
       updateItems(
         (itens || []).map((i: Record<string, unknown>) => {
           const produtos = i.produtos as Record<string, unknown> | null;
@@ -142,42 +167,39 @@ export default function PedidoCompraForm() {
         setViewCotacao(cot);
       }
 
-      setIsDirty(false);
+      setItemsDirty(false);
       setLoading(false);
     }
     load();
-  }, [id, navigate, updateForm, updateItems]);
+  }, [id, navigate, rhfReset, updateItems]);
 
   const isTerminal = pedido ? ["recebido", "cancelado"].includes(pedido.status) : false;
 
-  const dataEntregaError =
-    form.data_pedido && form.data_entrega_prevista && form.data_entrega_prevista < form.data_pedido
-      ? "A data de entrega prevista não pode ser anterior à data do pedido."
-      : null;
+  // Erro do range data_pedido × data_entrega_prevista vem do schema.
+  const dataEntregaError = fieldErrors.data_entrega_prevista?.message ?? null;
 
   const valorProdutos = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const valorTotal = valorProdutos + Number(form.frete_valor || 0);
 
-  const handleSave = async () => {
+  const onValid = async (values: PedidoCompraFormValues) => {
     if (!pedido) return;
 
-    if (!form.fornecedor_id) { toast.error("Fornecedor é obrigatório."); return; }
+    // Itens são gerenciados fora do RHF — validação inline ainda via toast.
     const validItems = items.filter((i) => i.produto_id);
     if (validItems.length === 0) { toast.error("Adicione ao menos um item com produto selecionado."); return; }
     const invalidQty = validItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
     if (invalidQty !== -1) { toast.error(`Item ${invalidQty + 1}: quantidade deve ser maior que zero.`); return; }
     const invalidPrice = validItems.findIndex((i) => Number(i.valor_unitario ?? 0) < 0);
     if (invalidPrice !== -1) { toast.error(`Item ${invalidPrice + 1}: preço unitário inválido.`); return; }
-    if (dataEntregaError) { toast.error(dataEntregaError); return; }
 
     // Block terminal/workflow statuses from form
-    if (WORKFLOW_ONLY_STATUSES.includes(form.status) && form.status !== pedido.status) {
+    if (WORKFLOW_ONLY_STATUSES.includes(values.status) && values.status !== pedido.status) {
       toast.error("Este status só pode ser definido por ações do fluxo (receber, enviar, cancelar).");
       return;
     }
     // Validador puro: bloqueia transição inválida antes do round-trip ao banco.
-    if (form.status !== pedido.status) {
-      const v = validarTransicaoPedidoCompra(pedido.status, form.status);
+    if (values.status !== pedido.status) {
+      const v = validarTransicaoPedidoCompra(pedido.status, values.status);
       if (!v.ok) {
         toast.error(v.motivo ?? "Transição de status inválida.");
         return;
@@ -185,15 +207,15 @@ export default function PedidoCompraForm() {
     }
 
     const header = {
-      fornecedor_id: form.fornecedor_id,
-      data_pedido: form.data_pedido,
-      data_entrega_prevista: form.data_entrega_prevista || null,
+      fornecedor_id: values.fornecedor_id,
+      data_pedido: values.data_pedido,
+      data_entrega_prevista: values.data_entrega_prevista || null,
       // data_entrega_real só muda via RegistrarRecebimentoDialog; aqui preservamos o valor atual.
       data_entrega_real: pedido.data_entrega_real || null,
-      frete_valor: Number(form.frete_valor || 0),
-      condicao_pagamento: form.condicao_pagamento || null,
-      status: form.status,
-      observacoes: form.observacoes || null,
+      frete_valor: Number(values.frete_valor || 0),
+      condicao_pagamento: values.condicao_pagamento || null,
+      status: values.status,
+      observacoes: values.observacoes || null,
       valor_total: valorTotal,
     };
     const itensPayload = validItems.map((i) => ({
@@ -207,11 +229,13 @@ export default function PedidoCompraForm() {
       // Hook centralizado: header + replace_pedido_compra_itens + invalidação RQ.
       await salvarPedidoCompra.mutateAsync({ id: pedido.id, header, itens: itensPayload });
       setPedido({ ...pedido, ...header } as PedidoCompra);
-      setIsDirty(false);
+      rhfReset(values);
+      setItemsDirty(false);
     } catch {
       // toast já emitido pelo hook
     }
   };
+  const handleSave = handleSubmit(onValid);
 
   const handleBack = async () => {
     if (isDirty) {
@@ -304,7 +328,11 @@ export default function PedidoCompraForm() {
                 value={form.data_pedido}
                 onChange={(e) => updateForm({ ...form, data_pedido: e.target.value })}
                 disabled={isTerminal}
+                className={fieldErrors.data_pedido ? "border-destructive" : ""}
               />
+              {fieldErrors.data_pedido && (
+                <p className="text-xs text-destructive">{fieldErrors.data_pedido.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Entrega Prevista</Label>
@@ -369,6 +397,9 @@ export default function PedidoCompraForm() {
             onChange={(val) => updateForm({ ...form, fornecedor_id: val })}
             placeholder="Buscar por nome ou CNPJ..."
           />
+          {fieldErrors.fornecedor_id && (
+            <p className="text-xs text-destructive">{fieldErrors.fornecedor_id.message}</p>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -393,7 +424,11 @@ export default function PedidoCompraForm() {
                 onChange={(e) => updateForm({ ...form, frete_valor: e.target.value })}
                 placeholder="0,00"
                 disabled={isTerminal}
+                className={fieldErrors.frete_valor ? "border-destructive" : ""}
               />
+              {fieldErrors.frete_valor && (
+                <p className="text-xs text-destructive">{fieldErrors.frete_valor.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Condição de Pagamento</Label>
