@@ -60,6 +60,7 @@ import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
   canConfirmFiscal,
