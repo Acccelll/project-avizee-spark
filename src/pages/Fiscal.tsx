@@ -707,6 +707,35 @@ const Fiscal = () => {
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
     setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
+    // Pré-preenche condição/forma/vencimentos a partir das duplicatas do XML
+    // (inclui o fallback parseado de infCpl "VENCT. dd/mm/aaaa").
+    const dups = nfe.cobranca?.duplicatas ?? [];
+    if (dups.length > 0) {
+      const { mapTPagSefaz } = await import("@/lib/financeiro");
+      const formaPag = nfe.cobranca?.tPag ? mapTPagSefaz(nfe.cobranca.tPag) : "boleto";
+      const primeiro = dups[0].vencimento || "";
+      const intervalo = dups.length > 1 && dups[0].vencimento && dups[1].vencimento
+        ? Math.max(
+            1,
+            Math.round(
+              (new Date(dups[1].vencimento).getTime() - new Date(dups[0].vencimento).getTime()) /
+                (1000 * 60 * 60 * 24),
+            ),
+          )
+        : 30;
+      setForm((prev) => ({
+        ...prev,
+        condicao_pagamento: "a_prazo",
+        forma_pagamento: prev.forma_pagamento || formaPag || "boleto",
+        data_vencimento: primeiro,
+        intervalo_parcelas_dias: intervalo,
+      }));
+      setParcelas(dups.length);
+      setPrimeiroVencimento(primeiro);
+      setParcelasPlano(
+        dups.map((d, i) => ({ numero: i + 1, vencimento: d.vencimento, valor: d.valor })),
+      );
+    }
     setModalOpen(true);
     if (anexarNa) {
       toast.info(
