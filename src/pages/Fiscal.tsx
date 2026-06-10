@@ -712,7 +712,7 @@ const Fiscal = () => {
     const dups = nfe.cobranca?.duplicatas ?? [];
     if (dups.length > 0) {
       const { mapTPagSefaz } = await import("@/lib/financeiro");
-      const formaPag = nfe.cobranca?.tPag ? mapTPagSefaz(nfe.cobranca.tPag) : "boleto";
+      const formaPag = nfe.cobranca?.tPag ? mapTPagSefaz(nfe.cobranca.tPag) : "boleto_dda";
       const primeiro = dups[0].vencimento || "";
       const intervalo = dups.length > 1 && dups[0].vencimento && dups[1].vencimento
         ? Math.max(
@@ -726,7 +726,7 @@ const Fiscal = () => {
       setForm((prev) => ({
         ...prev,
         condicao_pagamento: "a_prazo",
-        forma_pagamento: prev.forma_pagamento || formaPag || "boleto",
+        forma_pagamento: prev.forma_pagamento || formaPag || "boleto_dda",
         data_vencimento: primeiro,
         intervalo_parcelas_dias: intervalo,
       }));
