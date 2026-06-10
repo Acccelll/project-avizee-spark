@@ -328,7 +328,11 @@ export default function PedidoCompraForm() {
                 value={form.data_pedido}
                 onChange={(e) => updateForm({ ...form, data_pedido: e.target.value })}
                 disabled={isTerminal}
+                className={fieldErrors.data_pedido ? "border-destructive" : ""}
               />
+              {fieldErrors.data_pedido && (
+                <p className="text-xs text-destructive">{fieldErrors.data_pedido.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Entrega Prevista</Label>
@@ -393,6 +397,9 @@ export default function PedidoCompraForm() {
             onChange={(val) => updateForm({ ...form, fornecedor_id: val })}
             placeholder="Buscar por nome ou CNPJ..."
           />
+          {fieldErrors.fornecedor_id && (
+            <p className="text-xs text-destructive">{fieldErrors.fornecedor_id.message}</p>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -417,7 +424,11 @@ export default function PedidoCompraForm() {
                 onChange={(e) => updateForm({ ...form, frete_valor: e.target.value })}
                 placeholder="0,00"
                 disabled={isTerminal}
+                className={fieldErrors.frete_valor ? "border-destructive" : ""}
               />
+              {fieldErrors.frete_valor && (
+                <p className="text-xs text-destructive">{fieldErrors.frete_valor.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Condição de Pagamento</Label>
