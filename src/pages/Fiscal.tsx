@@ -4,10 +4,8 @@ import { OriginContextBanner } from "@/components/navigation/OriginContextBanner
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
 import { calcularFaturaParaData } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
-import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,7 +16,6 @@ import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
-import { calcularTotalNF } from "@/lib/fiscal";
 import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -27,8 +24,6 @@ import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
   registrarEventoFiscal,
   cancelarNotaFiscal,
-  listOrdensVendaParaFiscal,
-  listContasContabeisLancaveis,
   getPedidoCompraResumo,
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
@@ -72,6 +67,12 @@ import {
 } from "@/lib/fiscalStatus";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
+import { useFiscalModalState } from "@/pages/fiscal/hooks/useFiscalModalState";
+import {
+  emptyFiscalForm as emptyForm,
+  type FiscalFormState as FiscalForm,
+  type NfItemFiscalData,
+} from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
