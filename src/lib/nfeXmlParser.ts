@@ -262,7 +262,11 @@ export function parseNFeXml(xmlString: string): NFeData {
     const infAdic = infNFe.getElementsByTagName("infAdic")[0];
     const infCpl = text(infAdic || null, "infCpl");
     if (infCpl) {
-      const re = /VENCT[\.\s]*(\d*)[\s:.\-]*([0-3]?\d)[\/\-]([01]?\d)[\/\-](\d{2,4})/gi;
+      // Aceita "VENCT. dd/mm/aaaa", "VENCT.1 dd/mm/aaaa" e
+      // "VENCT 1: dd/mm/aaaa". O índice da parcela é opcional, mas quando
+      // presente DEVE vir colado ao "VENCT." ou separado por : / -, nunca por
+      // espaço puro — senão o "1" de "18/06/2026" era engolido como índice.
+      const re = /VENCT\s*\.?\s*(?:(\d+)\s*[.:\-]\s*)?(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/gi;
       const matches: Array<{ idx: number; iso: string }> = [];
       let m: RegExpExecArray | null;
       while ((m = re.exec(infCpl)) !== null) {
