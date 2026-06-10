@@ -86,7 +86,13 @@ function formatarChave(chave: string): string {
  * canvas off-screen e devolve o dataURL para `addImage`.
  * Retorna `null` se o ambiente não suportar canvas (SSR).
  */
-function gerarBarcodeChave(chave: string): string | null {
+type JsBarcodeFn = (
+  canvas: HTMLCanvasElement,
+  text: string,
+  options?: Record<string, unknown>,
+) => void;
+
+function gerarBarcodeChave(chave: string, JsBarcode: JsBarcodeFn): string | null {
   if (typeof document === "undefined") return null;
   try {
     const canvas = document.createElement("canvas");
@@ -112,8 +118,12 @@ function safe(value: unknown, fallback = "—"): string {
  * Gera o PDF da DANFE e retorna o Blob.
  * Use `salvar = true` para disparar download automático.
  */
-export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Blob> {
+  const [{ jsPDF }, { default: JsBarcode }] = await Promise.all([
+    import("jspdf"),
+    import("jsbarcode"),
+  ]);
+  const doc: JsPDFType = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 8;
   let y = margin;
