@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCan } from '@/hooks/useCan';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllPages } from '@/services/relatorios/lib/fetchAllPages';
 import {
   listBudgetsMensais,
   createBudgetMensal,
@@ -63,13 +64,18 @@ export default function Budget() {
   const { data: realizados = [] } = useQuery({
     queryKey: ['budget-realizados', anoFiltro],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('financeiro_lancamentos')
-        .select('tipo, valor, data_vencimento')
-        .eq('ativo', true)
-        .gte('data_vencimento', `${anoFiltro}-01-01`)
-        .lte('data_vencimento', `${anoFiltro}-12-31`);
-      return (data ?? []) as Array<{ tipo: string; valor: number; data_vencimento: string }>;
+      // Frente 4 — fetch-all com paginação: financeiro_lancamentos em um ano
+      // ultrapassa facilmente o page-size 1000 do Supabase. Truncamento
+      // silencioso causaria realizados incorretos no gráfico vs orçado.
+      const data = await fetchAllPages<{ tipo: string; valor: number; data_vencimento: string }>(() =>
+        supabase
+          .from('financeiro_lancamentos')
+          .select('tipo, valor, data_vencimento')
+          .eq('ativo', true)
+          .gte('data_vencimento', `${anoFiltro}-01-01`)
+          .lte('data_vencimento', `${anoFiltro}-12-31`),
+      );
+      return data;
     },
     staleTime: 30_000,
   });
