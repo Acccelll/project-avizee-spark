@@ -9,8 +9,10 @@ import type { NotaFiscal } from "@/types/domain";
 const modeloLabels: Record<string, string> = {
   "55": "NF-e",
   "65": "NFC-e",
-  "01": "NF",
-  "02": "NFS",
+  "57": "CT-e",
+  "67": "CT-e OS",
+  nfse: "NFS-e",
+  outro: "Outro",
 };
 
 const origemLabels: Record<string, string> = {
