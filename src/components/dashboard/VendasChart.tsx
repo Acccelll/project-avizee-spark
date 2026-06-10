@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllPages } from '@/services/relatorios/lib/fetchAllPages';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
@@ -60,14 +61,18 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
           : sixMonthsAgoStr;
       const dateTo = range.dateTo || new Date().toISOString().slice(0, 10);
 
-      const { data: rows } = await supabase
-        .from('notas_fiscais')
-        .select('valor_total, data_emissao')
-        .eq('ativo', true)
-        .eq('tipo', 'saida')
-        .in('status', ['confirmada', 'importada'])
-        .gte('data_emissao', dateFrom)
-        .lte('data_emissao', dateTo);
+      // Frente 4 — paginação universal: 6 meses de NFs de saída podem
+      // ultrapassar 1000 linhas em volumes médios e zerar meses no gráfico.
+      const rows = await fetchAllPages<{ valor_total: number | string; data_emissao: string }>(() =>
+        supabase
+          .from('notas_fiscais')
+          .select('valor_total, data_emissao')
+          .eq('ativo', true)
+          .eq('tipo', 'saida')
+          .in('status', ['confirmada', 'importada'])
+          .gte('data_emissao', dateFrom)
+          .lte('data_emissao', dateTo),
+      );
 
       const monthMap = new Map<string, number>();
       for (const row of rows || []) {
