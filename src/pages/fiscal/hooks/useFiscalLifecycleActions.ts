@@ -58,7 +58,8 @@ export function useFiscalLifecycleActions(deps: UseFiscalLifecycleActionsDeps) {
       try {
         await confirmarMutation.mutateAsync({
           nfId: nf.id,
-          tipoDocumento: (nf as { tipo_documento?: string }).tipo_documento ?? "nfe",
+          tipoDocumento:
+            ((nf as { tipo_documento?: "nfe" | "nfse" | "cte" }).tipo_documento) ?? "nfe",
         });
         toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         refetch();
