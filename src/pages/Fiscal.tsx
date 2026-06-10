@@ -945,9 +945,12 @@ const Fiscal = () => {
     }
     // NF estruturalmente travada (confirmada/importada): só pagamento é editável.
     // Regenera lançamentos via RPC dedicada e encerra.
+    // Exceção: Admin/Financeiro com edição privilegiada pulam este atalho e
+    // seguem para o upsert completo (itens, valores, chave, número, etc.).
     if (
       mode === "edit" &&
       selected &&
+      !canEditAvancado &&
       isFiscalStructurallyLocked(selected.status, (selected as { status_sefaz?: string }).status_sefaz)
     ) {
       setSaving(true);
