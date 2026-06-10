@@ -1263,7 +1263,44 @@ const Fiscal = () => {
           descricao: `NF ${form.numero} editada. Novo total: R$ ${savedTotal.toFixed(2)}.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
-        toast.success("Nota fiscal salva!");
+        // Edição privilegiada (Admin/Financeiro) em NF estruturalmente travada:
+        // após gravar os dados da NF, regenera os lançamentos financeiros para
+        // refletir a nova forma de pagamento / vencimento / parcelas.
+        const wasLocked = isFiscalStructurallyLocked(
+          selected.status,
+          (selected as { status_sefaz?: string }).status_sefaz,
+        );
+        if (canEditAvancado && wasLocked && form.gera_financeiro) {
+          try {
+            const totalRegen = savedTotal;
+            const planoFinal =
+              form.condicao_pagamento === "a_prazo" && parcelas > 1
+                ? (parcelasPlano.length === parcelas ? parcelasPlano : [])
+                : [{
+                    numero: 1,
+                    vencimento: form.condicao_pagamento === "a_prazo"
+                      ? (form.data_vencimento || form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0])
+                      : (form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0]),
+                    valor: totalRegen,
+                  }];
+            if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
+              toast.warning("NF salva, mas o plano de parcelas está incompleto — financeiro não foi regenerado.");
+            } else {
+              await atualizarFinanceiroNota({
+                notaId: selected.id,
+                formaPagamento: form.forma_pagamento,
+                condicaoPagamento: form.condicao_pagamento,
+                parcelas: planoFinal as never,
+              });
+              toast.success("Nota fiscal salva e lançamentos financeiros regenerados.");
+            }
+          } catch (regenErr) {
+            logger.error("[fiscal] regenerar financeiro pós-edição admin:", regenErr);
+            toast.warning("NF salva, mas houve falha ao regenerar os lançamentos. Revise o financeiro vinculado.");
+          }
+        } else {
+          toast.success("Nota fiscal salva!");
+        }
       }
       setModalOpen(false); fetchData();
     } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); notifyError(err); }
