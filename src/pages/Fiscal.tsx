@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
@@ -56,16 +55,9 @@ import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveS
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
 import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
-import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
-import { useActionLock } from "@/hooks/useActionLock";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
-import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
-  canConfirmFiscal,
-  canEstornarFiscal,
   fiscalInternalStatusOptions,
   fiscalSefazStatusOptions,
   getFiscalInternalStatus,
@@ -73,6 +65,9 @@ import {
   isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { useFiscalVencimentos } from "@/pages/fiscal/hooks/useFiscalVencimentos";
+import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
+import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
