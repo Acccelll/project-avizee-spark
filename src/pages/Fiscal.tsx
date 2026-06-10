@@ -60,6 +60,7 @@ import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
   canConfirmFiscal,
@@ -312,6 +313,7 @@ const Fiscal = () => {
   const estornarLock = useActionLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const invalidate = useInvalidateAfterMutation();
+  const { canEditAvancado } = useCanEditFinanceiroAvancado();
   const confirmarMutation = useConfirmarNotaFiscal();
   const estornarMutation = useEstornarNotaFiscal();
   const { importXml } = useNFeXmlImport({
@@ -943,9 +945,12 @@ const Fiscal = () => {
     }
     // NF estruturalmente travada (confirmada/importada): só pagamento é editável.
     // Regenera lançamentos via RPC dedicada e encerra.
+    // Exceção: Admin/Financeiro com edição privilegiada pulam este atalho e
+    // seguem para o upsert completo (itens, valores, chave, número, etc.).
     if (
       mode === "edit" &&
       selected &&
+      !canEditAvancado &&
       isFiscalStructurallyLocked(selected.status, (selected as { status_sefaz?: string }).status_sefaz)
     ) {
       setSaving(true);
