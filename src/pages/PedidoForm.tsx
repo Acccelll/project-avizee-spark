@@ -369,7 +369,7 @@ const PedidoForm = () => {
             <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className={fieldErrors.status ? "border-destructive" : ""}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {/* M-05: só mostra status atingíveis a partir do status atual
                       (ordem operacional + matriz CHECK chk_ordens_venda_matriz_status).
@@ -387,12 +387,16 @@ const PedidoForm = () => {
                     ))}
                 </SelectContent>
               </Select>
+              {fieldErrors.status && (
+                <p className="text-[11px] text-destructive">{fieldErrors.status.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Data Prometida de Despacho</Label>
               <Input
                 type="date"
                 value={form.data_prometida_despacho}
+                className={fieldErrors.data_prometida_despacho ? "border-destructive" : ""}
                 onChange={(e) => {
                   const newDate = e.target.value;
                   const emissao = pedido?.data_emissao;
@@ -407,6 +411,9 @@ const PedidoForm = () => {
                   }
                 }}
               />
+              {fieldErrors.data_prometida_despacho && (
+                <p className="text-[11px] text-destructive">{fieldErrors.data_prometida_despacho.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Prazo de Despacho (dias)</Label>
@@ -414,6 +421,7 @@ const PedidoForm = () => {
                 type="number"
                 min={0}
                 value={form.prazo_despacho_dias}
+                className={fieldErrors.prazo_despacho_dias ? "border-destructive" : ""}
                 onChange={(e) => {
                   const dias = e.target.value;
                   const emissao = pedido?.data_emissao;
@@ -429,6 +437,9 @@ const PedidoForm = () => {
                 }}
                 placeholder="Ex: 5"
               />
+              {fieldErrors.prazo_despacho_dias && (
+                <p className="text-[11px] text-destructive">{fieldErrors.prazo_despacho_dias.message}</p>
+              )}
             </div>
             {form.prazo_despacho_dias && form.data_prometida_despacho && pedido?.data_emissao && (
               <p className="md:col-span-2 text-xs text-muted-foreground -mt-2">
@@ -448,7 +459,11 @@ const PedidoForm = () => {
                 value={form.po_number}
                 onChange={(e) => set("po_number", e.target.value)}
                 placeholder="Ex: PO-2024-0001"
+                className={fieldErrors.po_number ? "border-destructive" : ""}
               />
+              {fieldErrors.po_number && (
+                <p className="text-[11px] text-destructive">{fieldErrors.po_number.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Data do PO</Label>
@@ -456,7 +471,11 @@ const PedidoForm = () => {
                 type="date"
                 value={form.data_po_cliente}
                 onChange={(e) => set("data_po_cliente", e.target.value)}
+                className={fieldErrors.data_po_cliente ? "border-destructive" : ""}
               />
+              {fieldErrors.data_po_cliente && (
+                <p className="text-[11px] text-destructive">{fieldErrors.data_po_cliente.message}</p>
+              )}
             </div>
           </div>
         </div>
@@ -468,8 +487,11 @@ const PedidoForm = () => {
             value={form.observacoes}
             onChange={(e) => set("observacoes", e.target.value)}
             placeholder="Observações internas ou para o cliente..."
-            className="min-h-[100px]"
+            className={`min-h-[100px] ${fieldErrors.observacoes ? "border-destructive" : ""}`}
           />
+          {fieldErrors.observacoes && (
+            <p className="text-[11px] text-destructive">{fieldErrors.observacoes.message}</p>
+          )}
         </div>
 
         <div className="flex gap-3">
