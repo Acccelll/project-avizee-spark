@@ -86,57 +86,12 @@ import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal
  */
 export type NotaFiscal = NotaFiscalDomain;
 
-interface FiscalForm {
-  tipo: string;
-  numero: string;
-  serie: string;
-  chave_acesso: string;
-  data_emissao: string;
-  fornecedor_id: string;
-  cliente_id: string;
-  valor_total: number;
-  status: string;
-  observacoes: string;
-  movimenta_estoque: boolean;
-  gera_financeiro: boolean;
-  forma_pagamento: string;
-  condicao_pagamento: string;
-  ordem_venda_id: string;
-  conta_contabil_id: string;
-  modelo_documento: string;
-  cartao_id: string;
-  frete_valor: number;
-  icms_valor: number;
-  ipi_valor: number;
-  pis_valor: number;
-  cofins_valor: number;
-  icms_st_valor: number;
-  desconto_valor: number;
-  outras_despesas: number;
-  origem: string;
-  [key: string]: string | number | boolean;
-}
-
-const emptyForm: FiscalForm = {
-  tipo: "entrada", numero: "", serie: "1", chave_acesso: "", data_emissao: new Date().toISOString().split("T")[0],
-  fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente", observacoes: "",
-  movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
-  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
-  frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
-  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual", caminho_xml: "",
-};
-
 const modeloLabels: Record<string, string> = {
   '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
 };
 
 const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", xml_importado: "Importação XML" };
 
-interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; variacoes: string[] | null; }
-interface OrdemVendaRef { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
-interface ContaContabilRef { id: string; codigo: string; descricao: string; }
 interface NfItemRow {
   id: string; produto_id: string; quantidade: number; valor_unitario: number;
   conta_contabil_id: string | null; cfop: string | null; cst: string | null;
@@ -149,18 +104,6 @@ interface NfItemRow {
   csosn: string | null; cst_pis: string | null; cst_cofins: string | null; cst_ipi: string | null;
   desconto: number | null; codigo_produto: string | null;
   produtos?: { nome: string; sku: string } | null;
-}
-
-/** Fiscal fields preserved per item index across edits. */
-interface NfItemFiscalData {
-  cfop?: string | null; cst?: string | null; ncm?: string | null; unidade?: string | null;
-  descricao?: string | null; icms_valor?: number | null; icms_aliquota?: number | null;
-  icms_base?: number | null; ipi_valor?: number | null; ipi_aliquota?: number | null;
-  pis_valor?: number | null; pis_aliquota?: number | null; base_pis?: number | null;
-  cofins_valor?: number | null; cofins_aliquota?: number | null; base_cofins?: number | null;
-  valor_st?: number | null; base_st?: number | null;
-  csosn?: string | null; cst_pis?: string | null; cst_cofins?: string | null;
-  cst_ipi?: string | null; desconto?: number | null; codigo_produto?: string | null;
 }
 
 const Fiscal = () => {
