@@ -1,62 +1,102 @@
-# Botão "Testar Worker" no DistDFe Histórico
+## Frente 1 — Decompor `src/pages/Fiscal.tsx`
 
-Adicionar um teste leve do Cloudflare Worker mTLS que isola se o 520 vem de binding/allowlist (mTLS para `www1`) ou do envelope SOAP. Faz um `GET` simples ao WSDL via o Worker, sem montar envelope, sem assinar XML.
+**Alvo:** 2.204 → ≤ 800 linhas (orquestrador + JSX).
+**Premissa inegociável:** zero mudança funcional, zero migration, mesmos handlers, mesmos toasts, mesmos modais. Apenas extração para arquivos coesos.
 
-## 1. Edge function — nova action `worker-ping`
+## Por que agora
 
-`supabase/functions/sefaz-distdfe/index.ts`
+A Frente 4 já encostou em `Fiscal.tsx` (linha 1448) e exigiu navegação por 2.200 linhas para uma mudança de 8 linhas. NFS-e e CT-e (próximas features) precisam acrescentar 3 ramos de discriminador (`tipo_documento`) ao mesmo arquivo — sem decomposição, isso vira regressão garantida.
 
-- Adicionar `action: "worker-ping"` aceitando `ambiente: "1" | "2"`.
-- Resolver a URL alvo:
-  - Hom: `https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl`
-  - Prod: `https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl`
-- Validar `SEFAZ_USE_MTLS_PROXY` / `SEFAZ_MTLS_PROXY_URL` / `SEFAZ_MTLS_PROXY_SECRET` (mesma checagem do `status`).
-- Fazer `fetch(proxyUrl, { method: "GET", headers: { "x-proxy-secret": secret, "x-target-url": url } })` com timeout de 15s.
-- Devolver JSON com:
-  - `sucesso` (boolean), `ambiente`, `targetUrl`
-  - `statusHttp`, `statusText`
-  - `bytes`, `preview` (primeiros 240 chars do body)
-  - `diagnostico`: classificação simples
-    - 200 + `definitions`/`wsdl` no preview → `"OK — Worker alcança o endpoint e mTLS funciona"`
-    - 520 → `"Worker lança exceção — provável binding mTLS não cobre este hostname"`
-    - 525/526 → `"Falha TLS no Worker — verifique cadeia ICP-Brasil"`
-    - 401/400 com corpo curto → `"Worker rejeitou (secret ou header)"`
-    - Outros → mensagem genérica com o status
-  - `erro` quando aplicável
-- Permissão: reusa a mesma autorização de `visualizar` fiscal já existente.
-- Sem chamar a SEFAZ por SOAP, sem persistir nada, sem throttle.
+## Mapa de extração
 
-## 2. Service cliente
+| # | Novo arquivo | O que sai de `Fiscal.tsx` | Linhas est. |
+|---|---|---|---|
+| 1 | `src/pages/fiscal/hooks/useFiscalXmlActions.ts` | `handleXmlImport`, `handleAnexarXmlChange`, `processarXmlParaAnexar`, `handleTraducaoConfirm`, `handleTraducaoCancel`, estados `traducao*`, `pendingXmlImport`, `xmlOriginInfo`, `anexarTargetNf`, refs `xmlInputRef`/`anexarXmlInputRef` | ~280 |
+| 2 | `src/pages/fiscal/hooks/useFiscalLifecycleActions.ts` | `handleConfirmar`, `handleEstornar`, `handleCancelarRascunho`, `handleInativar`, `openDevolucao`, locks `confirmarLock`/`estornarLock`, `confirmDialog` | ~180 |
+| 3 | `src/pages/fiscal/hooks/useFiscalVencimentos.ts` | Loader `vencimentoNotaIds` (já corrigido na Frente 4 com `fetchAllPages`) + estado `vencimentoMes` | ~50 |
+| 4 | `src/pages/fiscal/components/FiscalTableColumns.tsx` | `renderFiscalStatus` + factory `buildFiscalColumns({ tipoParam, parceiroLabel, isMobile })` retornando o array de colunas | ~190 |
 
-`src/services/fiscal/sefaz/distdfe.service.ts`
+**Total extraído:** ~700 linhas. Orquestrador final: ~700–800 linhas.
 
-- Exportar `testarWorkerDistDFe(ambiente: "1" | "2")` que invoca `sefaz-distdfe` com `{ action: "worker-ping", ambiente }` e retorna o JSON tipado.
-- Reexportar via `src/services/fiscal/sefaz/index.ts`.
+## O que NÃO sai (decisão consciente)
 
-## 3. UI — botão e painel de resultado
-
-`src/pages/fiscal/DistDFeHistorico.tsx`
-
-- Ao lado do botão "Sincronizar", adicionar **dois botões**:
-  - "Testar Worker (Hom.)" → chama `testarWorkerDistDFe("2")`
-  - "Testar Worker (Prod.)" → chama `testarWorkerDistDFe("1")`
-- Loading independente do botão de sincronizar.
-- Mostrar resultado no mesmo painel inline já existente:
-  - Ambiente, URL alvo, status HTTP, diagnóstico, preview (monospace, truncado).
-  - Cor verde quando 200 + WSDL detectado; destrutivo nos demais.
-- Toast curto: sucesso ou falha com o diagnóstico.
+- **Form state da NF** (`form`, `items`, `parcelas*`, `itemFiscalData`, `itemContaContabil`, quick-adds): já existe `useFiscalNotaForm` (401 linhas) para a versão modal, mas o estado *inline* da página alimenta o `NotaFiscalEditModal` legado em múltiplos pontos do JSX. Migrar para o hook é a Fase 2 da decomposição — fora do escopo desta sessão (alto risco de divergência de comportamento entre modal antigo e novo).
+- **JSX root** (linhas 1685–2200): permanece em `Fiscal.tsx` como orquestrador. Após a extração ele referencia apenas hooks + columns factory + componentes já existentes.
+- **`buildNfItemsPayload` e `handleSubmit`** (~770 linhas combinadas): acoplados ao state inline acima; saem na Fase 2 junto com a migração do form.
 
 ## Detalhes técnicos
 
-- Sem migrações de banco.
-- Sem mudar contrato do Worker — apenas exercita `x-target-url` com método `GET`.
-- Logs do edge function via `log.info("worker-ping", { ambiente, statusHttp, bytes })` para correlacionar com a UI.
+### Hook 1 — `useFiscalXmlActions`
 
-## Como interpretar o resultado
-
-```text
-Hom 200 + WSDL  e  Prod 520  →  binding mTLS no Worker cobre só hom1.nfe.fazenda.gov.br
-Hom 200         e  Prod 525  →  cadeia ICP-Brasil ausente na rota Prod do Worker
-Ambos 401/400   →  secret/headers errados no edge function
-Ambos 520       →  Worker está com exception em todo request (verificar wrangler tail)
+```ts
+function useFiscalXmlActions(deps: {
+  fornecedoresCrud, clientesCrud, produtosCrud,
+  cnpjEmpresa, onAfterImport: (result) => void,
+  // tradução abre/fecha modal controlado pelo orquestrador:
+  setTraducaoOpen, setTraducaoLinhas, setTraducaoReadOnly,
+}) {
+  // retorna: { xmlInputRef, anexarXmlInputRef, anexarTargetNf, setAnexarTargetNf,
+  //   xmlOriginInfo, setXmlOriginInfo, pendingXmlImport,
+  //   handleXmlImport, handleAnexarXmlChange,
+  //   handleTraducaoConfirm, handleTraducaoCancel }
+}
 ```
+
+Mantém o `useNFeXmlImport` interno (já é hook) — só extrai os *handlers de página* que orquestram o resultado.
+
+### Hook 2 — `useFiscalLifecycleActions`
+
+```ts
+function useFiscalLifecycleActions(deps: {
+  confirmarMutation, estornarMutation, invalidate, can,
+  closeModal: () => void,
+}) {
+  const confirmarLock = useActionLock();
+  const estornarLock = useActionLock();
+  const { confirm, dialog } = useConfirmDialog();
+  // retorna: { handleConfirmar, handleEstornar, handleCancelarRascunho,
+  //   handleInativar, openDevolucao, devolucaoFlowRef, confirmDialog: dialog }
+}
+```
+
+Recebe `closeModal` para chamar após cancelar/estornar (substitui o `setModalOpen(false)` inline).
+
+### Hook 3 — `useFiscalVencimentos`
+
+Único loader; já paginado via `fetchAllPages`. Apenas encapsula `useState<Set<string> | null>` + `useEffect` por `vencimentoMes`.
+
+### Componente 4 — `FiscalTableColumns.tsx`
+
+Exporta `buildFiscalColumns(opts: BuildColumnsOpts): Column<NotaFiscal>[]`. As 13 colunas hoje inline viram declarativas. `renderFiscalStatus` é função interna do módulo (não exportada).
+
+## Sequência de execução
+
+1. **Extrair** os 4 arquivos em paralelo (são independentes entre si).
+2. **Adaptar** `Fiscal.tsx`:
+   - Adicionar 4 imports.
+   - Substituir blocos de handlers/states pelos retornos dos hooks (uma seção por vez).
+   - Substituir `const columns = [...]` por `const columns = useMemo(() => buildFiscalColumns({...}), [tipoParam, parceiroLabel, isMobile])`.
+3. **Verificação**:
+   - Build limpo (TypeScript estrito).
+   - Smoke manual: criar NF rascunho, importar XML, confirmar, estornar, cancelar, anexar XML, abrir devolução.
+
+## Riscos e mitigação
+
+| Risco | Mitigação |
+|---|---|
+| Hook 1 expõe muitas deps (acopla a `setTraducao*`) | Aceitar nesta fase; consolidação no `useFiscalNotaForm` é Fase 2 |
+| Quebra silenciosa de closure (handler usa state stale) | Cada hook devolve handlers via `useCallback` com deps explícitas |
+| Coluna `tipoParam`-dependente perde reatividade | Factory recebe `tipoParam` por argumento; `useMemo` no consumidor |
+
+## Não faz parte desta sessão
+
+- Migrar form inline para `useFiscalNotaForm` (Fase 2 da decomposição).
+- Tocar `handleSubmit`/`buildNfItemsPayload` (saem com Fase 2).
+- Qualquer SQL/migration.
+- Refatorar a árvore JSX dos 520 linhas finais (cosmético; baixa prioridade).
+
+## Critério de pronto
+
+- `wc -l src/pages/Fiscal.tsx` ≤ 800.
+- 0 erro TS, 0 warning novo.
+- Os 4 novos arquivos cobertos por imports apenas em `Fiscal.tsx` (nenhum vazamento de uso).

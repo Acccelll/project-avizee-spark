@@ -19,11 +19,9 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
 import { calcularTotalNF } from "@/lib/fiscal";
-import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon, Copy } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
@@ -72,7 +70,8 @@ import {
   getFiscalSefazStatus,
   isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
-import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
+import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
@@ -1433,46 +1432,8 @@ const Fiscal = () => {
   const data = pagedData;
   const fetchData = refetchPaged;
 
-  // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
-  useEffect(() => {
-    if (!vencimentoMes) {
-      setVencimentoNotaIds(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const start = vencimentoMes + "-01";
-      const [y, m] = vencimentoMes.split("-").map(Number);
-      const endDate = new Date(y, m, 0);
-      const end = endDate.toISOString().slice(0, 10);
-      // Frente 4 — paginação universal: um mês inteiro de financeiro_lancamentos
-      // com nota_fiscal_id pode ultrapassar 1000 e fazer o badge "vence neste mês"
-      // mostrar números incorretos por truncamento silencioso.
-      let rows: Array<{ nota_fiscal_id: string | null }> = [];
-      try {
-        rows = await fetchAllPages<{ nota_fiscal_id: string | null }>(() =>
-          supabase
-            .from("financeiro_lancamentos")
-            .select("nota_fiscal_id")
-            .eq("ativo", true)
-            .not("nota_fiscal_id", "is", null)
-            .gte("data_vencimento", start)
-            .lte("data_vencimento", end),
-        );
-      } catch {
-        if (cancelled) return;
-        setVencimentoNotaIds(new Set());
-        return;
-      }
-      if (cancelled) return;
-      const set = new Set<string>();
-      (rows || []).forEach((r) => {
-        if (r.nota_fiscal_id) set.add(r.nota_fiscal_id as string);
-      });
-      setVencimentoNotaIds(set);
-    })();
-    return () => { cancelled = true; };
-  }, [vencimentoMes]);
+  // Frente 1 — extraído para `useFiscalVencimentosLoader`.
+  useFiscalVencimentosLoader(vencimentoMes, setVencimentoNotaIds);
 
   // KPIs — agora vêm da RPC `kpis_fiscal`, refletindo o universo total filtrado
   // server-side (não apenas os 1000 primeiros que o hook traz). Isso garante
@@ -1522,165 +1483,16 @@ const Fiscal = () => {
     ? { title: "Notas de Saída", subtitle: "Notas fiscais de saída e faturamento", addLabel: "Nova NF de Saída", moduleKey: "notas-saida", parceiroLabel: "Cliente" }
     : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
 
-  // Em mobile, exibe ERP + SEFAZ empilhados como sub-pill no header do card (statusBadge).
-  const renderFiscalStatus = (n: NotaFiscal) =>
-    isMobile ? (
-      <div className="flex flex-col items-end gap-1">
-        <FiscalInternalStatusBadge status={n.status} />
-        <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} className="text-[10px] px-1.5 py-0" />
-      </div>
-    ) : (
-      <FiscalInternalStatusBadge status={n.status} />
-    );
-
-  const parceiroLabel = tipoConfig.parceiroLabel;
-
-  const columns = [
-    {
-      key: "numero",
-      label: "Nº Nota",
-      serverSortable: true,
-      render: (n: NotaFiscal) => (
-        <span className="font-mono text-sm font-bold text-primary">{n.numero}</span>
-      ),
-    },
-    {
-      key: "parceiro",
-      label: parceiroLabel,
-      render: (n: NotaFiscal) => {
-        // Devolução de saída: NF de entrada gerada a partir de uma saída.
-        // It carries cliente_id (not fornecedor_id), so we resolve correctly.
-        const nome =
-          n.tipo === "entrada" && n.tipo_operacao === "devolucao" && n.clientes?.nome_razao_social
-            ? n.clientes.nome_razao_social
-            : n.tipo === "entrada"
-            ? n.fornecedores?.nome_razao_social || "—"
-            : n.clientes?.nome_razao_social || "—";
-        return <span className="font-medium">{nome}</span>;
-      },
-    },
-    {
-      key: "data_emissao",
-      label: "Emissão",
-      sortable: true,
-      serverSortable: true,
-      render: (n: NotaFiscal) => formatDate(n.data_emissao),
-    },
-    {
-      key: "status",
-      label: "Status ERP",
-      render: renderFiscalStatus,
-    },
-    {
-      key: "valor_total",
-      label: "Total",
-      sortable: true,
-      serverSortable: true,
-      render: (n: NotaFiscal) => (
-        <span className="font-semibold font-mono">{formatCurrency(Number(n.valor_total))}</span>
-      ),
-    },
-    {
-      key: "tipo",
-      label: "Tipo",
-      hidden: !!tipoParam,
-      render: (n: NotaFiscal) => n.tipo === "entrada" ? "Entrada" : "Saída",
-    },
-    {
-      key: "serie",
-      label: "Série",
-      hidden: true,
-      render: (n: NotaFiscal) => (
-        <span className="font-mono text-xs text-muted-foreground">{n.serie || "1"}</span>
-      ),
-    },
-    {
-      key: "modelo",
-      label: "Modelo",
-      // U1: modelo é informação chave em página que mistura NF-e/NFC-e/CT-e/NFS-e.
-      render: (n: NotaFiscal) => {
-        const td = (n as any).tipo_documento as string | undefined;
-        const label = td === "nfse" ? "NFS-e" : td === "cte" ? "CT-e" : (modeloLabels[n.modelo_documento || "55"] || n.modelo_documento);
-        const cls = td === "nfse"
-          ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30"
-          : td === "cte"
-          ? "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30"
-          : "bg-muted text-foreground/80 border-border";
-        return (
-          <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold ${cls}`}>
-            {label}
-          </span>
-        );
-      },
-    },
-    {
-      key: "operacao",
-      label: "Operação",
-      // U2: visibilidade de devolução vs operação normal sem precisar abrir a NF.
-      render: (n: NotaFiscal) => {
-        if ((n.tipo_operacao || "normal") === "devolucao")
-          return <span className="text-xs text-warning font-medium">Devolução</span>;
-        return <span className="text-xs text-muted-foreground">Normal</span>;
-      },
-    },
-    {
-      key: "chave_acesso",
-      label: "Chave de Acesso",
-      hidden: true,
-      render: (n: NotaFiscal) =>
-        n.chave_acesso ? (
-          <div className="flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="font-mono text-xs text-muted-foreground cursor-help">
-                    {n.chave_acesso.length > 12 ? `${n.chave_acesso.slice(0, 8)}…${n.chave_acesso.slice(-4)}` : n.chave_acesso}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="font-mono text-xs">{n.chave_acesso}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <button
-              type="button"
-              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(n.chave_acesso!);
-                toast.success("Chave copiada");
-              }}
-              aria-label="Copiar chave de acesso"
-              title="Copiar chave de acesso"
-            >
-              <Copy className="h-3 w-3" />
-            </button>
-          </div>
-        ) : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "ov",
-      label: "Pedido Vinc.",
-      hidden: true,
-      render: (n: NotaFiscal) =>
-        n.ordens_venda?.numero
-          ? <span className="font-mono text-xs">{n.ordens_venda.numero}</span>
-          : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "origem",
-      label: "Origem",
-      hidden: true,
-      render: (n: NotaFiscal) => (
-        <Badge variant="outline" className="text-xs capitalize">
-          {origemLabels[n.origem || "manual"] || n.origem || "Manual"}
-        </Badge>
-      ),
-    },
-    {
-      key: "status_sefaz",
-      label: "Status SEFAZ",
-      render: (n: NotaFiscal) => <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} />,
-    },
-  ];
+  // Frente 1 — colunas e renderizadores extraídos para `buildFiscalColumns`.
+  const columns = useMemo(
+    () =>
+      buildFiscalColumns({
+        tipoParam,
+        parceiroLabel: tipoConfig.parceiroLabel,
+        isMobile,
+      }),
+    [tipoParam, tipoConfig.parceiroLabel, isMobile],
+  );
 
   return (
     <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
