@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
