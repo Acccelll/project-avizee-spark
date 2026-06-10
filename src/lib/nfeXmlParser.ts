@@ -255,6 +255,46 @@ export function parseNFeXml(xmlString: string): NFeData {
     tPag = text(detPag, "tPag") || null;
   }
 
+  // Fallback: alguns emissores não preenchem <cobr>/<dup> e indicam o(s)
+  // vencimento(s) apenas em infAdic/infCpl no formato "VENCT. dd/mm/aaaa" ou
+  // "VENCT.1 dd/mm/aaaa; VENCT.2 dd/mm/aaaa".
+  if (duplicatas.length === 0) {
+    const infAdic = infNFe.getElementsByTagName("infAdic")[0];
+    const infCpl = text(infAdic || null, "infCpl");
+    if (infCpl) {
+      const re = /VENCT[\.\s]*(\d*)[\s:.\-]*([0-3]?\d)[\/\-]([01]?\d)[\/\-](\d{2,4})/gi;
+      const matches: Array<{ idx: number; iso: string }> = [];
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(infCpl)) !== null) {
+        const idx = m[1] ? Number(m[1]) : matches.length + 1;
+        const dd = m[2].padStart(2, "0");
+        const mm = m[3].padStart(2, "0");
+        let yyyy = m[4];
+        if (yyyy.length === 2) yyyy = (Number(yyyy) >= 70 ? "19" : "20") + yyyy;
+        matches.push({ idx, iso: `${yyyy}-${mm}-${dd}` });
+      }
+      if (matches.length > 0) {
+        const valorNF = num(total, "vNF");
+        const n = matches.length;
+        const baseCent = Math.floor((valorNF * 100) / n);
+        const restoCent = Math.round(valorNF * 100) - baseCent * n;
+        matches
+          .sort((a, b) => a.idx - b.idx)
+          .forEach((mt, i) => {
+            const cent = baseCent + (i === n - 1 ? restoCent : 0);
+            duplicatas.push({
+              numero: String(mt.idx || i + 1),
+              vencimento: mt.iso,
+              valor: cent / 100,
+            });
+          });
+        // Sem <pag>/<detPag> explícito, "VENCT." em texto livre é sinal forte
+        // de boleto a prazo.
+        if (!tPag) tPag = "15";
+      }
+    }
+  }
+
   const aVista = duplicatas.length === 0 && tPag !== null && !["02", "15"].includes(tPag);
 
   return {
