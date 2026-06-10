@@ -70,7 +70,6 @@ import {
   getFiscalSefazStatus,
   isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
-import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
