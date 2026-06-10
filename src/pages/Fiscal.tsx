@@ -1436,46 +1436,8 @@ const Fiscal = () => {
   const data = pagedData;
   const fetchData = refetchPaged;
 
-  // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
-  useEffect(() => {
-    if (!vencimentoMes) {
-      setVencimentoNotaIds(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const start = vencimentoMes + "-01";
-      const [y, m] = vencimentoMes.split("-").map(Number);
-      const endDate = new Date(y, m, 0);
-      const end = endDate.toISOString().slice(0, 10);
-      // Frente 4 — paginação universal: um mês inteiro de financeiro_lancamentos
-      // com nota_fiscal_id pode ultrapassar 1000 e fazer o badge "vence neste mês"
-      // mostrar números incorretos por truncamento silencioso.
-      let rows: Array<{ nota_fiscal_id: string | null }> = [];
-      try {
-        rows = await fetchAllPages<{ nota_fiscal_id: string | null }>(() =>
-          supabase
-            .from("financeiro_lancamentos")
-            .select("nota_fiscal_id")
-            .eq("ativo", true)
-            .not("nota_fiscal_id", "is", null)
-            .gte("data_vencimento", start)
-            .lte("data_vencimento", end),
-        );
-      } catch {
-        if (cancelled) return;
-        setVencimentoNotaIds(new Set());
-        return;
-      }
-      if (cancelled) return;
-      const set = new Set<string>();
-      (rows || []).forEach((r) => {
-        if (r.nota_fiscal_id) set.add(r.nota_fiscal_id as string);
-      });
-      setVencimentoNotaIds(set);
-    })();
-    return () => { cancelled = true; };
-  }, [vencimentoMes]);
+  // Frente 1 — extraído para `useFiscalVencimentosLoader`.
+  useFiscalVencimentosLoader(vencimentoMes, setVencimentoNotaIds);
 
   // KPIs — agora vêm da RPC `kpis_fiscal`, refletindo o universo total filtrado
   // server-side (não apenas os 1000 primeiros que o hook traz). Isso garante
