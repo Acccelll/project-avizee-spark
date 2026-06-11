@@ -212,6 +212,56 @@ export default function DistDFeHistorico() {
     }
   };
 
+  /**
+   * Busca retroativa via consNFeDest — não depende do NSU do DistDFe.
+   * Pagina automaticamente enquanto houver mais documentos (temMais=true).
+   * Limite de 20 páginas (~1000 NF-e) por execução para evitar timeout.
+   */
+  const buscarRetroativamente = async () => {
+    setBuscandoRetro(true);
+    setRetroResult(null);
+    let totalNovas = 0;
+    let totalDuplicadas = 0;
+    let paginas = 0;
+    let ultNSU: string | undefined = undefined;
+    const MAX_PAGINAS = 20;
+
+    try {
+      while (paginas < MAX_PAGINAS) {
+        const r: BuscaDestinatarioResult = await buscarNFeDestinatario(ultNSU);
+        paginas++;
+
+        if (!r.sucesso) {
+          setRetroResult({ totalNovas, totalDuplicadas, paginas, erro: r.erro ?? r.xMotivo });
+          toast.error("Busca retroativa falhou", {
+            description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
+          });
+          return;
+        }
+
+        totalNovas += r.novas ?? 0;
+        totalDuplicadas += r.duplicadas ?? 0;
+
+        if (!r.temMais || !r.ultNSU) break;
+        ultNSU = r.ultNSU;
+
+        // Pausa de 500ms entre páginas para não pressionar o SEFAZ.
+        await new Promise((res) => setTimeout(res, 500));
+      }
+
+      setRetroResult({ totalNovas, totalDuplicadas, paginas });
+      toast.success("Busca retroativa concluída", {
+        description: `${totalNovas} NF-e nova(s) registrada(s), ${totalDuplicadas} já existente(s). (${paginas} página(s) consultada(s))`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setRetroResult({ totalNovas, totalDuplicadas, paginas, erro: msg });
+      toast.error("Erro na busca retroativa", { description: msg });
+    } finally {
+      setBuscandoRetro(false);
+    }
+  };
+
   const ultima = rows[0];
   const kpis = useMemo(() => {
     const ultimas10 = rows.slice(0, 10);
