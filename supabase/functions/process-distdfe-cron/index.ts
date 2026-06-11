@@ -15,6 +15,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { recordCronHealth } from "../_shared/cron-health.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
@@ -566,6 +567,13 @@ Deno.serve(async (req) => {
     total_novos: totalNovos,
     total_erros: totalErros,
   });
+
+  await recordCronHealth(
+    admin,
+    "process-distdfe-cron",
+    totalErros > 0 ? "error" : "ok",
+    totalErros > 0 ? `${totalErros} CNPJ(s) com erro` : undefined,
+  );
 
   return json({
     sucesso: true,
