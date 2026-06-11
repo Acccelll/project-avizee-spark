@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "typecheck:core": "tsc -p tsconfig.strict-core.json",
     "lint:touch-targets": "node scripts/lint-touch-targets.mjs",
-    "check:schema-drift": "node scripts/check-schema-drift.mjs"
+    "check:schema-drift": "node scripts/check-schema-drift.mjs",
+    "test:db": "supabase test db"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
