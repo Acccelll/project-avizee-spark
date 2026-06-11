@@ -463,14 +463,23 @@ Deno.serve(async (req) => {
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20_000);
+        // Diagnóstico opcional: permite reproduzir a chamada real
+        // (envelope SOAP + Content-Type com action) para isolar o 520.
+        const corpoPing: string = typeof body.corpo === "string" ? body.corpo : "";
+        const ctPing: string = typeof body.contentType === "string"
+          ? body.contentType
+          : "application/soap+xml; charset=utf-8";
+        const extraHeaders: Record<string, string> = {};
+        if (typeof body.soapaction === "string") extraHeaders["soapaction"] = body.soapaction;
         const r = await fetch(pUrl, {
           method: "POST",
           headers: {
             "x-proxy-secret": pSecret,
             "x-target-url": alvo,
-            "Content-Type": "application/soap+xml; charset=utf-8",
+            "Content-Type": ctPing,
+            ...extraHeaders,
           },
-          body: "",
+          body: corpoPing,
           signal: ctrl.signal,
         });
         clearTimeout(t);
