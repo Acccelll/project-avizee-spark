@@ -457,7 +457,51 @@ export default function PortalFiscal() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => void limparAlheias()}
+              disabled={limpando}
+              title="Remover NF-es destinadas a outros CNPJs"
+            >
+              {limpando ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Limpar NFs alheias
+            </Button>
+          )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <ShieldAlert className="h-4 w-4" />
+          <span>
+            Certificado ativo:{" "}
+            <span className="font-medium text-foreground">
+              {empresaInfo.razao ?? "—"}
+            </span>
+            {empresaInfo.cnpj && (
+              <span className="ml-1 font-mono text-xs">
+                ({empresaInfo.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")})
+              </span>
+            )}
+          </span>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input"
+            checked={incluirOutros}
+            onChange={(e) => {
+              setIncluirOutros(e.target.checked);
+              setPage(0);
+            }}
+          />
+          <span>Mostrar NF-es destinadas a outros CNPJs</span>
+        </label>
       </div>
 
       <Card>
