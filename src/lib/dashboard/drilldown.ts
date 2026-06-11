@@ -17,9 +17,9 @@
  *
  * | intent                              | hook que produz a contagem               | filtro aplicado na página de destino                          |
  * |-------------------------------------|------------------------------------------|---------------------------------------------------------------|
- * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido) + range global (from/to) |
- * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido) + range global (from/to)   |
- * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido + range global (from/to)                                    |
+ * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido) — SNAPSHOT (sem janela) |
+ * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido) — SNAPSHOT (sem janela)   |
+ * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido — SNAPSHOT (sem janela)                                    |
  * | estoque:critico                     | useDashboardEstoqueData                  | critico=1                                                     |
  * | logistica:remessas-atrasadas        | useDashboardAuxData                      | tab=remessas + atrasadas=1                                    |
  * | compras:atrasadas                   | useDashboardAuxData (comprasAtrasadasCount)| atrasadas=1 (interpretação local em PedidosCompra.tsx)      |
@@ -29,9 +29,9 @@
 
 export type DrilldownIntent =
   // Financeiro
-  | { kind: 'financeiro:receber-aberto'; range?: DateRange }
-  | { kind: 'financeiro:pagar-aberto'; range?: DateRange }
-  | { kind: 'financeiro:vencidos'; range?: DateRange }
+  | { kind: 'financeiro:receber-aberto' }
+  | { kind: 'financeiro:pagar-aberto' }
+  | { kind: 'financeiro:vencidos' }
   | { kind: 'financeiro:saldo' }
   // Estoque
   | { kind: 'estoque:critico' }
@@ -45,26 +45,14 @@ export type DrilldownIntent =
   // Comercial
   | { kind: 'pedidos:aguardando-faturamento' };
 
-export interface DateRange {
-  dateFrom?: string;
-  dateTo?: string;
-}
-
-/** Acrescenta `from=YYYY-MM-DD&to=YYYY-MM-DD` quando ambos os limites existem. */
-function appendRange(base: string, range?: DateRange): string {
-  if (!range?.dateFrom || !range?.dateTo) return base;
-  const sep = base.includes('?') ? '&' : '?';
-  return `${base}${sep}from=${range.dateFrom}&to=${range.dateTo}`;
-}
-
 export function buildDrilldownUrl(intent: DrilldownIntent): string {
   switch (intent.kind) {
     case 'financeiro:receber-aberto':
-      return appendRange('/financeiro?tipo=receber&status=aberto,parcial,vencido', intent.range);
+      return '/financeiro?tipo=receber&status=aberto,parcial,vencido';
     case 'financeiro:pagar-aberto':
-      return appendRange('/financeiro?tipo=pagar&status=aberto,parcial,vencido', intent.range);
+      return '/financeiro?tipo=pagar&status=aberto,parcial,vencido';
     case 'financeiro:vencidos':
-      return appendRange('/financeiro?status=vencido', intent.range);
+      return '/financeiro?status=vencido';
     case 'financeiro:saldo':
       return '/fluxo-caixa';
     case 'estoque:critico':
