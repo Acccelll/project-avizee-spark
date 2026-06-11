@@ -1,49 +1,55 @@
-## Phase 2 — Decompose Fiscal.tsx form state
+## Problema
 
-### Goal
-Move the ~700 lines of inline form/items/parcelas/fiscal-data state from `src/pages/Fiscal.tsx` into a dedicated hook so the orchestrator drops from ~2.016 → ~1.200 lines, and so the create/edit modal stops duplicating logic that already exists in `useFiscalNotaForm` (used by the `/fiscal/novo` page).
+O KPI "A receber em aberto" do dashboard hoje aplica `data_vencimento ∈ [from, to]`. Como `to` é sempre ≤ hoje, todos os títulos com vencimento futuro ficam de fora e o valor exibido se aproxima apenas dos vencidos. O drill-down reproduz o mesmo erro, levando para uma listagem que mostra "só vencidos".
 
-### Why not reuse `useFiscalNotaForm` directly
-`useFiscalNotaForm` is page-mode (one fixed `notaId`, navigates on save). The modal in `Fiscal.tsx` switches between create/edit/anexar-XML at runtime, drives the Tradução XML drawer, owns quick-add flows, and must reset on close. Forcing it into the page-hook would break the modal lifecycle. Instead, extract a sibling hook tailored to the modal — sharing the same `FiscalFormState`/`NfItemFiscalData` types and the same `buildItemsPayload` helper.
+## Decisão (confirmada com o usuário)
 
-### Scope (one new hook + light orchestrator surgery)
+KPIs de saldo em aberto (A Receber, A Pagar, Vencidas) são **snapshot atual** — não respeitam o período global do dashboard. O período global continua valendo para o que faz sentido (faturamento, recebimentos no dia, gráficos diários, top clientes do período).
 
-1. **Create `src/pages/fiscal/hooks/useFiscalModalForm.ts`** — owns:
-   - `form`/`setForm`, `items`/`setItems`
-   - `itemContaContabil`, `itemFiscalData`
-   - `parcelas`, `primeiroVencimento`, `intervaloDias`, `parcelasPlano`
-   - `mode` ("create" | "edit"), `selected` (NotaFiscal | null)
-   - `modalOpen`, `saving`
-   - lookups: `ordensVenda`, `contasContabeis`, `cartoes` (moved from inline `useEffect`)
-   - derived `valorProdutos`, `totalImpostos`, `totalNF`
-   - actions: `openCreate()`, `openEdit(nf)`, `closeModal()`, `resetForXml(baseForm, items, fiscalMap)`, `buildItemsPayload(nfId)`, `submit()`
-   - The `submit()` body is the current `handleSubmit` (lines 966–1.06x) lifted verbatim, parameterized by `onSavedRefresh` (callback for `refresh()` + invalidations) and `onClose` (closeModal + URL cleanup).
+## Mudanças
 
-2. **Reuse shared types**: import `FiscalFormState`, `NfItemFiscalData`, `emptyFiscalForm` from `useFiscalNotaForm.ts` instead of redeclaring `FiscalForm`/`emptyForm` in `Fiscal.tsx`. Delete the duplicated local declarations (lines 88–126).
+### 1. `src/pages/dashboard/hooks/useDashboardFinanceiroData.ts`
+Remover `gte/lte` em `data_vencimento` das queries `buildTotalQuery("receber")` e `buildTotalQuery("pagar")`. Ficam como snapshot puro: `tipo + ativo + status IN (aberto, parcial, vencido)`.
 
-3. **Wire `Fiscal.tsx`**:
-   - Replace the ~20 `useState`/`useEffect` lines (190–214 region + lookups effect) with a single `const modalForm = useFiscalModalForm({ refresh, ... })`.
-   - Update every reference (`form` → `modalForm.form`, etc.) — pure rename, no behaviour change.
-   - Keep XML import (`useNFeXmlImport` integration), tradução drawer, quick-add modals, and lifecycle handlers (`handleConfirmar`/`handleEstornar`/etc.) in `Fiscal.tsx`. The hook exposes `setForm`/`setItems`/`setItemFiscalData` so those existing handlers keep working unchanged.
-   - Drop now-unused imports (`upsertNotaFiscalComItens`, `listOrdensVendaParaFiscal`, `listContasContabeisLancaveis`, `listNotaFiscalItensCompletos`, `calcularTotalNF`, `criarRecorrenciaParaNfe`, etc.) that migrate to the hook.
+A consulta `vencidasResult` já é snapshot — sem alteração.
 
-4. **Do NOT touch in this session**:
-   - JSX in lines 1.700–2.016 (form body, modal, drawers) — they will simply consume the renamed props.
-   - `useNFeXmlImport`, `useFiscalVencimentosLoader`, `FiscalTableColumns`, lifecycle hooks (already extracted in Phase 1).
-   - `useFiscalNotaForm` page hook stays as-is.
-   - No SQL, no migrations.
+`recDataResult` (top clientes) **mantém** o filtro de período: top clientes do período faz sentido.
 
-### Expected outcome
-- `Fiscal.tsx`: 2.016 → ~1.250 lines.
-- New `useFiscalModalForm.ts`: ~480 lines (extracted, not new logic).
-- Duplicated `FiscalForm`/`emptyForm` declarations removed (single source of truth in `useFiscalNotaForm.ts`).
-- Behaviour unchanged: same create/edit/anexar-XML/recorrência/parcelas flows.
+`dailyReceber`/`dailyPagar` continuam restritos aos próximos 7 dias (já são snapshot futuro independente do período).
 
-### Verification
-- Open `/fiscal`, create new NF (entrada + saída), edit existing, import XML (with and without tradução pendente), anexar XML to existing NF, NF recorrente, NF a_prazo com parcelas customizadas. No regressions in console/network.
+### 2. `src/components/dashboard/FinanceiroBlock.tsx`
+- Trocar o `ScopeBadge` do header de `{ kind: 'global-range', eixo: 'data_vencimento' }` para um scope "snapshot" (ver passo 3).
+- Adicionar um pequeno texto/badge distinguindo os indicadores: "A receber / A pagar / Vencidas = snapshot atual", e o gráfico/Top continua marcado como "período global".
 
-### Risks
-- The current `handleSubmit` references several closures from `Fiscal.tsx` (`refresh`, `setSearchParams`, `setModalOpen`, `setSelected`, `setMode`, invalidation hooks). Solution: pass these as a single `deps` object to the hook factory. No magic.
-- `setForm` is called from XML import paths and quick-add modals — kept exposed by the hook so those paths still work.
+### 3. `src/components/dashboard/ScopeBadge.tsx`
+Adicionar variante `{ kind: 'snapshot' }` que renderiza um chip "Snapshot atual" (tooltip: "Saldo atual em aberto — não respeita o filtro de período do dashboard"). Usar essa variante nos indicadores A Receber, A Pagar e Vencidas.
 
-Proceed?
+### 4. `src/lib/dashboard/drilldown.ts`
+Remover o parâmetro `range` das intents `financeiro:receber-aberto`, `financeiro:pagar-aberto` e `financeiro:vencidos`. A URL volta a ser:
+- `/financeiro?tipo=receber&status=aberto,parcial,vencido`
+- `/financeiro?tipo=pagar&status=aberto,parcial,vencido`
+- `/financeiro?status=vencido`
+
+Atualizar a tabela-doutrina do topo do arquivo registrando "snapshot, sem janela".
+
+### 5. `src/pages/Index.tsx`, `src/components/dashboard/KpiDetailDrawer.tsx`, `src/components/dashboard/FinanceiroBlock.tsx`
+Remover o `range: globalRange` passado para `buildDrilldownUrl` nos intents financeiros (adicionado na rodada anterior). Remover `useGlobalPeriod()` desses componentes se não for usado em outro lugar.
+
+### 6. `src/pages/financeiro/hooks/useFinanceiroFiltros.ts`
+**Manter** o suporte a `?from=&to=` lido da URL (foi adicionado na rodada anterior). É inofensivo quando não há params e fica disponível para outros call-sites que queiram passar janela explícita.
+
+### 7. `src/components/dashboard/AlertStrip.tsx`
+A intent `financeiro:vencidos` é usada aqui também — passa a não receber range (consistente com o item 4).
+
+## Verificação após implementação
+
+1. Dashboard com período global = "Mês": "A Receber" passa a mostrar **todos** os títulos em aberto (inclui vencimentos futuros), não só os do mês.
+2. Clicar no card "A receber" abre `/financeiro?tipo=receber&status=aberto,parcial,vencido` (sem from/to). A listagem mostra os 52 + 3 títulos.
+3. ScopeBadge do bloco mostra "Snapshot atual" nos indicadores de saldo; gráfico/Top continua "global-range".
+4. Mudar o período global no header **não altera** os valores A Receber/A Pagar/Vencidas, só faturamento e gráficos de período.
+
+## Fora de escopo
+
+- Não muda banco de dados (sem migration).
+- Não muda KPIs de faturamento, recebimentos no dia, gráficos diários ou Top clientes — todos seguem respeitando o período global, que é o comportamento correto neles.
+- Não toca outros módulos.
