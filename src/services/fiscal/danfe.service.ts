@@ -119,8 +119,20 @@ export interface DanfeInput {
   tipo: "entrada" | "saida";
   chave_acesso?: string | null;
   protocolo_autorizacao?: string | null;
+  /** Data/hora de autorização (dhRecbto do protNFe). ISO string. */
+  protocolo_data?: string | null;
   status_sefaz?: string | null;
   ambiente_emissao?: string | null;
+  /** Indicador de presença do comprador (ide/indPres). */
+  indicador_presenca?: string | null;
+  /** Operação com consumidor final (ide/indFinal). "0" não, "1" sim. */
+  indicador_final?: string | null;
+  /** Tipo de emissão (ide/tpEmis). 1=normal, etc. */
+  tipo_emissao?: string | null;
+  /** Finalidade da emissão (ide/finNFe). 1=normal, 2=complementar, 3=ajuste, 4=devolução. */
+  finalidade_emissao?: string | null;
+  /** UF do emitente (ide/cUF code ou enderEmit/UF). */
+  uf_emissao?: string | null;
   emitente: DanfeEmpresaInput;
   destinatario: DanfeParceiroInput;
   transportador?: DanfeTransportadorInput;
@@ -330,7 +342,7 @@ export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Bl
   cell(M, y, W * 0.6, 8, "NATUREZA DA OPERAÇÃO", safe(data.natureza_operacao));
   cell(M + W * 0.6, y, W * 0.4, 8, "PROTOCOLO DE AUTORIZAÇÃO DE USO",
     data.protocolo_autorizacao
-      ? `${data.protocolo_autorizacao} - ${formatDate(data.data_emissao)}`
+      ? `${data.protocolo_autorizacao} - ${formatDate(data.protocolo_data ?? data.data_emissao)}`
       : "—");
   y += 8;
 

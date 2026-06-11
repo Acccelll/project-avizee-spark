@@ -117,6 +117,11 @@ export function parseNfeXmlToDanfeInput(xml: string): DanfeInput {
   const tpNF = text(ide, "tpNF"); // 0=entrada, 1=saída
   const tpAmb = text(ide, "tpAmb"); // 1=produção, 2=homologação
   const cStat = text(infProt, "cStat");
+  const dhRecbto = text(infProt, "dhRecbto");
+  const indPres = text(ide, "indPres");
+  const indFinal = text(ide, "indFinal");
+  const tpEmis = text(ide, "tpEmis");
+  const finNFe = text(ide, "finNFe");
 
   const itensEls = findAll(infNFe, "det");
   const itens: DanfeItemInput[] = itensEls.map((det) => {
@@ -195,8 +200,14 @@ export function parseNfeXmlToDanfeInput(xml: string): DanfeInput {
     tipo: tpNF === "0" ? "entrada" : "saida",
     chave_acesso: chave,
     protocolo_autorizacao: text(infProt, "nProt") || null,
+    protocolo_data: dhRecbto || null,
     status_sefaz: cStat === "100" ? "autorizada" : null,
     ambiente_emissao: tpAmb === "2" ? "homologacao" : tpAmb === "1" ? "producao" : null,
+    indicador_presenca: indPres || null,
+    indicador_final: indFinal || null,
+    tipo_emissao: tpEmis || null,
+    finalidade_emissao: finNFe || null,
+    uf_emissao: text(enderEmit, "UF") || null,
     emitente: {
       razao_social: text(emit, "xNome"),
       nome_fantasia: text(emit, "xFant") || null,
