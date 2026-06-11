@@ -52,5 +52,17 @@ export type { SefazServico } from "./sefazUrls.service";
 export type { CRT, AmbienteSefaz, IndIEDest } from "./xmlBuilder.service";
 export { calcularIndIEDest } from "./xmlBuilder.service";
 
-export { sincronizarDistDFe, obterStatusDistDFe, testarWorkerDistDFe } from "./distdfe.service";
-export type { DistDFeDoc, DistDFeResponse, DistDFeStatus, WorkerPingResult } from "./distdfe.service";
+export {
+  sincronizarDistDFe,
+  obterStatusDistDFe,
+  testarWorkerDistDFe,
+  resolverAmbienteDistDFe,
+  verificarCircuitBreaker,
+} from "./distdfe.service";
+export type {
+  DistDFeDoc,
+  DistDFeResponse,
+  DistDFeStatus,
+  WorkerPingResult,
+  CircuitBreakerInfo,
+} from "./distdfe.service";
