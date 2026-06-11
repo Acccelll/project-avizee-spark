@@ -49,9 +49,9 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
-import type { DanfeInput } from "@/services/fiscal/danfe.service";
+import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
-import { DanfeRender, DANFE_CONTAINER_ID, downloadDanfeFromDom } from "./components/DanfeRender";
+import { DanfeRender } from "./components/DanfeRender";
 
 interface PortalRow {
   id: string;
@@ -320,15 +320,17 @@ export default function PortalFiscal() {
       if (modo === "preview") {
         setDanfePreview({ data: danfe, row });
       } else {
-        // Garante que o nó esteja montado no DOM (abre o preview invisível se necessário).
-        const ensureMounted = !document.getElementById(DANFE_CONTAINER_ID);
-        if (ensureMounted) setDanfePreview({ data: danfe, row });
-        // Aguarda render no próximo frame.
-        await new Promise((r) => requestAnimationFrame(() => r(null)));
-        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        const blob = await gerarDanfePdf(danfe, false);
         const numero = sanitizeFilename(row.numero ?? danfe.numero ?? "NF");
         const emit = sanitizeFilename(row.nome_emitente ?? danfe.emitente.razao_social ?? "emitente");
-        await downloadDanfeFromDom(DANFE_CONTAINER_ID, `${numero} - ${emit}.pdf`);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${numero} - ${emit}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     } catch (e) {
       toast.error("Falha ao gerar DANFE", {
@@ -347,7 +349,15 @@ export default function PortalFiscal() {
     const numero = sanitizeFilename(row.numero ?? data.numero ?? "NF");
     const emit = sanitizeFilename(row.nome_emitente ?? data.emitente.razao_social ?? "emitente");
     try {
-      await downloadDanfeFromDom(DANFE_CONTAINER_ID, `${numero} - ${emit}.pdf`);
+      const blob = await gerarDanfePdf(data, false);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${numero} - ${emit}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (e) {
       toast.error("Falha ao gerar PDF", {
         description: e instanceof Error ? e.message : String(e),
