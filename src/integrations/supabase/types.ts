@@ -7377,6 +7377,21 @@ export type Database = {
         }
         Relationships: []
       }
+      signup_notify_dedupe: {
+        Row: {
+          email: string
+          last_sent_at: string
+        }
+        Insert: {
+          email: string
+          last_sent_at?: string
+        }
+        Update: {
+          email?: string
+          last_sent_at?: string
+        }
+        Relationships: []
+      }
       social_alertas: {
         Row: {
           conta_id: string | null
@@ -9841,6 +9856,7 @@ export type Database = {
           valor: number
         }[]
       }
+      get_orcamento_publico: { Args: { p_token: string }; Returns: Json }
       get_recebimento_status_efetivo: {
         Args: {
           p_previsao: string
