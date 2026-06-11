@@ -165,10 +165,11 @@ export default function PortalFiscal() {
           p_offset: p * PAGE_SIZE,
         });
         if (error) throw error;
-        const r = (data as { rows: PortalRow[]; total: number } | null) ?? {
-          rows: [],
-          total: 0,
-        };
+        const r =
+          (data as unknown as { rows: PortalRow[]; total: number } | null) ?? {
+            rows: [],
+            total: 0,
+          };
         setRows(r.rows ?? []);
         setTotal(Number(r.total ?? 0));
       } catch (e) {
