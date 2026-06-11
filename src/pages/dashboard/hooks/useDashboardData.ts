@@ -75,8 +75,8 @@ const INITIAL_STATE: DashboardDataState = {
   valorEstoque: 0,
   remessasAtrasadas: 0,
   scopes: {
-    financeiro: { kind: 'global-range', eixo: 'data_vencimento' },
-    comercial: { kind: 'global-range', eixo: 'data_orcamento' },
+    financeiro: { kind: 'snapshot' },
+    comercial: { kind: 'snapshot' },
     fiscal: { kind: 'fixed-window', janela: 'mes-atual' },
     estoque: { kind: 'snapshot' },
     logistica: { kind: 'snapshot' },
