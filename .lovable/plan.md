@@ -1,76 +1,84 @@
 ## Diagnóstico
 
-Dois problemas no DANFE atual:
+A NF exibida (Emitente **CND 27 COMERCIO DE UTILIDADES LTDA**, CNPJ `10.413.463/0007-24`, número 69850) tem como destinatário **C S DOS S RODRIGUES EIRELI** (CNPJ `16.615.493/0001-04`). Nenhum dos dois CNPJs é o da empresa configurada em Administração — `empresa_config.cnpj` está como `53.078.538/0001-85` (AviZee Equipamentos LTDA). Portanto a NF realmente não é destinada ao certificado A1 dessa empresa.
 
-1. **Dados em branco no PDF/preview** — o parser `nfeXmlToDanfeInput` usa `getElementsByTagName` sem fallback para namespace. Para alguns XMLs (especialmente quando `xmldom`/browsers tratam `xmlns="http://www.portalfiscal.inf.br/nfe"` de forma estrita) os blocos `emit`/`dest`/`enderEmit`/`enderDest` retornam vazio. Também faltam campos importantes (fantasia do destinatário não existe na NFe, mas faltam: data saída/entrada `dhSaiEnt`, indicador IE `indIEDest`, fone, `xCpl`, complemento, `xPais`, `nro`/`xBairro` separados, transportadora `transp/transporta`, volumes `vol`, duplicatas/fatura `cobr/dup`, pagamento `pag/detPag`, ISSQN se houver, info adicional do fisco `infAdFisco`).
+Como ela entrou no Portal:
 
-2. **Layout desalinhado** — o download usa `html2canvas` para rasterizar `DanfeRender` em PDF A4. Rasterização perde nitidez e desloca células quando há quebras de linha. Tailwind com `oklch` também causa falhas silenciosas em `html2canvas`. O resultado é a DANFE "achatada" e mal posicionada.
+- A linha em `nfe_distribuicao` tem `nsu = '0'` e `tipo_documento = 'procNFe'`, padrão usado por `consultarNFePorChave` (botão **Buscar por chave** do toolbar fiscal).
+- Esse fluxo consulta a SEFAZ via `sefaz-distdfe` (`action: consultar-chave`) e, em fallback, o `consultadanfe-proxy` (serviço público que devolve XML de qualquer chave válida, sem checar o CNPJ do certificado).
+- Ao receber o XML, o código em `src/services/fiscal/sefaz/distdfe.service.ts` faz `upsert` em `nfe_distribuicao` **sem validar** se o `<dest><CNPJ>` corresponde ao CNPJ do certificado/empresa. Por isso a NF apareceu na listagem como "Sem manifestação".
 
-## Mudanças
+O DistDFe oficial (sincronização periódica) já é filtrado pela SEFAZ pelo CNPJ do certificado, então o problema ocorre apenas no caminho de busca por chave (e em XMLs importados manualmente, que seguem regra parecida).
 
-### 1. Parser robusto — `src/services/fiscal/nfeXmlToDanfe.ts`
+## Plano de correção
 
-- Substituir todos os `getElementsByTagName` por um helper `findAll(parent, tag)` que tenta primeiro `getElementsByTagNameNS("*", tag)` e cai para `getElementsByTagName(tag)`. Garante leitura independente de namespace.
-- Suportar `resNFe` (resumo) extraindo apenas os campos disponíveis (`chNFe`, `CNPJ`, `xNome`, `vNF`, `dhEmi`) e marcando `status_sefaz = "resumo"` para a DANFE imprimir banner "SOMENTE RESUMO — SEM DETALHES".
-- Estender o tipo `DanfeInput` (em `danfe.service.ts`) com:
-  - `emitente.complemento`, `bairro`, `numero_endereco`, `municipio_cod`, `pais`, `email`
-  - `destinatario.complemento`, `bairro`, `numero_endereco`, `municipio_cod`, `pais`, `email`, `telefone`, `indicador_ie`
-  - `data_saida_entrada`, `hora_saida_entrada`, `finalidade`, `consumidor_final`, `presenca_comprador`
-  - `transportador`: `{ razao_social, cnpj_cpf, ie, endereco, municipio, uf, antt, placa, uf_placa }`
-  - `modalidade_frete` (`0`–`9`)
-  - `volumes`: `Array<{ qtd, especie, marca, numero, peso_liquido, peso_bruto }>`
-  - `fatura`: `{ numero, valor_original, valor_desconto, valor_liquido }`
-  - `duplicatas`: `Array<{ numero, vencimento, valor }>`
-  - `pagamentos`: `Array<{ forma, valor }>`
-  - `valor_seguro`, `base_icms`, `base_icms_st`, `valor_fcp`, `valor_ii`, `valor_total_tributos`
-  - `info_fisco` (campo `infAdFisco`)
-- Mapear todos esses campos no parser (`transp/transporta`, `transp/veicTransp`, `transp/vol`, `cobr/fat`, `cobr/dup`, `pag/detPag`, `total/ICMSTot/vBC`, `vBCST`, `vFCP`, `vII`, `vTotTrib`, `ide/dhSaiEnt`, `ide/finNFe`, `ide/indFinal`, `ide/indPres`, `dest/indIEDest`, `dest/email`, `enderDest/xCpl`, `enderDest/xBairro`, `enderDest/cMun`, `enderDest/xPais`, idem para `enderEmit`).
-- Por item, mapear também: `vBC` ICMS, `vICMS`, `pICMS`, `CST/CSOSN`, `vIPI`, `pIPI`, `CEST` (em `ICMS`/`IPI` filhos).
+### 1. Validar destinatário no momento da busca por chave
 
-### 2. Reescrita do gerador PDF — `src/services/fiscal/danfe.service.ts`
+Em `src/services/fiscal/sefaz/distdfe.service.ts`:
 
-- Eliminar a dependência de `html2canvas`. PDF passa a ser desenhado 100% por `jsPDF` em vetor (texto + linhas + retângulos + barcode CODE-128C como imagem PNG single).
-- Layout fiel ao modelo SEFAZ/TOTVS (mesma estrutura do PDF de referência anexado pelo usuário):
-  - **Recibo do destinatário** (linha superior com nº/série à direita).
-  - **Cabeçalho**: grid 3 colunas — emitente (razão, fantasia, endereço completo, CEP, fone, IE) | DANFE (rótulo, 0/1 ENT/SAÍDA, nº, série, página) | controle do fisco (barcode + chave formatada + texto de consulta).
-  - Linha "NATUREZA DA OPERAÇÃO | PROTOCOLO DE AUTORIZAÇÃO".
-  - Linha "INSC. ESTADUAL | INSC. EST. SUBST. TRIB. | CNPJ".
-  - **Destinatário/Remetente**: nome | CNPJ | data emissão; endereço | bairro | CEP | data saída/entrada; município | UF | fone | IE | indicador IE.
-  - **Fatura/Duplicatas** quando presente (lista em mini-tabela 3 colunas).
-  - **Cálculo do imposto**: linha 1 (Base ICMS, V. ICMS, Base ICMS ST, V. ICMS ST, V. Importação, V. FCP, V. PIS, V. Produtos) + linha 2 (V. Frete, V. Seguro, Desconto, Outras Desp., V. IPI, V. COFINS, V. Aprox. Tributo, **V. Total NF** em negrito maior).
-  - **Transportador/Volumes**: razão | frete por conta | cód. ANTT | placa | UF | CNPJ; endereço | município | UF | IE; volumes (qtd, espécie, marca, número, peso L, peso B).
-  - **Produtos/Serviços**: cabeçalho fixo (Cód., Descrição, NCM, CST, CFOP, UN, Qtd, V.Unit, V.Total, B.ICMS, V.ICMS, V.IPI, Alíq.ICMS, Alíq.IPI). Quebra linha automática (descrição em múltiplas linhas com `splitTextToSize`). Reabre cabeçalho em página nova.
-  - **Cálculo ISSQN** (placeholder mínimo se ausente).
-  - **Dados adicionais**: `infCpl` à esquerda + `infAdFisco` separado, "Reservado ao fisco" à direita.
-  - **Banners**: homologação (amarelo) e "SEM VALOR FISCAL" (vermelho) quando aplicável; "SOMENTE RESUMO" quando `status_sefaz === "resumo"`.
-- Helpers internos: `drawCell(x, y, w, h, title, value, opts)`, `drawGridRow(...)`, `wrapText(...)`, `nextPageIfNeeded(yMin)`. Tudo em mm, A4 retrato.
+- Estender `extrairCamposBasicosDoXml` para também devolver `cnpjDestinatario` e `nomeDestinatario` (parse de `<dest><CNPJ>` / `<dest><CPF>` / `<dest><xNome>`).
+- Em `consultarNFePorChave`, após obter o XML da SEFAZ:
+  1. Ler `empresa_config.cnpj` (cache simples em memória do módulo).
+  2. Comparar com o CNPJ do destinatário extraído do XML (somente dígitos).
+  3. Se forem diferentes, **abortar o upsert** e retornar `sucesso: false` com mensagem:
+     > "Esta NF-e não é destinada ao CNPJ configurado no certificado A1 (`<cnpj_empresa>`). Destinatário do XML: `<nome>` — `<cnpj_destinatario>`. Verifique o certificado em Administração ou solicite a chave correta."
+- Aplicar a mesma validação na função interna `cachearXmlPorChave`, usada por outros pontos do serviço.
 
-### 3. Atualização do fluxo no Portal — `src/pages/fiscal/PortalFiscal.tsx`
+### 2. Bloquear importação manual com destinatário divergente
 
-- Download passa a chamar `gerarDanfePdf(danfe, false)` diretamente (Blob → `<a download>` com nome `"{numero} - {nome_emitente}.pdf"`). Remove `downloadDanfeFromDom` e dependência de `html2canvas`.
-- Preview continua usando `DanfeRender` (HTML, sem print dialog automático), mas o botão "Baixar" dentro do dialog também usa o blob de `gerarDanfePdf` — não rasteriza mais o DOM.
-- `DanfeRender` é atualizado para consumir os novos campos (transportador, volumes, fatura, pagamentos) e ficar visualmente alinhado ao PDF (mesma ordem de blocos).
+Em `src/pages/fiscal/hooks/useNFeXmlImport.ts` (entrada via **Importar XML**), adicionar verificação equivalente quando o XML for de NF-e **de entrada** (`tpNF=0` na visão da empresa) ou quando o destinatário não bater com `empresa_config.cnpj` — exibir toast de erro e não inserir em `nfe_distribuicao`.
 
-### 4. Remoção de dependências mortas
+### 3. Adicionar coluna persistente para futuras consultas
 
-- `downloadDanfeFromDom` e `html2canvas` (já importado dinamicamente) ficam sem chamadores — remover a função do `DanfeRender.tsx`.
-- `jspdf` continua em uso.
+Migração nova: adicionar `cnpj_destinatario` e `nome_destinatario` em `nfe_distribuicao` (nullable, sem default), preencher nos dois pontos de upsert acima e criar índice `idx_nfe_dist_destinatario`. Isso permite filtragem server-side e auditoria sem precisar abrir o XML.
 
-## Validação
+### 4. Filtro server-side no Portal
 
-1. Abrir `/fiscal/portal`, escolher a NF "CLC CORDAS" (procNFe completa).
-2. **Preview**: dialog mostra todos os blocos preenchidos (emitente, destinatário com endereço/IE/fone, transportador, totais, itens com NCM/CFOP/qtd corretos).
-3. **Baixar PDF**: arquivo `"97 - CLC CORDAS....pdf"` abre em vetor, com alinhamento idêntico ao layout SEFAZ — comparar lado a lado com o PDF anexado (`69850 - CND 27 COMERCIO...`).
-4. NF apenas `resNFe`: banner "SOMENTE RESUMO" e campos do emitente preenchidos (CNPJ, xNome, vNF), demais "—".
-5. NF em homologação: banner amarelo "SEM VALOR FISCAL".
+Em `src/pages/fiscal/PortalFiscal.tsx`, no carregamento da lista (`from('nfe_distribuicao')…`), adicionar:
 
-## Arquivos tocados
-
-```text
-src/services/fiscal/nfeXmlToDanfe.ts       (rewrite — namespace-safe + campos novos)
-src/services/fiscal/danfe.service.ts       (rewrite gerarDanfePdf — vetor jsPDF + novos campos no DanfeInput)
-src/pages/fiscal/components/DanfeRender.tsx (atualiza para novos campos; remove downloadDanfeFromDom)
-src/pages/fiscal/PortalFiscal.tsx           (download passa a usar gerarDanfePdf blob direto)
+```ts
+.or(`cnpj_destinatario.is.null,cnpj_destinatario.eq.${cnpjEmpresa}`)
 ```
 
-Sem mudanças em banco, edge functions, RLS ou outros módulos.
+Assim, registros antigos sem `cnpj_destinatario` continuam visíveis (legado), mas qualquer novo upsert divergente fica fora da listagem. Adicionalmente, exibir no cabeçalho do Portal um chip com **"Certificado: <razão social> · <CNPJ>"** lido de `empresa_config`, para o usuário identificar à primeira vista qual cert está ativo.
+
+### 5. Limpeza dos registros já gravados indevidamente
+
+Criar ação manual no Portal (botão "Limpar NFs alheias", visível apenas para admin via `can('fiscal','admin')`) que:
+
+1. Lista em um diálogo todas as linhas onde `cnpj_destinatario` é diferente de `empresa_config.cnpj` (após a migração, preenche-se a coluna em lote uma única vez via RPC `backfill_nfe_distribuicao_destinatario`).
+2. Permite excluir em lote, com confirmação destrutiva.
+
+Para a linha atual da CND 27 (gravada antes da coluna existir), o backfill já a identifica e ela aparece nessa rotina.
+
+### 6. Mensagem de UX no botão "Buscar por chave"
+
+No `FiscalToolbarActions.tsx`, ao receber erro do `consultarNFePorChave` com a nova mensagem (código de erro estável, ex.: `DEST_MISMATCH`), exibir toast destacando duas ações: "Conferir certificado em Administração" e "Cancelar".
+
+## Detalhes técnicos
+
+- **Onde validar a igualdade**: comparar apenas dígitos (`replace(/\D/g, '')`). Para CPF de destinatário (consumidor final), considerar mismatch se `empresa_config.cnpj` tem 14 dígitos.
+- **Cache de `empresa_config.cnpj`**: módulo-level `let cnpjCache: string | null = null` com invalidação por TTL curto (60s) ou por evento `empresa-config-updated` já emitido em Administração.
+- **Migração**:
+
+```sql
+ALTER TABLE public.nfe_distribuicao
+  ADD COLUMN cnpj_destinatario text,
+  ADD COLUMN nome_destinatario text;
+CREATE INDEX idx_nfe_dist_destinatario ON public.nfe_distribuicao(cnpj_destinatario);
+```
+
+- **RPC de backfill** (`SECURITY DEFINER`, `search_path = public`): varre `xml_nfe`, extrai `<dest><CNPJ>` por regex e atualiza as colunas. Executável uma vez.
+
+## Arquivos a alterar
+
+- `src/services/fiscal/sefaz/distdfe.service.ts` — validação + extração estendida.
+- `src/pages/fiscal/hooks/useNFeXmlImport.ts` — validação na importação manual.
+- `src/pages/fiscal/PortalFiscal.tsx` — filtro server-side + chip do certificado + botão "Limpar NFs alheias".
+- `src/pages/fiscal/components/FiscalToolbarActions.tsx` — tratamento da mensagem `DEST_MISMATCH`.
+- Migração SQL nova: colunas `cnpj_destinatario`, `nome_destinatario`, índice e RPC `backfill_nfe_distribuicao_destinatario`.
+
+## Itens fora deste plano
+
+- Não altera o fluxo oficial de DistDFe (sincronização periódica) — a SEFAZ já filtra por CNPJ do certificado.
+- Não troca o certificado A1 atual; apenas valida o que entra. A troca de certificado continua sendo feita em Administração.

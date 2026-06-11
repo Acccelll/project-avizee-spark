@@ -52,6 +52,8 @@ import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { ShieldAlert, Trash2 } from "lucide-react";
 
 interface PortalRow {
   id: string;
@@ -64,6 +66,8 @@ interface PortalRow {
   cnpj_emitente: string | null;
   nome_emitente: string | null;
   uf_emitente: string | null;
+  cnpj_destinatario: string | null;
+  nome_destinatario: string | null;
   valor_total: number | null;
   status_manifestacao: string;
   processado: boolean;
@@ -124,6 +128,7 @@ function defaultPeriodo(): { ini: string; fim: string } {
 
 export default function PortalFiscal() {
   const periodo = useMemo(defaultPeriodo, []);
+  const { isAdmin } = useIsAdmin();
   const [filtros, setFiltros] = useState<Filtros>(() => ({
     ...FILTROS_VAZIOS,
     data_inicio: periodo.ini,
@@ -144,9 +149,28 @@ export default function PortalFiscal() {
   const [carregandoXml, setCarregandoXml] = useState(false);
   const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null);
   const [danfePreview, setDanfePreview] = useState<{ data: DanfeInput; row: PortalRow } | null>(null);
+  const [empresaInfo, setEmpresaInfo] = useState<{ cnpj: string | null; razao: string | null }>({
+    cnpj: null,
+    razao: null,
+  });
+  const [incluirOutros, setIncluirOutros] = useState(false);
+  const [limpando, setLimpando] = useState(false);
+
+  useEffect(() => {
+    void supabase
+      .from("empresa_config")
+      .select("cnpj, razao_social")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const c = data as { cnpj?: string | null; razao_social?: string | null } | null;
+        const digits = c?.cnpj ? c.cnpj.replace(/\D/g, "") : null;
+        setEmpresaInfo({ cnpj: digits, razao: c?.razao_social ?? null });
+      });
+  }, []);
 
   const buscar = useCallback(
-    async (f: Filtros, p: number) => {
+    async (f: Filtros, p: number, incluirOutrosDest: boolean) => {
       setLoading(true);
       try {
         const payload: Record<string, string> = {};
@@ -163,6 +187,7 @@ export default function PortalFiscal() {
           payload.status_manifestacao = f.status_manifestacao;
         if (f.tipo_documento && f.tipo_documento !== "todos")
           payload.tipo_documento = f.tipo_documento;
+        if (incluirOutrosDest) payload.incluir_outros_destinatarios = "true";
 
         const { data, error } = await supabase.rpc("buscar_nfe_portal", {
           p_filtros: payload,
@@ -191,8 +216,8 @@ export default function PortalFiscal() {
   );
 
   useEffect(() => {
-    void buscar(aplicados, page);
-  }, [aplicados, page, buscar]);
+    void buscar(aplicados, page, incluirOutros);
+  }, [aplicados, page, buscar, incluirOutros]);
 
   const aplicarFiltros = () => {
     setPage(0);
@@ -214,7 +239,7 @@ export default function PortalFiscal() {
         toast.success("Sincronização concluída", {
           description: `${r.novos} nova(s), ${r.duplicados} existente(s).`,
         });
-        void buscar(aplicados, page);
+        void buscar(aplicados, page, incluirOutros);
       } else {
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
@@ -222,6 +247,28 @@ export default function PortalFiscal() {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const limparAlheias = async () => {
+    if (!isAdmin) return;
+    const ok = window.confirm(
+      "Remover todas as NF-es cujo destinatário não é o CNPJ da empresa configurada? Apenas registros sem vínculo com nota fiscal ou lançamento financeiro são removidos. Esta ação não pode ser desfeita.",
+    );
+    if (!ok) return;
+    setLimpando(true);
+    try {
+      const { data, error } = await supabase.rpc("excluir_nfe_distribuicao_alheias");
+      if (error) throw error;
+      const n = Number(data ?? 0);
+      toast.success(n > 0 ? `${n} NF-e(s) removida(s).` : "Nada a remover.");
+      void buscar(aplicados, page, incluirOutros);
+    } catch (e) {
+      toast.error("Falha ao limpar", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setLimpando(false);
     }
   };
 
@@ -410,7 +457,51 @@ export default function PortalFiscal() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => void limparAlheias()}
+              disabled={limpando}
+              title="Remover NF-es destinadas a outros CNPJs"
+            >
+              {limpando ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Limpar NFs alheias
+            </Button>
+          )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <ShieldAlert className="h-4 w-4" />
+          <span>
+            Certificado ativo:{" "}
+            <span className="font-medium text-foreground">
+              {empresaInfo.razao ?? "—"}
+            </span>
+            {empresaInfo.cnpj && (
+              <span className="ml-1 font-mono text-xs">
+                ({empresaInfo.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")})
+              </span>
+            )}
+          </span>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input"
+            checked={incluirOutros}
+            onChange={(e) => {
+              setIncluirOutros(e.target.checked);
+              setPage(0);
+            }}
+          />
+          <span>Mostrar NF-es destinadas a outros CNPJs</span>
+        </label>
       </div>
 
       <Card>
@@ -600,12 +691,25 @@ export default function PortalFiscal() {
                           ? format(new Date(r.data_emissao), "dd/MM/yyyy", { locale: ptBR })
                           : "—"}
                       </TableCell>
-                      <TableCell className="max-w-[280px] truncate" title={r.nome_emitente ?? ""}>
-                        <div className="font-medium">{r.nome_emitente ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {r.cnpj_emitente ?? ""}
-                        </div>
-                      </TableCell>
+                       <TableCell className="max-w-[280px] truncate" title={r.nome_emitente ?? ""}>
+                         <div className="font-medium flex items-center gap-1.5">
+                           {r.nome_emitente ?? "—"}
+                           {empresaInfo.cnpj &&
+                             r.cnpj_destinatario &&
+                             r.cnpj_destinatario !== empresaInfo.cnpj && (
+                               <Badge
+                                 variant="destructive"
+                                 className="text-[10px] px-1 py-0 h-4"
+                                 title={`Destinatário: ${r.nome_destinatario ?? "—"} (${r.cnpj_destinatario})`}
+                               >
+                                 alheia
+                               </Badge>
+                             )}
+                         </div>
+                         <div className="text-xs text-muted-foreground font-mono">
+                           {r.cnpj_emitente ?? ""}
+                         </div>
+                       </TableCell>
                       <TableCell>{r.uf_emitente ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={r.status_manifestacao === "sem_manifestacao" ? "secondary" : "default"}>

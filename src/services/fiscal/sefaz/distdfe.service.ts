@@ -12,6 +12,68 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Código de erro estável devolvido quando o destinatário da NF-e consultada
+ * não corresponde ao CNPJ configurado em `empresa_config`. A UI usa esse
+ * prefixo para exibir um toast com ação "Conferir certificado".
+ */
+export const DEST_MISMATCH_PREFIX = "DEST_MISMATCH";
+
+let _cnpjEmpresaCache: { value: string | null; at: number } | null = null;
+
+/** CNPJ da empresa configurada em `empresa_config` (somente dígitos). Cache 60s. */
+async function carregarCnpjEmpresa(): Promise<string | null> {
+  const agora = Date.now();
+  if (_cnpjEmpresaCache && agora - _cnpjEmpresaCache.at < 60_000) {
+    return _cnpjEmpresaCache.value;
+  }
+  try {
+    const { data } = await supabase
+      .from("empresa_config")
+      .select("cnpj")
+      .limit(1)
+      .maybeSingle();
+    const raw = (data as { cnpj?: string | null } | null)?.cnpj ?? null;
+    const digits = raw ? raw.replace(/\D/g, "") : null;
+    _cnpjEmpresaCache = { value: digits, at: agora };
+    return digits;
+  } catch {
+    return null;
+  }
+}
+
+/** Invalida o cache de CNPJ da empresa (após mudança em Administração). */
+export function invalidarCnpjEmpresaCache(): void {
+  _cnpjEmpresaCache = null;
+}
+
+/**
+ * Valida se o destinatário do XML corresponde ao CNPJ configurado em
+ * `empresa_config`. Retorna `null` se válido; uma string `DEST_MISMATCH: …`
+ * pronta para virar `erro` quando inválido.
+ */
+async function validarDestinatarioPertenceCertificado(
+  cnpjDest: string | undefined | null,
+  nomeDest: string | undefined | null,
+): Promise<string | null> {
+  const cnpjEmpresa = await carregarCnpjEmpresa();
+  if (!cnpjEmpresa) return null; // empresa sem CNPJ — não bloqueia
+  const destDigits = (cnpjDest ?? "").replace(/\D/g, "");
+  if (!destDigits) {
+    // Sem destinatário identificável no XML — não classificamos como mismatch.
+    return null;
+  }
+  if (destDigits === cnpjEmpresa) return null;
+  const fmt = (d: string) =>
+    d.length === 14
+      ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+      : d.length === 11
+        ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4")
+        : d;
+  const nomeTxt = nomeDest ? `${nomeDest.trim()} — ` : "";
+  return `${DEST_MISMATCH_PREFIX}: Esta NF-e não é destinada ao CNPJ do certificado A1 configurado (${fmt(cnpjEmpresa)}). Destinatário do XML: ${nomeTxt}${fmt(destDigits)}. Verifique o certificado em Administração ou solicite a chave correta.`;
+}
+
 // ── Helpers de ambiente e circuit breaker ────────────────────────
 
 /**
@@ -435,6 +497,21 @@ export async function consultarNFePorChave(params: {
     // e o tipo_documento seja registrado como 'procNFe' em vez do default
     // 'resNFe' (que faria a UI tratar como apenas resumo).
     const basicos = extrairCamposBasicosDoXml(xml);
+    // Bloqueio: NF-e destinada a outro CNPJ não pode poluir o cache local.
+    const mismatchErr = await validarDestinatarioPertenceCertificado(
+      basicos.cnpjDestinatario,
+      basicos.nomeDestinatario,
+    );
+    if (mismatchErr) {
+      return {
+        sucesso: false,
+        origem: "sefaz",
+        cStat: data.cStat,
+        xMotivo: data.xMotivo,
+        mensagemCstat: data.mensagemCstat ?? null,
+        erro: mismatchErr,
+      };
+    }
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
@@ -448,6 +525,8 @@ export async function consultarNFePorChave(params: {
         data_emissao: doc?.resumo?.dataEmissao ?? basicos.dataEmissao ?? null,
         valor_total: doc?.resumo?.valorTotal ?? basicos.valorTotal ?? null,
         uf_emitente: basicos.ufEmitente ?? null,
+        cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+        nome_destinatario: basicos.nomeDestinatario ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
@@ -513,10 +592,13 @@ function extrairCamposBasicosDoXml(xml: string): {
   serie?: string;
   dataEmissao?: string;
   valorTotal?: number;
+  cnpjDestinatario?: string;
+  nomeDestinatario?: string;
 } {
   if (!xml || typeof xml !== "string" || !xml.includes("<")) return {};
   const tag = (re: RegExp): string | undefined => re.exec(xml)?.[1]?.trim();
   const emit = /<emit\b[^>]*>([\s\S]*?)<\/emit>/i.exec(xml)?.[1] ?? "";
+  const dest = /<dest\b[^>]*>([\s\S]*?)<\/dest>/i.exec(xml)?.[1] ?? "";
   const ide = /<ide\b[^>]*>([\s\S]*?)<\/ide>/i.exec(xml)?.[1] ?? "";
   const total = /<ICMSTot\b[^>]*>([\s\S]*?)<\/ICMSTot>/i.exec(xml)?.[1] ?? "";
   const inBlock = (block: string, t: string): string | undefined =>
@@ -530,6 +612,8 @@ function extrairCamposBasicosDoXml(xml: string): {
   const dhEmi = inBlock(ide, "dhEmi") ?? tag(/<dhEmi>([\s\S]*?)<\/dhEmi>/i);
   const vNF = inBlock(total, "vNF") ?? tag(/<vNF>([\s\S]*?)<\/vNF>/i);
   const vNum = vNF ? Number(vNF) : undefined;
+  const cnpjDest = inBlock(dest, "CNPJ") ?? inBlock(dest, "CPF");
+  const nomeDest = inBlock(dest, "xNome");
   return {
     cnpjEmitente: cnpj || undefined,
     nomeEmitente: nome || undefined,
@@ -538,14 +622,28 @@ function extrairCamposBasicosDoXml(xml: string): {
     serie: serie || undefined,
     dataEmissao: dhEmi || undefined,
     valorTotal: Number.isFinite(vNum) ? vNum : undefined,
+    cnpjDestinatario: cnpjDest || undefined,
+    nomeDestinatario: nomeDest || undefined,
   };
 }
 
-/** Cacheia o XML obtido em nfe_distribuicao (best-effort). */
-async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
+/**
+ * Cacheia o XML em nfe_distribuicao (best-effort).
+ * Retorna `{ ok: false, erro }` se o destinatário não pertence ao certificado
+ * configurado — nesse caso o registro NÃO é gravado.
+ */
+async function cachearXmlPorChave(
+  chave: string,
+  xml: string,
+): Promise<{ ok: boolean; erro?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const basicos = extrairCamposBasicosDoXml(xml);
+    const mismatchErr = await validarDestinatarioPertenceCertificado(
+      basicos.cnpjDestinatario,
+      basicos.nomeDestinatario,
+    );
+    if (mismatchErr) return { ok: false, erro: mismatchErr };
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
@@ -559,12 +657,17 @@ async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
         serie: basicos.serie ?? null,
         data_emissao: basicos.dataEmissao ?? null,
         valor_total: basicos.valorTotal ?? null,
+        cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+        nome_destinatario: basicos.nomeDestinatario ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
       { onConflict: "chave_acesso", ignoreDuplicates: false },
     );
-  } catch { /* cache best-effort */ }
+    return { ok: true };
+  } catch {
+    return { ok: true }; // best-effort: erros de transporte não bloqueiam
+  }
 }
 
 export type OrigemXmlChave = "cache" | "api" | "sefaz";
@@ -612,7 +715,10 @@ export async function obterXmlNFePorChave(params: {
       if (resp?.ok) {
         const xml = extrairXmlConsultaDanfe(resp.data);
         if (xml) {
-          await cachearXmlPorChave(chave, xml);
+          const cached = await cachearXmlPorChave(chave, xml);
+          if (!cached.ok) {
+            return { sucesso: false, origem: "api", erro: cached.erro };
+          }
           return { sucesso: true, origem: "api", xml };
         }
         erroConsultaDanfe = "consultadanfe respondeu sem XML.";
@@ -629,8 +735,15 @@ export async function obterXmlNFePorChave(params: {
   try {
     const sefaz = await consultarNFePorChave({ chave });
     if (sefaz.sucesso && sefaz.xml) {
-      await cachearXmlPorChave(chave, sefaz.xml);
+      const cached = await cachearXmlPorChave(chave, sefaz.xml);
+      if (!cached.ok) {
+        return { sucesso: false, origem: "sefaz", erro: cached.erro };
+      }
       return { sucesso: true, origem: "sefaz", xml: sefaz.xml };
+    }
+    // Propaga mismatch detectado dentro de consultarNFePorChave.
+    if (!sefaz.sucesso && sefaz.erro?.startsWith(DEST_MISMATCH_PREFIX)) {
+      return { sucesso: false, origem: "sefaz", erro: sefaz.erro };
     }
   } catch { /* ignora — mantém erro do consultadanfe */ }
 

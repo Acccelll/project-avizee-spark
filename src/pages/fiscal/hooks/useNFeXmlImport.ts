@@ -164,6 +164,23 @@ export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa 
       const isSaida = !!empresaCnpjClean && emitCnpjClean === empresaCnpjClean;
       const tipo: "entrada" | "saida" = isSaida ? "saida" : "entrada";
 
+      // Bloqueio: NF de entrada cujo destinatário não é a empresa configurada.
+      // Evita poluir o cadastro com XMLs alheios (cert A1 ≠ destinatário).
+      if (tipo === "entrada" && empresaCnpjClean) {
+        const destCnpjClean = (nfe.destinatario?.cpfCnpj || "").replace(/\D/g, "");
+        if (destCnpjClean && destCnpjClean !== empresaCnpjClean) {
+          const fmt = (d: string) =>
+            d.length === 14
+              ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+              : d;
+          toast.error("XML rejeitado: destinatário diverge do certificado", {
+            description: `Esta NF-e é destinada a ${nfe.destinatario?.razaoSocial ?? "outro CNPJ"} (${fmt(destCnpjClean)}), e não ao CNPJ da empresa configurada (${fmt(empresaCnpjClean)}). Verifique o certificado em Administração ou solicite o XML correto.`,
+            duration: 12000,
+          });
+          return null;
+        }
+      }
+
       // Match de fornecedor (entrada) ou cliente (saída) por CNPJ.
       let fornecedorId = "";
       let clienteId = "";
