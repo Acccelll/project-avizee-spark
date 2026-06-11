@@ -28,8 +28,9 @@ import { formatCurrencyCompact } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
-import { Send } from "lucide-react";
+import { Send, Link2 } from "lucide-react";
 import { sendForApproval, approveOrcamento, duplicateOrcamento } from "@/services/orcamentos.service";
+import { VincularNfDialog } from "@/components/orcamentos/VincularNfDialog";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
@@ -138,6 +139,7 @@ const Orcamentos = () => {
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
+  const [vincularNfId, setVincularNfId] = useState<string | null>(null);
   const qc = useQueryClient();
 
   // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
