@@ -534,8 +534,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (action !== "consultar-nsu" && action !== "consultar-chave") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave', 'status' ou 'worker-ping'.` }, 400);
+    if (action !== "consultar-nsu" && action !== "consultar-chave" && action !== "consultar-destinatario") {
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave', 'consultar-destinatario', 'status' ou 'worker-ping'.` }, 400);
     }
 
     // Autorização granular: ambas as actions exigem ao menos `visualizar`
