@@ -240,12 +240,14 @@ async function enviarSoapMtls(
 </soapenv:Envelope>`;
 
   // ── Gate de transporte ──────────────────────────────────────────
-  // Worker mTLS DESATIVADO em código (jun/2026): secrets SEFAZ_USE_MTLS_PROXY /
-  // SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET são intencionalmente ignorados.
-  // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
-  const proxyUrl: string | undefined = undefined;
-  const proxySecret: string | undefined = undefined;
-  const usarProxy = false;
+  // Worker mTLS REATIVADO (jun/2026): o Deno/rustls não suporta renegociação
+  // TLS exigida pelo IIS da SEFAZ (denoland/deno#32245), portanto o transporte
+  // direto deno-mtls NUNCA funciona contra o Ambiente Nacional. O Worker
+  // Cloudflare (binding mtls_certificate) é o transporte obrigatório.
+  const flagProxy = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim().toLowerCase();
+  const proxyUrl: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || undefined;
+  const proxySecret: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || undefined;
+  const usarProxy = ["true", "1", "yes", "sim"].includes(flagProxy) && !!proxyUrl && !!proxySecret;
 
   let client: Deno.HttpClient | undefined;
   if (!usarProxy) {

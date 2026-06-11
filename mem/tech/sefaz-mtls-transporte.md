@@ -19,3 +19,14 @@ flag/workaround no runtime — não tentar de novo "consertar" o cliente Deno.
 precisa cobrir o hostname de PRODUÇÃO `www1.nfe.fazenda.gov.br` (não só hom1),
 senão o Worker devolve HTTP 520. Secrets: `SEFAZ_USE_MTLS_PROXY`,
 `SEFAZ_MTLS_PROXY_URL`, `SEFAZ_MTLS_PROXY_SECRET`.
+
+**Contrato do Worker:** devolve JSON `{"success":bool,"status":n,"body":"<xml>"}`
+— o sefaz-distdfe desembrulha `body` quando `success:true`.
+
+**Intermitência:** o BIG-IP do AN devolve 520/500-vazio esporádicos para a
+MESMA requisição que passa segundos depois. O sefaz-distdfe faz até 4
+tentativas (soap12/soap11 alternados) com backoff de 1,5s. `worker-ping`
+aceita `corpo`/`contentType`/`soapaction` para diagnóstico do transporte.
+
+**Cuidado com cStat 656:** consultar com ultNSU=0 repetidamente bloqueia o
+CNPJ por 1h ("Consumo Indevido"). Sempre reutilizar o ultNSU retornado.

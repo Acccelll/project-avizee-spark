@@ -429,28 +429,82 @@ Deno.serve(async (req) => {
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
     if (action === "status") {
-      // Worker mTLS DESATIVADO em código (jun/2026). Secrets podem existir mas são ignorados.
+      const flag = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim().toLowerCase();
+      const pUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || "";
+      const pSecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || "";
+      const ativo = ["true", "1", "yes", "sim"].includes(flag) && !!pUrl && !!pSecret;
       return json({
         sucesso: true,
-        proxyEnabled: false,
-        hasProxyUrl: false,
-        hasProxySecret: false,
-        flagAtiva: false,
-        flagLen: 0,
-        transporte: "deno-mtls-direto",
-        observacao: "Worker mTLS desativado em código; secrets ignorados.",
+        proxyEnabled: ativo,
+        hasProxyUrl: !!pUrl,
+        hasProxySecret: !!pSecret,
+        flagAtiva: ["true", "1", "yes", "sim"].includes(flag),
+        flagLen: flag.length,
+        transporte: ativo ? "cloudflare-worker" : "deno-mtls-direto",
+        observacao: ativo
+          ? "Worker mTLS ativo — transporte obrigatório (Deno/rustls não suporta renegociação TLS do IIS da SEFAZ)."
+          : "Worker mTLS inativo. ATENÇÃO: o transporte direto deno-mtls não funciona contra o AN (renegociação TLS).",
       }, 200);
     }
 
     if (action === "worker-ping") {
       const ambientePing: "1" | "2" = body.ambiente === "1" ? "1" : "2";
-      // Worker mTLS DESATIVADO em código (jun/2026). Endpoint mantido por compatibilidade.
-      return json({
-        sucesso: false,
-        ambiente: ambientePing,
-        diagnostico: "Worker mTLS desativado em código. Toda comunicação SEFAZ usa Deno mTLS direto.",
-        erro: "worker-desativado-em-codigo",
-      }, 200);
+      const pUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || "";
+      const pSecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || "";
+      if (!pUrl || !pSecret) {
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          diagnostico: "SEFAZ_MTLS_PROXY_URL/SECRET ausentes — Worker não configurado.",
+          erro: "worker-nao-configurado",
+        }, 200);
+      }
+      const alvo = endpointAN(ambientePing);
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20_000);
+        // Diagnóstico opcional: permite reproduzir a chamada real
+        // (envelope SOAP + Content-Type com action) para isolar o 520.
+        const corpoPing: string = typeof body.corpo === "string" ? body.corpo : "";
+        const ctPing: string = typeof body.contentType === "string"
+          ? body.contentType
+          : "application/soap+xml; charset=utf-8";
+        const extraHeaders: Record<string, string> = {};
+        if (typeof body.soapaction === "string") extraHeaders["soapaction"] = body.soapaction;
+        const r = await fetch(pUrl, {
+          method: "POST",
+          headers: {
+            "x-proxy-secret": pSecret,
+            "x-target-url": alvo,
+            "Content-Type": ctPing,
+            ...extraHeaders,
+          },
+          body: corpoPing,
+          signal: ctrl.signal,
+        });
+        clearTimeout(t);
+        const txt = await r.text();
+        return json({
+          sucesso: r.status !== 520 && r.status !== 401,
+          ambiente: ambientePing,
+          alvo,
+          statusHttp: r.status,
+          preview: txt.slice(0, 300),
+          diagnostico: r.status === 520
+            ? "Worker respondeu 520 — o binding mTLS provavelmente não cobre este hostname."
+            : r.status === 401
+            ? "Worker rejeitou o secret (401) — confira SEFAZ_MTLS_PROXY_SECRET."
+            : "Transporte Worker→SEFAZ alcançou o servidor (qualquer status HTTP da SEFAZ é prova de conectividade).",
+        }, 200);
+      } catch (e: any) {
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          alvo,
+          diagnostico: `Falha ao chamar o Worker: ${e?.message ?? String(e)}`,
+          erro: "worker-unreachable",
+        }, 200);
+      }
     }
 
     if (action !== "consultar-nsu" && action !== "consultar-chave" && action !== "consultar-destinatario") {
@@ -579,14 +633,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Transporte mTLS: Worker Cloudflare DESATIVADO em código (jun/2026).
-    // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
-    // Os secrets SEFAZ_USE_MTLS_PROXY / SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET
-    // são deliberadamente ignorados aqui; mantidos no projeto apenas como histórico.
-    const proxyUrl: string | undefined = undefined;
-    const proxySecret: string | undefined = undefined;
-    const usarProxy = false;
-    log.info("transporte resolvido", { usarProxy, transporte: "deno-mtls" });
+    // Transporte mTLS: Worker Cloudflare REATIVADO (jun/2026).
+    // O Deno/rustls NÃO suporta a renegociação TLS exigida pelo IIS da SEFAZ
+    // (denoland/deno#32245) — o transporte direto deno-mtls nunca conecta no AN.
+    // O Worker (binding mtls_certificate cobrindo www1 e hom1) é obrigatório.
+    const flagProxy = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim().toLowerCase();
+    const proxyUrl: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || undefined;
+    const proxySecret: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || undefined;
+    const usarProxy = ["true", "1", "yes", "sim"].includes(flagProxy) && !!proxyUrl && !!proxySecret;
+    log.info("transporte resolvido", {
+      usarProxy,
+      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
+      flagAtiva: ["true", "1", "yes", "sim"].includes(flagProxy),
+      hasProxyUrl: !!proxyUrl,
+      hasProxySecret: !!proxySecret,
+    });
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {
@@ -627,7 +688,10 @@ Deno.serve(async (req) => {
     // HTTP, fazemos UMA tentativa adicional em SOAP 1.1. Qualquer resposta
     // HTTP da SEFAZ (mesmo 500/SOAP Fault) interrompe o fallback porque já
     // representa diagnóstico oficial.
-    const tentativas: SoapVariant[] = ["soap12", "soap11"];
+    // O Worker→SEFAZ é intermitente (520/500-vazio esporádicos do BIG-IP do AN);
+    // o mesmo envelope passa segundos depois. Por isso fazemos até 4 tentativas
+    // alternando variantes, com backoff curto entre elas.
+    const tentativas: SoapVariant[] = ["soap12", "soap11", "soap12", "soap11"];
     let xmlRetorno = "";
     let respondeu = false;
     let ultimoErroTransporte: { raw: string; codigo: string } | null = null;
@@ -704,6 +768,14 @@ Deno.serve(async (req) => {
                   status: Number(wj.status) || 0,
                   body: String(wj.body ?? "").slice(0, 240),
                 };
+              } else if (wj && wj.success === true && typeof wj.body === "string") {
+                // Worker devolve sucesso como JSON {"success":true,"status":200,"body":"<xml>"}.
+                // Desembrulha o XML da SEFAZ para o parser downstream.
+                xmlRetorno = wj.body;
+                log.info("worker unwrap ok", {
+                  upstreamStatus: Number(wj.status) || 0,
+                  bytes: xmlRetorno.length,
+                });
               }
             } catch (_) { /* não é o envelope JSON do Worker */ }
           }
@@ -717,14 +789,16 @@ Deno.serve(async (req) => {
             ultimoErroTransporte = {
               raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
               codigo: workerFail.status === 520
-                ? "WORKER_MTLS_BINDING"
+                ? "WORKER_UPSTREAM_520"
                 : workerFail.status >= 500
                 ? "WORKER_UPSTREAM_5XX"
                 : "WORKER_UPSTREAM_ERROR",
             };
-            // 520 = exceção no Worker (binding mTLS não cobre o hostname).
-            // Trocar a variante SOAP não resolve — aborta o loop.
-            if (workerFail.status === 520) break;
+            // 520/5xx intermitentes do BIG-IP do AN: aguarda um pouco e
+            // tenta de novo (a mesma requisição costuma passar em seguida).
+            if (i < tentativas.length - 1) {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
             continue;
           }
           // 401/400 com corpo curto = erro do próprio Worker (não da SEFAZ).
@@ -830,9 +904,9 @@ Deno.serve(async (req) => {
       } else if (codigo === "CONNECTION_RESET" || codigo === "TLS_FAILURE") {
         hint =
           " — falha de transporte contra o Ambiente Nacional após tentar SOAP 1.2 e SOAP 1.1. Possíveis causas: cadeia ICP-Brasil incompleta no A1, certificado expirado/de outro ambiente, ou bloqueio temporário do CNPJ no AN. O Portal NF-e segue funcionando, então o serviço da Receita está no ar.";
-      } else if (codigo === "WORKER_MTLS_BINDING") {
+      } else if (codigo === "WORKER_UPSTREAM_520") {
         hint =
-          " — o Worker Cloudflare lançou exceção (HTTP 520) ao chamar a SEFAZ de PRODUÇÃO. O binding mTLS do Worker não cobre o hostname www1.nfe.fazenda.gov.br (foi configurado apenas para hom1). Correção: no wrangler.toml do Worker, garanta que o mtls_certificate binding/allowlist inclua www1.nfe.fazenda.gov.br e rode `npx wrangler deploy`.";
+          " — o Ambiente Nacional respondeu 520 nas 4 tentativas (instabilidade do BIG-IP da SEFAZ ou bloqueio temporário do CNPJ). O transporte Worker→SEFAZ está funcional (ping ok). Aguarde alguns minutos e sincronize de novo.";
       }
       return json({
         sucesso: false,
