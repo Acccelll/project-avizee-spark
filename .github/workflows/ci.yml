@@ -55,6 +55,18 @@ jobs:
       - run: npm ci
       - run: npm run check:schema-drift
 
+  db-tests:
+    name: pgTAP (database)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: supabase test db
+
   touch-targets:
     name: Touch targets (advisory)
     runs-on: ubuntu-latest
