@@ -60,7 +60,8 @@ export async function listFornecedoresAtivos(): Promise<FornecedorAtivo[]> {
     .from("fornecedores")
     .select("id, nome_razao_social, cpf_cnpj")
     .eq("ativo", true)
-    .order("nome_razao_social");
+    .order("nome_razao_social")
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw new Error(error.message);
   return (data ?? []) as FornecedorAtivo[];
 }
@@ -70,7 +71,8 @@ export async function listProdutosAtivos(): Promise<ProdutoAtivoRow[]> {
     .from("produtos")
     .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, variacoes")
     .eq("ativo", true)
-    .order("nome");
+    .order("nome")
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw new Error(error.message);
   return (data ?? []) as ProdutoAtivoRow[];
 }
@@ -102,7 +104,8 @@ export async function listPedidosCompra(): Promise<PedidoCompraRow[]> {
     .from("pedidos_compra")
     .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
     .eq("ativo", true)
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data || []) as PedidoCompraRow[];
 }
@@ -111,7 +114,8 @@ export async function listFornecedoresParaPedido() {
   const { data, error } = await supabase
     .from("fornecedores")
     .select("id, nome_razao_social, cpf_cnpj, ativo")
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return data || [];
 }
@@ -121,7 +125,8 @@ export async function listProdutosParaPedido() {
     .from("produtos")
     .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo, variacoes")
     .eq("ativo", true)
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return data || [];
 }
