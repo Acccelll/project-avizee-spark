@@ -62,15 +62,6 @@ function joinEndereco(node: Element | null): string {
   return partes.join(", ");
 }
 
-const FRETE_LABEL: Record<string, string> = {
-  "0": "0 - Emitente (CIF)",
-  "1": "1 - Destinatário (FOB)",
-  "2": "2 - Terceiros",
-  "3": "3 - Próprio remetente",
-  "4": "4 - Próprio destinatário",
-  "9": "9 - Sem frete",
-};
-
 export function parseNfeXmlToDanfeInput(xml: string): DanfeInput {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
 
