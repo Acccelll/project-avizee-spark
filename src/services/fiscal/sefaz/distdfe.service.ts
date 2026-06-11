@@ -575,10 +575,13 @@ function extrairCamposBasicosDoXml(xml: string): {
   serie?: string;
   dataEmissao?: string;
   valorTotal?: number;
+  cnpjDestinatario?: string;
+  nomeDestinatario?: string;
 } {
   if (!xml || typeof xml !== "string" || !xml.includes("<")) return {};
   const tag = (re: RegExp): string | undefined => re.exec(xml)?.[1]?.trim();
   const emit = /<emit\b[^>]*>([\s\S]*?)<\/emit>/i.exec(xml)?.[1] ?? "";
+  const dest = /<dest\b[^>]*>([\s\S]*?)<\/dest>/i.exec(xml)?.[1] ?? "";
   const ide = /<ide\b[^>]*>([\s\S]*?)<\/ide>/i.exec(xml)?.[1] ?? "";
   const total = /<ICMSTot\b[^>]*>([\s\S]*?)<\/ICMSTot>/i.exec(xml)?.[1] ?? "";
   const inBlock = (block: string, t: string): string | undefined =>
@@ -592,6 +595,8 @@ function extrairCamposBasicosDoXml(xml: string): {
   const dhEmi = inBlock(ide, "dhEmi") ?? tag(/<dhEmi>([\s\S]*?)<\/dhEmi>/i);
   const vNF = inBlock(total, "vNF") ?? tag(/<vNF>([\s\S]*?)<\/vNF>/i);
   const vNum = vNF ? Number(vNF) : undefined;
+  const cnpjDest = inBlock(dest, "CNPJ") ?? inBlock(dest, "CPF");
+  const nomeDest = inBlock(dest, "xNome");
   return {
     cnpjEmitente: cnpj || undefined,
     nomeEmitente: nome || undefined,
@@ -600,6 +605,8 @@ function extrairCamposBasicosDoXml(xml: string): {
     serie: serie || undefined,
     dataEmissao: dhEmi || undefined,
     valorTotal: Number.isFinite(vNum) ? vNum : undefined,
+    cnpjDestinatario: cnpjDest || undefined,
+    nomeDestinatario: nomeDest || undefined,
   };
 }
 
