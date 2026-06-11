@@ -23,7 +23,8 @@ export async function listCartoes(): Promise<CartaoCredito[]> {
   const { data, error } = await supabase
     .from("cartoes_credito")
     .select("*, bancos(nome)")
-    .order("nome");
+    .order("nome")
+    .limit(100); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data || []) as CartaoCredito[];
 }
@@ -33,7 +34,8 @@ export async function listCartoesAtivos(): Promise<CartaoCredito[]> {
     .from("cartoes_credito")
     .select("*, bancos(nome)")
     .eq("ativo", true)
-    .order("nome");
+    .order("nome")
+    .limit(100); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data || []) as CartaoCredito[];
 }
