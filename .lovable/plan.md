@@ -1,94 +1,86 @@
+## Diagnóstico do "nada chega"
 
-## 1) Próximo número de orçamento = ORC100285
+Logs `sefaz-distdfe` confirmam dois problemas independentes:
 
-Estado atual:
-- Último número em uso: **ORC100284**.
-- `seq_orcamento.last_value = 100304` (sequence avançou além dos registros, provavelmente por rollbacks/inserts cancelados).
-- A função `proximo_numero_orcamento()` só sincroniza a sequence quando `max(numero) >= last_value` — não é o caso aqui, então o próximo `nextval` retornaria 100305.
+1. **Ambiente** — `empresa_config.ambiente_sefaz = 2` (homologação). SEFAZ responde cStat 137 "Nenhum documento localizado" porque homologação não recebe NF-e reais. Nada chegará enquanto não migrarmos para produção (`ambiente_sefaz = 1`).
+2. **Busca retroativa quebrada** — o endpoint `NFeConsultaDest` (NFeConsultaNFDest.asmx) que adicionamos no prompt anterior foi **descontinuado pela SEFAZ em 2017**. O log mostra `cStat=""` e `xMotivo=""` — o WS sequer responde envelope SOAP válido. Hoje o único caminho oficial é `NFeDistribuicaoDFe` (cursor NSU) + `consChNFe` (consulta pontual por chave). Vou remover essa via.
 
-Ação: rodar um **data fix** (não migration de schema), via tool de insert:
+Há também 2 NSU stuck em `000000000000000` na linha de produção; resetar/avançar manualmente é trivial.
 
-```sql
-SELECT setval('public.seq_orcamento', 100284, true);
--- nextval → 100285 → 'ORC100285'
+## Resposta sobre paridade com TOTVS Processos Fiscais
+
+Sim, é viável e a maior parte da infra já existe: `nfe_distribuicao` (32 colunas), cron DistDFe, manifestação do destinatário, importação XML, parser cStat. Falta a **camada de consulta** estilo portal — uma tela única com filtros ricos, grid com ações por linha e exportação. É o que esta fase entrega.
+
+## Fase 1 — Portal de Consulta `/fiscal/portal`
+
+Nova rota dedicada (não mexe em `/fiscal` nem em `/fiscal/distdfe-historico`, que viram visões específicas). Layout inspirado no print TOTVS:
+
+```text
+┌─ Filtros (sticky) ──────────────────────────────────────────────┐
+│ Período [PeriodFilter] │ UF │ Status │ Manifestação            │
+│ Série │ Nº inicial → final │ Chave de acesso (44d)              │
+│ Papel: ●Destinatário ○Emissor ○Transportador                    │
+│ CNPJ Emissor │ CNPJ Destinatário                                │
+│ [Buscar]  [Limpar]  [Sincronizar SEFAZ]  [Exportar CSV]         │
+└─────────────────────────────────────────────────────────────────┘
+┌─ Grid (DataTableV2 + virtualização) ────────────────────────────┐
+│ ☐ T M Série Nº DataEmissão Situação Tipo Emitente Dest. Total  │
+│   ações: 👁 ver  ⤓ XML  📄 DANFE  ✉ e-mail  ⚑ manifestar      │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Sem mudança em código. Verificação: `SELECT public.peek_proximo_numero_orcamento();` deve retornar `ORC100285`.
+### Backend (camada fina)
 
----
+- **View `v_nfe_portal`** (security_invoker) sobre `nfe_distribuicao` + join leve com `notas_fiscais` (se chave bater) para enriquecer status interno. Já cobre os campos visíveis sem novo storage.
+- **RPC `buscar_nfe_portal(filtros jsonb, p_limit int, p_offset int)`** retornando `{ rows, total }`. Aplica os filtros server-side (período por `dh_emissao`, ILIKE em emitente, status, manifestação, faixa de número, chave). RLS herda da empresa via `empresa_id` (Onda multi-tenant já cobriu `nfe_distribuicao`).
+- **Sem nova tabela.** Nenhum CREATE TABLE; só view + RPC.
 
-## 2) Vínculo bidirecional Orçamento ↔ NF emitida
+### Frontend
 
-Modelo atual no banco:
-- `notas_fiscais.ordem_venda_id` (FK → `ordens_venda`) já existe.
-- `ordens_venda` é o "pedido de venda" gerado quando o orçamento é convertido (campo `cotacao_id` na OV liga de volta ao orçamento).
-- Orçamento não tem FK direta para NF — o caminho canônico é Orçamento → OV → NF.
+- `src/pages/fiscal/PortalFiscal.tsx` (nova) — composição de `AdvancedFilterBar` + `DataTableV2` + `useDataTablePrefs/Export`.
+- `src/hooks/fiscal/usePortalFiscalQuery.ts` — wrapper de `useSupabaseCrud` chamando a RPC com server-side pagination/sort.
+- Ações por linha reaproveitam serviços existentes:
+  - **Ver XML** → drawer `NotaFiscalDrawer` (já existe).
+  - **Baixar XML** → `nfe_distribuicao.xml_nfe` (Storage / coluna).
+  - **DANFE PDF** → reusa edge `consultadanfe-proxy` se a NF estiver lá; fallback para "gerar a partir do XML" (Fase 1.1, fora de escopo agora — sinalizar botão como "em breve" se XML não tiver layout previsto).
+  - **E-mail** → reusa pipeline `send-transactional-email` com template `nfe-autorizada`.
+  - **Manifestar** → reabre `ManifestacaoDestinatarioDrawer` existente.
+- Rota: `/fiscal/portal` (`PermissionRoute resource="faturamento_fiscal"`), entrada no menu lateral em "Fiscal → Portal NF-e".
 
-### 2a) Em `NotaFiscalForm` / `NfeFormBody` (NF → vincular ao "Pedido")
-Já existe `Select` "Vincular a um Pedido…" (`form.ordem_venda_id`) listando OVs ativas. Ajustes:
-- Melhorar a busca: hoje é um `<Select>` simples; trocar por **combobox com busca** (mesmo padrão do `OrcamentoItemsGrid` produto picker) mostrando `numero — cliente — data — valor`.
-- Filtrar OVs por status elegível (`em_separacao`, `aguardando_faturamento`, `pendente`) e que pertençam ao mesmo cliente já selecionado no destinatário (quando houver) — fallback para "ver todos".
-- Ao vincular, **pré-preencher** itens da NF a partir dos itens da OV se a NF ainda não tem itens (mesma lógica já usada quando NF é criada via "Converter OV").
-- Sem migração: campo `ordem_venda_id` já existe.
+### Limpeza da busca retroativa
 
-### 2b) No menu "3 pontos" do orçamento (Orçamento → vincular a NF emitida)
-Em `src/pages/Orcamentos.tsx`, dentro de `rowExtraActions` e no overflow menu da `DataTable`, adicionar item:
+- Remover ação `consultar-destinatario` de `supabase/functions/sefaz-distdfe/index.ts` (e helpers `montarConsNFeDest`, `endpointNFeDest`, `envelopeSoapDest`, `parseRetConsNFeDest`).
+- Remover método `buscarNFeDestinatario` de `distdfe.service.ts` e o card "Busca Retroativa" de `DistDFeHistorico.tsx`.
+- No lugar, manter apenas:
+  - **Sincronizar SEFAZ** (já existe — DistDFe por NSU).
+  - **Buscar por chave** (já existe — `BuscarPorChaveDialog`/consChNFe).
+- Aviso em `mem/features/fiscal-consulta-por-chave.md` documentando que NFeConsultaDest está descontinuado e não deve ser reintroduzido.
 
-- **"Vincular a NF já emitida…"** — visível apenas quando o orçamento está em status `aprovado` ou `convertido` e ainda não existe NF associada via a cadeia OV→NF.
+### Migração para produção (operacional)
 
-Comportamento:
-1. Abre dialog (`VincularNfDialog`) listando NFs emitidas (`status IN ('confirmada','autorizada','importada')`, `tipo='saida'`) **do mesmo cliente do orçamento** sem `ordem_venda_id`, com busca por número/chave.
-2. Ao confirmar, executa RPC nova `vincular_orcamento_nf(p_orcamento_id, p_nf_id)` que:
-   - Garante existência de uma OV "ponte": se o orçamento já tem OV (`SELECT id FROM ordens_venda WHERE cotacao_id = :orc`) usa ela; senão cria uma OV mínima com status `faturado` (espelhando o que `converter_orcamento_em_ov` faz) e marca orçamento como `convertido`.
-   - Faz `UPDATE notas_fiscais SET ordem_venda_id = :ov_id WHERE id = :nf_id`.
-   - Loga em `auditoria_logs`.
-3. Toast cross-module com link "Abrir NF".
+- Trocar `empresa_config.ambiente_sefaz` de `2` para `1` e `ambiente_padrao` para `producao`.
+- Confirmar com você que o **A1 carregado no Vault é o certificado de produção do CNPJ 53.078.538/0001-85** antes de virar a chave. Sem isso, prod retorna cStat 280/281 (certificado inválido).
+- Disparar `sync` manual em produção; validar que `nfe_distdfe_sync.ultimo_nsu` cresce e que linhas começam a popular `nfe_distribuicao`.
 
-Sem novo campo em `orcamentos`: o vínculo continua materializado pela OV-ponte (mantém a doutrina atual e evita schema drift).
+## Fora de escopo (futuras fases)
 
-### 2c) Espelho em `NotaFiscalForm` (já coberto)
-O combobox de pedido em 2a) atende à diretiva "na criação na NF também deve ser possível vincular ao pedido".
+- Geração de DANFE PDF a partir do XML cru (renderer próprio) — fica como Fase 2 se você quiser independência do `consultadanfe-proxy`.
+- Painel de Controle (KPIs por status/manifestação) e Monitoramento — já temos `FiscalDashboard` e `cron_health`; consolidação visual fica para outra fase.
+- Regras de auto-manifestação por emitente (cadastros) — Fase 3.
 
----
+## Entregáveis desta fase
 
-## 3) Revisão de filtros e cards do dashboard
+1. Migration: view `v_nfe_portal` + RPC `buscar_nfe_portal`.
+2. Edge function `sefaz-distdfe`: remoção do branch `consultar-destinatario` e helpers.
+3. `src/services/fiscal/sefaz/distdfe.service.ts`: remover `buscarNFeDestinatario`.
+4. `src/pages/fiscal/DistDFeHistorico.tsx`: remover card de busca retroativa.
+5. `src/pages/fiscal/PortalFiscal.tsx`, `usePortalFiscalQuery.ts`, rota em `fiscal.routes.tsx`, entrada de menu.
+6. UPDATE em `empresa_config` para ambiente=1 (somente após você confirmar A1 de produção).
+7. Atualização da memória `fiscal-consulta-por-chave` e nova memória `fiscal-portal`.
 
-Problemas encontrados ao reler `useDashboardData`, `useDashboardKpis`, `useDashboardFinanceiroData`, `useDashboardComercialData`, `FinanceiroBlock` e `ComercialBlock`:
+## Verificação
 
-| # | Cartão / Filtro | Problema | Correção |
-|---|---|---|---|
-| 1 | **Vencidos** (header Financeiro KPI) | `vencidasResult` filtra só `status='vencido'` sem filtrar `tipo` — soma vencidos de **receber e pagar juntos**. Label diz "em atraso" sem dizer o quê. | Adicionar `.eq('tipo','receber')` (vencidos do A Receber é o KPI clássico). Opcional: incluir contador separado para A Pagar atrasado em outro card/tooltip. |
-| 2 | **Scope badge do bloco Financeiro** | `useDashboardData.scopes.financeiro = global-range/data_vencimento`, mas as queries A Receber / A Pagar / Vencidos foram convertidas em **snapshot** na rodada anterior. Inconsistência. | Mudar `scopes.financeiro` para `{ kind: 'snapshot' }`. (FinanceiroBlock já mostra "snapshot" no cabeçalho — alinhar metadata.) |
-| 3 | **Saldo Projetado** (subtitle) | Diz `receber − pagar (período global)`, mas ambos são snapshot agora. | Trocar subtitle para `receber − pagar (saldo atual em aberto)`. |
-| 4 | **Bloco Comercial** | `cotacoesAbertas` é filtrado por período (`data_orcamento`), mas `pedidosPendentes` (=`backlogOVsCount`) é snapshot all-time. Dois KPIs lado-a-lado com escopos diferentes sem badge distinguindo. | (a) Acrescentar `ScopeBadge` por KPI: "Orçamentos em aberto" → global-range; "Pedidos pendentes" → snapshot. (b) Ou padronizar ambos como snapshot (recomendado — orçamento aberto antigo continua sendo backlog real). |
-| 5 | **Últimos Orçamentos** | Lista é filtrada pelo período global, mas o título não diz isso — quando o usuário escolhe "Hoje" o painel mostra "Nenhum orçamento no período" e parece bug. | Renomear para "Orçamentos do período" + caption pequena com o range; ou listar sempre os **5 mais recentes** independente do período. |
-| 6 | **Faturamento (mês)** / **Ticket médio** | Janela fixa `mes-atual`; ScopeBadge presente — OK. | Manter, apenas explicitar no tooltip que "não respeita o filtro do header". |
-| 7 | **Pedidos a Faturar / Compras em Atraso / Remessas Atrasadas** | Operacionais, snapshot — OK. | Sem ação. |
-| 8 | **Estoque Crítico** | Snapshot — OK. | Sem ação. |
-| 9 | **Bloco Fiscal** | Janela fixa `mes-atual` (alinhada a apuração). | OK, manter. |
-| 10 | **Pendências (próximos 7 dias)** | Lógica do `scopes.pendencias` faz toggle baseado em `usingGlobal`, alternando entre janela fixa e global — confunde. | Travar em `fixed-window/next-7d`. Pendências = próximos 7 dias sempre. |
-| 11 | **Header — seletor de período global** | Após a rodada anterior, o seletor afeta apenas: Top Clientes, gráficos diários de receber/pagar (mas estes usam `next-7d` fixo, não global ← bug latente), `cotacoesAbertas`, lista "Últimos Orçamentos", `topProdutos`. Pouca coisa. | Adicionar tooltip no `DashboardHeader` explicando "Afeta orçamentos do período, top clientes e top produtos. Demais cards usam janela fixa ou snapshot." |
-| 12 | **Drilldowns** | Já corrigidos na rodada anterior (sem `from/to` para snapshots). | Verificar que os 3 cards financeiros snapshot e o card "Vencidos" não passem `range` ao drilldown. |
-
-### Implementação concreta
-
-Arquivos a editar:
-- `src/pages/dashboard/hooks/useDashboardFinanceiroData.ts` — `vencidasResult` ganha `.eq('tipo','receber')`.
-- `src/pages/dashboard/hooks/useDashboardData.ts` — `scopes.financeiro` vira `snapshot`; `scopes.pendencias` fixa `next-7d`.
-- `src/pages/dashboard/hooks/useDashboardKpis.ts` — subtitle do "Saldo Projetado".
-- `src/pages/dashboard/hooks/useDashboardComercialData.ts` — remover filtro de período de `orcamentosResult` (vira snapshot, alinhado com `pedidosPendentes`); deixar `orcRecentResult` sem filtro de período e limitado a 5 últimos.
-- `src/components/dashboard/ComercialBlock.tsx` — ScopeBadge do cabeçalho passa a `snapshot`; remover badge `global-range/data_orcamento`.
-- `src/components/dashboard/DashboardHeader.tsx` — tooltip explicando o escopo do seletor.
-- `docs/dashboard-modelo.md` — atualizar tabela "Mapa atual" com Financeiro=snapshot, Comercial=snapshot, Pendências=fixed-window.
-
-Sem migrations de schema. Sem mudanças em RLS. Sem mudanças em outros módulos.
-
----
-
-## Ordem de execução
-1. Rodar `setval` da sequence (item 1).
-2. Criar dialog + RPC `vincular_orcamento_nf` (item 2b) e atualizar combobox da NF (item 2a). RPC requer migration.
-3. Aplicar os 6 ajustes do dashboard (item 3) — somente frontend.
-
-## Pergunta de confirmação
-No item **3#4**, prefere **padronizar Comercial como snapshot** (recomendado, alinha "Orçamentos em aberto" com "Pedidos pendentes" e elimina confusão de escopos) ou **manter escopos distintos com badges separadas**?
+- `/fiscal/portal` lista 0 linhas em homolog (esperado) e linhas reais após virada para prod.
+- Filtros aplicam server-side; export CSV bate com a grid.
+- Botão "Busca Retroativa" não existe mais.
+- `sefaz-distdfe` não aceita mais `action=consultar-destinatario` (retorna 400).
