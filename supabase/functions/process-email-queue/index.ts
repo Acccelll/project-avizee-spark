@@ -1,5 +1,6 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { recordCronHealth } from '../_shared/cron-health.ts'
 import { createLogger } from '../_shared/logger.ts'
 
 // Logger module-level (sem request) usado por helpers chamados fora do handler.
@@ -360,6 +361,7 @@ Deno.serve(async (req) => {
     }
   }
 
+  await recordCronHealth(supabase, 'process-email-queue', 'ok')
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
     { headers: { 'Content-Type': 'application/json' } }

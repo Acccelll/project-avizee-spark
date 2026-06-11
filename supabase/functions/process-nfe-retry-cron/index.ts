@@ -15,6 +15,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
+import { recordCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
@@ -71,12 +72,14 @@ Deno.serve(async (req) => {
   );
   if (loteErr) {
     log.error("erro ao listar lote", loteErr);
+    await recordCronHealth(admin, "process-nfe-retry-cron", "error", loteErr.message);
     return json({ error: loteErr.message }, 500);
   }
   const itens = (lote ?? []) as PendenteRow[];
   log.info("lote reservado", { count: itens.length });
 
   if (itens.length === 0) {
+    await recordCronHealth(admin, "process-nfe-retry-cron", "ok");
     return json({ sucesso: true, processados: 0 });
   }
 
@@ -160,6 +163,13 @@ Deno.serve(async (req) => {
       failCount++;
     }
   }
+
+  await recordCronHealth(
+    admin,
+    "process-nfe-retry-cron",
+    failCount > 0 ? "error" : "ok",
+    failCount > 0 ? `${failCount}/${itens.length} item(ns) falhou(aram)` : undefined,
+  );
 
   return json({ sucesso: true, processados: itens.length, okCount, failCount });
 });

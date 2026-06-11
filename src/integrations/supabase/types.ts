@@ -1866,6 +1866,30 @@ export type Database = {
           },
         ]
       }
+      cron_health: {
+        Row: {
+          job_name: string
+          last_error: string | null
+          last_run_at: string
+          last_status: string
+          runs_count: number
+        }
+        Insert: {
+          job_name: string
+          last_error?: string | null
+          last_run_at?: string
+          last_status?: string
+          runs_count?: number
+        }
+        Update: {
+          job_name?: string
+          last_error?: string | null
+          last_run_at?: string
+          last_status?: string
+          runs_count?: number
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -2498,6 +2522,13 @@ export type Database = {
             columns: ["funcionario_id"]
             isOneToOne: false
             referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_fopag_resumo_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
             referencedColumns: ["id"]
           },
         ]
@@ -3323,6 +3354,13 @@ export type Database = {
             columns: ["funcionario_id"]
             isOneToOne: false
             referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_pagamento_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
             referencedColumns: ["id"]
           },
         ]
@@ -5542,6 +5580,13 @@ export type Database = {
             referencedRelation: "funcionarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orcamentos_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
+            referencedColumns: ["id"]
+          },
         ]
       }
       orcamentos_itens: {
@@ -5797,6 +5842,13 @@ export type Database = {
             columns: ["vendedor_id"]
             isOneToOne: false
             referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
             referencedColumns: ["id"]
           },
         ]
@@ -8668,6 +8720,36 @@ export type Database = {
         }
         Relationships: []
       }
+      funcionarios_basico: {
+        Row: {
+          ativo: boolean | null
+          cargo: string | null
+          created_at: string | null
+          departamento: string | null
+          id: string | null
+          nome: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo?: string | null
+          created_at?: string | null
+          departamento?: string | null
+          id?: string | null
+          nome?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo?: string | null
+          created_at?: string | null
+          departamento?: string | null
+          id?: string | null
+          nome?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       orcamentos_itens_public_view: {
         Row: {
           codigo_snapshot: string | null
@@ -9532,6 +9614,13 @@ export type Database = {
             columns: ["vendedor_id"]
             isOneToOne: false
             referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
             referencedColumns: ["id"]
           },
         ]
@@ -10416,6 +10505,10 @@ export type Database = {
       }
       sync_fatura_status_from_lancamentos: {
         Args: { p_fatura_id: string }
+        Returns: undefined
+      }
+      touch_cron_health: {
+        Args: { p_error?: string; p_job: string; p_status: string }
         Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }

@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HealthBadge } from "@/components/HealthBadge";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSaudeSistema } from "@/pages/admin/hooks/useSaudeSistema";
+import { useCronHealth, isCronOverdue } from "@/pages/admin/hooks/useCronHealth";
 
 const ICONES_INTEGRACAO = {
   email: Mail,
@@ -38,6 +39,7 @@ function formatAge(seconds: number): string {
 
 export function SaudeSistemaSection() {
   const { data, isLoading, isFetching, refetch, error } = useSaudeSistema();
+  const { data: cronRows, isLoading: cronLoading } = useCronHealth();
 
   return (
     <SectionShell
@@ -217,6 +219,74 @@ export function SaudeSistemaSection() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Nenhuma atividade registrada.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Heartbeat de cron jobs */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Jobs agendados (heartbeat)</CardTitle>
+          <CardDescription>
+            Última execução de cada cron. Jobs atrasados (mais de 2× o intervalo esperado) aparecem destacados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {cronLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-7 w-full" />
+              ))}
+            </div>
+          ) : cronRows && cronRows.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 text-left font-medium">Job</th>
+                    <th className="py-2 text-left font-medium">Status</th>
+                    <th className="py-2 text-right font-medium">Última execução</th>
+                    <th className="py-2 text-right font-medium">Execuções</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cronRows.map((row) => {
+                    const overdue = isCronOverdue(row);
+                    const errored = row.last_status === "error";
+                    return (
+                      <tr key={row.job_name} className="border-b last:border-b-0">
+                        <td className="py-2 font-medium">{row.job_name}</td>
+                        <td className="py-2">
+                          <HealthBadge
+                            status={errored || overdue ? "down" : "healthy"}
+                            details={
+                              errored
+                                ? row.last_error ?? "erro"
+                                : overdue
+                                  ? "execução atrasada"
+                                  : "ok"
+                            }
+                          />
+                          {errored && row.last_error && (
+                            <p className="mt-1 text-xs text-muted-foreground truncate max-w-[28rem]">
+                              {row.last_error}
+                            </p>
+                          )}
+                        </td>
+                        <td className="py-2 text-right tabular-nums text-muted-foreground">
+                          {formatTimestamp(row.last_run_at)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{row.runs_count}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nenhum heartbeat registrado ainda. Os jobs alimentam esta tabela na próxima execução.
+            </p>
           )}
         </CardContent>
       </Card>
