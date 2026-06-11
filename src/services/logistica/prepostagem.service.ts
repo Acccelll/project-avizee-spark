@@ -49,7 +49,8 @@ export async function listEtiquetasByRemessa(remessaId: string): Promise<Remessa
     .from("remessa_etiquetas")
     .select("*")
     .eq("remessa_id", remessaId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw new Error(error.message);
   return (data ?? []) as RemessaEtiqueta[];
 }
@@ -66,7 +67,8 @@ export async function listLatestEtiquetasByRemessas(
     .from("remessa_etiquetas")
     .select("*")
     .in("remessa_id", remessaIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw new Error(error.message);
   const map: Record<string, RemessaEtiqueta> = {};
   for (const row of (data ?? []) as RemessaEtiqueta[]) {
