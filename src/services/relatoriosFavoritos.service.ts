@@ -11,7 +11,8 @@ export async function listRelatoriosFavoritos() {
   return supabase
     .from("relatorios_favoritos")
     .select("id, nome, params, criado_em")
-    .order("criado_em", { ascending: true });
+    .order("criado_em", { ascending: true })
+    .limit(200); // cadastro pequeno — teto defensivo
 }
 
 export async function insertRelatoriosFavoritos(rows: Array<{
