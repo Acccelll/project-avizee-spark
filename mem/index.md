@@ -15,3 +15,5 @@
 - [C14N SEFAZ](mem://features/c14n-sefaz) — Exclusive C14N real em _shared/xml-c14n.ts (npm:@xmldom/xmldom); plugado no sefaz-proxy atrás de SEFAZ_C14N_REAL=true
 - [Edge Functions Shared Helpers](mem://tech/edge-functions-shared-helpers) — pfx.ts (extração A1 com leaf-detection), xml-c14n.ts, cors.ts, logger.ts, permissions.ts em _shared/
 - [Arquivamento de XML NF-e](mem://features/arquivamento-xml-nfe) — XMLs importados gravados em dbavizee/fiscal/ e referenciados em notas_fiscais.caminho_xml; botão "Baixar XML" no drawer/lista
+- [Cron Health Heartbeat](mem://tech/cron-health-heartbeat) — cron_health + touch_cron_health RPC + recordCronHealth helper instrumentando 4 crons; card no admin
+- [Funcionários Basic View](mem://security/funcionarios-basico-view) — funcionarios é admin-only; roles operacionais usam funcionarios_basico (sem salário/CPF)
