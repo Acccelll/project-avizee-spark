@@ -688,7 +688,10 @@ Deno.serve(async (req) => {
     // HTTP, fazemos UMA tentativa adicional em SOAP 1.1. Qualquer resposta
     // HTTP da SEFAZ (mesmo 500/SOAP Fault) interrompe o fallback porque já
     // representa diagnóstico oficial.
-    const tentativas: SoapVariant[] = ["soap12", "soap11"];
+    // O Worker→SEFAZ é intermitente (520/500-vazio esporádicos do BIG-IP do AN);
+    // o mesmo envelope passa segundos depois. Por isso fazemos até 4 tentativas
+    // alternando variantes, com backoff curto entre elas.
+    const tentativas: SoapVariant[] = ["soap12", "soap11", "soap12", "soap11"];
     let xmlRetorno = "";
     let respondeu = false;
     let ultimoErroTransporte: { raw: string; codigo: string } | null = null;
