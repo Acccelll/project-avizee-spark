@@ -261,6 +261,8 @@ export async function sincronizarDistDFe(
   sucesso: boolean;
   novos: number;
   duplicados: number;
+  novasNFe?: number;
+  novosEventos?: number;
   ultNSU?: string;
   maxNSU?: string;
   cStat?: string;
@@ -336,6 +338,8 @@ export async function sincronizarDistDFe(
   const docs = (data.docs ?? []).filter((d) => d.chave && /^\d{44}$/.test(d.chave));
   let novos = 0;
   let duplicados = 0;
+  let novasNFe = 0;
+  let novosEventos = 0;
   const { data: { user } } = await supabase.auth.getUser();
 
   for (const d of docs) {
@@ -349,6 +353,24 @@ export async function sincronizarDistDFe(
     else if (schema.includes("resevento")) tipoDocumento = "resEvento";
     else if (schema.includes("procnfe")) tipoDocumento = "procNFe";
     else if (schema.includes("resnfe")) tipoDocumento = "resNFe";
+
+    const isEvento = tipoDocumento === "resEvento" || tipoDocumento === "procEventoNFe";
+    // Eventos chegam DEPOIS da NF-e e compartilham a chave_acesso. Se já existe
+    // uma linha com tipo_documento procNFe/resNFe, o upsert padrão sobrescreveria
+    // os campos da NF-e (incluindo xml_nfe). Para eventos, verificamos antes e
+    // só inserimos quando a chave ainda não existe — evitando "perder" a NF-e
+    // do grid após receber o evento de ciência/manifestação.
+    if (isEvento) {
+      const { data: existente } = await supabase
+        .from("nfe_distribuicao")
+        .select("id")
+        .eq("chave_acesso", d.chave!)
+        .maybeSingle();
+      if (existente) {
+        duplicados++;
+        continue;
+      }
+    }
 
     const payload = {
       chave_acesso: d.chave!,
@@ -374,7 +396,11 @@ export async function sincronizarDistDFe(
       if ((upErr as { code?: string }).code === "23505") duplicados++;
       continue;
     }
-    if (upData) novos++;
+    if (upData) {
+      novos++;
+      if (isEvento) novosEventos++;
+      else novasNFe++;
+    }
   }
 
   // 4) Atualiza nfe_distdfe_sync (upsert por cnpj+ambiente)
@@ -398,6 +424,8 @@ export async function sincronizarDistDFe(
     sucesso: true,
     novos,
     duplicados,
+    novasNFe,
+    novosEventos,
     ultNSU: data.ultNSU,
     maxNSU: data.maxNSU,
     cStat: data.cStat,
