@@ -954,6 +954,9 @@ Deno.serve(async (req) => {
       } else if (codigo === "CONNECTION_RESET" || codigo === "TLS_FAILURE") {
         hint =
           " — falha de transporte contra o Ambiente Nacional após tentar SOAP 1.2 e SOAP 1.1. Possíveis causas: cadeia ICP-Brasil incompleta no A1, certificado expirado/de outro ambiente, ou bloqueio temporário do CNPJ no AN. O Portal NF-e segue funcionando, então o serviço da Receita está no ar.";
+      } else if (codigo === "WORKER_MTLS_BINDING") {
+        hint =
+          " — o Worker Cloudflare lançou exceção (HTTP 520) ao chamar a SEFAZ de PRODUÇÃO. O binding mTLS do Worker não cobre o hostname www1.nfe.fazenda.gov.br (foi configurado apenas para hom1). Correção: no wrangler.toml do Worker, garanta que o mtls_certificate binding/allowlist inclua www1.nfe.fazenda.gov.br e rode `npx wrangler deploy`.";
       }
       return json({
         sucesso: false,
