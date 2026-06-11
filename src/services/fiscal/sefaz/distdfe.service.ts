@@ -577,3 +577,102 @@ export async function obterXmlNFePorChave(params: {
 
   return { sucesso: false, origem: "api", erro: erroConsultaDanfe };
 }
+
+// ── Busca retroativa via consNFeDest ──────────────────────────────
+
+export interface BuscaDestinatarioResult {
+  sucesso: boolean;
+  novas: number;
+  duplicadas: number;
+  cStat?: string;
+  xMotivo?: string;
+  ultNSU?: string;
+  maxNSU?: string;
+  erro?: string;
+  /** true quando maxNSU > ultNSU retornado (há mais páginas a consultar). */
+  temMais?: boolean;
+}
+
+/**
+ * Busca NF-e emitidas para o CNPJ da empresa via `consNFeDest`.
+ * Independente do cursor NSU do DistDFe — permite recuperação retroativa.
+ * SEFAZ entrega até 50 chaves por chamada; use `ultNSU` para paginar.
+ */
+export async function buscarNFeDestinatario(
+  ultNSU?: string,
+): Promise<BuscaDestinatarioResult> {
+  const ambiente = await resolverAmbienteDistDFe();
+
+  const { data, error } = await supabase.functions.invoke<{
+    sucesso: boolean;
+    cnpj?: string;
+    cStat?: string;
+    xMotivo?: string;
+    ultNSU?: string;
+    maxNSU?: string;
+    chaves?: Array<{ chave: string; nsu: string; dhRecbto?: string }>;
+    erro?: string;
+  }>("sefaz-distdfe", {
+    body: {
+      action: "consultar-destinatario",
+      ambiente,
+      ultNSU: ultNSU ?? "0",
+      indNFe: "0",
+      indEmi: "0",
+    },
+  });
+
+  if (error) return { sucesso: false, novas: 0, duplicadas: 0, erro: error.message };
+  if (!data?.sucesso) {
+    return {
+      sucesso: false,
+      novas: 0,
+      duplicadas: 0,
+      cStat: data?.cStat,
+      xMotivo: data?.xMotivo,
+      erro: data?.erro ?? "Resposta inesperada",
+    };
+  }
+
+  // cStat 138 = NF-e encontradas | 137 = nenhuma
+  const chaves = data.chaves ?? [];
+  let novas = 0;
+  let duplicadas = 0;
+  const { data: { user } } = await supabase.auth.getUser();
+
+  for (const item of chaves) {
+    if (!/^\d{44}$/.test(item.chave)) continue;
+    const payload = {
+      chave_acesso: item.chave,
+      nsu: item.nsu,
+      tipo_documento: "resNFe" as const,
+      status_manifestacao: "sem_manifestacao",
+      usuario_id: user?.id ?? null,
+    };
+    const { error: upErr, data: upData } = await supabase
+      .from("nfe_distribuicao")
+      .upsert(payload, { onConflict: "chave_acesso", ignoreDuplicates: true })
+      .select("id")
+      .maybeSingle();
+    if (upErr) {
+      if ((upErr as { code?: string }).code === "23505") duplicadas++;
+      continue;
+    }
+    if (upData) novas++;
+    else duplicadas++;
+  }
+
+  const ultNSUNum = parseInt(data.ultNSU ?? "0", 10);
+  const maxNSUNum = parseInt(data.maxNSU ?? "0", 10);
+
+  return {
+    sucesso: true,
+    novas,
+    duplicadas,
+    cStat: data.cStat,
+    xMotivo: data.xMotivo,
+    ultNSU: data.ultNSU,
+    maxNSU: data.maxNSU,
+    temMais: maxNSUNum > ultNSUNum,
+  };
+}
