@@ -715,7 +715,10 @@ export async function obterXmlNFePorChave(params: {
       if (resp?.ok) {
         const xml = extrairXmlConsultaDanfe(resp.data);
         if (xml) {
-          await cachearXmlPorChave(chave, xml);
+          const cached = await cachearXmlPorChave(chave, xml);
+          if (!cached.ok) {
+            return { sucesso: false, origem: "api", erro: cached.erro };
+          }
           return { sucesso: true, origem: "api", xml };
         }
         erroConsultaDanfe = "consultadanfe respondeu sem XML.";
@@ -732,8 +735,15 @@ export async function obterXmlNFePorChave(params: {
   try {
     const sefaz = await consultarNFePorChave({ chave });
     if (sefaz.sucesso && sefaz.xml) {
-      await cachearXmlPorChave(chave, sefaz.xml);
+      const cached = await cachearXmlPorChave(chave, sefaz.xml);
+      if (!cached.ok) {
+        return { sucesso: false, origem: "sefaz", erro: cached.erro };
+      }
       return { sucesso: true, origem: "sefaz", xml: sefaz.xml };
+    }
+    // Propaga mismatch detectado dentro de consultarNFePorChave.
+    if (!sefaz.sucesso && sefaz.erro?.startsWith(DEST_MISMATCH_PREFIX)) {
+      return { sucesso: false, origem: "sefaz", erro: sefaz.erro };
     }
   } catch { /* ignora — mantém erro do consultadanfe */ }
 
