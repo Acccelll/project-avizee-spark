@@ -151,6 +151,103 @@ function montarDistDFeInt(opts: {
 }
 
 /**
+ * Monta o XML consNFeDest para busca de NF-e por destinatário (NT 2014.002).
+ * Endpoint: NFeConsultaDest.asmx — permite recuperação retroativa sem
+ * depender do cursor NSU do DistDFe.
+ */
+function montarConsNFeDest(opts: {
+  ambiente: "1" | "2";
+  cnpj: string;
+  indNFe?: string; // "0" = todas, "1" = somente não consultadas
+  indEmi?: string; // "0" = todos, "1" = avulsa, "2" = normal, "3" = contingência
+  ultNSU?: string; // paginação; "0" = primeiro lote
+}): string {
+  const indNFe = opts.indNFe ?? "0";
+  const indEmi = opts.indEmi ?? "0";
+  const ultNSU = String(opts.ultNSU ?? "0").padStart(15, "0");
+  return (
+    `<consNFeDest versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+    `<tpAmb>${opts.ambiente}</tpAmb>` +
+    `<xServ>CONSULTAR NFE DESTINATARIO</xServ>` +
+    `<CNPJ>${opts.cnpj}</CNPJ>` +
+    `<indNFe>${indNFe}</indNFe>` +
+    `<indEmi>${indEmi}</indEmi>` +
+    `<ultNSU>${ultNSU}</ultNSU>` +
+    `</consNFeDest>`
+  );
+}
+
+function endpointNFeDest(amb: "1" | "2"): string {
+  return amb === "1"
+    ? "https://www.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx"
+    : "https://hom.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx";
+}
+
+function envelopeSoapDest(corpo: string, variant: SoapVariant): string {
+  if (variant === "soap12") {
+    return (
+      `<?xml version="1.0" encoding="utf-8"?>` +
+      `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope" ` +
+      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+      `xmlns:xsd="http://www.w3.org/2001/XMLSchema">` +
+      `<soap12:Header>` +
+      `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+      `<cUF>91</cUF><versaoDados>1.01</versaoDados>` +
+      `</nfeCabecMsg>` +
+      `</soap12:Header>` +
+      `<soap12:Body>` +
+      `<nfeConsultaNFDestinatarioNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+      `<nfeDadosMsg>${corpo}</nfeDadosMsg>` +
+      `</nfeConsultaNFDestinatarioNF>` +
+      `</soap12:Body>` +
+      `</soap12:Envelope>`
+    );
+  }
+  return (
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ` +
+    `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+    `xmlns:xsd="http://www.w3.org/2001/XMLSchema">` +
+    `<soap:Header>` +
+    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+    `<cUF>91</cUF><versaoDados>1.01</versaoDados>` +
+    `</nfeCabecMsg>` +
+    `</soap:Header>` +
+    `<soap:Body>` +
+    `<nfeConsultaNFDestinatarioNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+    `<nfeDadosMsg>${corpo}</nfeDadosMsg>` +
+    `</nfeConsultaNFDestinatarioNF>` +
+    `</soap:Body>` +
+    `</soap:Envelope>`
+  );
+}
+
+/** Parser do retConsNFeDest — extrai chaves e NSU de cada resNFe retornado. */
+function parseRetConsNFeDest(xml: string): {
+  cStat: string;
+  xMotivo: string;
+  ultNSU: string;
+  maxNSU: string;
+  chaves: Array<{ chave: string; nsu: string; dhRecbto?: string }>;
+} {
+  const cStat = xml.match(/<cStat>(\d+)<\/cStat>/)?.[1] ?? "";
+  const xMotivo = xml.match(/<xMotivo>([^<]*)<\/xMotivo>/)?.[1] ?? "";
+  const ultNSU = xml.match(/<ultNSU>(\d+)<\/ultNSU>/)?.[1] ?? "0";
+  const maxNSU = xml.match(/<maxNSU>(\d+)<\/maxNSU>/)?.[1] ?? "0";
+  const chaves: Array<{ chave: string; nsu: string; dhRecbto?: string }> = [];
+  const regex = /<resNFe[^>]*>([\s\S]*?)<\/resNFe>/g;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(xml)) !== null) {
+    const bloco = m[1];
+    const chave = bloco.match(/<chNFe>(\d{44})<\/chNFe>/)?.[1];
+    const nsu = bloco.match(/<NSU>(\d+)<\/NSU>/)?.[1] ?? "0";
+    const dhRecbto = bloco.match(/<dhRecbto>([^<]*)<\/dhRecbto>/)?.[1];
+    if (chave) chaves.push({ chave, nsu, dhRecbto });
+  }
+  return { cStat, xMotivo, ultNSU, maxNSU, chaves };
+}
+
+/**
  * Monta o envelope SOAP do NFeDistribuicaoDFe.
  *
  * O WSDL desse serviço expõe DOIS bindings:
