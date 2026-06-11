@@ -12,11 +12,13 @@ import type { Entrega } from "@/types/logistica";
  */
 export async function fetchEntregasConsolidadas(): Promise<Entrega[]> {
   const [vRes, remessasRes] = await Promise.all([
-    supabase.from("vw_entregas_consolidadas").select("*"),
+    // TODO(paginação): migrar para serverPagination quando volume justificar
+    supabase.from("vw_entregas_consolidadas").select("*").limit(1000),
     supabase
       .from("remessas")
       .select("id,ordem_venda_id,codigo_rastreio")
-      .eq("ativo", true),
+      .eq("ativo", true)
+      .limit(2000), // TODO(paginação): migrar para serverPagination quando volume justificar
   ]);
   if (vRes.error) throw new Error(vRes.error.message);
   if (remessasRes.error) {
