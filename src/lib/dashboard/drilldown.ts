@@ -17,9 +17,9 @@
  *
  * | intent                              | hook que produz a contagem               | filtro aplicado na página de destino                          |
  * |-------------------------------------|------------------------------------------|---------------------------------------------------------------|
- * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido)             |
- * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido)               |
- * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido                                                |
+ * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido) + range global (from/to) |
+ * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido) + range global (from/to)   |
+ * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido + range global (from/to)                                    |
  * | estoque:critico                     | useDashboardEstoqueData                  | critico=1                                                     |
  * | logistica:remessas-atrasadas        | useDashboardAuxData                      | tab=remessas + atrasadas=1                                    |
  * | compras:atrasadas                   | useDashboardAuxData (comprasAtrasadasCount)| atrasadas=1 (interpretação local em PedidosCompra.tsx)      |
