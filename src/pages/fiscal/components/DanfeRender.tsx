@@ -385,7 +385,7 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
             </td>
             <td className={cell} style={{ width: "15%" }}>
               <div className={cellTitle}>FRETE POR CONTA</div>
-              <div className="text-[8px]">{data.modalidade_frete ?? "9"}</div>
+              <div className="text-[8px]">{FRETE_LABEL[data.modalidade_frete ?? "9"] ?? data.modalidade_frete ?? "—"}</div>
             </td>
             <td className={cell} style={{ width: "10%" }}>
               <div className={cellTitle}>CÓD. ANTT</div>
@@ -404,6 +404,48 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
               <div className={cellValue}>{fmtCnpj(data.transportador?.cnpj_cpf)}</div>
             </td>
           </tr>
+          <tr>
+            <td className={cell}>
+              <div className={cellTitle}>ENDEREÇO</div>
+              <div className={cellValue}>{data.transportador?.endereco || "—"}</div>
+            </td>
+            <td className={cell} colSpan={3}>
+              <div className={cellTitle}>MUNICÍPIO</div>
+              <div className={cellValue}>{data.transportador?.cidade || "—"}</div>
+            </td>
+            <td className={cell}>
+              <div className={cellTitle}>UF</div>
+              <div className={cellValue}>{data.transportador?.uf || "—"}</div>
+            </td>
+            <td className={cell}>
+              <div className={cellTitle}>INSCRIÇÃO ESTADUAL</div>
+              <div className={cellValue}>{data.transportador?.inscricao_estadual || "—"}</div>
+            </td>
+          </tr>
+          {data.volumes && data.volumes.length > 0 && (
+            <tr>
+              <td className={cell}>
+                <div className={cellTitle}>QTD. / ESPÉCIE</div>
+                <div className={cellValue}>
+                  {data.volumes.map(v => `${v.quantidade || 0} ${v.especie ?? ""}`).join(" · ")}
+                </div>
+              </td>
+              <td className={cell} colSpan={2}>
+                <div className={cellTitle}>MARCA / NUMERAÇÃO</div>
+                <div className={cellValue}>
+                  {data.volumes.map(v => [v.marca, v.numero].filter(Boolean).join(" ")).join(" · ") || "—"}
+                </div>
+              </td>
+              <td className={cell} colSpan={2}>
+                <div className={cellTitle}>PESO BRUTO</div>
+                <div className={cellValue + " text-right"}>{fmt(data.volumes.reduce((s, v) => s + (v.peso_bruto ?? 0), 0))}</div>
+              </td>
+              <td className={cell}>
+                <div className={cellTitle}>PESO LÍQUIDO</div>
+                <div className={cellValue + " text-right"}>{fmt(data.volumes.reduce((s, v) => s + (v.peso_liquido ?? 0), 0))}</div>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -447,20 +489,43 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
                 <td className={cell + " text-[9px]"}>{it.codigo || "—"}</td>
                 <td className={cell + " text-[9px]"}>{it.descricao || "—"}</td>
                 <td className={cell + " text-[9px] text-center"}>{it.ncm || "—"}</td>
-                <td className={cell + " text-[9px] text-center"}>—</td>
+                <td className={cell + " text-[9px] text-center"}>{it.cst || "—"}</td>
                 <td className={cell + " text-[9px] text-center"}>{it.cfop || "—"}</td>
                 <td className={cell + " text-[9px] text-center"}>{it.unidade || "—"}</td>
                 <td className={cell + " text-[9px] text-right tabular-nums"}>{fmtQtd(it.quantidade)}</td>
                 <td className={cell + " text-[9px] text-right tabular-nums"}>{fmt(it.valor_unitario)}</td>
                 <td className={cell + " text-[9px] text-right tabular-nums font-semibold"}>{fmt(total)}</td>
-                <td className={cell + " text-[9px] text-right tabular-nums"}>0,00</td>
-                <td className={cell + " text-[9px] text-right tabular-nums"}>0,00</td>
-                <td className={cell + " text-[9px] text-right tabular-nums"}>0,00</td>
+                <td className={cell + " text-[9px] text-right tabular-nums"}>{fmt(it.valor_icms ?? 0)}</td>
+                <td className={cell + " text-[9px] text-right tabular-nums"}>{fmt(it.valor_ipi ?? 0)}</td>
+                <td className={cell + " text-[9px] text-right tabular-nums"}>{fmt(it.aliquota_icms ?? 0)}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      {/* Pagamentos */}
+      {data.pagamentos && data.pagamentos.length > 0 && (
+        <>
+          <div className="text-[8px] font-bold mt-1 uppercase">Pagamentos</div>
+          <table className="w-full border-collapse" style={{ borderSpacing: 0 }}>
+            <tbody>
+              {data.pagamentos.map((p, i) => (
+                <tr key={i}>
+                  <td className={cell}>
+                    <div className={cellTitle}>FORMA</div>
+                    <div className={cellValue}>{PAG_LABEL[p.forma ?? ""] ?? p.forma ?? "—"}</div>
+                  </td>
+                  <td className={cell}>
+                    <div className={cellTitle}>VALOR</div>
+                    <div className={cellValue + " text-right"}>{fmt(p.valor)}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {/* Dados adicionais */}
       <div className="text-[8px] font-bold mt-1 uppercase">Dados Adicionais</div>
