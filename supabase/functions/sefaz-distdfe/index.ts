@@ -429,28 +429,73 @@ Deno.serve(async (req) => {
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
     if (action === "status") {
-      // Worker mTLS DESATIVADO em código (jun/2026). Secrets podem existir mas são ignorados.
+      const flag = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim().toLowerCase();
+      const pUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || "";
+      const pSecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || "";
+      const ativo = ["true", "1", "yes", "sim"].includes(flag) && !!pUrl && !!pSecret;
       return json({
         sucesso: true,
-        proxyEnabled: false,
-        hasProxyUrl: false,
-        hasProxySecret: false,
-        flagAtiva: false,
-        flagLen: 0,
-        transporte: "deno-mtls-direto",
-        observacao: "Worker mTLS desativado em código; secrets ignorados.",
+        proxyEnabled: ativo,
+        hasProxyUrl: !!pUrl,
+        hasProxySecret: !!pSecret,
+        flagAtiva: ["true", "1", "yes", "sim"].includes(flag),
+        flagLen: flag.length,
+        transporte: ativo ? "cloudflare-worker" : "deno-mtls-direto",
+        observacao: ativo
+          ? "Worker mTLS ativo — transporte obrigatório (Deno/rustls não suporta renegociação TLS do IIS da SEFAZ)."
+          : "Worker mTLS inativo. ATENÇÃO: o transporte direto deno-mtls não funciona contra o AN (renegociação TLS).",
       }, 200);
     }
 
     if (action === "worker-ping") {
       const ambientePing: "1" | "2" = body.ambiente === "1" ? "1" : "2";
-      // Worker mTLS DESATIVADO em código (jun/2026). Endpoint mantido por compatibilidade.
-      return json({
-        sucesso: false,
-        ambiente: ambientePing,
-        diagnostico: "Worker mTLS desativado em código. Toda comunicação SEFAZ usa Deno mTLS direto.",
-        erro: "worker-desativado-em-codigo",
-      }, 200);
+      const pUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || "";
+      const pSecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || "";
+      if (!pUrl || !pSecret) {
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          diagnostico: "SEFAZ_MTLS_PROXY_URL/SECRET ausentes — Worker não configurado.",
+          erro: "worker-nao-configurado",
+        }, 200);
+      }
+      const alvo = endpointAN(ambientePing);
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20_000);
+        const r = await fetch(pUrl, {
+          method: "POST",
+          headers: {
+            "x-proxy-secret": pSecret,
+            "x-target-url": alvo,
+            "Content-Type": "application/soap+xml; charset=utf-8",
+          },
+          body: "",
+          signal: ctrl.signal,
+        });
+        clearTimeout(t);
+        const txt = await r.text();
+        return json({
+          sucesso: r.status !== 520 && r.status !== 401,
+          ambiente: ambientePing,
+          alvo,
+          statusHttp: r.status,
+          preview: txt.slice(0, 300),
+          diagnostico: r.status === 520
+            ? "Worker respondeu 520 — o binding mTLS provavelmente não cobre este hostname."
+            : r.status === 401
+            ? "Worker rejeitou o secret (401) — confira SEFAZ_MTLS_PROXY_SECRET."
+            : "Transporte Worker→SEFAZ alcançou o servidor (qualquer status HTTP da SEFAZ é prova de conectividade).",
+        }, 200);
+      } catch (e: any) {
+        return json({
+          sucesso: false,
+          ambiente: ambientePing,
+          alvo,
+          diagnostico: `Falha ao chamar o Worker: ${e?.message ?? String(e)}`,
+          erro: "worker-unreachable",
+        }, 200);
+      }
     }
 
     if (action !== "consultar-nsu" && action !== "consultar-chave" && action !== "consultar-destinatario") {
