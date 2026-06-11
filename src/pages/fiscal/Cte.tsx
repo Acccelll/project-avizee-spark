@@ -224,9 +224,7 @@ export default function Cte() {
                     }) ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={cte.status === "autorizada" ? "default" : "secondary"}>
-                      {cte.status ?? "—"}
-                    </Badge>
+                    <FiscalInternalStatusBadge status={cte.status} />
                   </TableCell>
                 </TableRow>
               ))
