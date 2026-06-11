@@ -361,11 +361,9 @@ Deno.serve(async (req) => {
     }
   }
 
+  await recordCronHealth(supabase, 'process-email-queue', 'ok')
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
     { headers: { 'Content-Type': 'application/json' } }
-  ).then(async (res) => {
-    await recordCronHealth(supabase, 'process-email-queue', 'ok')
-    return res
-  })
+  )
 })
