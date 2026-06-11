@@ -293,9 +293,17 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   const handleSincronizar = async () => {
     setSincronizando(true);
     try {
-      const r = await sincronizarDistDFe("2");
+      // Sem argumento: sincronizarDistDFe resolve o ambiente a partir de
+      // empresa_config e verifica o circuit breaker internamente.
+      const r = await sincronizarDistDFe();
       if (!r.sucesso) {
-        toast.error(r.erro ?? `Falha na sincronização (${r.cStat ?? "?"})`);
+        if (r.circuitBreaker?.ativo) {
+          toast.error("SEFAZ — Aguarde antes de sincronizar", {
+            description: `O Ambiente Nacional bloqueou consultas por excesso de requisições. Tente novamente em ~${r.circuitBreaker.minutosRestantes} minuto(s).`,
+          });
+        } else {
+          toast.error(r.erro ?? `Falha na sincronização (${r.cStat ?? "?"})`);
+        }
         return;
       }
       toast.success(
