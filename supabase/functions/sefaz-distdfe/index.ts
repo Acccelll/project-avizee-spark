@@ -815,6 +815,42 @@ Deno.serve(async (req) => {
             bytes: xmlRetorno.length,
             preview: xmlRetorno.slice(0, 240),
           });
+          // Worker devolve HTTP 200 com JSON {"success":false,"status":<upstream>,...}
+          // quando o fetch dele contra a SEFAZ falha (ex.: binding mTLS não cobre o
+          // hostname de produção). Sem este guard, o JSON era parseado como XML e a
+          // sync terminava "ok" com cStat vazio e 0 docs — falha silenciosa.
+          let workerFail: { status: number; body: string } | null = null;
+          if (xmlRetorno.trimStart().startsWith("{")) {
+            try {
+              const wj = JSON.parse(xmlRetorno);
+              if (wj && wj.success === false) {
+                workerFail = {
+                  status: Number(wj.status) || 0,
+                  body: String(wj.body ?? "").slice(0, 240),
+                };
+              }
+            } catch (_) { /* não é o envelope JSON do Worker */ }
+          }
+          if (workerFail) {
+            log.info("worker reportou falha upstream", {
+              soapVariant: variant,
+              tentativa: i + 1,
+              upstreamStatus: workerFail.status,
+              upstreamBody: workerFail.body,
+            });
+            ultimoErroTransporte = {
+              raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
+              codigo: workerFail.status === 520
+                ? "WORKER_MTLS_BINDING"
+                : workerFail.status >= 500
+                ? "WORKER_UPSTREAM_5XX"
+                : "WORKER_UPSTREAM_ERROR",
+            };
+            // 520 = exceção no Worker (binding mTLS não cobre o hostname).
+            // Trocar a variante SOAP não resolve — aborta o loop.
+            if (workerFail.status === 520) break;
+            continue;
+          }
           // 401/400 com corpo curto = erro do próprio Worker (não da SEFAZ).
           if ((resp.status === 401 || resp.status === 400) && xmlRetorno.length < 200) {
             try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
