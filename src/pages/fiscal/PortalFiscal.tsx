@@ -52,6 +52,8 @@ import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { ShieldAlert, Trash2 } from "lucide-react";
 
 interface PortalRow {
   id: string;
@@ -64,6 +66,8 @@ interface PortalRow {
   cnpj_emitente: string | null;
   nome_emitente: string | null;
   uf_emitente: string | null;
+  cnpj_destinatario: string | null;
+  nome_destinatario: string | null;
   valor_total: number | null;
   status_manifestacao: string;
   processado: boolean;
