@@ -12,6 +12,71 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// ── Helpers de ambiente e circuit breaker ────────────────────────
+
+/**
+ * Lê o ambiente SEFAZ configurado em empresa_config.
+ * Prioridade: ambiente_sefaz ("1"/"2") > ambiente_padrao ("producao"/"homologacao").
+ * Fallback conservador: "2" (homologação).
+ */
+export async function resolverAmbienteDistDFe(): Promise<"1" | "2"> {
+  try {
+    const { data: cfg } = await supabase
+      .from("empresa_config")
+      .select("ambiente_sefaz, ambiente_padrao")
+      .limit(1)
+      .maybeSingle();
+    const c = cfg as { ambiente_sefaz?: string | null; ambiente_padrao?: string | null } | null;
+    if (c?.ambiente_sefaz === "1" || c?.ambiente_sefaz === "2") {
+      return c.ambiente_sefaz as "1" | "2";
+    }
+    if (c?.ambiente_padrao === "producao") return "1";
+    if (c?.ambiente_padrao === "homologacao") return "2";
+  } catch {
+    // fallback conservador
+  }
+  return "2";
+}
+
+export interface CircuitBreakerInfo {
+  ativo: boolean;
+  /** ISO timestamp até quando o bloqueio está ativo. */
+  ate?: string;
+  /** Minutos restantes arredondados. */
+  minutosRestantes?: number;
+}
+
+/**
+ * Verifica se o circuit breaker de cStat 656 está ativo para o ambiente.
+ * Consulta app_configuracoes chave `distdfe_circuit_break_until_<ambiente>`.
+ */
+export async function verificarCircuitBreaker(
+  ambiente: "1" | "2",
+): Promise<CircuitBreakerInfo> {
+  try {
+    const chave = `distdfe_circuit_break_until_${ambiente}`;
+    const { data } = await supabase
+      .from("app_configuracoes")
+      .select("valor")
+      .eq("chave", chave)
+      .maybeSingle();
+    const until = (data?.valor as { until?: string } | null)?.until;
+    if (until) {
+      const diff = new Date(until).getTime() - Date.now();
+      if (diff > 0) {
+        return {
+          ativo: true,
+          ate: until,
+          minutosRestantes: Math.ceil(diff / 60_000),
+        };
+      }
+    }
+  } catch {
+    // fail-open: não bloqueia se não conseguir ler
+  }
+  return { ativo: false };
+}
+
 export interface DistDFeDoc {
   nsu: string;
   schema: string;
@@ -124,9 +189,12 @@ export async function testarWorkerDistDFe(
 /**
  * Consulta documentos novos a partir do último NSU sincronizado para o CNPJ.
  * Persiste resultados e devolve estatística da sincronização.
+ *
+ * `ambiente` é opcional: quando omitido, resolve automaticamente a partir de
+ * empresa_config para evitar que callers hardcoded em "2" causem 656 em produção.
  */
 export async function sincronizarDistDFe(
-  ambiente: "1" | "2" = "2",
+  ambiente?: "1" | "2",
 ): Promise<{
   sucesso: boolean;
   novos: number;
@@ -136,7 +204,25 @@ export async function sincronizarDistDFe(
   cStat?: string;
   xMotivo?: string;
   erro?: string;
+  circuitBreaker?: CircuitBreakerInfo;
 }> {
+  // Resolve ambiente a partir de empresa_config quando não informado.
+  const ambienteResolvido: "1" | "2" = ambiente ?? await resolverAmbienteDistDFe();
+
+  // Verifica circuit breaker antes de qualquer chamada SEFAZ.
+  const cb = await verificarCircuitBreaker(ambienteResolvido);
+  if (cb.ativo) {
+    return {
+      sucesso: false,
+      novos: 0,
+      duplicados: 0,
+      cStat: "656",
+      xMotivo: `Consumo Indevido — aguarde ~${cb.minutosRestantes} min antes de tentar novamente.`,
+      erro: `Circuit breaker ativo até ${cb.ate ? new Date(cb.ate).toLocaleTimeString("pt-BR") : "?"}. Aguarde ${cb.minutosRestantes} minuto(s).`,
+      circuitBreaker: cb,
+    };
+  }
+
   // 1) Buscar CNPJ via edge function (que extrai do A1) — aqui usamos o
   //    valor armazenado em `nfe_distdfe_sync` se existir; senão começa em '0'
   //    e a edge function preenche o CNPJ.
@@ -146,14 +232,14 @@ export async function sincronizarDistDFe(
   const { data: syncs } = await supabase
     .from("nfe_distdfe_sync")
     .select("cnpj, ultimo_nsu")
-    .eq("ambiente", ambiente)
+    .eq("ambiente", ambienteResolvido)
     .limit(1);
   const ultNSU = syncs?.[0]?.ultimo_nsu ?? "0";
 
   // 2) Chama edge function
   const { data, error } = await supabase.functions.invoke<DistDFeResponse>(
     "sefaz-distdfe",
-    { body: { action: "consultar-nsu", ambiente, ultNSU } },
+    { body: { action: "consultar-nsu", ambiente: ambienteResolvido, ultNSU } },
   );
   if (error) {
     return { sucesso: false, novos: 0, duplicados: 0, erro: error.message };
@@ -207,7 +293,7 @@ export async function sincronizarDistDFe(
     await supabase.from("nfe_distdfe_sync").upsert(
       {
         cnpj: data.cnpj,
-        ambiente,
+        ambiente: ambienteResolvido,
         ultimo_nsu: data.ultNSU ?? ultNSU,
         max_nsu: data.maxNSU ?? null,
         ultima_sync_at: new Date().toISOString(),
