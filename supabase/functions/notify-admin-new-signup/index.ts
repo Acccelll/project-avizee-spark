@@ -26,6 +26,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Defesa 1: exigir o anon key como prova de origem do app.
+    // Não é segredo forte, mas elimina abuso trivial de terceiros sem o key.
+    const apikey =
+      req.headers.get("apikey") ??
+      req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+    const expectedAnon = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!apikey || !expectedAnon || apikey !== expectedAnon) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "unauthorized" }),
+        { status: 401, headers: corsHeaders },
+      );
+    }
+
     const { email, nome } = await req.json();
 
     if (!email) {
@@ -42,6 +55,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
+
+    // Defesa 2: dedupe — no máximo 1 notificação por e-mail a cada 10min.
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from("signup_notify_dedupe")
+      .select("email,last_sent_at")
+      .eq("email", email)
+      .gte("last_sent_at", tenMinAgo)
+      .maybeSingle();
+
+    if (recent) {
+      return new Response(
+        JSON.stringify({ ok: true, deduped: true }),
+        { status: 200, headers: corsHeaders },
+      );
+    }
 
     const subject = "Novo cadastro pendente de aprovação";
     const body = [
@@ -69,6 +98,11 @@ Deno.serve(async (req) => {
         { status: 200, headers: corsHeaders },
       );
     }
+
+    // Marca dedupe (upsert) — só depois do enqueue bem-sucedido.
+    await supabase
+      .from("signup_notify_dedupe")
+      .upsert({ email, last_sent_at: new Date().toISOString() }, { onConflict: "email" });
 
     return new Response(
       JSON.stringify({ ok: true, queued: true }),

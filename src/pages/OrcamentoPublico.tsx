@@ -15,11 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import type {
-  OrcamentoPublicView,
-  OrcamentoItemPublicView,
-  ClienteSnapshot,
-} from "@/types/database-views";
+import type { ClienteSnapshot } from "@/types/database-views";
 
 interface ItemRow {
   descricao_snapshot: string;
@@ -115,80 +111,62 @@ export default function OrcamentoPublico() {
     const load = async () => {
       setLoading(true);
 
-      // 1. Orçamento (view pública estendida)
-      const orcRes = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            eq: (col: string, val: string) => {
-              maybeSingle: () => Promise<{
-                data: (OrcamentoPublicView & {
-                  desconto?: number | null;
-                  imposto_st?: number | null;
-                  imposto_ipi?: number | null;
-                  frete_valor?: number | null;
-                  outras_despesas?: number | null;
-                  modalidade?: string | null;
-                  servico_frete?: string | null;
-                  peso_total?: number | null;
-                  quantidade_total?: number | null;
-                  pagamento?: string | null;
-                }) | null;
-                error: unknown;
-              }>;
-            };
-          };
-        };
-      })
-        .from("orcamentos_public_view")
-        .select(
-          "id, numero, data_orcamento, validade, valor_total, observacoes, status, prazo_entrega, prazo_pagamento, frete_tipo, cliente_snapshot, public_token, desconto, imposto_st, imposto_ipi, frete_valor, outras_despesas, modalidade, servico_frete, peso_total, quantidade_total, pagamento",
-        )
-        .eq("public_token", token)
-        .maybeSingle();
+      // RPC única: acesso público a orçamento + itens + empresa SOMENTE via token exato.
+      // Substitui o acesso direto às views públicas (anon foi revogado para evitar enumeração).
+      const { data: payload, error: rpcError } = await (
+        supabase.rpc as unknown as (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: unknown }>
+      )("get_orcamento_publico", { p_token: token });
 
-      const orc = orcRes.data;
-      if (orcRes.error || !orc) {
+      if (rpcError || !payload) {
         setError("Orçamento não encontrado ou link expirado.");
         setLoading(false);
         return;
       }
 
-      // 2. Itens
-      const itensRes = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            eq: (col: string, val: string) => Promise<{
-              data:
-                | (OrcamentoItemPublicView & {
-                    peso_unitario?: number | null;
-                    peso_total?: number | null;
-                  })[]
-                | null;
-              error: unknown;
-            }>;
-          };
+      const payloadObj = payload as {
+        orcamento: Record<string, unknown> & {
+          id: string;
+          numero: string;
+          data_orcamento: string;
+          validade: string | null;
+          valor_total: number | string | null;
+          observacoes: string | null;
+          status: string;
+          prazo_entrega: string | null;
+          prazo_pagamento: string | null;
+          pagamento?: string | null;
+          frete_tipo: string | null;
+          modalidade?: string | null;
+          servico_frete?: string | null;
+          desconto?: number | string | null;
+          imposto_st?: number | string | null;
+          imposto_ipi?: number | string | null;
+          frete_valor?: number | string | null;
+          outras_despesas?: number | string | null;
+          peso_total?: number | string | null;
+          quantidade_total?: number | string | null;
+          cliente_snapshot: ClienteSnapshot | null;
         };
-      })
-        .from("orcamentos_itens_public_view")
-        .select(
-          "descricao_snapshot, codigo_snapshot, quantidade, unidade, valor_unitario, valor_total, variacao, peso_unitario, peso_total",
-        )
-        .eq("orcamento_id", orc.id);
-      const itens = itensRes.data;
+        itens: Array<{
+          descricao_snapshot: string | null;
+          codigo_snapshot: string | null;
+          quantidade: number;
+          unidade: string;
+          valor_unitario: number;
+          valor_total: number;
+          variacao: string | null;
+          peso_unitario?: number | null;
+          peso_total?: number | null;
+        }>;
+        empresa: EmpresaPublic | null;
+      };
 
-      // 3. Empresa (view pública institucional)
-      const { data: empresa } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            maybeSingle: () => Promise<{ data: EmpresaPublic | null; error: unknown }>;
-          };
-        };
-      })
-        .from("empresa_config_public_view")
-        .select(
-          "razao_social, nome_fantasia, cnpj, inscricao_estadual, telefone, whatsapp, email, site, logradouro, numero, complemento, bairro, cidade, uf, cep, logo_url, marca_texto",
-        )
-        .maybeSingle();
+      const orc = payloadObj.orcamento;
+      const itens = payloadObj.itens ?? [];
+      const empresa = payloadObj.empresa;
 
       setData({
         numero: orc.numero,
@@ -219,8 +197,8 @@ export default function OrcamentoPublico() {
           valor_unitario: it.valor_unitario,
           valor_total: it.valor_total,
           variacao: it.variacao,
-          peso_unitario: (it as { peso_unitario?: number | null }).peso_unitario ?? null,
-          peso_total: (it as { peso_total?: number | null }).peso_total ?? null,
+          peso_unitario: it.peso_unitario ?? null,
+          peso_total: it.peso_total ?? null,
         })),
         empresa: empresa ?? null,
       });
