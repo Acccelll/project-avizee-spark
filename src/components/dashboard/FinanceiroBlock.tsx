@@ -6,6 +6,7 @@ import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ScopeBadge } from './ScopeBadge';
 import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
+import { useGlobalPeriod } from '@/contexts/DashboardPeriodContext';
 
 interface FinanceiroBlockProps {
   totalReceber: number;
@@ -52,6 +53,7 @@ export function FinanceiroBlock({
   hideHeaderOnMobile = false,
 }: FinanceiroBlockProps) {
   const navigate = useNavigate();
+  const { range: globalRange } = useGlobalPeriod();
   const saldoPositivo = saldoProjetado >= 0;
 
   return (
@@ -72,7 +74,7 @@ export function FinanceiroBlock({
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate(buildDrilldownUrl({ kind: 'financeiro:receber-aberto' }))}
+          onClick={() => navigate(buildDrilldownUrl({ kind: 'financeiro:receber-aberto', range: globalRange }))}
         >
           Abrir módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>
