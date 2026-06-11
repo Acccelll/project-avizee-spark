@@ -128,6 +128,7 @@ function defaultPeriodo(): { ini: string; fim: string } {
 
 export default function PortalFiscal() {
   const periodo = useMemo(defaultPeriodo, []);
+  const { isAdmin } = useIsAdmin();
   const [filtros, setFiltros] = useState<Filtros>(() => ({
     ...FILTROS_VAZIOS,
     data_inicio: periodo.ini,
@@ -148,9 +149,28 @@ export default function PortalFiscal() {
   const [carregandoXml, setCarregandoXml] = useState(false);
   const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null);
   const [danfePreview, setDanfePreview] = useState<{ data: DanfeInput; row: PortalRow } | null>(null);
+  const [empresaInfo, setEmpresaInfo] = useState<{ cnpj: string | null; razao: string | null }>({
+    cnpj: null,
+    razao: null,
+  });
+  const [incluirOutros, setIncluirOutros] = useState(false);
+  const [limpando, setLimpando] = useState(false);
+
+  useEffect(() => {
+    void supabase
+      .from("empresa_config")
+      .select("cnpj, razao_social")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const c = data as { cnpj?: string | null; razao_social?: string | null } | null;
+        const digits = c?.cnpj ? c.cnpj.replace(/\D/g, "") : null;
+        setEmpresaInfo({ cnpj: digits, razao: c?.razao_social ?? null });
+      });
+  }, []);
 
   const buscar = useCallback(
-    async (f: Filtros, p: number) => {
+    async (f: Filtros, p: number, incluirOutrosDest: boolean) => {
       setLoading(true);
       try {
         const payload: Record<string, string> = {};
@@ -167,6 +187,7 @@ export default function PortalFiscal() {
           payload.status_manifestacao = f.status_manifestacao;
         if (f.tipo_documento && f.tipo_documento !== "todos")
           payload.tipo_documento = f.tipo_documento;
+        if (incluirOutrosDest) payload.incluir_outros_destinatarios = "true";
 
         const { data, error } = await supabase.rpc("buscar_nfe_portal", {
           p_filtros: payload,
@@ -195,8 +216,8 @@ export default function PortalFiscal() {
   );
 
   useEffect(() => {
-    void buscar(aplicados, page);
-  }, [aplicados, page, buscar]);
+    void buscar(aplicados, page, incluirOutros);
+  }, [aplicados, page, buscar, incluirOutros]);
 
   const aplicarFiltros = () => {
     setPage(0);
@@ -218,7 +239,7 @@ export default function PortalFiscal() {
         toast.success("Sincronização concluída", {
           description: `${r.novos} nova(s), ${r.duplicados} existente(s).`,
         });
-        void buscar(aplicados, page);
+        void buscar(aplicados, page, incluirOutros);
       } else {
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
@@ -226,6 +247,28 @@ export default function PortalFiscal() {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const limparAlheias = async () => {
+    if (!isAdmin) return;
+    const ok = window.confirm(
+      "Remover todas as NF-es cujo destinatário não é o CNPJ da empresa configurada? Apenas registros sem vínculo com nota fiscal ou lançamento financeiro são removidos. Esta ação não pode ser desfeita.",
+    );
+    if (!ok) return;
+    setLimpando(true);
+    try {
+      const { data, error } = await supabase.rpc("excluir_nfe_distribuicao_alheias");
+      if (error) throw error;
+      const n = Number(data ?? 0);
+      toast.success(n > 0 ? `${n} NF-e(s) removida(s).` : "Nada a remover.");
+      void buscar(aplicados, page, incluirOutros);
+    } catch (e) {
+      toast.error("Falha ao limpar", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setLimpando(false);
     }
   };
 
