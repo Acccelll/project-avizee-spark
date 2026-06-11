@@ -691,12 +691,25 @@ export default function PortalFiscal() {
                           ? format(new Date(r.data_emissao), "dd/MM/yyyy", { locale: ptBR })
                           : "—"}
                       </TableCell>
-                      <TableCell className="max-w-[280px] truncate" title={r.nome_emitente ?? ""}>
-                        <div className="font-medium">{r.nome_emitente ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {r.cnpj_emitente ?? ""}
-                        </div>
-                      </TableCell>
+                       <TableCell className="max-w-[280px] truncate" title={r.nome_emitente ?? ""}>
+                         <div className="font-medium flex items-center gap-1.5">
+                           {r.nome_emitente ?? "—"}
+                           {empresaInfo.cnpj &&
+                             r.cnpj_destinatario &&
+                             r.cnpj_destinatario !== empresaInfo.cnpj && (
+                               <Badge
+                                 variant="destructive"
+                                 className="text-[10px] px-1 py-0 h-4"
+                                 title={`Destinatário: ${r.nome_destinatario ?? "—"} (${r.cnpj_destinatario})`}
+                               >
+                                 alheia
+                               </Badge>
+                             )}
+                         </div>
+                         <div className="text-xs text-muted-foreground font-mono">
+                           {r.cnpj_emitente ?? ""}
+                         </div>
+                       </TableCell>
                       <TableCell>{r.uf_emitente ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={r.status_manifestacao === "sem_manifestacao" ? "secondary" : "default"}>
