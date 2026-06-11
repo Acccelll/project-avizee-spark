@@ -756,6 +756,14 @@ Deno.serve(async (req) => {
                   status: Number(wj.status) || 0,
                   body: String(wj.body ?? "").slice(0, 240),
                 };
+              } else if (wj && wj.success === true && typeof wj.body === "string") {
+                // Worker devolve sucesso como JSON {"success":true,"status":200,"body":"<xml>"}.
+                // Desembrulha o XML da SEFAZ para o parser downstream.
+                xmlRetorno = wj.body;
+                log.info("worker unwrap ok", {
+                  upstreamStatus: Number(wj.status) || 0,
+                  bytes: xmlRetorno.length,
+                });
               }
             } catch (_) { /* não é o envelope JSON do Worker */ }
           }
