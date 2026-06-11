@@ -8,6 +8,7 @@ const FiscalDetail = lazy(() => import("@/pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("@/pages/fiscal/NotaFiscalForm"));
 const DistDFeHistorico = lazy(() => import("@/pages/fiscal/DistDFeHistorico"));
 const FiscalDashboard = lazy(() => import("@/pages/fiscal/FiscalDashboard"));
+const PortalFiscal = lazy(() => import("@/pages/fiscal/PortalFiscal"));
 const FiscalShell = lazy(() =>
   import("@/components/fiscal/FiscalShell").then((m) => ({ default: m.FiscalShell })),
 );
@@ -35,6 +36,7 @@ export const fiscalRoutes = (
       <Route path="/fiscal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Fiscal /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/dashboard" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDashboard /></LazyPage></PermissionRoute>} />
+      <Route path="/fiscal/portal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><PortalFiscal /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/distdfe-historico" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><DistDFeHistorico /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />

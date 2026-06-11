@@ -2313,6 +2313,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "eventos_fiscais_nfe_distribuicao_id_fkey"
+            columns: ["nfe_distribuicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_nfe_portal"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "eventos_fiscais_nota_fiscal_id_fkey"
             columns: ["nota_fiscal_id"]
             isOneToOne: false
@@ -4476,6 +4483,13 @@ export type Database = {
             columns: ["nfe_distribuicao_id"]
             isOneToOne: false
             referencedRelation: "nfe_distribuicao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_nfe_distribuicao_id_fkey"
+            columns: ["nfe_distribuicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_nfe_portal"
             referencedColumns: ["id"]
           },
           {
@@ -8977,6 +8991,56 @@ export type Database = {
         }
         Relationships: []
       }
+      v_nfe_portal: {
+        Row: {
+          cancelamento_recebido_at: string | null
+          chave_acesso: string | null
+          ciencia_automatica_at: string | null
+          cnpj_emitente: string | null
+          created_at: string | null
+          data_emissao: string | null
+          id: string | null
+          nome_emitente: string | null
+          nota_fiscal_id: string | null
+          nsu: string | null
+          numero: string | null
+          processado: boolean | null
+          serie: string | null
+          status_interno: string | null
+          status_manifestacao: string | null
+          status_sefaz: string | null
+          tem_xml: boolean | null
+          tipo_documento: string | null
+          tipo_operacao: string | null
+          uf_emitente: string | null
+          updated_at: string | null
+          valor_total: number | null
+          xml_importado: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
       v_trilha_comercial: {
         Row: {
           cliente_id: string | null
@@ -9784,6 +9848,10 @@ export type Database = {
           nome: string
           uf: string
         }[]
+      }
+      buscar_nfe_portal: {
+        Args: { p_filtros?: Json; p_limit?: number; p_offset?: number }
+        Returns: Json
       }
       calcular_dv_chave_nfe: { Args: { p_chave43: string }; Returns: string }
       can_edit_financeiro_avancado: {

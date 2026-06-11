@@ -730,77 +730,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Action: consultar-destinatario (consNFeDest) ───────────────
-    // Endpoint NFeConsultaDest — busca retroativa de NF-e por destinatário
-    // sem depender do cursor NSU do DistDFe. Pagina por `ultNSU` (até 50/req).
+    // Ação consultar-destinatario REMOVIDA (jun/2026):
+    // NFeConsultaDest foi descontinuado pela SEFAZ em 2017 e responde SOAP vazio.
+    // Use action="consultar-nsu" (DistDFe) ou action="consultar-chave" (consChNFe).
     if (action === "consultar-destinatario") {
-      const ultNSUDest = String(body.ultNSU ?? "0").padStart(15, "0");
-      const indNFe = String(body.indNFe ?? "0");
-      const indEmi = String(body.indEmi ?? "0");
-      const xmlConsulta = montarConsNFeDest({ ambiente, cnpj, indNFe, indEmi, ultNSU: ultNSUDest });
-      const urlDest = endpointNFeDest(ambiente);
-
-      const tentativasDest: SoapVariant[] = ["soap12", "soap11"];
-      let xmlRet = "";
-      for (const variant of tentativasDest) {
-        const envelope = envelopeSoapDest(xmlConsulta, variant);
-        const headersSoap = headersFor(variant);
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 45_000);
-        try {
-          const resp = usarProxy
-            ? await fetch(proxyUrl!, {
-                method: "POST",
-                headers: {
-                  "x-proxy-secret": proxySecret!,
-                  "x-target-url": urlDest,
-                  "Content-Type": headersSoap["Content-Type"] ?? "application/soap+xml; charset=utf-8",
-                  ...(headersSoap["SOAPAction"] ? { soapaction: headersSoap["SOAPAction"] } : {}),
-                },
-                body: envelope,
-                signal: controller.signal,
-              })
-            : await fetch(urlDest, {
-                method: "POST",
-                headers: headersSoap,
-                body: envelope,
-                // @ts-ignore — Deno option
-                client: client!,
-                signal: controller.signal,
-              });
-          clearTimeout(timer);
-          xmlRet = await resp.text();
-          if (xmlRet.includes("<cStat>")) break;
-        } catch (e) {
-          clearTimeout(timer);
-          if (variant === "soap11") {
-            try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
-            return json({ sucesso: false, erro: `Falha de transporte: ${(e as Error).message}` }, 500);
-          }
-        }
-      }
-
       try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
-      const parsed = parseRetConsNFeDest(xmlRet);
-      log.info("retConsNFeDest", {
-        cStat: parsed.cStat,
-        xMotivo: parsed.xMotivo,
-        chaves: parsed.chaves.length,
-        ultNSU: parsed.ultNSU,
-        maxNSU: parsed.maxNSU,
-      });
       return json({
-        sucesso: true,
-        cnpj,
-        ambiente,
-        cStat: parsed.cStat,
-        xMotivo: parsed.xMotivo,
-        ultNSU: parsed.ultNSU,
-        maxNSU: parsed.maxNSU,
-        chaves: parsed.chaves,
-      });
+        sucesso: false,
+        erro: "Ação descontinuada: NFeConsultaDest foi removido pela SEFAZ. Use consultar-nsu ou consultar-chave.",
+      }, 400);
     }
-    // ── fim consultar-destinatario ────────────────────────────────
 
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })

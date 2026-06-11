@@ -6,18 +6,16 @@ import {
   obterStatusDistDFe,
   testarWorkerDistDFe,
   verificarCircuitBreaker,
-  buscarNFeDestinatario,
   type DistDFeStatus,
   type WorkerPingResult,
   type CircuitBreakerInfo,
-  type BuscaDestinatarioResult,
 } from "@/services/fiscal/sefaz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity, History } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -90,13 +88,6 @@ export default function DistDFeHistorico() {
     | null
   >(null);
   const [circuitBreakerInfo, setCircuitBreakerInfo] = useState<CircuitBreakerInfo | null>(null);
-  const [buscandoRetro, setBuscandoRetro] = useState(false);
-  const [retroResult, setRetroResult] = useState<{
-    totalNovas: number;
-    totalDuplicadas: number;
-    paginas: number;
-    erro?: string;
-  } | null>(null);
 
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -209,56 +200,6 @@ export default function DistDFeHistorico() {
     } finally {
       setRunning(false);
       void carregar();
-    }
-  };
-
-  /**
-   * Busca retroativa via consNFeDest — não depende do NSU do DistDFe.
-   * Pagina automaticamente enquanto houver mais documentos (temMais=true).
-   * Limite de 20 páginas (~1000 NF-e) por execução para evitar timeout.
-   */
-  const buscarRetroativamente = async () => {
-    setBuscandoRetro(true);
-    setRetroResult(null);
-    let totalNovas = 0;
-    let totalDuplicadas = 0;
-    let paginas = 0;
-    let ultNSU: string | undefined = undefined;
-    const MAX_PAGINAS = 20;
-
-    try {
-      while (paginas < MAX_PAGINAS) {
-        const r: BuscaDestinatarioResult = await buscarNFeDestinatario(ultNSU);
-        paginas++;
-
-        if (!r.sucesso) {
-          setRetroResult({ totalNovas, totalDuplicadas, paginas, erro: r.erro ?? r.xMotivo });
-          toast.error("Busca retroativa falhou", {
-            description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
-          });
-          return;
-        }
-
-        totalNovas += r.novas ?? 0;
-        totalDuplicadas += r.duplicadas ?? 0;
-
-        if (!r.temMais || !r.ultNSU) break;
-        ultNSU = r.ultNSU;
-
-        // Pausa de 500ms entre páginas para não pressionar o SEFAZ.
-        await new Promise((res) => setTimeout(res, 500));
-      }
-
-      setRetroResult({ totalNovas, totalDuplicadas, paginas });
-      toast.success("Busca retroativa concluída", {
-        description: `${totalNovas} NF-e nova(s) registrada(s), ${totalDuplicadas} já existente(s). (${paginas} página(s) consultada(s))`,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setRetroResult({ totalNovas, totalDuplicadas, paginas, erro: msg });
-      toast.error("Erro na busca retroativa", { description: msg });
-    } finally {
-      setBuscandoRetro(false);
     }
   };
 
@@ -526,62 +467,6 @@ export default function DistDFeHistorico() {
             )}
             {aplicandoLote ? "Aplicando..." : "Aplicar ciência em lote agora"}
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            Busca Retroativa
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Consulta todas as NF-e emitidas para o CNPJ da empresa diretamente na
-            SEFAZ (serviço <code className="font-mono">consNFeDest</code>), sem
-            depender do cursor NSU do DistDFe. Use quando documentos anteriores
-            não aparecem na lista (por exemplo, após reset do worker ou perda
-            de NSU). Persiste as chaves em <code className="font-mono">nfe_distribuicao</code>;
-            o XML completo é baixado depois pelo cron após a Ciência.
-          </p>
-          <Button
-            variant="default"
-            onClick={() => void buscarRetroativamente()}
-            disabled={buscandoRetro || running}
-            className="w-full sm:w-auto"
-          >
-            {buscandoRetro ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Buscando…
-              </>
-            ) : (
-              <>
-                <History className="h-4 w-4 mr-2" />
-                Buscar NF-e Retroativamente
-              </>
-            )}
-          </Button>
-          {retroResult && (
-            <div
-              className={`rounded-md border px-3 py-2 text-sm ${
-                retroResult.erro
-                  ? "border-destructive/40 bg-destructive/5"
-                  : "border-emerald-500/40 bg-emerald-500/5"
-              }`}
-            >
-              {retroResult.erro ? (
-                <span className="text-destructive">Erro: {retroResult.erro}</span>
-              ) : (
-                <span>
-                  ✓ {retroResult.totalNovas} NF-e nova(s) registrada(s),{" "}
-                  {retroResult.totalDuplicadas} já existia(m). (
-                  {retroResult.paginas} consulta(s))
-                </span>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
