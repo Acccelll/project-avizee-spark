@@ -58,6 +58,7 @@ export {
   testarWorkerDistDFe,
   resolverAmbienteDistDFe,
   verificarCircuitBreaker,
+  buscarNFeDestinatario,
 } from "./distdfe.service";
 export type {
   DistDFeDoc,
@@ -65,4 +66,5 @@ export type {
   DistDFeStatus,
   WorkerPingResult,
   CircuitBreakerInfo,
+  BuscaDestinatarioResult,
 } from "./distdfe.service";
