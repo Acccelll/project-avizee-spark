@@ -284,13 +284,12 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
         <tbody>
           <tr>
             {[
-              ["BASE DE CÁLC. DO ICMS", fmt(0)],
+              ["BASE DE CÁLC. DO ICMS", fmt(data.base_icms ?? 0)],
               ["VALOR DO ICMS", fmt(data.icms_valor ?? 0)],
-              ["BASE DE CÁLC. ICMS ST", fmt(0)],
+              ["BASE DE CÁLC. ICMS ST", fmt(data.base_icms_st ?? 0)],
               ["VALOR ICMS ST", fmt(data.icms_st_valor ?? 0)],
-              ["V. IMP. IMPORTAÇÃO", fmt(0)],
-              ["V. ICMS UF REMET.", fmt(0)],
-              ["VALOR DO FCP", fmt(0)],
+              ["V. IMP. IMPORTAÇÃO", fmt(data.valor_ii ?? 0)],
+              ["VALOR DO FCP", fmt(data.valor_fcp ?? 0)],
               ["VALOR DO PIS", fmt(data.pis_valor ?? 0)],
               ["V. TOTAL DE PRODUTOS", fmt(valorProdutos)],
             ].map(([t, v]) => (
@@ -303,18 +302,17 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
           <tr>
             {[
               ["VALOR DO FRETE", fmt(data.frete_valor ?? 0)],
-              ["VALOR DO SEGURO", fmt(0)],
+              ["VALOR DO SEGURO", fmt(data.valor_seguro ?? 0)],
               ["DESCONTO", fmt(data.desconto_valor ?? 0)],
               ["OUTRAS DESP.", fmt(data.outras_despesas ?? 0)],
               ["VALOR DO IPI", fmt(data.ipi_valor ?? 0)],
-              ["V. ICMS UF DEST.", fmt(0)],
-              ["V. APROX. DO TRIBUTO", fmt(0)],
+              ["V. APROX. DO TRIBUTO", fmt(data.valor_total_tributos ?? 0)],
               ["VALOR DA COFINS", fmt(data.cofins_valor ?? 0)],
               ["V. TOTAL DA NOTA", fmt(data.valor_total)],
             ].map(([t, v], idx) => (
               <td key={t} className={cell}>
                 <div className={cellTitle}>{t}</div>
-                <div className={(idx === 8 ? "text-[11px] font-bold" : cellValue) + " text-right"}>{v}</div>
+                <div className={(idx === 7 ? "text-[11px] font-bold" : cellValue) + " text-right"}>{v}</div>
               </td>
             ))}
           </tr>
