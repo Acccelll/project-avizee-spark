@@ -47,6 +47,33 @@ function fmtCep(v?: string | null): string {
   return v;
 }
 
+const FRETE_LABEL: Record<string, string> = {
+  "0": "0 - Emitente (CIF)",
+  "1": "1 - Destinatário (FOB)",
+  "2": "2 - Terceiros",
+  "3": "3 - Próprio Remetente",
+  "4": "4 - Próprio Destinatário",
+  "9": "9 - Sem Frete",
+};
+const PAG_LABEL: Record<string, string> = {
+  "01": "Dinheiro",
+  "02": "Cheque",
+  "03": "Cartão Crédito",
+  "04": "Cartão Débito",
+  "05": "Crédito Loja",
+  "10": "Vale Alimentação",
+  "11": "Vale Refeição",
+  "12": "Vale Presente",
+  "13": "Vale Combustível",
+  "15": "Boleto Bancário",
+  "16": "Depósito Bancário",
+  "17": "PIX",
+  "18": "Transferência Bancária",
+  "19": "Programa Fidelidade",
+  "90": "Sem Pagamento",
+  "99": "Outros",
+};
+
 export const DANFE_CONTAINER_ID = "danfe-render-root";
 
 export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: DanfeInput; containerId?: string }) {
