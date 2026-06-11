@@ -419,7 +419,9 @@ Deno.serve(async (req) => {
               await admin
                 .from("nfe_distribuicao")
                 .update({
-                  status_manifestacao: "ciencia_operacao",
+                  // "ciencia" é o valor aceito pelo CHECK constraint.
+                  // "ciencia_operacao" violava a constraint e causava falha silenciosa.
+                  status_manifestacao: "ciencia",
                   data_manifestacao: new Date().toISOString(),
                   ciencia_automatica_at: new Date().toISOString(),
                   protocolo_autorizacao: cienciaResult.protocolo ?? null,
