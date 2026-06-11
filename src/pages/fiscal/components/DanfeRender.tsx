@@ -2,8 +2,8 @@
  * DANFE em HTML inspirado no layout oficial da SEFAZ (modelo TOTVS).
  *
  * - Usado para PREVIEW na tela (dialog) — não há PDF embed nem print automático.
- * - Usado também como fonte para o DOWNLOAD: `html2canvas` + `jsPDF` rasterizam
- *   o nó com id={containerId} em PDF A4.
+ * - O download usa `gerarDanfePdf` (vetor jsPDF) — este componente é apenas
+ *   para a visualização HTML no dialog.
  *
  * Recebe um `DanfeInput` (mesmo contrato usado pelo módulo Fiscal) e renderiza
  * a estrutura completa: cabeçalho, destinatário, fatura, cálculo do imposto,
@@ -222,18 +222,22 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
               <div className={cellValue}>{data.destinatario.endereco || "—"}</div>
             </td>
             <td className={cell}>
-              <div className={cellTitle}>CEP</div>
-              <div className={cellValue}>{fmtCep(data.destinatario.cep)}</div>
+              <div className={cellTitle}>BAIRRO / CEP</div>
+              <div className={cellValue}>
+                {[data.destinatario.bairro, fmtCep(data.destinatario.cep)].filter(Boolean).join(" · ") || "—"}
+              </div>
             </td>
             <td className={cell}>
-              <div className={cellTitle}>DATA DE ENT. / SAÍDA</div>
-              <div className={cellValue}>—</div>
+              <div className={cellTitle}>DATA SAÍDA / ENTRADA</div>
+              <div className={cellValue}>{data.data_saida_entrada ? fmtData(data.data_saida_entrada) : "—"}</div>
             </td>
           </tr>
           <tr>
             <td className={cell}>
-              <div className={cellTitle}>MUNICÍPIO</div>
-              <div className={cellValue}>{data.destinatario.cidade || "—"}</div>
+              <div className={cellTitle}>MUNICÍPIO / FONE</div>
+              <div className={cellValue}>
+                {[data.destinatario.cidade, data.destinatario.telefone].filter(Boolean).join(" · ") || "—"}
+              </div>
             </td>
             <td className={cell}>
               <div className={cellTitle}>UF</div>
@@ -297,27 +301,27 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
           <tr>
             <td className={cell} style={{ width: "40%" }}>
               <div className={cellTitle}>RAZÃO SOCIAL</div>
-              <div className={cellValue}>—</div>
+              <div className={cellValue}>{data.transportador?.razao_social || "—"}</div>
             </td>
             <td className={cell} style={{ width: "15%" }}>
               <div className={cellTitle}>FRETE POR CONTA</div>
-              <div className="text-[8px]">9 - Sem frete</div>
+              <div className="text-[8px]">{data.modalidade_frete ?? "9"}</div>
             </td>
             <td className={cell} style={{ width: "10%" }}>
               <div className={cellTitle}>CÓD. ANTT</div>
-              <div className={cellValue}>—</div>
+              <div className={cellValue}>{data.transportador?.antt || "—"}</div>
             </td>
             <td className={cell} style={{ width: "10%" }}>
               <div className={cellTitle}>PLACA</div>
-              <div className={cellValue}>—</div>
+              <div className={cellValue}>{data.transportador?.placa || "—"}</div>
             </td>
             <td className={cell} style={{ width: "5%" }}>
               <div className={cellTitle}>UF</div>
-              <div className={cellValue}>—</div>
+              <div className={cellValue}>{data.transportador?.uf_placa || "—"}</div>
             </td>
             <td className={cell} style={{ width: "20%" }}>
               <div className={cellTitle}>CNPJ / CPF</div>
-              <div className={cellValue}>—</div>
+              <div className={cellValue}>{fmtCnpj(data.transportador?.cnpj_cpf)}</div>
             </td>
           </tr>
         </tbody>
@@ -404,47 +408,4 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
       )}
     </div>
   );
-}
-
-/**
- * Renderiza o elemento DOM identificado por `containerId` em PDF (A4 retrato,
- * multi-página) usando html2canvas + jsPDF e dispara o download.
- */
-export async function downloadDanfeFromDom(containerId: string, filename: string): Promise<void> {
-  const el = document.getElementById(containerId);
-  if (!el) throw new Error("Elemento da DANFE não encontrado para renderização.");
-
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
-    import("jspdf"),
-  ]);
-
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    logging: false,
-  });
-
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
-
-  let heightLeft = imgHeight;
-  let position = 0;
-  pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
-
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-  }
-
-  pdf.save(filename);
 }

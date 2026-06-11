@@ -26,6 +26,12 @@ export interface DanfeItemInput {
   quantidade: number;
   valor_unitario: number;
   valor_total?: number;
+  cst?: string | null;
+  base_icms?: number;
+  valor_icms?: number;
+  aliquota_icms?: number;
+  valor_ipi?: number;
+  aliquota_ipi?: number;
 }
 
 export interface DanfeEmpresaInput {
@@ -33,21 +39,74 @@ export interface DanfeEmpresaInput {
   nome_fantasia?: string | null;
   cnpj?: string | null;
   inscricao_estadual?: string | null;
+  inscricao_municipal?: string | null;
+  cnae?: string | null;
+  crt?: string | null;
   endereco?: string | null;
+  bairro?: string | null;
+  numero_endereco?: string | null;
+  complemento?: string | null;
   cidade?: string | null;
   uf?: string | null;
   cep?: string | null;
   telefone?: string | null;
+  pais?: string | null;
 }
 
 export interface DanfeParceiroInput {
   nome: string;
   cpf_cnpj?: string | null;
   inscricao_estadual?: string | null;
+  indicador_ie?: string | null;
+  email?: string | null;
   endereco?: string | null;
+  bairro?: string | null;
+  numero_endereco?: string | null;
+  complemento?: string | null;
   cidade?: string | null;
   uf?: string | null;
   cep?: string | null;
+  telefone?: string | null;
+  pais?: string | null;
+}
+
+export interface DanfeTransportadorInput {
+  razao_social?: string | null;
+  cnpj_cpf?: string | null;
+  inscricao_estadual?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  antt?: string | null;
+  placa?: string | null;
+  uf_placa?: string | null;
+}
+
+export interface DanfeVolumeInput {
+  quantidade: number;
+  especie?: string | null;
+  marca?: string | null;
+  numero?: string | null;
+  peso_liquido?: number;
+  peso_bruto?: number;
+}
+
+export interface DanfeDuplicataInput {
+  numero?: string | null;
+  vencimento?: string | null;
+  valor: number;
+}
+
+export interface DanfePagamentoInput {
+  forma?: string | null;
+  valor: number;
+}
+
+export interface DanfeFaturaInput {
+  numero?: string | null;
+  valor_original?: number;
+  valor_desconto?: number;
+  valor_liquido?: number;
 }
 
 export interface DanfeInput {
@@ -55,6 +114,7 @@ export interface DanfeInput {
   serie?: string | null;
   modelo?: string | null;
   data_emissao: string;
+  data_saida_entrada?: string | null;
   natureza_operacao?: string | null;
   tipo: "entrada" | "saida";
   chave_acesso?: string | null;
@@ -63,18 +123,31 @@ export interface DanfeInput {
   ambiente_emissao?: string | null;
   emitente: DanfeEmpresaInput;
   destinatario: DanfeParceiroInput;
+  transportador?: DanfeTransportadorInput;
+  modalidade_frete?: string | null;
+  fatura?: DanfeFaturaInput;
+  duplicatas?: DanfeDuplicataInput[];
+  pagamentos?: DanfePagamentoInput[];
+  volumes?: DanfeVolumeInput[];
   itens: DanfeItemInput[];
+  base_icms?: number;
+  base_icms_st?: number;
   valor_produtos?: number;
   frete_valor?: number;
+  valor_seguro?: number;
   desconto_valor?: number;
   outras_despesas?: number;
+  valor_ii?: number;
+  valor_fcp?: number;
   icms_valor?: number;
   icms_st_valor?: number;
   ipi_valor?: number;
   pis_valor?: number;
   cofins_valor?: number;
+  valor_total_tributos?: number;
   valor_total: number;
   observacoes?: string | null;
+  info_fisco?: string | null;
 }
 
 function formatarChave(chave: string): string {
@@ -115,8 +188,8 @@ function safe(value: unknown, fallback = "—"): string {
 }
 
 /**
- * Gera o PDF da DANFE e retorna o Blob.
- * Use `salvar = true` para disparar download automático.
+ * Gera o PDF da DANFE em vetor (sem rasterização) com layout fiel ao modelo
+ * SEFAZ/TOTVS — alinhamento em grid uniforme, A4 retrato.
  */
 export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Blob> {
   const [{ jsPDF }, { default: JsBarcode }] = await Promise.all([
@@ -124,231 +197,373 @@ export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Bl
     import("jsbarcode"),
   ]);
   const doc: JsPDFType = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 8;
-  let y = margin;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const M = 6; // margem externa em mm
+  const W = pageW - M * 2;
+  let y = M;
 
   const autorizada = data.status_sefaz === "autorizada";
   const homologacao = data.ambiente_emissao === "homologacao" || data.ambiente_emissao === "2";
+  const resumo = data.status_sefaz === "resumo";
 
-  // ── Cabeçalho ────────────────────────────────────────────────────────────
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, pageWidth - margin * 2, 28);
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(0, 0, 0);
 
-  doc.setFontSize(11).setFont("helvetica", "bold");
-  doc.text(safe(data.emitente.razao_social), margin + 3, y + 6);
-  doc.setFontSize(8).setFont("helvetica", "normal");
-  if (data.emitente.nome_fantasia) {
-    doc.text(safe(data.emitente.nome_fantasia), margin + 3, y + 11);
-  }
-  doc.text(`CNPJ: ${safe(data.emitente.cnpj)}`, margin + 3, y + 16);
-  doc.text(`IE: ${safe(data.emitente.inscricao_estadual)}`, margin + 3, y + 20);
-  doc.text(
-    [data.emitente.endereco, data.emitente.cidade, data.emitente.uf, data.emitente.cep]
-      .filter(Boolean)
-      .join(" — "),
-    margin + 3,
-    y + 24,
-  );
-
-  // Bloco "DANFE" à direita
-  doc.setFontSize(14).setFont("helvetica", "bold");
-  doc.text("DANFE", pageWidth - margin - 50, y + 8);
-  doc.setFontSize(8).setFont("helvetica", "normal");
-  doc.text("Documento Auxiliar da", pageWidth - margin - 50, y + 13);
-  doc.text("Nota Fiscal Eletrônica", pageWidth - margin - 50, y + 17);
-  doc.text(
-    `${data.tipo === "saida" ? "1 - SAÍDA" : "0 - ENTRADA"}`,
-    pageWidth - margin - 50,
-    y + 22,
-  );
-  doc.text(`Nº ${safe(data.numero)}  Série ${safe(data.serie, "1")}`, pageWidth - margin - 50, y + 26);
-
-  y += 30;
-
-  // ── Banner ambiente / chave ─────────────────────────────────────────────
-  if (homologacao) {
-    doc.setFillColor(255, 240, 200);
-    doc.rect(margin, y, pageWidth - margin * 2, 7, "F");
-    doc.setFontSize(9).setFont("helvetica", "bold").setTextColor(150, 80, 0);
-    doc.text(
-      "AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL",
-      pageWidth / 2,
-      y + 5,
-      { align: "center" },
-    );
-    doc.setTextColor(0, 0, 0);
-    y += 9;
-  } else if (!autorizada) {
-    doc.setFillColor(255, 220, 220);
-    doc.rect(margin, y, pageWidth - margin * 2, 7, "F");
-    doc.setFontSize(9).setFont("helvetica", "bold").setTextColor(180, 0, 0);
-    doc.text(
-      "DOCUMENTO NÃO AUTORIZADO PELA SEFAZ — SEM VALOR FISCAL",
-      pageWidth / 2,
-      y + 5,
-      { align: "center" },
-    );
-    doc.setTextColor(0, 0, 0);
-    y += 9;
-  }
-
-  if (data.chave_acesso) {
-    const barcode = gerarBarcodeChave(data.chave_acesso, JsBarcode);
-    if (barcode) {
-      // Faixa do código de barras CODE-128C (largura ~120mm, altura 12mm)
-      doc.addImage(barcode, "PNG", margin, y, 120, 12);
-      y += 13;
+  // helpers ───────────────────────────────────────────────────────────────
+  const cell = (
+    x: number, yPos: number, w: number, h: number,
+    title: string, value: string,
+    opts: { valueBold?: boolean; valueAlign?: "left" | "right" | "center"; valueSize?: number; titleSize?: number; valuePadTop?: number } = {},
+  ) => {
+    doc.rect(x, yPos, w, h);
+    if (title) {
+      doc.setFont("helvetica", "normal").setFontSize(opts.titleSize ?? 5.5);
+      doc.text(title, x + 0.8, yPos + 1.8);
     }
-    doc.setFontSize(7).setFont("helvetica", "bold");
-    doc.text("CHAVE DE ACESSO", margin, y + 4);
-    doc.setFont("helvetica", "normal");
-    doc.text(formatarChave(data.chave_acesso), margin, y + 8);
-    y += 12;
-  }
+    if (value !== undefined && value !== null) {
+      doc.setFont("helvetica", opts.valueBold ? "bold" : "normal").setFontSize(opts.valueSize ?? 8);
+      const padTop = opts.valuePadTop ?? (title ? 4.5 : 3);
+      const align = opts.valueAlign ?? "left";
+      const xText = align === "right" ? x + w - 0.8 : align === "center" ? x + w / 2 : x + 0.8;
+      doc.text(value, xText, yPos + padTop, { align });
+    }
+  };
 
-  if (data.protocolo_autorizacao) {
-    doc.setFontSize(7).setFont("helvetica", "bold");
+  const ensure = (need: number) => {
+    if (y + need > pageH - M) {
+      doc.addPage();
+      y = M;
+    }
+  };
+
+  // Recibo do destinatário ───────────────────────────────────────────────
+  const reciboH = 12;
+  const lateralW = 55;
+  doc.rect(M, y, W - lateralW, reciboH / 2);
+  doc.setFont("helvetica", "normal").setFontSize(5.5);
+  doc.text(
+    `RECEBEMOS DE ${safe(data.emitente.razao_social).toUpperCase()} OS PRODUTOS / SERVIÇOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO`,
+    M + 1, y + 2,
+  );
+  doc.text(
+    `Emissão: ${formatDate(data.data_emissao)}  ·  Valor Total: R$ ${formatCurrency(data.valor_total ?? 0)}  ·  Destinatário: ${safe(data.destinatario.nome).slice(0, 60)}`,
+    M + 1, y + 4.5,
+  );
+  // sub-linha "data recebimento | assinatura"
+  doc.rect(M, y + reciboH / 2, (W - lateralW) * 0.3, reciboH / 2);
+  doc.text("DATA DE RECEBIMENTO", M + 1, y + reciboH / 2 + 2);
+  doc.rect(M + (W - lateralW) * 0.3, y + reciboH / 2, (W - lateralW) * 0.7, reciboH / 2);
+  doc.text("IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR", M + (W - lateralW) * 0.3 + 1, y + reciboH / 2 + 2);
+  // Lateral NF-e nº/série
+  doc.rect(M + W - lateralW, y, lateralW, reciboH);
+  doc.setFont("helvetica", "bold").setFontSize(10);
+  doc.text("NF-e", M + W - lateralW + lateralW / 2, y + 4, { align: "center" });
+  doc.setFontSize(9);
+  doc.text(`Nº ${safe(data.numero)}`, M + W - lateralW + lateralW / 2, y + 8, { align: "center" });
+  doc.setFontSize(8);
+  doc.text(`Série ${safe(data.serie, "1")}`, M + W - lateralW + lateralW / 2, y + 11, { align: "center" });
+  y += reciboH + 1;
+
+  // Cabeçalho: emitente | DANFE | barcode/chave ──────────────────────────
+  const headerH = 30;
+  const colA = W * 0.4;
+  const colB = W * 0.2;
+  const colC = W - colA - colB;
+
+  // A: emitente
+  doc.rect(M, y, colA, headerH);
+  doc.setFont("helvetica", "bold").setFontSize(11);
+  doc.text(safe(data.emitente.razao_social), M + colA / 2, y + 5, { align: "center", maxWidth: colA - 4 });
+  doc.setFont("helvetica", "normal").setFontSize(7);
+  const enderLinhas: string[] = [];
+  if (data.emitente.endereco) enderLinhas.push(data.emitente.endereco);
+  const munLine = [data.emitente.cidade, data.emitente.uf].filter(Boolean).join(" - ");
+  if (munLine || data.emitente.cep) enderLinhas.push(`${munLine}${data.emitente.cep ? ` · CEP ${data.emitente.cep}` : ""}`);
+  if (data.emitente.telefone) enderLinhas.push(`Fone: ${data.emitente.telefone}`);
+  if (data.emitente.nome_fantasia) enderLinhas.push(data.emitente.nome_fantasia);
+  doc.text(enderLinhas, M + colA / 2, y + 10, { align: "center", maxWidth: colA - 4 });
+
+  // B: DANFE label
+  doc.rect(M + colA, y, colB, headerH);
+  doc.setFont("helvetica", "bold").setFontSize(13);
+  doc.text("DANFE", M + colA + colB / 2, y + 5, { align: "center" });
+  doc.setFont("helvetica", "normal").setFontSize(6.5);
+  doc.text("Documento Auxiliar da", M + colA + colB / 2, y + 9, { align: "center" });
+  doc.text("Nota Fiscal Eletrônica", M + colA + colB / 2, y + 11.5, { align: "center" });
+  doc.setFontSize(7);
+  doc.text("0 - ENTRADA", M + colA + 4, y + 16);
+  doc.text("1 - SAÍDA", M + colA + colB - 4, y + 16, { align: "right" });
+  doc.rect(M + colA + colB / 2 - 3, y + 17, 6, 4);
+  doc.setFont("helvetica", "bold").setFontSize(9);
+  doc.text(data.tipo === "entrada" ? "0" : "1", M + colA + colB / 2, y + 20, { align: "center" });
+  doc.setFontSize(8);
+  doc.text(`Nº ${safe(data.numero)}`, M + colA + colB / 2, y + 24, { align: "center" });
+  doc.setFontSize(7);
+  doc.text(`SÉRIE: ${safe(data.serie, "1")}`, M + colA + colB / 2, y + 26.5, { align: "center" });
+  doc.text("FOLHA 1/1", M + colA + colB / 2, y + 28.5, { align: "center" });
+
+  // C: chave + barcode
+  doc.rect(M + colA + colB, y, colC, headerH);
+  if (data.chave_acesso) {
+    const bc = gerarBarcodeChave(data.chave_acesso, JsBarcode);
+    if (bc) {
+      doc.addImage(bc, "PNG", M + colA + colB + 2, y + 2, colC - 4, 12);
+    }
+    doc.setFont("helvetica", "bold").setFontSize(5.5);
+    doc.text("CHAVE DE ACESSO", M + colA + colB + 2, y + 16);
+    doc.setFont("helvetica", "normal").setFontSize(7);
+    doc.text(formatarChave(data.chave_acesso), M + colA + colB + colC / 2, y + 19, { align: "center" });
+    doc.setFont("helvetica", "normal").setFontSize(5.5);
     doc.text(
-      `PROTOCOLO DE AUTORIZAÇÃO: ${data.protocolo_autorizacao}`,
-      margin,
-      y + 3,
+      "Consulta de autenticidade no portal nacional da NF-e",
+      M + colA + colB + colC / 2, y + 22.5, { align: "center" },
     );
+    doc.text(
+      "www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora",
+      M + colA + colB + colC / 2, y + 24.5, { align: "center" },
+    );
+  }
+  y += headerH;
+
+  // Natureza / Protocolo ────────────────────────────────────────────────
+  cell(M, y, W * 0.6, 8, "NATUREZA DA OPERAÇÃO", safe(data.natureza_operacao));
+  cell(M + W * 0.6, y, W * 0.4, 8, "PROTOCOLO DE AUTORIZAÇÃO DE USO",
+    data.protocolo_autorizacao
+      ? `${data.protocolo_autorizacao} - ${formatDate(data.data_emissao)}`
+      : "—");
+  y += 8;
+
+  // IE | IE ST | CNPJ
+  cell(M, y, W / 3, 8, "INSCRIÇÃO ESTADUAL", safe(data.emitente.inscricao_estadual));
+  cell(M + W / 3, y, W / 3, 8, "INSC. ESTADUAL DO SUBST. TRIB.", "—");
+  cell(M + (W / 3) * 2, y, W / 3, 8, "CNPJ", safe(data.emitente.cnpj));
+  y += 8;
+
+  // Banner ambiente/resumo ──────────────────────────────────────────────
+  if (homologacao || !autorizada || resumo) {
+    doc.setFillColor(homologacao ? 255 : 255, homologacao ? 240 : 220, homologacao ? 200 : 220);
+    doc.rect(M, y, W, 5, "F");
+    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(homologacao ? 150 : 180, homologacao ? 80 : 0, 0);
+    const banner = resumo
+      ? "SOMENTE RESUMO — DETALHES INDISPONÍVEIS (APLIQUE CIÊNCIA PARA RECEBER O XML COMPLETO)"
+      : homologacao
+        ? "AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL"
+        : "DOCUMENTO NÃO AUTORIZADO PELA SEFAZ — SEM VALOR FISCAL";
+    doc.text(banner, M + W / 2, y + 3.5, { align: "center" });
+    doc.setTextColor(0, 0, 0);
     y += 6;
   }
 
-  // ── Identificação ───────────────────────────────────────────────────────
-  doc.setFontSize(8).setFont("helvetica", "normal");
-  doc.rect(margin, y, pageWidth - margin * 2, 8);
-  doc.text(`NATUREZA DA OPERAÇÃO: ${safe(data.natureza_operacao)}`, margin + 2, y + 5);
-  doc.text(`EMISSÃO: ${formatDate(data.data_emissao)}`, pageWidth - margin - 60, y + 5);
-  y += 10;
+  // Destinatário ─────────────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold").setFontSize(6).text("DESTINATÁRIO / REMETENTE", M, y - 0.5);
+  // linha 1: nome | CNPJ | DATA EMISSÃO
+  cell(M, y, W * 0.55, 7, "NOME / RAZÃO SOCIAL", safe(data.destinatario.nome));
+  cell(M + W * 0.55, y, W * 0.25, 7, "CNPJ / CPF", safe(data.destinatario.cpf_cnpj));
+  cell(M + W * 0.8, y, W * 0.2, 7, "DATA DE EMISSÃO", formatDate(data.data_emissao));
+  y += 7;
+  // linha 2: endereço | bairro | CEP | DATA SAÍDA
+  cell(M, y, W * 0.45, 7, "ENDEREÇO", safe(data.destinatario.endereco));
+  cell(M + W * 0.45, y, W * 0.2, 7, "BAIRRO / DISTRITO", safe(data.destinatario.bairro));
+  cell(M + W * 0.65, y, W * 0.15, 7, "CEP", safe(data.destinatario.cep));
+  cell(M + W * 0.8, y, W * 0.2, 7, "DATA SAÍDA / ENTRADA", data.data_saida_entrada ? formatDate(data.data_saida_entrada) : "—");
+  y += 7;
+  // linha 3: município | UF | fone | IE | indIE
+  cell(M, y, W * 0.45, 7, "MUNICÍPIO", safe(data.destinatario.cidade));
+  cell(M + W * 0.45, y, W * 0.07, 7, "UF", safe(data.destinatario.uf), { valueAlign: "center" });
+  cell(M + W * 0.52, y, W * 0.18, 7, "FONE / FAX", safe(data.destinatario.telefone));
+  cell(M + W * 0.7, y, W * 0.2, 7, "INSCRIÇÃO ESTADUAL", safe(data.destinatario.inscricao_estadual));
+  cell(M + W * 0.9, y, W * 0.1, 7, "IND. IE", safe(data.destinatario.indicador_ie), { valueAlign: "center" });
+  y += 7;
 
-  // ── Destinatário ────────────────────────────────────────────────────────
-  doc.setFont("helvetica", "bold").setFontSize(7);
-  doc.text("DESTINATÁRIO / REMETENTE", margin, y);
-  y += 2;
-  doc.rect(margin, y, pageWidth - margin * 2, 16);
-  doc.setFont("helvetica", "normal").setFontSize(8);
-  doc.text(`Nome: ${safe(data.destinatario.nome)}`, margin + 2, y + 5);
-  doc.text(`CPF/CNPJ: ${safe(data.destinatario.cpf_cnpj)}`, margin + 2, y + 9);
-  doc.text(`IE: ${safe(data.destinatario.inscricao_estadual)}`, margin + 80, y + 9);
-  doc.text(
-    `Endereço: ${[data.destinatario.endereco, data.destinatario.cidade, data.destinatario.uf, data.destinatario.cep].filter(Boolean).join(" — ") || "—"}`,
-    margin + 2,
-    y + 13,
-  );
-  y += 18;
-
-  // ── Itens ───────────────────────────────────────────────────────────────
-  doc.setFont("helvetica", "bold").setFontSize(7);
-  doc.text("PRODUTOS / SERVIÇOS", margin, y);
-  y += 2;
-
-  const colHeaders: Array<[string, number]> = [
-    ["Cód.", 20],
-    ["Descrição", 80],
-    ["NCM", 18],
-    ["CFOP", 12],
-    ["UN", 10],
-    ["Qtd", 14],
-    ["V. Unit.", 18],
-    ["V. Total", 22],
-  ];
-
-  doc.setFillColor(230, 230, 230);
-  doc.rect(margin, y, pageWidth - margin * 2, 5, "F");
-  let x = margin + 1;
-  doc.setFontSize(7);
-  for (const [label, w] of colHeaders) {
-    doc.text(label, x, y + 3.5);
-    x += w;
+  // Fatura/Duplicatas ────────────────────────────────────────────────────
+  const dups = data.duplicatas ?? [];
+  if (dups.length > 0) {
+    doc.setFont("helvetica", "bold").setFontSize(6).text("FATURA / DUPLICATAS", M, y - 0.5);
+    const dupW = W / 3;
+    const linhasDup = Math.ceil(dups.length / 3);
+    for (let i = 0; i < dups.length; i++) {
+      const row = Math.floor(i / 3);
+      const col = i % 3;
+      const d = dups[i];
+      cell(M + col * dupW, y + row * 7, dupW, 7,
+        `DUP. ${d.numero ?? i + 1}`,
+        `Venc: ${d.vencimento ? formatDate(d.vencimento) : "—"}  ·  R$ ${formatCurrency(d.valor)}`,
+        { valueSize: 7 });
+    }
+    y += linhasDup * 7;
   }
-  y += 5;
 
-  doc.setFont("helvetica", "normal");
+  // Cálculo do imposto ───────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold").setFontSize(6).text("CÁLCULO DO IMPOSTO", M, y - 0.5);
+  const l1: Array<[string, string]> = [
+    ["BASE DE CÁLC. ICMS", formatCurrency(data.base_icms ?? 0)],
+    ["VALOR DO ICMS", formatCurrency(data.icms_valor ?? 0)],
+    ["BASE CÁLC. ICMS ST", formatCurrency(data.base_icms_st ?? 0)],
+    ["VALOR ICMS ST", formatCurrency(data.icms_st_valor ?? 0)],
+    ["V. IMP. IMPORTAÇÃO", formatCurrency(data.valor_ii ?? 0)],
+    ["VALOR FCP", formatCurrency(data.valor_fcp ?? 0)],
+    ["VALOR DO PIS", formatCurrency(data.pis_valor ?? 0)],
+    ["V. TOTAL PRODUTOS", formatCurrency(data.valor_produtos ?? 0)],
+  ];
+  const colL1 = W / l1.length;
+  l1.forEach(([t, v], i) => cell(M + i * colL1, y, colL1, 8, t, v, { valueAlign: "right", valueSize: 7 }));
+  y += 8;
+  const l2: Array<[string, string, boolean?]> = [
+    ["VALOR DO FRETE", formatCurrency(data.frete_valor ?? 0)],
+    ["VALOR DO SEGURO", formatCurrency(data.valor_seguro ?? 0)],
+    ["DESCONTO", formatCurrency(data.desconto_valor ?? 0)],
+    ["OUTRAS DESPESAS", formatCurrency(data.outras_despesas ?? 0)],
+    ["VALOR DO IPI", formatCurrency(data.ipi_valor ?? 0)],
+    ["V. APROX. TRIBUTOS", formatCurrency(data.valor_total_tributos ?? 0)],
+    ["VALOR DA COFINS", formatCurrency(data.cofins_valor ?? 0)],
+    ["V. TOTAL DA NOTA", formatCurrency(data.valor_total), true],
+  ];
+  const colL2 = W / l2.length;
+  l2.forEach(([t, v, bold], i) =>
+    cell(M + i * colL2, y, colL2, 8, t, v, { valueAlign: "right", valueSize: bold ? 9 : 7, valueBold: !!bold }));
+  y += 8;
+
+  // Transportador / Volumes ──────────────────────────────────────────────
+  doc.setFont("helvetica", "bold").setFontSize(6).text("TRANSPORTADOR / VOLUMES TRANSPORTADOS", M, y - 0.5);
+  const t = data.transportador ?? {};
+  const fretePor = FRETE_LABEL_MAP[data.modalidade_frete ?? "9"] ?? "9 - Sem frete";
+  cell(M, y, W * 0.35, 7, "RAZÃO SOCIAL", safe(t.razao_social));
+  cell(M + W * 0.35, y, W * 0.15, 7, "FRETE POR CONTA", fretePor, { valueSize: 6.5 });
+  cell(M + W * 0.5, y, W * 0.12, 7, "CÓD. ANTT", safe(t.antt));
+  cell(M + W * 0.62, y, W * 0.13, 7, "PLACA", safe(t.placa));
+  cell(M + W * 0.75, y, W * 0.07, 7, "UF", safe(t.uf_placa), { valueAlign: "center" });
+  cell(M + W * 0.82, y, W * 0.18, 7, "CNPJ / CPF", safe(t.cnpj_cpf));
+  y += 7;
+  cell(M, y, W * 0.45, 7, "ENDEREÇO", safe(t.endereco));
+  cell(M + W * 0.45, y, W * 0.3, 7, "MUNICÍPIO", safe(t.cidade));
+  cell(M + W * 0.75, y, W * 0.07, 7, "UF", safe(t.uf), { valueAlign: "center" });
+  cell(M + W * 0.82, y, W * 0.18, 7, "INSCRIÇÃO ESTADUAL", safe(t.inscricao_estadual));
+  y += 7;
+  // volumes
+  const vols = data.volumes ?? [];
+  const v0 = vols[0] ?? { quantidade: 0 };
+  cell(M, y, W * 0.1, 7, "QTD.", v0.quantidade ? String(v0.quantidade) : "—", { valueAlign: "right" });
+  cell(M + W * 0.1, y, W * 0.2, 7, "ESPÉCIE", safe(v0.especie));
+  cell(M + W * 0.3, y, W * 0.15, 7, "MARCA", safe(v0.marca));
+  cell(M + W * 0.45, y, W * 0.15, 7, "NUMERAÇÃO", safe(v0.numero));
+  cell(M + W * 0.6, y, W * 0.2, 7, "PESO BRUTO", v0.peso_bruto ? formatCurrency(v0.peso_bruto) : "—", { valueAlign: "right" });
+  cell(M + W * 0.8, y, W * 0.2, 7, "PESO LÍQUIDO", v0.peso_liquido ? formatCurrency(v0.peso_liquido) : "—", { valueAlign: "right" });
+  y += 7;
+
+  // Produtos ─────────────────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold").setFontSize(6).text("DADOS DO PRODUTO / SERVIÇO", M, y - 0.5);
+  const cols: Array<{ label: string; w: number; align?: "left" | "right" | "center" }> = [
+    { label: "CÓDIGO", w: W * 0.08 },
+    { label: "DESCRIÇÃO DO PRODUTO / SERVIÇO", w: W * 0.30 },
+    { label: "NCM/SH", w: W * 0.06, align: "center" },
+    { label: "CST", w: W * 0.04, align: "center" },
+    { label: "CFOP", w: W * 0.05, align: "center" },
+    { label: "UN", w: W * 0.04, align: "center" },
+    { label: "QTD.", w: W * 0.07, align: "right" },
+    { label: "V.UNIT.", w: W * 0.07, align: "right" },
+    { label: "V.TOTAL", w: W * 0.08, align: "right" },
+    { label: "B.CÁLC ICMS", w: W * 0.07, align: "right" },
+    { label: "V.ICMS", w: W * 0.06, align: "right" },
+    { label: "V.IPI", w: W * 0.04, align: "right" },
+    { label: "%ICMS", w: W * 0.02, align: "right" },
+    { label: "%IPI", w: W * 0.02, align: "right" },
+  ];
+  // soma normaliza para 100% de W
+  const colSum = cols.reduce((s, c) => s + c.w, 0);
+  const scale = W / colSum;
+  cols.forEach((c) => (c.w *= scale));
+
+  const drawProdHeader = () => {
+    doc.setFillColor(230, 230, 230);
+    doc.rect(M, y, W, 5, "FD");
+    doc.setFont("helvetica", "bold").setFontSize(5.5);
+    let xx = M;
+    for (const c of cols) {
+      doc.text(c.label, c.align === "right" ? xx + c.w - 0.6 : c.align === "center" ? xx + c.w / 2 : xx + 0.6,
+        y + 3.2, { align: c.align ?? "left" });
+      // separadores verticais
+      doc.line(xx, y, xx, y + 5);
+      xx += c.w;
+    }
+    doc.line(M + W, y, M + W, y + 5);
+    y += 5;
+  };
+  drawProdHeader();
+
+  doc.setFont("helvetica", "normal").setFontSize(6.5);
   for (const item of data.itens) {
-    if (y > 260) {
+    const desc = item.descricao || "—";
+    const linhas = doc.splitTextToSize(desc, cols[1].w - 1) as string[];
+    const rowH = Math.max(4, linhas.length * 3 + 1);
+    if (y + rowH > pageH - M - 35) {
       doc.addPage();
-      y = margin;
+      y = M;
+      drawProdHeader();
+    }
+    // grid
+    let xx = M;
+    for (const c of cols) {
+      doc.rect(xx, y, c.w, rowH);
+      xx += c.w;
     }
     const total = item.valor_total ?? item.quantidade * item.valor_unitario;
-    x = margin + 1;
-    const cells = [
+    const vals: string[] = [
       safe(item.codigo, ""),
-      item.descricao.slice(0, 60),
+      "", // descrição: tratada separado (multiline)
       safe(item.ncm, ""),
+      safe(item.cst, ""),
       safe(item.cfop, ""),
       safe(item.unidade, ""),
-      String(item.quantidade),
+      item.quantidade ? item.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 }) : "",
       formatCurrency(item.valor_unitario),
       formatCurrency(total),
+      formatCurrency(item.base_icms ?? 0),
+      formatCurrency(item.valor_icms ?? 0),
+      formatCurrency(item.valor_ipi ?? 0),
+      item.aliquota_icms ? String(item.aliquota_icms) : "",
+      item.aliquota_ipi ? String(item.aliquota_ipi) : "",
     ];
-    cells.forEach((cell, idx) => {
-      doc.text(cell, x, y + 3.5);
-      x += colHeaders[idx][1];
-    });
-    y += 5;
-  }
-
-  // ── Totais ──────────────────────────────────────────────────────────────
-  if (y > 240) {
-    doc.addPage();
-    y = margin;
-  }
-  y += 4;
-  doc.setFont("helvetica", "bold").setFontSize(7);
-  doc.text("CÁLCULO DO IMPOSTO", margin, y);
-  y += 2;
-  doc.rect(margin, y, pageWidth - margin * 2, 14);
-  doc.setFont("helvetica", "normal").setFontSize(7);
-
-  const totaisLinha1 = [
-    ["Base ICMS", formatCurrency(0)],
-    ["V. ICMS", formatCurrency(data.icms_valor ?? 0)],
-    ["V. ICMS-ST", formatCurrency(data.icms_st_valor ?? 0)],
-    ["V. IPI", formatCurrency(data.ipi_valor ?? 0)],
-    ["V. PIS", formatCurrency(data.pis_valor ?? 0)],
-    ["V. COFINS", formatCurrency(data.cofins_valor ?? 0)],
-  ];
-  const totaisLinha2 = [
-    ["V. Produtos", formatCurrency(data.valor_produtos ?? 0)],
-    ["V. Frete", formatCurrency(data.frete_valor ?? 0)],
-    ["V. Desconto", formatCurrency(data.desconto_valor ?? 0)],
-    ["Outras Desp.", formatCurrency(data.outras_despesas ?? 0)],
-    ["V. TOTAL NF", formatCurrency(data.valor_total)],
-  ];
-
-  const colW = (pageWidth - margin * 2) / 6;
-  totaisLinha1.forEach(([label, val], idx) => {
-    doc.setFont("helvetica", "normal").text(label, margin + 2 + idx * colW, y + 4);
-    doc.setFont("helvetica", "bold").text(val, margin + 2 + idx * colW, y + 8);
-  });
-  const colW2 = (pageWidth - margin * 2) / 5;
-  totaisLinha2.forEach(([label, val], idx) => {
-    doc.setFont("helvetica", "normal").text(label, margin + 2 + idx * colW2, y + 11);
-    const isTotal = idx === totaisLinha2.length - 1;
-    doc.setFont("helvetica", "bold").setFontSize(isTotal ? 9 : 7);
-    doc.text(val, margin + 2 + idx * colW2, y + 14);
-    doc.setFontSize(7);
-  });
-
-  y += 16;
-
-  // ── Observações ─────────────────────────────────────────────────────────
-  if (data.observacoes) {
-    if (y > 260) {
-      doc.addPage();
-      y = margin;
+    xx = M;
+    for (let i = 0; i < cols.length; i++) {
+      const c = cols[i];
+      if (i === 1) {
+        doc.text(linhas, xx + 0.6, y + 3);
+      } else {
+        doc.text(
+          vals[i],
+          c.align === "right" ? xx + c.w - 0.6 : c.align === "center" ? xx + c.w / 2 : xx + 0.6,
+          y + 3,
+          { align: c.align ?? "left" },
+        );
+      }
+      xx += c.w;
     }
-    doc.setFont("helvetica", "bold").setFontSize(7);
-    doc.text("INFORMAÇÕES COMPLEMENTARES", margin, y);
-    y += 2;
-    doc.rect(margin, y, pageWidth - margin * 2, 16);
-    doc.setFont("helvetica", "normal");
-    const linhas = doc.splitTextToSize(data.observacoes, pageWidth - margin * 2 - 4);
-    doc.text(linhas, margin + 2, y + 4);
+    y += rowH;
   }
+
+  // Dados adicionais ─────────────────────────────────────────────────────
+  ensure(35);
+  doc.setFont("helvetica", "bold").setFontSize(6).text("DADOS ADICIONAIS", M, y + 1);
+  y += 2;
+  const adW = W * 0.7;
+  const fiscoW = W - adW;
+  const adH = 30;
+  doc.rect(M, y, adW, adH);
+  doc.rect(M + adW, y, fiscoW, adH);
+  doc.setFont("helvetica", "normal").setFontSize(5.5);
+  doc.text("INFORMAÇÕES COMPLEMENTARES", M + 0.8, y + 2);
+  doc.text("RESERVADO AO FISCO", M + adW + 0.8, y + 2);
+  doc.setFontSize(6.5);
+  if (data.observacoes) {
+    const obsLines = doc.splitTextToSize(data.observacoes, adW - 2) as string[];
+    doc.text(obsLines.slice(0, 12), M + 0.8, y + 5);
+  }
+  if (data.info_fisco) {
+    const inf = doc.splitTextToSize(data.info_fisco, fiscoW - 2) as string[];
+    doc.text(inf.slice(0, 12), M + adW + 0.8, y + 5);
+  }
+  y += adH;
 
   const blob = doc.output("blob");
   if (salvar) {
@@ -356,6 +571,15 @@ export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Bl
   }
   return blob;
 }
+
+const FRETE_LABEL_MAP: Record<string, string> = {
+  "0": "0 - Emitente",
+  "1": "1 - Destinatário",
+  "2": "2 - Terceiros",
+  "3": "3 - Próprio rem.",
+  "4": "4 - Próprio dest.",
+  "9": "9 - Sem frete",
+};
 
 // ───────────────────── Consulta DANFE por chave (proxy) ───────────────────────
 
