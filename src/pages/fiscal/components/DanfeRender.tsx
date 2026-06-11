@@ -242,7 +242,12 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
             </td>
             <td className={cell}>
               <div className={cellTitle}>PROTOCOLO DE AUTORIZAÇÃO DE USO</div>
-              <div className={cellValue}>{data.protocolo_autorizacao || "—"}</div>
+              <div className={cellValue}>
+                {data.protocolo_autorizacao || "—"}
+                {data.protocolo_data && (
+                  <span className="font-normal text-neutral-700"> · {fmtDataHora(data.protocolo_data)}</span>
+                )}
+              </div>
             </td>
           </tr>
           <tr>
@@ -257,6 +262,21 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
             <td className={cell}>
               <div className={cellTitle}>CNPJ</div>
               <div className={cellValue}>{fmtCnpj(data.emitente.cnpj)}</div>
+            </td>
+          </tr>
+          <tr>
+            <td className={cell} colSpan={3}>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[8px]">
+                <span><span className={cellTitle + " inline"}>MODELO:</span> <b>{data.modelo || "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>SÉRIE:</span> <b>{data.serie || "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>UF EMISSÃO:</span> <b>{data.uf_emissao || data.emitente.uf || "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>AMBIENTE:</span> <b>{data.ambiente_emissao === "homologacao" ? "Homologação" : "Produção"}</b></span>
+                <span><span className={cellTitle + " inline"}>STATUS:</span> <b>{data.status_sefaz === "autorizada" ? "Autorizada (100)" : data.status_sefaz === "resumo" ? "Resumo" : "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>TIPO EMISSÃO:</span> <b>{TP_EMIS_LABEL[data.tipo_emissao ?? ""] ?? data.tipo_emissao ?? "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>FINALIDADE:</span> <b>{FIN_NFE_LABEL[data.finalidade_emissao ?? ""] ?? data.finalidade_emissao ?? "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>PRESENÇA:</span> <b>{IND_PRES_LABEL[data.indicador_presenca ?? ""] ?? data.indicador_presenca ?? "—"}</b></span>
+                <span><span className={cellTitle + " inline"}>CONSUMIDOR FINAL:</span> <b>{data.indicador_final === "1" ? "Sim" : data.indicador_final === "0" ? "Não" : "—"}</b></span>
+              </div>
             </td>
           </tr>
         </tbody>
