@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { sincronizarDistDFe, obterStatusDistDFe, testarWorkerDistDFe, type DistDFeStatus, type WorkerPingResult } from "@/services/fiscal/sefaz";
+import {
+  sincronizarDistDFe,
+  obterStatusDistDFe,
+  testarWorkerDistDFe,
+  verificarCircuitBreaker,
+  type DistDFeStatus,
+  type WorkerPingResult,
+  type CircuitBreakerInfo,
+} from "@/services/fiscal/sefaz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +87,7 @@ export default function DistDFeHistorico() {
       }
     | null
   >(null);
+  const [circuitBreakerInfo, setCircuitBreakerInfo] = useState<CircuitBreakerInfo | null>(null);
 
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -130,6 +139,26 @@ export default function DistDFeHistorico() {
     setRunning(true);
     const startedAt = new Date().toISOString();
     try {
+      // Verifica circuit breaker ANTES de chamar a SEFAZ para evitar nova rejeição 656.
+      const cb = await verificarCircuitBreaker(ambiente);
+      if (cb.ativo) {
+        setCircuitBreakerInfo(cb);
+        setLastResult({
+          ambiente,
+          ranAt: startedAt,
+          sucesso: false,
+          novos: 0,
+          duplicados: 0,
+          cStat: "656",
+          xMotivo: `Circuit breaker ativo — aguarde ${cb.minutosRestantes} min`,
+        });
+        toast.error("Sincronização bloqueada — Consumo Indevido anterior", {
+          description: `O Ambiente Nacional bloqueou consultas para este CNPJ. Tente novamente em ~${cb.minutosRestantes} minuto(s) (até ${cb.ate ? new Date(cb.ate).toLocaleTimeString("pt-BR") : "?"}).`,
+        });
+        return;
+      }
+      setCircuitBreakerInfo(null);
+
       const r = await sincronizarDistDFe(ambiente);
       const nada = (r.novos ?? 0) === 0 && (r.duplicados ?? 0) === 0;
       const cStat656 = r.cStat === "656";
@@ -150,9 +179,11 @@ export default function DistDFeHistorico() {
             : `${r.novos} nova(s), ${r.duplicados} existente(s).`,
         });
       } else if (cStat656) {
+        const cb656: CircuitBreakerInfo = { ativo: true, minutosRestantes: 65 };
+        setCircuitBreakerInfo(cb656);
         toast.error("SEFAZ recusou (cStat 656 — Consumo Indevido)", {
           description:
-            "O Ambiente Nacional pediu para aguardar ~1 hora antes da próxima consulta deste CNPJ. Tente novamente mais tarde.",
+            "O Ambiente Nacional bloqueou consultas por ~1 hora. O sistema irá aguardar automaticamente antes de permitir nova sincronização.",
         });
       } else {
         toast.error("Falha na sincronização", {
