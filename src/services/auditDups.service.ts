@@ -19,7 +19,8 @@ export async function listAuditDups(status: "pendente" | "removido" | "mantido" 
     .from("audit_dups_lancamentos")
     .select("*")
     .eq("status", status)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500); // resultado de auditoria — tamanho controlado
   if (error) throw error;
   return (data || []) as AuditDup[];
 }
