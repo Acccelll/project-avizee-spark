@@ -31,7 +31,6 @@ import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomiz
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
 import { GreetingBanner } from "@/components/dashboard/GreetingBanner";
-import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -67,7 +66,6 @@ function LazyInViewWidget({
 const DashboardContent = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
-  const { range: globalRange } = useGlobalPeriod();
   const { metas } = useMetas();
   const { prefs, toggleVisibility, reorderWidgets, resetLayout } = useDashboardLayout(user?.id);
   const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
@@ -108,8 +106,8 @@ const DashboardContent = () => {
     remessasAtrasadasCount: remessasAtrasadas,
     dailyReceber,
     dailyPagar,
-    onOpenReceber: () => navigate(buildDrilldownUrl({ kind: "financeiro:receber-aberto", range: globalRange })),
-    onOpenPagar: () => navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto", range: globalRange })),
+    onOpenReceber: () => navigate(buildDrilldownUrl({ kind: "financeiro:receber-aberto" })),
+    onOpenPagar: () => navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" })),
     onOpenSaldo: () => navigate(buildDrilldownUrl({ kind: "financeiro:saldo" })),
     onOpenEstoque: () => navigate(buildDrilldownUrl({ kind: "estoque:critico" })),
     onOpenBacklog: () => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" })),
