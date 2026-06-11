@@ -109,7 +109,7 @@ export function useDashboardKpis(params: KpiParams) {
         id: "saldo",
         title: "Saldo Projetado",
         value: formatCurrency(saldoProjetado),
-        subtitle: "receber − pagar (período global)",
+        subtitle: "receber − pagar (saldo atual em aberto)",
         icon: BarChart2,
         variation:
           saldoProjetado >= 0

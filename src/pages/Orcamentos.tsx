@@ -28,8 +28,9 @@ import { formatCurrencyCompact } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
-import { Send } from "lucide-react";
+import { Send, Link2 } from "lucide-react";
 import { sendForApproval, approveOrcamento, duplicateOrcamento } from "@/services/orcamentos.service";
+import { VincularNfDialog } from "@/components/orcamentos/VincularNfDialog";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
@@ -138,6 +139,7 @@ const Orcamentos = () => {
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
+  const [vincularNfId, setVincularNfId] = useState<string | null>(null);
   const qc = useQueryClient();
 
   // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
@@ -560,6 +562,17 @@ const Orcamentos = () => {
                     <ArrowRightCircle className="w-3 h-3" /> Abrir pedido
                   </Button>
                 )}
+                {["aprovado", "convertido"].includes(normalizeOrcamentoStatus(o.status)) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={(e) => { e.stopPropagation(); setVincularNfId(o.id); }}
+                    title="Vincular este orçamento a uma NF de saída já emitida"
+                  >
+                    <Link2 className="w-3 h-3" /> Vincular NF
+                  </Button>
+                )}
               </>
             )}
             mobileStatusKey="status"
@@ -724,6 +737,20 @@ const Orcamentos = () => {
           </div>
         </div>
       </CrossModuleActionDialog>
+
+      <VincularNfDialog
+        open={!!vincularNfId}
+        onClose={() => setVincularNfId(null)}
+        orcamento={(() => {
+          const o = data.find((x) => x.id === vincularNfId);
+          return o
+            ? { id: o.id, numero: o.numero, cliente_id: o.cliente_id, valor_total: o.valor_total }
+            : null;
+        })()}
+        onLinked={() => {
+          fetchData();
+        }}
+      />
     </>
   );
 };

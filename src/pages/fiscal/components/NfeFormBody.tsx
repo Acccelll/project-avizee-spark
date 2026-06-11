@@ -201,7 +201,27 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       </div>
       {form.tipo === "saida" && ordensVenda.length > 0 && (
         <div className="space-y-2"><Label>Pedido (opcional)</Label>
-          <Select value={String(form.ordem_venda_id || "none")} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
+          <AutocompleteSearch
+            options={ordensVenda
+              .filter((ov) => !form.cliente_id || !ov.cliente_id || String(ov.cliente_id) === String(form.cliente_id))
+              .map((ov) => ({
+                id: ov.id,
+                label: ov.numero || `OV-${ov.id.slice(0, 6)}`,
+                sublabel: ov.clientes?.nome_razao_social || "—",
+              }))}
+            value={String(form.ordem_venda_id || "")}
+            onChange={(id) => setForm({ ...form, ordem_venda_id: id })}
+            placeholder="Buscar Pedido por número ou cliente..."
+          />
+          {form.ordem_venda_id && (
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground hover:text-foreground underline"
+              onClick={() => setForm({ ...form, ordem_venda_id: "" })}
+            >
+              Remover vínculo
+            </button>
+          )}
         </div>
       )}
       {isNfe && (

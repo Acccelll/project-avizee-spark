@@ -50,22 +50,21 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         dailyVendasResult,
         itensResult,
       ] = await Promise.all([
-        // Only count open (non-terminal) cotações in the selected period.
+        // Snapshot: orçamentos abertos (não-terminais) — sem filtro de período,
+        // para se alinhar a `pedidosPendentes` (também snapshot) no bloco
+        // Comercial e a doutrina de "backlog real".
         supabase
           .from("orcamentos")
           .select("*", { count: "exact", head: true })
           .eq("ativo", true)
           .neq("origem", "importacao_historica")
-          .in("status", OPEN_ORCAMENTO_STATUSES)
-          .gte("data_orcamento", dateFrom)
-          .lte("data_orcamento", dateTo),
+          .in("status", OPEN_ORCAMENTO_STATUSES),
+        // Últimos 5 orçamentos criados — independe de período.
         supabase
           .from("orcamentos")
           .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
           .eq("ativo", true)
           .neq("origem", "importacao_historica")
-          .gte("data_orcamento", dateFrom)
-          .lte("data_orcamento", dateTo)
           .order("created_at", { ascending: false })
           .limit(5),
         // Preview list (capped at 15) for the UI detail view.
