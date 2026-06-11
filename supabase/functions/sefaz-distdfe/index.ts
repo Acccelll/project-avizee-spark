@@ -579,57 +579,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Transporte mTLS:
-    //   1) Padrão — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ
-    //      usando o A1 (com cadeia ICP-Brasil completa) carregado do Vault.
-    //   2) Opcional — Cloudflare Worker (`SEFAZ_MTLS_PROXY_URL` + `SEFAZ_MTLS_PROXY_SECRET`).
-    //      Só é usado quando a flag `SEFAZ_USE_MTLS_PROXY=1` estiver setada,
-    //      evitando que um Worker mal configurado (ex.: 401 Unauthorized)
-    //      derrube a integração mesmo com mTLS nativo funcionando.
-    const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
-    const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-    // Gate de transporte (opt-in): o Worker mTLS só é usado quando
-    // SEFAZ_USE_MTLS_PROXY estiver EXPLICITAMENTE setada como 1/true/yes/on/sim.
-    // Default (variável ausente) = deno-mtls direto contra a SEFAZ com o A1
-    // do Vault. Motivo: deploys sem Worker configurado estavam falhando com
-    // WORKER_CONFIG_MISSING porque a flag era opt-out (lógica invertida).
-    const proxyFlagRaw = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim()
-      .replace(/^["']|["']$/g, "").toLowerCase();
-    const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagRaw);
-    const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
-
-    // Telemetria do gate de transporte (sem expor segredos).
-    // Sprint 7.4 #18 — `proxySecretFp` foi removido para não vazar prefixo/sufixo
-    // do secret em logs persistidos. Mantemos apenas presença/length para debug.
-    const isProd = (Deno.env.get("DENO_DEPLOYMENT_ID") ?? "").length > 0
-      && (Deno.env.get("ENVIRONMENT") ?? "").toLowerCase() !== "development";
-    log.info("transporte resolvido", {
-      proxyEnabled,
-      proxyFlagLen: proxyFlagRaw.length,
-      hasProxyUrl: !!proxyUrl,
-      hasProxySecret: !!proxySecret,
-      proxySecretLen: proxySecret?.length ?? 0,
-      ...(isProd
-        ? {}
-        : {
-            proxySecretFp: proxySecret
-              ? `${proxySecret.slice(0, 4)}...${proxySecret.slice(-4)}`
-              : null,
-          }),
-      usarProxy,
-      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
-    });
-
-    // Se a flag pediu proxy mas falta URL/secret, falha explicitamente em vez
-    // de cair em deno-mtls silenciosamente (que sofre geo-block do AN).
-    if (proxyEnabled && (!proxyUrl || !proxySecret)) {
-      return json({
-        sucesso: false,
-        erro:
-          "SEFAZ_USE_MTLS_PROXY=1 está ativo mas faltam SEFAZ_MTLS_PROXY_URL e/ou SEFAZ_MTLS_PROXY_SECRET. Reconfigure os secrets do Worker mTLS.",
-        codigoTransporte: "WORKER_CONFIG_MISSING",
-      }, 500);
-    }
+    // Transporte mTLS: Worker Cloudflare DESATIVADO em código (jun/2026).
+    // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
+    // Os secrets SEFAZ_USE_MTLS_PROXY / SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET
+    // são deliberadamente ignorados aqui; mantidos no projeto apenas como histórico.
+    const proxyUrl: string | undefined = undefined;
+    const proxySecret: string | undefined = undefined;
+    const usarProxy = false;
+    log.info("transporte resolvido", { usarProxy, transporte: "deno-mtls" });
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {
