@@ -109,7 +109,6 @@ export function useDashboardData() {
           loadAuxData(),
         ]);
 
-        const usingGlobal = !!(range.dateFrom && range.dateTo);
         return {
           stats: {
             produtos: estoque.produtos,
