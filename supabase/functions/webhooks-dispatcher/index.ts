@@ -11,6 +11,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { recordCronHealth } from "../_shared/cron-health.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const corsHeaders = {
@@ -300,9 +301,11 @@ Deno.serve(async (req) => {
 
     const queueRes = await processQueue();
     const retryRes = await retryPendingDeliveries();
+    await recordCronHealth(makeAdminClient(), "webhooks-dispatcher", "ok");
     return json({ ok: true, queue: queueRes, retry: retryRes });
   } catch (e) {
     console.error("[webhooks-dispatcher] erro", e);
+    await recordCronHealth(makeAdminClient(), "webhooks-dispatcher", "error", e);
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
