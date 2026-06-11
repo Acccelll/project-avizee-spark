@@ -241,16 +241,30 @@ export default function PortalFiscal() {
       if (r.sucesso) {
         const nfes = r.novasNFe ?? 0;
         const eventos = r.novosEventos ?? 0;
+        const lotes = r.lotes ?? 1;
+        const restantes = (() => {
+          try {
+            if (!r.ultNSU || !r.maxNSU) return 0;
+            const diff = BigInt(r.maxNSU) - BigInt(r.ultNSU);
+            return diff > 0n ? Number(diff) : 0;
+          } catch {
+            return 0;
+          }
+        })();
         const partes = [
           `${nfes} NF-e nova(s)`,
           `${eventos} evento(s)`,
           `${r.duplicados} existente(s)`,
+          `${lotes} lote(s)`,
         ].join(" · ");
-        toast.success("Sincronização concluída", {
-          description:
-            nfes === 0 && (r.novos ?? 0) > 0
+        const desc =
+          restantes > 0
+            ? `${partes}. Ainda restam ~${restantes} documento(s) na fila — clique em Sincronizar novamente.`
+            : nfes === 0 && (r.novos ?? 0) > 0
               ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
-              : partes,
+              : partes;
+        toast.success("Sincronização concluída", {
+          description: desc,
         });
         void buscar(aplicados, page, incluirOutros);
       } else {
