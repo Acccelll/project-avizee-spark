@@ -194,7 +194,41 @@ export function useSupabaseCrud<R = any>({
         }
         const trimmedSearch = searchTerm.trim();
         if (trimmedSearch && searchColumns.length > 0) {
-          const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
+          // Para colunas de documento (cpf_cnpj, cnpj, cpf) geramos variantes
+          // com e sem máscara para que a busca tolere o formato digitado.
+          const isDocColumn = (col: string) => /(^|_)(cpf_cnpj|cnpj|cpf)$/i.test(col);
+          const digits = trimmedSearch.replace(/\D/g, "");
+          const parts: string[] = [];
+          for (const col of searchColumns) {
+            if (isDocColumn(col) && digits) {
+              const variants = new Set<string>([trimmedSearch, digits]);
+              // versão "com máscara" (apenas pontos/barras/hífen)
+              if (digits.length <= 11) {
+                variants.add(
+                  digits
+                    .replace(/(\d{3})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d{1,2})$/, "$1-$2"),
+                );
+              }
+              if (digits.length >= 2) {
+                variants.add(
+                  digits
+                    .slice(0, 14)
+                    .replace(/(\d{2})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d)/, "$1/$2")
+                    .replace(/(\d{4})(\d{1,2})$/, "$1-$2"),
+                );
+              }
+              for (const v of variants) {
+                if (v) parts.push(`${col}.ilike.%${v}%`);
+              }
+            } else {
+              parts.push(`${col}.ilike.%${trimmedSearch}%`);
+            }
+          }
+          const orFilter = parts.join(",");
           query = query.or(orFilter);
         }
         if (shouldFilterAtivo) query = query.eq("ativo", true);

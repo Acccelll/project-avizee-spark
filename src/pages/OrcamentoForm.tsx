@@ -531,7 +531,10 @@ export default function OrcamentoForm() {
           });
           if (orc) {
             reset({
-              numero: orc.numero,
+              // Defesa: se a leitura retornar `numero` vazio (cache/replicação
+              // logo após o save), preservamos o valor que o form já tinha
+              // para evitar que o campo "pisque" em branco.
+              numero: orc.numero || getValues("numero") || "",
               dataOrcamento: orc.data_orcamento,
               status: (orc.status === 'confirmado' ? 'pendente' : orc.status) as OrcamentoFormValues['status'],
               clienteId: orc.cliente_id || '',
@@ -887,14 +890,23 @@ export default function OrcamentoForm() {
       // usuário criou um orçamento em paralelo entre o open e o save.
       let numeroSalvo = payload.numero;
       if (!isEdit && orcId) {
-        const { data: row } = await supabase
-          .from("orcamentos")
-          .select("numero")
-          .eq("id", orcId)
-          .maybeSingle();
-        if (row?.numero) {
-          numeroSalvo = row.numero;
-          setValue("numero", row.numero);
+        // Retenta até 2x se o número ainda não estiver disponível na leitura
+        // imediatamente após o RPC (replicação/cache PostgREST).
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const { data: row } = await supabase
+            .from("orcamentos")
+            .select("numero")
+            .eq("id", orcId)
+            .maybeSingle();
+          if (row?.numero) {
+            numeroSalvo = row.numero;
+            setValue("numero", row.numero);
+            break;
+          }
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 150));
+        }
+        if (!numeroSalvo) {
+          logger.warn("[OrcamentoForm] numero não retornou após salvar_orcamento", { orcId });
         }
       }
       // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
