@@ -40,7 +40,8 @@ export async function listProdutosParaCotacao() {
     .from("produtos")
     .select("id, nome, codigo_interno, sku, variacoes")
     .eq("ativo", true)
-    .order("nome");
+    .order("nome")
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return data || [];
 }
@@ -50,7 +51,8 @@ export async function listFornecedoresParaCotacao() {
     .from("fornecedores")
     .select("id, nome_razao_social, cpf_cnpj")
     .eq("ativo", true)
-    .order("nome_razao_social");
+    .order("nome_razao_social")
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return data || [];
 }

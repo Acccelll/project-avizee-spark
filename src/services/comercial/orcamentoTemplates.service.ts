@@ -16,7 +16,8 @@ export async function listOrcamentoTemplates(userId: string): Promise<OrcamentoT
   const { data, error } = await supabase
     .from("app_configuracoes")
     .select("valor, chave")
-    .or(`chave.like.orcamento_template:${userId}:%,chave.like.${TEAM_TEMPLATE_KEY}:%`);
+    .or(`chave.like.orcamento_template:${userId}:%,chave.like.${TEAM_TEMPLATE_KEY}:%`)
+    .limit(100); // configuração — pequeno por design
   if (error) throw error;
   return (data || [])
     .map((row) => row.valor as unknown as OrcamentoTemplate | null)

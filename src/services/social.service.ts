@@ -19,7 +19,8 @@ export async function listarContasSocial(): Promise<SocialConta[]> {
     .from('social_contas')
     .select('*')
     .eq('ativo', true)
-    .order('data_cadastro', { ascending: false });
+    .order('data_cadastro', { ascending: false })
+    .limit(50); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data ?? []) as unknown as SocialConta[];
 }

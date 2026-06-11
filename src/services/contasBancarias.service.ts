@@ -32,7 +32,8 @@ export async function listBancosAtivos(): Promise<Banco[]> {
     .from("bancos")
     .select("*, fornecedores(id, nome_razao_social)")
     .eq("ativo", true)
-    .order("nome");
+    .order("nome")
+    .limit(300); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data || []) as Banco[];
 }
@@ -41,7 +42,8 @@ export async function listBancos(): Promise<Banco[]> {
   const { data, error } = await supabase
     .from("bancos")
     .select("*, fornecedores(id, nome_razao_social)")
-    .order("nome");
+    .order("nome")
+    .limit(300); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data || []) as Banco[];
 }
@@ -89,7 +91,8 @@ export async function listContasBancarias(): Promise<ContaBancaria[]> {
   const { data, error } = await supabase
     .from("contas_bancarias")
     .select("*, bancos(nome, tipo, fornecedor_id, fornecedores(id, nome_razao_social))")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data || []) as ContaBancaria[];
 }

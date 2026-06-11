@@ -62,7 +62,8 @@ export async function listRecebimentosDoPedido(
     .select("id, numero, data_compra, status, valor_total, ativo")
     .eq("pedido_compra_id", pedidoCompraId)
     .eq("ativo", true)
-    .order("data_compra", { ascending: false });
+    .order("data_compra", { ascending: false })
+    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data ?? []) as CompraRecebimentoRow[];
 }

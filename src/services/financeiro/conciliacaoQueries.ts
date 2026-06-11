@@ -17,7 +17,8 @@ export async function listLancamentosParaConciliacao(input: {
     .gte("data_movimento", dataInicio)
     .lte("data_movimento", dataFim)
     .in("conciliacao_status", ["pendente", "divergente", "desconciliado"])
-    .order("data_movimento", { ascending: true });
+    .order("data_movimento", { ascending: true })
+    .limit(5000); // período pode ser amplo; teto de segurança
   if (error) throw new Error(error.message);
   return ((data as unknown as Array<Record<string, unknown>>) ?? []).map((item) => ({
     id: String(item.lancamento_id),

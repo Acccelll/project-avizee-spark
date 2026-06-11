@@ -24,7 +24,8 @@ export async function fetchRemessas(): Promise<Remessa[]> {
     .from("remessas")
     .select("*")
     .eq("ativo", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
 
   if (error) throw new Error(error.message);
   return data ?? [];

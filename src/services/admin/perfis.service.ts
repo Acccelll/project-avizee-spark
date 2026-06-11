@@ -33,7 +33,8 @@ export async function fetchPermissoesExtras(userId: string): Promise<UserPermiss
   const { data, error } = await supabase
     .from("user_permissions")
     .select("*")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .limit(200); // cadastro de permissões — pequeno por design
 
   if (error) throw error;
   return data ?? [];
