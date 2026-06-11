@@ -210,6 +210,7 @@ export const navSections: NavSection[] = [
         title: 'Gestão e consulta',
         items: [
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
+          { title: 'Portal NF-e', path: '/fiscal/portal', icon: FileSearch, keywords: ['portal', 'consulta', 'nfe', 'chave', 'totvs', 'destinatario'] },
           { title: 'Consulta de Documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
           { title: 'Histórico DistDF-e', path: '/fiscal/distdfe-historico', icon: History, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz', 'distribuicao'] },
           { title: 'Cadastros Fiscais', path: '/faturamento/cadastros', icon: FolderCog, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
