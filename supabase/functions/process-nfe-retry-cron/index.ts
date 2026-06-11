@@ -164,5 +164,12 @@ Deno.serve(async (req) => {
     }
   }
 
+  await recordCronHealth(
+    admin,
+    "process-nfe-retry-cron",
+    failCount > 0 ? "error" : "ok",
+    failCount > 0 ? `${failCount}/${itens.length} item(ns) falhou(aram)` : undefined,
+  );
+
   return json({ sucesso: true, processados: itens.length, okCount, failCount });
 });
