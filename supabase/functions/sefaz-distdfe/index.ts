@@ -429,109 +429,28 @@ Deno.serve(async (req) => {
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
     if (action === "status") {
-      const proxyFlagRaw = Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "";
-      const proxyFlagNorm = proxyFlagRaw.trim().toLowerCase();
-      const flagAtiva = proxyFlagNorm === "true" || proxyFlagNorm === "1" || proxyFlagNorm === "on" || proxyFlagNorm === "yes";
-      const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL") ?? "";
-      const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET") ?? "";
-      const proxyEnabled = flagAtiva && proxyUrl.length > 0 && proxySecret.length > 0;
+      // Worker mTLS DESATIVADO em código (jun/2026). Secrets podem existir mas são ignorados.
       return json({
         sucesso: true,
-        proxyEnabled,
-        hasProxyUrl: proxyUrl.length > 0,
-        hasProxySecret: proxySecret.length > 0,
-        flagAtiva,
-        flagLen: proxyFlagRaw.length,
-        transporte: proxyEnabled ? "cf-worker-mtls" : "deno-mtls-direto",
+        proxyEnabled: false,
+        hasProxyUrl: false,
+        hasProxySecret: false,
+        flagAtiva: false,
+        flagLen: 0,
+        transporte: "deno-mtls-direto",
+        observacao: "Worker mTLS desativado em código; secrets ignorados.",
       }, 200);
     }
 
     if (action === "worker-ping") {
       const ambientePing: "1" | "2" = body.ambiente === "1" ? "1" : "2";
-      const proxyFlagRaw = Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "";
-      const proxyFlagNorm = proxyFlagRaw.trim().toLowerCase();
-      const flagAtiva = ["true", "1", "on", "yes"].includes(proxyFlagNorm);
-      const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL") ?? "";
-      const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET") ?? "";
-      if (!flagAtiva || !proxyUrl || !proxySecret) {
-        return json({
-          sucesso: false,
-          ambiente: ambientePing,
-          diagnostico:
-            "Proxy mTLS inativo. Configure SEFAZ_USE_MTLS_PROXY=true, SEFAZ_MTLS_PROXY_URL e SEFAZ_MTLS_PROXY_SECRET.",
-          erro: "proxy-desabilitado",
-        }, 200);
-      }
-      const targetUrl = ambientePing === "1"
-        ? "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl"
-        : "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl";
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15_000);
-      try {
-        // IMPORTANTE: o Worker só aceita POST (GET retorna 405 do PRÓPRIO Worker,
-        // sem nunca tocar a SEFAZ — o que tornava este ping inútil). Enviamos um
-        // POST com corpo mínimo: se o handshake mTLS Worker→SEFAZ funcionar, a
-        // SEFAZ devolve ALGUMA resposta HTTP (400/415/500 com corpo HTML/SOAP).
-        // Se o binding mTLS falhar, o Worker estoura exceção → 520/502.
-        const resp = await fetch(proxyUrl, {
-          method: "POST",
-          headers: {
-            "x-proxy-secret": proxySecret,
-            "x-target-url": targetUrl,
-            "Content-Type": "application/soap+xml; charset=utf-8",
-          },
-          body: "<ping/>",
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        const text = await resp.text();
-        const preview = text.slice(0, 240);
-        let diagnostico = "";
-        const ok200 = resp.status === 200 && /<(wsdl:)?definitions|<\?xml/i.test(text);
-        // Qualquer resposta HTTP da SEFAZ (mesmo 4xx/500 com corpo) prova que
-        // TCP+TLS+mTLS do Worker estão OK e o binding cobre o hostname.
-        // 500 SEM corpo ou 520 = exceção no Worker (handshake mTLS falhou).
-        const reachable = (resp.status >= 200 && resp.status < 500) ||
-          (resp.status === 500 && text.length > 0);
-        const success = ok200 || reachable;
-        if (ok200) {
-          diagnostico = "OK — Worker alcança o endpoint e o mTLS está válido para este hostname (WSDL retornado).";
-        } else if (reachable && resp.status >= 400) {
-          diagnostico = `OK — Worker alcançou a SEFAZ e o handshake mTLS funcionou (HTTP ${resp.status} com ${text.length} bytes de corpo é resposta da própria SEFAZ ao corpo de teste). Binding/certificado válidos para este hostname.`;
-        } else if (resp.status === 520) {
-          diagnostico = "HTTP 520 — Worker lança exceção (provável binding mTLS não cobre este hostname no wrangler.toml, ou cert inválido para o ambiente).";
-        } else if (resp.status === 525 || resp.status === 526) {
-          diagnostico = `HTTP ${resp.status} — Falha de TLS no Worker. Verifique cadeia ICP-Brasil e validade do certificado A1.`;
-        } else if ((resp.status === 400 || resp.status === 401 || resp.status === 403) && text.length < 200) {
-          diagnostico = `HTTP ${resp.status} — Worker rejeitou a requisição antes de chamar o SEFAZ (secret incorreto ou header x-target-url ausente/bloqueado pelo allowlist do Worker).`;
-        } else if (resp.status === 500 && text.length === 0) {
-          diagnostico = "HTTP 500 sem corpo — exceção dentro do Worker ao falar com a SEFAZ (handshake mTLS falhou ou binding não cobre este hostname). Rode 'npx wrangler tail' para ver o stack trace.";
-        } else if (resp.status >= 500) {
-          diagnostico = `HTTP ${resp.status} — Worker ou upstream com erro. Rode 'npx wrangler tail' para ver o stack trace.`;
-        } else {
-          diagnostico = `HTTP ${resp.status} ${resp.statusText || ""} — Worker alcançável.`.trim();
-        }
-        log.info("worker-ping", { ambiente: ambientePing, statusHttp: resp.status, bytes: text.length });
-        return json({
-          sucesso: success,
-          ambiente: ambientePing,
-          targetUrl,
-          statusHttp: resp.status,
-          statusText: resp.statusText,
-          bytes: text.length,
-          preview,
-          diagnostico,
-        }, 200);
-      } catch (e: any) {
-        clearTimeout(timer);
-        return json({
-          sucesso: false,
-          ambiente: ambientePing,
-          targetUrl,
-          diagnostico: `Falha de transporte ao chamar o Worker: ${e?.message ?? String(e)}`,
-          erro: e?.message ?? String(e),
-        }, 200);
-      }
+      // Worker mTLS DESATIVADO em código (jun/2026). Endpoint mantido por compatibilidade.
+      return json({
+        sucesso: false,
+        ambiente: ambientePing,
+        diagnostico: "Worker mTLS desativado em código. Toda comunicação SEFAZ usa Deno mTLS direto.",
+        erro: "worker-desativado-em-codigo",
+      }, 200);
     }
 
     if (action !== "consultar-nsu" && action !== "consultar-chave" && action !== "consultar-destinatario") {
@@ -660,57 +579,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Transporte mTLS:
-    //   1) Padrão — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ
-    //      usando o A1 (com cadeia ICP-Brasil completa) carregado do Vault.
-    //   2) Opcional — Cloudflare Worker (`SEFAZ_MTLS_PROXY_URL` + `SEFAZ_MTLS_PROXY_SECRET`).
-    //      Só é usado quando a flag `SEFAZ_USE_MTLS_PROXY=1` estiver setada,
-    //      evitando que um Worker mal configurado (ex.: 401 Unauthorized)
-    //      derrube a integração mesmo com mTLS nativo funcionando.
-    const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
-    const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-    // Gate de transporte (opt-in): o Worker mTLS só é usado quando
-    // SEFAZ_USE_MTLS_PROXY estiver EXPLICITAMENTE setada como 1/true/yes/on/sim.
-    // Default (variável ausente) = deno-mtls direto contra a SEFAZ com o A1
-    // do Vault. Motivo: deploys sem Worker configurado estavam falhando com
-    // WORKER_CONFIG_MISSING porque a flag era opt-out (lógica invertida).
-    const proxyFlagRaw = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim()
-      .replace(/^["']|["']$/g, "").toLowerCase();
-    const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagRaw);
-    const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
-
-    // Telemetria do gate de transporte (sem expor segredos).
-    // Sprint 7.4 #18 — `proxySecretFp` foi removido para não vazar prefixo/sufixo
-    // do secret em logs persistidos. Mantemos apenas presença/length para debug.
-    const isProd = (Deno.env.get("DENO_DEPLOYMENT_ID") ?? "").length > 0
-      && (Deno.env.get("ENVIRONMENT") ?? "").toLowerCase() !== "development";
-    log.info("transporte resolvido", {
-      proxyEnabled,
-      proxyFlagLen: proxyFlagRaw.length,
-      hasProxyUrl: !!proxyUrl,
-      hasProxySecret: !!proxySecret,
-      proxySecretLen: proxySecret?.length ?? 0,
-      ...(isProd
-        ? {}
-        : {
-            proxySecretFp: proxySecret
-              ? `${proxySecret.slice(0, 4)}...${proxySecret.slice(-4)}`
-              : null,
-          }),
-      usarProxy,
-      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
-    });
-
-    // Se a flag pediu proxy mas falta URL/secret, falha explicitamente em vez
-    // de cair em deno-mtls silenciosamente (que sofre geo-block do AN).
-    if (proxyEnabled && (!proxyUrl || !proxySecret)) {
-      return json({
-        sucesso: false,
-        erro:
-          "SEFAZ_USE_MTLS_PROXY=1 está ativo mas faltam SEFAZ_MTLS_PROXY_URL e/ou SEFAZ_MTLS_PROXY_SECRET. Reconfigure os secrets do Worker mTLS.",
-        codigoTransporte: "WORKER_CONFIG_MISSING",
-      }, 500);
-    }
+    // Transporte mTLS: Worker Cloudflare DESATIVADO em código (jun/2026).
+    // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
+    // Os secrets SEFAZ_USE_MTLS_PROXY / SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET
+    // são deliberadamente ignorados aqui; mantidos no projeto apenas como histórico.
+    const proxyUrl: string | undefined = undefined;
+    const proxySecret: string | undefined = undefined;
+    const usarProxy = false;
+    log.info("transporte resolvido", { usarProxy, transporte: "deno-mtls" });
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {

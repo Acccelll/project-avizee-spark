@@ -239,26 +239,13 @@ async function enviarSoapMtls(
   </soapenv:Body>
 </soapenv:Envelope>`;
 
-  // ── Gate de transporte (mesmo padrão do sefaz-distdfe) ──────────
-  // Opt-in: o Worker mTLS só é usado quando SEFAZ_USE_MTLS_PROXY estiver
-  // EXPLICITAMENTE setada (1/true/yes/on/sim) E os dois secrets do Worker
-  // existirem. Default = deno-mtls direto contra a SEFAZ. O Ambiente Nacional
-  // geo-bloqueia chamadas fora do Brasil e EXIGE o Worker.
-  const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
-  const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-  const proxyFlagRaw = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim()
-    .replace(/^["']|["']$/g, "").toLowerCase();
-  const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagRaw);
-  const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
-
-  if (proxyEnabled && (!proxyUrl || !proxySecret)) {
-    return {
-      sucesso: false,
-      erro:
-        "SEFAZ_USE_MTLS_PROXY=1 está ativo mas faltam SEFAZ_MTLS_PROXY_URL e/ou SEFAZ_MTLS_PROXY_SECRET. Reconfigure os secrets do Worker mTLS.",
-      codigoTransporte: "WORKER_CONFIG_MISSING",
-    };
-  }
+  // ── Gate de transporte ──────────────────────────────────────────
+  // Worker mTLS DESATIVADO em código (jun/2026): secrets SEFAZ_USE_MTLS_PROXY /
+  // SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET são intencionalmente ignorados.
+  // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
+  const proxyUrl: string | undefined = undefined;
+  const proxySecret: string | undefined = undefined;
+  const usarProxy = false;
 
   let client: Deno.HttpClient | undefined;
   if (!usarProxy) {
