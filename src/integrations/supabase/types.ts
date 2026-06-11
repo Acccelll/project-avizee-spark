@@ -10407,6 +10407,10 @@ export type Database = {
         Args: { p_nf_id: string; p_pedido_id: string }
         Returns: Json
       }
+      vincular_orcamento_nf: {
+        Args: { p_nf_id: string; p_orcamento_id: string }
+        Returns: Json
+      }
       vincular_produto_fornecedor: {
         Args: {
           p_fornecedor_legado: string
