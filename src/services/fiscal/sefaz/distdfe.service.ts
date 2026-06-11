@@ -627,11 +627,23 @@ function extrairCamposBasicosDoXml(xml: string): {
   };
 }
 
-/** Cacheia o XML obtido em nfe_distribuicao (best-effort). */
-async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
+/**
+ * Cacheia o XML em nfe_distribuicao (best-effort).
+ * Retorna `{ ok: false, erro }` se o destinatário não pertence ao certificado
+ * configurado — nesse caso o registro NÃO é gravado.
+ */
+async function cachearXmlPorChave(
+  chave: string,
+  xml: string,
+): Promise<{ ok: boolean; erro?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const basicos = extrairCamposBasicosDoXml(xml);
+    const mismatchErr = await validarDestinatarioPertenceCertificado(
+      basicos.cnpjDestinatario,
+      basicos.nomeDestinatario,
+    );
+    if (mismatchErr) return { ok: false, erro: mismatchErr };
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
@@ -645,12 +657,17 @@ async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
         serie: basicos.serie ?? null,
         data_emissao: basicos.dataEmissao ?? null,
         valor_total: basicos.valorTotal ?? null,
+        cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+        nome_destinatario: basicos.nomeDestinatario ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
       { onConflict: "chave_acesso", ignoreDuplicates: false },
     );
-  } catch { /* cache best-effort */ }
+    return { ok: true };
+  } catch {
+    return { ok: true }; // best-effort: erros de transporte não bloqueiam
+  }
 }
 
 export type OrigemXmlChave = "cache" | "api" | "sefaz";
