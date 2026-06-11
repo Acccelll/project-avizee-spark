@@ -53,6 +53,7 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
         .from("financeiro_lancamentos")
         .select("valor, saldo_restante, status")
         .eq("ativo", true)
+        .eq("tipo", "receber")
         .eq("status", "vencido"),
       supabase
         .from("financeiro_lancamentos")

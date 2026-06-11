@@ -69,7 +69,7 @@ export function ComercialBlock({
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-secondary" />
           Comercial
-          <ScopeBadge scope={{ kind: 'global-range', eixo: 'data_orcamento' }} />
+          <ScopeBadge scope={{ kind: 'snapshot' }} />
         </h3>
         <Button
           variant="ghost"
@@ -134,7 +134,7 @@ export function ComercialBlock({
             ))}
           </div>
         ) : recentOrcamentos.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum orçamento no período</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum orçamento cadastrado</p>
         ) : (
           <div className="space-y-1">
             {recentOrcamentos.map((o: Orcamento) => (

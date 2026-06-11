@@ -19,11 +19,12 @@ comportamento.
 
 | Bloco        | Escopo            | Observação                                  |
 | ------------ | ----------------- | ------------------------------------------- |
-| Financeiro   | `global-range`    | Eixo `data_vencimento`.                     |
-| Comercial    | `global-range`    | Eixo `data_emissao` (orçamentos/pedidos).   |
+| Financeiro   | `snapshot`        | Saldo atual em aberto (A Receber / A Pagar / Vencidos). |
+| Comercial    | `snapshot`        | Orçamentos abertos e pedidos pendentes; faturamento usa `mes-atual`. |
 | Estoque      | `snapshot`        | Posição atual; ignora período.              |
 | Logística    | `global-range`    | Eixo `data_emissao` da remessa.             |
 | Fiscal       | `fixed-window`    | Janela `mes-atual` (alinhado a apuração).   |
+| Pendências   | `fixed-window`    | Janela `next-7d`; sempre fixa.              |
 
 ## Quando alterar
 
