@@ -90,6 +90,13 @@ export default function DistDFeHistorico() {
     | null
   >(null);
   const [circuitBreakerInfo, setCircuitBreakerInfo] = useState<CircuitBreakerInfo | null>(null);
+  const [buscandoRetro, setBuscandoRetro] = useState(false);
+  const [retroResult, setRetroResult] = useState<{
+    totalNovas: number;
+    totalDuplicadas: number;
+    paginas: number;
+    erro?: string;
+  } | null>(null);
 
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
