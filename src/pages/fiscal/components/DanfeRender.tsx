@@ -154,6 +154,10 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
                 {data.emitente.cidade && <><br />{data.emitente.cidade}{data.emitente.uf ? ` - ${data.emitente.uf}` : ""}</>}
                 {data.emitente.cep && <> · CEP {fmtCep(data.emitente.cep)}</>}
                 {data.emitente.telefone && <><br />Fone: {data.emitente.telefone}</>}
+                {data.emitente.cnpj && <><br />CNPJ: {fmtCnpj(data.emitente.cnpj)}</>}
+                {data.emitente.inscricao_estadual && <> · IE: {data.emitente.inscricao_estadual}</>}
+                {data.emitente.inscricao_municipal && <> · IM: {data.emitente.inscricao_municipal}</>}
+                {data.emitente.cnae && <><br />CNAE: {data.emitente.cnae}</>}
               </div>
             </td>
             <td className={cell} style={{ width: "20%" }} rowSpan={3}>
