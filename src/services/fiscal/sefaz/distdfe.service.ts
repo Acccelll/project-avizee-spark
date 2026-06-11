@@ -499,15 +499,66 @@ function extrairMensagemConsultaDanfe(data: unknown): string | null {
   return typeof m === "string" ? m : null;
 }
 
+/**
+ * Extrai campos básicos de um XML procNFe/nfeProc para popular as colunas
+ * de listagem em `nfe_distribuicao`. Tolera ordens diferentes dos elementos
+ * e nodos repetidos (ex.: <CNPJ> em infRespTec e em emit) — para CNPJ/xNome
+ * o emitente vem dentro de <emit>, então restringimos a esse bloco.
+ */
+function extrairCamposBasicosDoXml(xml: string): {
+  cnpjEmitente?: string;
+  nomeEmitente?: string;
+  ufEmitente?: string;
+  numero?: string;
+  serie?: string;
+  dataEmissao?: string;
+  valorTotal?: number;
+} {
+  if (!xml || typeof xml !== "string" || !xml.includes("<")) return {};
+  const tag = (re: RegExp): string | undefined => re.exec(xml)?.[1]?.trim();
+  const emit = /<emit\b[^>]*>([\s\S]*?)<\/emit>/i.exec(xml)?.[1] ?? "";
+  const ide = /<ide\b[^>]*>([\s\S]*?)<\/ide>/i.exec(xml)?.[1] ?? "";
+  const total = /<ICMSTot\b[^>]*>([\s\S]*?)<\/ICMSTot>/i.exec(xml)?.[1] ?? "";
+  const inBlock = (block: string, t: string): string | undefined =>
+    new RegExp(`<${t}[^>]*>([\\s\\S]*?)<\\/${t}>`, "i").exec(block)?.[1]?.trim();
+
+  const cnpj = inBlock(emit, "CNPJ");
+  const nome = inBlock(emit, "xNome");
+  const uf = inBlock(emit, "UF");
+  const numero = inBlock(ide, "nNF") ?? tag(/<nNF>([\s\S]*?)<\/nNF>/i);
+  const serie = inBlock(ide, "serie") ?? tag(/<serie>([\s\S]*?)<\/serie>/i);
+  const dhEmi = inBlock(ide, "dhEmi") ?? tag(/<dhEmi>([\s\S]*?)<\/dhEmi>/i);
+  const vNF = inBlock(total, "vNF") ?? tag(/<vNF>([\s\S]*?)<\/vNF>/i);
+  const vNum = vNF ? Number(vNF) : undefined;
+  return {
+    cnpjEmitente: cnpj || undefined,
+    nomeEmitente: nome || undefined,
+    ufEmitente: uf || undefined,
+    numero: numero || undefined,
+    serie: serie || undefined,
+    dataEmissao: dhEmi || undefined,
+    valorTotal: Number.isFinite(vNum) ? vNum : undefined,
+  };
+}
+
 /** Cacheia o XML obtido em nfe_distribuicao (best-effort). */
 async function cachearXmlPorChave(chave: string, xml: string): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    const basicos = extrairCamposBasicosDoXml(xml);
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
         xml_nfe: xml,
         nsu: "0",
+        tipo_documento: "procNFe",
+        cnpj_emitente: basicos.cnpjEmitente ?? null,
+        nome_emitente: basicos.nomeEmitente ?? null,
+        uf_emitente: basicos.ufEmitente ?? null,
+        numero: basicos.numero ?? null,
+        serie: basicos.serie ?? null,
+        data_emissao: basicos.dataEmissao ?? null,
+        valor_total: basicos.valorTotal ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
