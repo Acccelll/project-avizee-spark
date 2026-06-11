@@ -7,12 +7,43 @@
 BEGIN;
 SELECT plan(4);
 
+-- ===== FIXTURE: auth + tenancy =====
+INSERT INTO auth.users (id, email, aud, role)
+VALUES ('00000000-0000-0000-0000-0000000000aa',
+        'pgtap@test.local', 'authenticated', 'authenticated')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.empresas (id, nome, cnpj, ativo)
+VALUES ('00000000-0000-0000-0000-0000000000ee',
+        'Empresa Teste', '00000000000191', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.user_empresas (user_id, empresa_id)
+VALUES ('00000000-0000-0000-0000-0000000000aa',
+        '00000000-0000-0000-0000-0000000000ee')
+ON CONFLICT (user_id) DO UPDATE SET empresa_id = EXCLUDED.empresa_id;
+
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('00000000-0000-0000-0000-0000000000aa', 'admin')
+ON CONFLICT DO NOTHING;
+
+SELECT set_config(
+  'request.jwt.claims',
+  json_build_object(
+    'sub',  '00000000-0000-0000-0000-0000000000aa',
+    'role', 'authenticated'
+  )::text,
+  true
+);
+-- ===== FIM FIXTURE =====
+
 -- Fixture: produto com saldo 10
-INSERT INTO public.produtos (id, nome, sku, ativo, estoque_atual)
-VALUES ('11111111-1111-1111-1111-111111111111', 'Produto Teste', 'TST-001', true, 10);
+INSERT INTO public.produtos (id, nome, sku, ativo, estoque_atual, empresa_id)
+VALUES ('11111111-1111-1111-1111-111111111111', 'Produto Teste', 'TST-001', true, 10,
+        '00000000-0000-0000-0000-0000000000ee');
 
 -- 1) Entrada soma
-PERFORM public.ajustar_estoque_manual(
+SELECT public.ajustar_estoque_manual(
   '11111111-1111-1111-1111-111111111111', 'entrada', 5, 'compra'
 );
 SELECT is(
@@ -22,7 +53,7 @@ SELECT is(
 );
 
 -- 2) Saída subtrai
-PERFORM public.ajustar_estoque_manual(
+SELECT public.ajustar_estoque_manual(
   '11111111-1111-1111-1111-111111111111', 'saida', 3, 'venda'
 );
 SELECT is(
