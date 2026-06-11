@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormModal } from "@/components/FormModal";
-import { obterXmlNFePorChave } from "@/services/fiscal/sefaz/distdfe.service";
+import { obterXmlNFePorChave, DEST_MISMATCH_PREFIX } from "@/services/fiscal/sefaz/distdfe.service";
 
 interface BuscarPorChaveDialogProps {
   open: boolean;
@@ -65,7 +65,15 @@ export function BuscarPorChaveDialog({
         onClose();
         return;
       }
-      toast.error(result.erro ?? "Não foi possível obter o XML desta chave.", { duration: 10000 });
+      const erro = result.erro ?? "Não foi possível obter o XML desta chave.";
+      if (erro.startsWith(`${DEST_MISMATCH_PREFIX}:`)) {
+        toast.error("Esta NF-e não pertence ao certificado configurado", {
+          description: erro.replace(`${DEST_MISMATCH_PREFIX}: `, ""),
+          duration: 14000,
+        });
+      } else {
+        toast.error(erro, { duration: 10000 });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Erro na consulta: ${msg}`);
