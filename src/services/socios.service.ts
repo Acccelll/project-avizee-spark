@@ -10,7 +10,11 @@ import type {
 
 /* ───── Sócios ───── */
 export async function listSocios(): Promise<Socio[]> {
-  const { data, error } = await supabase.from("socios").select("*").order("nome");
+  const { data, error } = await supabase
+    .from("socios")
+    .select("*")
+    .order("nome")
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data ?? []) as Socio[];
 }
@@ -36,7 +40,7 @@ export async function removeSocio(id: string): Promise<void> {
 export async function listSocioParticipacoes(socioId?: string): Promise<SocioParticipacao[]> {
   let q = supabase.from("socios_participacoes").select("*").order("vigencia_inicio", { ascending: false });
   if (socioId) q = q.eq("socio_id", socioId);
-  const { data, error } = await q;
+  const { data, error } = await q.limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data ?? []) as SocioParticipacao[];
 }
@@ -54,7 +58,11 @@ export async function removeSocioParticipacao(id: string): Promise<void> {
 
 /* ───── Parâmetros ───── */
 export async function listSocioParametros(): Promise<SocioParametro[]> {
-  const { data, error } = await supabase.from("socios_parametros").select("*").order("competencia", { ascending: false });
+  const { data, error } = await supabase
+    .from("socios_parametros")
+    .select("*")
+    .order("competencia", { ascending: false })
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return (data ?? []) as SocioParametro[];
 }
