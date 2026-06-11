@@ -139,17 +139,15 @@ export function useDashboardData() {
           valorEstoque: estoque.valorEstoque,
           remessasAtrasadas: aux.remessasAtrasadas,
           scopes: {
-            financeiro: { kind: 'global-range', eixo: 'data_vencimento' },
-            comercial: { kind: 'global-range', eixo: 'data_orcamento' },
+            financeiro: { kind: 'snapshot' },
+            comercial: { kind: 'snapshot' },
             fiscal: fiscal._scope,
             estoque: { kind: 'snapshot' },
             logistica: { kind: 'snapshot' },
             faturamento: { kind: 'fixed-window', janela: 'mes-atual' },
             fluxo: { kind: 'fixed-window', janela: 'next-7d' },
             vendas: { kind: 'fixed-window', janela: 'last-7d' },
-            pendencias: usingGlobal
-              ? { kind: 'global-range', eixo: 'data_vencimento' }
-              : { kind: 'fixed-window', janela: 'next-7d' },
+            pendencias: { kind: 'fixed-window', janela: 'next-7d' },
           },
         };
       } catch (error) {
