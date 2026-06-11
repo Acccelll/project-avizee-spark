@@ -28,3 +28,8 @@ type: feature
 
 - Variável `SEFAZ_USE_MTLS_PROXY=1` é agora obrigatória para usar o Cloudflare Worker. Sem ela, a edge ignora `SEFAZ_MTLS_PROXY_URL/SECRET` e usa `Deno.createHttpClient({ cert, key })` diretamente contra a SEFAZ com o A1 (cadeia ICP-Brasil completa) do Vault.
 - Motivo: Worker estava devolvendo 401 Unauthorized e bloqueando todas as consultas mesmo com PFX válido carregado.
+
+## Update jun/2026 — Worker mTLS x produção (HTTP 520)
+
+- O Worker responde HTTP 200 com envelope JSON `{"success":false,"status":<upstream>,"body":...}` quando o fetch dele contra a SEFAZ falha. A edge `sefaz-distdfe` DETECTA esse envelope e devolve `codigoTransporte: WORKER_MTLS_BINDING` (520) em vez de parsear cStat vazio.
+- Sintoma do 520 em produção: o binding mTLS do Worker Cloudflare cobre apenas `hom1.nfe.fazenda.gov.br`; é preciso incluir `www1.nfe.fazenda.gov.br` no mtls_certificate binding/allowlist do wrangler.toml e redeployar o Worker (fora do Lovable).
