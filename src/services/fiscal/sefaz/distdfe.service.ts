@@ -429,17 +429,25 @@ export async function consultarNFePorChave(params: {
   // Cacheia em `nfe_distribuicao` para próximas consultas.
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    // Quando vem de consChNFe (XML procNFe completo), o `resumo` do parser pode
+    // estar vazio. Extraímos os campos básicos diretamente do XML para que o
+    // Portal Fiscal consiga exibir as colunas (Emissão, Emitente, Número, etc.)
+    // e o tipo_documento seja registrado como 'procNFe' em vez do default
+    // 'resNFe' (que faria a UI tratar como apenas resumo).
+    const basicos = extrairCamposBasicosDoXml(xml);
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
         xml_nfe: xml,
         nsu: doc?.nsu ?? "0",
-        cnpj_emitente: doc?.resumo?.cnpjEmitente ?? null,
-        nome_emitente: doc?.resumo?.nomeEmitente ?? null,
-        numero: doc?.resumo?.numero ?? null,
-        serie: doc?.resumo?.serie ?? null,
-        data_emissao: doc?.resumo?.dataEmissao ?? null,
-        valor_total: doc?.resumo?.valorTotal ?? null,
+        tipo_documento: "procNFe",
+        cnpj_emitente: doc?.resumo?.cnpjEmitente ?? basicos.cnpjEmitente ?? null,
+        nome_emitente: doc?.resumo?.nomeEmitente ?? basicos.nomeEmitente ?? null,
+        numero: doc?.resumo?.numero ?? basicos.numero ?? null,
+        serie: doc?.resumo?.serie ?? basicos.serie ?? null,
+        data_emissao: doc?.resumo?.dataEmissao ?? basicos.dataEmissao ?? null,
+        valor_total: doc?.resumo?.valorTotal ?? basicos.valorTotal ?? null,
+        uf_emitente: basicos.ufEmitente ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
