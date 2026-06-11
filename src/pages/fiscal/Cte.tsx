@@ -1,10 +1,10 @@
 import { useSearchParams } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -21,10 +21,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
+import { FiscalInternalStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { TableRow as DbRow } from "@/types/domain";
+import type { Tables } from "@/integrations/supabase/types";
 
-type NotaFiscalRow = DbRow<"notas_fiscais">;
+// Colunas explícitas — evita overfetch (notas_fiscais tem 121 colunas) e
+// torna o contrato de leitura visível.
+const SELECT_CTE =
+  "id, numero, serie, data_emissao, valor_total, status, chave_acesso, created_at";
+
+const CTE_LIMIT = 500; // Teto defensivo: CT-e tem volume baixo no ERP.
+
+type CteRow = Pick<
+  Tables<"notas_fiscais">,
+  "id" | "numero" | "serie" | "data_emissao" | "valor_total" | "status" | "chave_acesso" | "created_at"
+>;
 
 export interface CteFormData {
   numero?: string;
@@ -39,13 +50,19 @@ export interface CteFormData {
   observacoes?: string;
 }
 
-async function fetchCtes(search?: string, status?: string, dataInicio?: string, dataFim?: string): Promise<NotaFiscalRow[]> {
+async function fetchCtes(
+  search?: string,
+  status?: string,
+  dataInicio?: string,
+  dataFim?: string,
+): Promise<CteRow[]> {
   let query = supabase
     .from("notas_fiscais")
-    .select("*")
+    .select(SELECT_CTE)
     .eq("ativo", true)
     .eq("modelo_documento", "57")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(CTE_LIMIT);
 
   if (search) query = query.ilike("numero", `%${search}%`);
   if (status) query = query.eq("status", status);
@@ -53,8 +70,11 @@ async function fetchCtes(search?: string, status?: string, dataInicio?: string, 
   if (dataFim) query = query.lte("data_emissao", dataFim);
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  if (error) {
+    toast.error("Erro ao carregar CT-es", { description: error.message });
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CteRow[];
 }
 
 export default function Cte() {
