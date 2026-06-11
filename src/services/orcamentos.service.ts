@@ -197,7 +197,8 @@ export async function listClientesAtivosOrcamento(): Promise<Tables<"clientes">[
     .from("clientes")
     .select("*")
     .eq("ativo", true)
-    .order("nome_razao_social");
+    .order("nome_razao_social")
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data ?? []) as Tables<"clientes">[];
 }
@@ -208,7 +209,8 @@ export async function listProdutosAtivosComFornecedores(): Promise<Tables<"produ
     .from("produtos")
     .select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))")
     .eq("ativo", true)
-    .order("nome");
+    .order("nome")
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data ?? []) as Tables<"produtos">[];
 }
