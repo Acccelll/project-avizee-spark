@@ -26,6 +26,12 @@ export interface DanfeItemInput {
   quantidade: number;
   valor_unitario: number;
   valor_total?: number;
+  cst?: string | null;
+  base_icms?: number;
+  valor_icms?: number;
+  aliquota_icms?: number;
+  valor_ipi?: number;
+  aliquota_ipi?: number;
 }
 
 export interface DanfeEmpresaInput {
@@ -33,21 +39,74 @@ export interface DanfeEmpresaInput {
   nome_fantasia?: string | null;
   cnpj?: string | null;
   inscricao_estadual?: string | null;
+  inscricao_municipal?: string | null;
+  cnae?: string | null;
+  crt?: string | null;
   endereco?: string | null;
+  bairro?: string | null;
+  numero_endereco?: string | null;
+  complemento?: string | null;
   cidade?: string | null;
   uf?: string | null;
   cep?: string | null;
   telefone?: string | null;
+  pais?: string | null;
 }
 
 export interface DanfeParceiroInput {
   nome: string;
   cpf_cnpj?: string | null;
   inscricao_estadual?: string | null;
+  indicador_ie?: string | null;
+  email?: string | null;
   endereco?: string | null;
+  bairro?: string | null;
+  numero_endereco?: string | null;
+  complemento?: string | null;
   cidade?: string | null;
   uf?: string | null;
   cep?: string | null;
+  telefone?: string | null;
+  pais?: string | null;
+}
+
+export interface DanfeTransportadorInput {
+  razao_social?: string | null;
+  cnpj_cpf?: string | null;
+  inscricao_estadual?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  antt?: string | null;
+  placa?: string | null;
+  uf_placa?: string | null;
+}
+
+export interface DanfeVolumeInput {
+  quantidade: number;
+  especie?: string | null;
+  marca?: string | null;
+  numero?: string | null;
+  peso_liquido?: number;
+  peso_bruto?: number;
+}
+
+export interface DanfeDuplicataInput {
+  numero?: string | null;
+  vencimento?: string | null;
+  valor: number;
+}
+
+export interface DanfePagamentoInput {
+  forma?: string | null;
+  valor: number;
+}
+
+export interface DanfeFaturaInput {
+  numero?: string | null;
+  valor_original?: number;
+  valor_desconto?: number;
+  valor_liquido?: number;
 }
 
 export interface DanfeInput {
@@ -55,6 +114,7 @@ export interface DanfeInput {
   serie?: string | null;
   modelo?: string | null;
   data_emissao: string;
+  data_saida_entrada?: string | null;
   natureza_operacao?: string | null;
   tipo: "entrada" | "saida";
   chave_acesso?: string | null;
@@ -63,18 +123,31 @@ export interface DanfeInput {
   ambiente_emissao?: string | null;
   emitente: DanfeEmpresaInput;
   destinatario: DanfeParceiroInput;
+  transportador?: DanfeTransportadorInput;
+  modalidade_frete?: string | null;
+  fatura?: DanfeFaturaInput;
+  duplicatas?: DanfeDuplicataInput[];
+  pagamentos?: DanfePagamentoInput[];
+  volumes?: DanfeVolumeInput[];
   itens: DanfeItemInput[];
+  base_icms?: number;
+  base_icms_st?: number;
   valor_produtos?: number;
   frete_valor?: number;
+  valor_seguro?: number;
   desconto_valor?: number;
   outras_despesas?: number;
+  valor_ii?: number;
+  valor_fcp?: number;
   icms_valor?: number;
   icms_st_valor?: number;
   ipi_valor?: number;
   pis_valor?: number;
   cofins_valor?: number;
+  valor_total_tributos?: number;
   valor_total: number;
   observacoes?: string | null;
+  info_fisco?: string | null;
 }
 
 function formatarChave(chave: string): string {
