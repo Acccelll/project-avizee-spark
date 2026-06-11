@@ -2,8 +2,8 @@
  * DANFE em HTML inspirado no layout oficial da SEFAZ (modelo TOTVS).
  *
  * - Usado para PREVIEW na tela (dialog) — não há PDF embed nem print automático.
- * - Usado também como fonte para o DOWNLOAD: `html2canvas` + `jsPDF` rasterizam
- *   o nó com id={containerId} em PDF A4.
+ * - O download usa `gerarDanfePdf` (vetor jsPDF) — este componente é apenas
+ *   para a visualização HTML no dialog.
  *
  * Recebe um `DanfeInput` (mesmo contrato usado pelo módulo Fiscal) e renderiza
  * a estrutura completa: cabeçalho, destinatário, fatura, cálculo do imposto,
@@ -404,47 +404,4 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
       )}
     </div>
   );
-}
-
-/**
- * Renderiza o elemento DOM identificado por `containerId` em PDF (A4 retrato,
- * multi-página) usando html2canvas + jsPDF e dispara o download.
- */
-export async function downloadDanfeFromDom(containerId: string, filename: string): Promise<void> {
-  const el = document.getElementById(containerId);
-  if (!el) throw new Error("Elemento da DANFE não encontrado para renderização.");
-
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
-    import("jspdf"),
-  ]);
-
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    logging: false,
-  });
-
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
-
-  let heightLeft = imgHeight;
-  let position = 0;
-  pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
-
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-  }
-
-  pdf.save(filename);
 }
