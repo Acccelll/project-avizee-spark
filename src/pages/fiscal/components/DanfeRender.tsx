@@ -246,7 +246,13 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
           <tr>
             <td className={cell}>
               <div className={cellTitle}>ENDEREÇO</div>
-              <div className={cellValue}>{data.destinatario.endereco || "—"}</div>
+              <div className={cellValue}>
+                {[
+                  data.destinatario.endereco,
+                  data.destinatario.numero_endereco ? `Nº ${data.destinatario.numero_endereco}` : null,
+                  data.destinatario.complemento,
+                ].filter(Boolean).join(" · ") || "—"}
+              </div>
             </td>
             <td className={cell}>
               <div className={cellTitle}>BAIRRO / CEP</div>
@@ -271,12 +277,61 @@ export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: 
               <div className={cellValue}>{data.destinatario.uf || "—"}</div>
             </td>
             <td className={cell}>
-              <div className={cellTitle}>INSCRIÇÃO ESTADUAL</div>
-              <div className={cellValue}>{data.destinatario.inscricao_estadual || "—"}</div>
+              <div className={cellTitle}>INSCRIÇÃO ESTADUAL / IND.</div>
+              <div className={cellValue}>
+                {[data.destinatario.inscricao_estadual, data.destinatario.indicador_ie ? `IND ${data.destinatario.indicador_ie}` : null].filter(Boolean).join(" · ") || "—"}
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+
+      {/* Fatura / Duplicatas */}
+      {(data.fatura || (data.duplicatas && data.duplicatas.length > 0)) && (
+        <>
+          <div className="text-[8px] font-bold mt-1 uppercase">Fatura / Duplicatas</div>
+          <table className="w-full border-collapse" style={{ borderSpacing: 0 }}>
+            <tbody>
+              {data.fatura && (
+                <tr>
+                  <td className={cell}>
+                    <div className={cellTitle}>FATURA</div>
+                    <div className={cellValue}>{data.fatura.numero || "—"}</div>
+                  </td>
+                  <td className={cell}>
+                    <div className={cellTitle}>VALOR ORIGINAL</div>
+                    <div className={cellValue + " text-right"}>{fmt(data.fatura.valor_original ?? 0)}</div>
+                  </td>
+                  <td className={cell}>
+                    <div className={cellTitle}>DESCONTO</div>
+                    <div className={cellValue + " text-right"}>{fmt(data.fatura.valor_desconto ?? 0)}</div>
+                  </td>
+                  <td className={cell}>
+                    <div className={cellTitle}>VALOR LÍQUIDO</div>
+                    <div className={cellValue + " text-right"}>{fmt(data.fatura.valor_liquido ?? 0)}</div>
+                  </td>
+                </tr>
+              )}
+              {data.duplicatas?.map((d, i) => (
+                <tr key={i}>
+                  <td className={cell}>
+                    <div className={cellTitle}>DUPLICATA</div>
+                    <div className={cellValue}>{d.numero || String(i + 1)}</div>
+                  </td>
+                  <td className={cell} colSpan={2}>
+                    <div className={cellTitle}>VENCIMENTO</div>
+                    <div className={cellValue}>{fmtData(d.vencimento)}</div>
+                  </td>
+                  <td className={cell}>
+                    <div className={cellTitle}>VALOR</div>
+                    <div className={cellValue + " text-right"}>{fmt(d.valor)}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {/* Cálculo do imposto */}
       <div className="text-[8px] font-bold mt-1 uppercase">Cálculo do Imposto</div>
