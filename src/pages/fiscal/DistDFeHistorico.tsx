@@ -529,6 +529,62 @@ export default function DistDFeHistorico() {
         </CardContent>
       </Card>
 
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            Busca Retroativa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Consulta todas as NF-e emitidas para o CNPJ da empresa diretamente na
+            SEFAZ (serviço <code className="font-mono">consNFeDest</code>), sem
+            depender do cursor NSU do DistDFe. Use quando documentos anteriores
+            não aparecem na lista (por exemplo, após reset do worker ou perda
+            de NSU). Persiste as chaves em <code className="font-mono">nfe_distribuicao</code>;
+            o XML completo é baixado depois pelo cron após a Ciência.
+          </p>
+          <Button
+            variant="default"
+            onClick={() => void buscarRetroativamente()}
+            disabled={buscandoRetro || running}
+            className="w-full sm:w-auto"
+          >
+            {buscandoRetro ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Buscando…
+              </>
+            ) : (
+              <>
+                <History className="h-4 w-4 mr-2" />
+                Buscar NF-e Retroativamente
+              </>
+            )}
+          </Button>
+          {retroResult && (
+            <div
+              className={`rounded-md border px-3 py-2 text-sm ${
+                retroResult.erro
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-emerald-500/40 bg-emerald-500/5"
+              }`}
+            >
+              {retroResult.erro ? (
+                <span className="text-destructive">Erro: {retroResult.erro}</span>
+              ) : (
+                <span>
+                  ✓ {retroResult.totalNovas} NF-e nova(s) registrada(s),{" "}
+                  {retroResult.totalDuplicadas} já existia(m). (
+                  {retroResult.paginas} consulta(s))
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {ultima && (
         <Card className="border-primary/30">
           <CardHeader>
