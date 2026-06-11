@@ -9002,10 +9002,12 @@ export type Database = {
           cancelamento_recebido_at: string | null
           chave_acesso: string | null
           ciencia_automatica_at: string | null
+          cnpj_destinatario: string | null
           cnpj_emitente: string | null
           created_at: string | null
           data_emissao: string | null
           id: string | null
+          nome_destinatario: string | null
           nome_emitente: string | null
           nota_fiscal_id: string | null
           nsu: string | null
@@ -9989,6 +9991,7 @@ export type Database = {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
       }
+      excluir_nfe_distribuicao_alheias: { Args: never; Returns: number }
       executar_migracao_produtos: { Args: { p_fase?: string }; Returns: Json }
       existe_secret_vault: { Args: { p_name: string }; Returns: boolean }
       expedir_remessa: {
