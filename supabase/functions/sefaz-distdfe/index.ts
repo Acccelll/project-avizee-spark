@@ -789,14 +789,16 @@ Deno.serve(async (req) => {
             ultimoErroTransporte = {
               raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
               codigo: workerFail.status === 520
-                ? "WORKER_MTLS_BINDING"
+                ? "WORKER_UPSTREAM_520"
                 : workerFail.status >= 500
                 ? "WORKER_UPSTREAM_5XX"
                 : "WORKER_UPSTREAM_ERROR",
             };
-            // 520 = exceção no Worker (binding mTLS não cobre o hostname).
-            // Trocar a variante SOAP não resolve — aborta o loop.
-            if (workerFail.status === 520) break;
+            // 520/5xx intermitentes do BIG-IP do AN: aguarda um pouco e
+            // tenta de novo (a mesma requisição costuma passar em seguida).
+            if (i < tentativas.length - 1) {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
             continue;
           }
           // 401/400 com corpo curto = erro do próprio Worker (não da SEFAZ).
