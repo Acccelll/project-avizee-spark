@@ -1,86 +1,58 @@
-## Diagnóstico do "nada chega"
+## Objetivo
 
-Logs `sefaz-distdfe` confirmam dois problemas independentes:
+No Portal Fiscal (`/fiscal/portal`), substituir o botão "DANFE PDF (em breve)" por duas ações funcionais por linha:
 
-1. **Ambiente** — `empresa_config.ambiente_sefaz = 2` (homologação). SEFAZ responde cStat 137 "Nenhum documento localizado" porque homologação não recebe NF-e reais. Nada chegará enquanto não migrarmos para produção (`ambiente_sefaz = 1`).
-2. **Busca retroativa quebrada** — o endpoint `NFeConsultaDest` (NFeConsultaNFDest.asmx) que adicionamos no prompt anterior foi **descontinuado pela SEFAZ em 2017**. O log mostra `cStat=""` e `xMotivo=""` — o WS sequer responde envelope SOAP válido. Hoje o único caminho oficial é `NFeDistribuicaoDFe` (cursor NSU) + `consChNFe` (consulta pontual por chave). Vou remover essa via.
+- **Visualizar PDF** — abre o DANFE em um Dialog com `<iframe>` sobre o blob gerado.
+- **Baixar PDF** — baixa o arquivo nomeado como `"{numero} - {nome_emitente}.pdf"` (sanitizado para filesystem).
 
-Há também 2 NSU stuck em `000000000000000` na linha de produção; resetar/avançar manualmente é trivial.
+O layout do PDF segue o que já existe em `gerarDanfePdf` (DANFE simplificada com código de barras CODE-128C da chave, blocos emitente/destinatário, itens, totais e banner de homologação/sem valor fiscal). O PDF anexado pelo usuário serve apenas como referência visual — não há parser de PDF; usamos o renderer existente para garantir consistência com a DANFE já emitida em outras telas.
 
-## Resposta sobre paridade com TOTVS Processos Fiscais
+## Mudanças
 
-Sim, é viável e a maior parte da infra já existe: `nfe_distribuicao` (32 colunas), cron DistDFe, manifestação do destinatário, importação XML, parser cStat. Falta a **camada de consulta** estilo portal — uma tela única com filtros ricos, grid com ações por linha e exportação. É o que esta fase entrega.
+### 1. Novo parser `src/services/fiscal/nfeXmlToDanfe.ts`
 
-## Fase 1 — Portal de Consulta `/fiscal/portal`
+Função única `parseNfeXmlToDanfeInput(xml: string): DanfeInput`:
 
-Nova rota dedicada (não mexe em `/fiscal` nem em `/fiscal/distdfe-historico`, que viram visões específicas). Layout inspirado no print TOTVS:
+- Usa `DOMParser` (browser) para ler o `procNFe`/`NFe` e popular o `DanfeInput`.
+- Mapeia os blocos: `ide` (nº, série, dhEmi, natOp, tpNF), `emit` (CNPJ, xNome, xFant, IE, enderEmit), `dest` (CNPJ/CPF, xNome, IE, enderDest), `det[]` → itens (`prod`: cProd, xProd, NCM, CFOP, uCom, qCom, vUnCom, vProd), `total/ICMSTot` (vProd, vFrete, vDesc, vOutro, vICMS, vST, vIPI, vPIS, vCOFINS, vNF), `protNFe/infProt` (nProt → `protocolo_autorizacao`), `ide/tpAmb` ("1"→produção, "2"→homologação), `infAdic/infCpl` → observações.
+- Define `status_sefaz = "autorizada"` quando há `infProt.cStat = "100"`.
+- Helpers tolerantes (`text(node, tag)`, `num(...)`, `attr(...)`) — todos os campos opcionais retornam `null`/`0` quando ausentes (suporta resumos parciais).
+
+### 2. `src/pages/fiscal/PortalFiscal.tsx`
+
+- Estado novo: `pdfPreview: { url: string; row: PortalRow } | null` e `gerando: string | null` (id da linha em processamento).
+- Helper local `carregarXmlDaLinha(row)` extraído do código atual de `verXml/baixarXml` para evitar duplicação.
+- Helper local `sanitizeFilename(s)` — troca `/ \ : * ? " < > |` e caracteres de controle por espaço, colapsa whitespace, faz trim.
+- Nova função `gerarPdf(row, modo: "preview" | "download")`:
+  - Carrega o XML; se vazio, `toast.error("XML não disponível...")` (mesma mensagem do baixar XML).
+  - `const danfe = parseNfeXmlToDanfeInput(xml)`.
+  - `const blob = await gerarDanfePdf(danfe, false)`.
+  - **download**: cria `<a download="{numero} - {nome}.pdf">` com URL do blob (revoga em seguida). Usa `row.numero ?? danfe.numero` e `row.nome_emitente ?? danfe.emitente.razao_social`, ambos passados por `sanitizeFilename`.
+  - **preview**: `URL.createObjectURL(blob)` → setPdfPreview; `revokeObjectURL` ao fechar.
+- Botão "DANFE PDF" atual (`disabled`) vira **dois** botões:
+  - `Eye` com badge file? Para preservar a coluna, usamos `FileText` (preview) + `Download` específico (com tooltip "Baixar DANFE PDF"). Ambos `disabled={!r.tem_xml || gerando === r.id}`; spinner quando processando.
+- Novo `Dialog` para o preview:
+  - `max-w-5xl`, conteúdo `<iframe src={pdfPreview.url} className="w-full h-[80vh]" title="DANFE" />`.
+  - Header com nº + emitente e botão "Baixar" que reaproveita `gerarPdf(row, "download")`.
+
+### 3. Sem mudanças em banco, edge functions, RLS ou outros módulos.
+
+## Detalhes técnicos
+
+- `gerarDanfePdf` já carrega `jspdf`/`jsbarcode` via dynamic import — preview e download compartilham o mesmo Blob (gera 1 vez).
+- O parser tolera `procNFe` (com `protNFe`) e `NFe` puro; quando faltam totais/itens (resumo `resNFe`), o PDF ainda é gerado mas marcado "SEM VALOR FISCAL" pelo próprio `gerarDanfePdf` (já trata `status_sefaz !== "autorizada"`).
+- `tipo_documento === "procEventoNFe" | "resEvento" | "resNFe"`: os botões de PDF ficam `disabled` (PDF de evento não faz sentido na DANFE; resumo sem itens não tem o que renderizar). Apenas `procNFe` habilita.
+- Nome do arquivo: ex. `"97 - PLUMA INDUSTRIAL S/A.pdf"` (`/` substituído por espaço pelo sanitizer).
+
+## Arquivos tocados
 
 ```text
-┌─ Filtros (sticky) ──────────────────────────────────────────────┐
-│ Período [PeriodFilter] │ UF │ Status │ Manifestação            │
-│ Série │ Nº inicial → final │ Chave de acesso (44d)              │
-│ Papel: ●Destinatário ○Emissor ○Transportador                    │
-│ CNPJ Emissor │ CNPJ Destinatário                                │
-│ [Buscar]  [Limpar]  [Sincronizar SEFAZ]  [Exportar CSV]         │
-└─────────────────────────────────────────────────────────────────┘
-┌─ Grid (DataTableV2 + virtualização) ────────────────────────────┐
-│ ☐ T M Série Nº DataEmissão Situação Tipo Emitente Dest. Total  │
-│   ações: 👁 ver  ⤓ XML  📄 DANFE  ✉ e-mail  ⚑ manifestar      │
-└─────────────────────────────────────────────────────────────────┘
+src/services/fiscal/nfeXmlToDanfe.ts   (novo)
+src/pages/fiscal/PortalFiscal.tsx      (edit: ações, helpers, dialog de preview)
 ```
 
-### Backend (camada fina)
+## Validação
 
-- **View `v_nfe_portal`** (security_invoker) sobre `nfe_distribuicao` + join leve com `notas_fiscais` (se chave bater) para enriquecer status interno. Já cobre os campos visíveis sem novo storage.
-- **RPC `buscar_nfe_portal(filtros jsonb, p_limit int, p_offset int)`** retornando `{ rows, total }`. Aplica os filtros server-side (período por `dh_emissao`, ILIKE em emitente, status, manifestação, faixa de número, chave). RLS herda da empresa via `empresa_id` (Onda multi-tenant já cobriu `nfe_distribuicao`).
-- **Sem nova tabela.** Nenhum CREATE TABLE; só view + RPC.
-
-### Frontend
-
-- `src/pages/fiscal/PortalFiscal.tsx` (nova) — composição de `AdvancedFilterBar` + `DataTableV2` + `useDataTablePrefs/Export`.
-- `src/hooks/fiscal/usePortalFiscalQuery.ts` — wrapper de `useSupabaseCrud` chamando a RPC com server-side pagination/sort.
-- Ações por linha reaproveitam serviços existentes:
-  - **Ver XML** → drawer `NotaFiscalDrawer` (já existe).
-  - **Baixar XML** → `nfe_distribuicao.xml_nfe` (Storage / coluna).
-  - **DANFE PDF** → reusa edge `consultadanfe-proxy` se a NF estiver lá; fallback para "gerar a partir do XML" (Fase 1.1, fora de escopo agora — sinalizar botão como "em breve" se XML não tiver layout previsto).
-  - **E-mail** → reusa pipeline `send-transactional-email` com template `nfe-autorizada`.
-  - **Manifestar** → reabre `ManifestacaoDestinatarioDrawer` existente.
-- Rota: `/fiscal/portal` (`PermissionRoute resource="faturamento_fiscal"`), entrada no menu lateral em "Fiscal → Portal NF-e".
-
-### Limpeza da busca retroativa
-
-- Remover ação `consultar-destinatario` de `supabase/functions/sefaz-distdfe/index.ts` (e helpers `montarConsNFeDest`, `endpointNFeDest`, `envelopeSoapDest`, `parseRetConsNFeDest`).
-- Remover método `buscarNFeDestinatario` de `distdfe.service.ts` e o card "Busca Retroativa" de `DistDFeHistorico.tsx`.
-- No lugar, manter apenas:
-  - **Sincronizar SEFAZ** (já existe — DistDFe por NSU).
-  - **Buscar por chave** (já existe — `BuscarPorChaveDialog`/consChNFe).
-- Aviso em `mem/features/fiscal-consulta-por-chave.md` documentando que NFeConsultaDest está descontinuado e não deve ser reintroduzido.
-
-### Migração para produção (operacional)
-
-- Trocar `empresa_config.ambiente_sefaz` de `2` para `1` e `ambiente_padrao` para `producao`.
-- Confirmar com você que o **A1 carregado no Vault é o certificado de produção do CNPJ 53.078.538/0001-85** antes de virar a chave. Sem isso, prod retorna cStat 280/281 (certificado inválido).
-- Disparar `sync` manual em produção; validar que `nfe_distdfe_sync.ultimo_nsu` cresce e que linhas começam a popular `nfe_distribuicao`.
-
-## Fora de escopo (futuras fases)
-
-- Geração de DANFE PDF a partir do XML cru (renderer próprio) — fica como Fase 2 se você quiser independência do `consultadanfe-proxy`.
-- Painel de Controle (KPIs por status/manifestação) e Monitoramento — já temos `FiscalDashboard` e `cron_health`; consolidação visual fica para outra fase.
-- Regras de auto-manifestação por emitente (cadastros) — Fase 3.
-
-## Entregáveis desta fase
-
-1. Migration: view `v_nfe_portal` + RPC `buscar_nfe_portal`.
-2. Edge function `sefaz-distdfe`: remoção do branch `consultar-destinatario` e helpers.
-3. `src/services/fiscal/sefaz/distdfe.service.ts`: remover `buscarNFeDestinatario`.
-4. `src/pages/fiscal/DistDFeHistorico.tsx`: remover card de busca retroativa.
-5. `src/pages/fiscal/PortalFiscal.tsx`, `usePortalFiscalQuery.ts`, rota em `fiscal.routes.tsx`, entrada de menu.
-6. UPDATE em `empresa_config` para ambiente=1 (somente após você confirmar A1 de produção).
-7. Atualização da memória `fiscal-consulta-por-chave` e nova memória `fiscal-portal`.
-
-## Verificação
-
-- `/fiscal/portal` lista 0 linhas em homolog (esperado) e linhas reais após virada para prod.
-- Filtros aplicam server-side; export CSV bate com a grid.
-- Botão "Busca Retroativa" não existe mais.
-- `sefaz-distdfe` não aceita mais `action=consultar-destinatario` (retorna 400).
+- Abrir `/fiscal/portal`, localizar uma NF `procNFe` (ex.: CLC CORDAS), clicar em **Visualizar PDF** → iframe renderiza DANFE com chave + código de barras.
+- Clicar em **Baixar PDF** → arquivo salvo como `"{numero} - {nome emitente}.pdf"`.
+- Linha `resNFe`/evento: botões PDF aparecem desabilitados.

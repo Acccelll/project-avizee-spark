@@ -49,6 +49,8 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
+import { gerarDanfePdf } from "@/services/fiscal/danfe.service";
+import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 
 interface PortalRow {
   id: string;
@@ -139,6 +141,8 @@ export default function PortalFiscal() {
   const [xmlOpen, setXmlOpen] = useState<PortalRow | null>(null);
   const [xmlConteudo, setXmlConteudo] = useState<string>("");
   const [carregandoXml, setCarregandoXml] = useState(false);
+  const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; row: PortalRow } | null>(null);
 
   const buscar = useCallback(
     async (f: Filtros, p: number) => {
@@ -282,6 +286,63 @@ export default function PortalFiscal() {
     a.download = `${row.chave_acesso}.xml`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const carregarXmlDaLinha = async (row: PortalRow): Promise<string | null> => {
+    const { data } = await supabase
+      .from("nfe_distribuicao")
+      .select("xml_nfe")
+      .eq("id", row.id)
+      .maybeSingle();
+    return (data as { xml_nfe?: string | null } | null)?.xml_nfe ?? null;
+  };
+
+  const sanitizeFilename = (s: string): string =>
+    s
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const gerarPdf = async (row: PortalRow, modo: "preview" | "download") => {
+    if (gerandoPdfId) return;
+    setGerandoPdfId(row.id);
+    try {
+      const xml = await carregarXmlDaLinha(row);
+      if (!xml) {
+        toast.error("XML não disponível", {
+          description:
+            "Esta nota ainda está apenas como resumo (resNFe). Aplique Ciência da operação para receber o XML completo.",
+        });
+        return;
+      }
+      const danfe = parseNfeXmlToDanfeInput(xml);
+      const blob = await gerarDanfePdf(danfe, false);
+      const numero = sanitizeFilename(row.numero ?? danfe.numero ?? "NF");
+      const emit = sanitizeFilename(row.nome_emitente ?? danfe.emitente.razao_social ?? "emitente");
+      const filename = `${numero} - ${emit}.pdf`;
+      if (modo === "download") {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        const url = URL.createObjectURL(blob);
+        setPdfPreview({ url, row });
+      }
+    } catch (e) {
+      toast.error("Falha ao gerar DANFE", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setGerandoPdfId(null);
+    }
+  };
+
+  const fecharPreview = () => {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
+    setPdfPreview(null);
   };
 
   const verXml = async (row: PortalRow) => {
@@ -570,10 +631,32 @@ export default function PortalFiscal() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            title="DANFE PDF (em breve)"
-                            disabled
+                            title="Visualizar DANFE PDF"
+                            onClick={() => void gerarPdf(r, "preview")}
+                            disabled={
+                              !r.tem_xml ||
+                              r.tipo_documento !== "procNFe" ||
+                              gerandoPdfId === r.id
+                            }
                           >
-                            <FileText className="h-4 w-4" />
+                            {gerandoPdfId === r.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Baixar DANFE PDF"
+                            onClick={() => void gerarPdf(r, "download")}
+                            disabled={
+                              !r.tem_xml ||
+                              r.tipo_documento !== "procNFe" ||
+                              gerandoPdfId === r.id
+                            }
+                          >
+                            <Download className="h-4 w-4 text-primary" />
                           </Button>
                         </div>
                       </TableCell>
@@ -629,6 +712,36 @@ export default function PortalFiscal() {
               XML completo ainda não disponível. Aplique Ciência da operação
               para que a SEFAZ libere o procNFe.
             </p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pdfPreview} onOpenChange={(v) => !v && fecharPreview()}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3">
+              <span className="truncate">
+                DANFE — Nº {pdfPreview?.row.numero ?? "—"} ·{" "}
+                {pdfPreview?.row.nome_emitente ?? "—"}
+              </span>
+              {pdfPreview && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void gerarPdf(pdfPreview.row, "download")}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {pdfPreview && (
+            <iframe
+              src={pdfPreview.url}
+              title="DANFE PDF"
+              className="w-full h-[80vh] border rounded"
+            />
           )}
         </DialogContent>
       </Dialog>
