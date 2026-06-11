@@ -119,7 +119,10 @@ const PAGE_SIZE = 50;
 function defaultPeriodo(): { ini: string; fim: string } {
   const fim = new Date();
   const ini = new Date();
-  ini.setDate(ini.getDate() - 30);
+  // 90 dias: a SEFAZ entrega DistDFe com até 90 dias de retroatividade e o
+  // primeiro lote sincronizado costuma trazer NF-es com data_emissao anterior
+  // ao recorte de 30 dias — o que deixava o grid vazio mesmo após sucesso.
+  ini.setDate(ini.getDate() - 90);
   return {
     ini: ini.toISOString().slice(0, 10),
     fim: fim.toISOString().slice(0, 10),
@@ -236,8 +239,18 @@ export default function PortalFiscal() {
     try {
       const r = await sincronizarDistDFe();
       if (r.sucesso) {
+        const nfes = r.novasNFe ?? 0;
+        const eventos = r.novosEventos ?? 0;
+        const partes = [
+          `${nfes} NF-e nova(s)`,
+          `${eventos} evento(s)`,
+          `${r.duplicados} existente(s)`,
+        ].join(" · ");
         toast.success("Sincronização concluída", {
-          description: `${r.novos} nova(s), ${r.duplicados} existente(s).`,
+          description:
+            nfes === 0 && (r.novos ?? 0) > 0
+              ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
+              : partes,
         });
         void buscar(aplicados, page, incluirOutros);
       } else {
