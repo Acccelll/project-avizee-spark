@@ -497,6 +497,21 @@ export async function consultarNFePorChave(params: {
     // e o tipo_documento seja registrado como 'procNFe' em vez do default
     // 'resNFe' (que faria a UI tratar como apenas resumo).
     const basicos = extrairCamposBasicosDoXml(xml);
+    // Bloqueio: NF-e destinada a outro CNPJ não pode poluir o cache local.
+    const mismatchErr = await validarDestinatarioPertenceCertificado(
+      basicos.cnpjDestinatario,
+      basicos.nomeDestinatario,
+    );
+    if (mismatchErr) {
+      return {
+        sucesso: false,
+        origem: "sefaz",
+        cStat: data.cStat,
+        xMotivo: data.xMotivo,
+        mensagemCstat: data.mensagemCstat ?? null,
+        erro: mismatchErr,
+      };
+    }
     await supabase.from("nfe_distribuicao").upsert(
       {
         chave_acesso: chave,
@@ -510,6 +525,8 @@ export async function consultarNFePorChave(params: {
         data_emissao: doc?.resumo?.dataEmissao ?? basicos.dataEmissao ?? null,
         valor_total: doc?.resumo?.valorTotal ?? basicos.valorTotal ?? null,
         uf_emitente: basicos.ufEmitente ?? null,
+        cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+        nome_destinatario: basicos.nomeDestinatario ?? null,
         status_manifestacao: "sem_manifestacao",
         usuario_id: user?.id ?? null,
       },
