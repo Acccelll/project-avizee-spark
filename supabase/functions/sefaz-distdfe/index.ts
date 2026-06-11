@@ -151,6 +151,103 @@ function montarDistDFeInt(opts: {
 }
 
 /**
+ * Monta o XML consNFeDest para busca de NF-e por destinatário (NT 2014.002).
+ * Endpoint: NFeConsultaDest.asmx — permite recuperação retroativa sem
+ * depender do cursor NSU do DistDFe.
+ */
+function montarConsNFeDest(opts: {
+  ambiente: "1" | "2";
+  cnpj: string;
+  indNFe?: string; // "0" = todas, "1" = somente não consultadas
+  indEmi?: string; // "0" = todos, "1" = avulsa, "2" = normal, "3" = contingência
+  ultNSU?: string; // paginação; "0" = primeiro lote
+}): string {
+  const indNFe = opts.indNFe ?? "0";
+  const indEmi = opts.indEmi ?? "0";
+  const ultNSU = String(opts.ultNSU ?? "0").padStart(15, "0");
+  return (
+    `<consNFeDest versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">` +
+    `<tpAmb>${opts.ambiente}</tpAmb>` +
+    `<xServ>CONSULTAR NFE DESTINATARIO</xServ>` +
+    `<CNPJ>${opts.cnpj}</CNPJ>` +
+    `<indNFe>${indNFe}</indNFe>` +
+    `<indEmi>${indEmi}</indEmi>` +
+    `<ultNSU>${ultNSU}</ultNSU>` +
+    `</consNFeDest>`
+  );
+}
+
+function endpointNFeDest(amb: "1" | "2"): string {
+  return amb === "1"
+    ? "https://www.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx"
+    : "https://hom.nfe.fazenda.gov.br/NFeConsultaDest/NFeConsultaDest.asmx";
+}
+
+function envelopeSoapDest(corpo: string, variant: SoapVariant): string {
+  if (variant === "soap12") {
+    return (
+      `<?xml version="1.0" encoding="utf-8"?>` +
+      `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope" ` +
+      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+      `xmlns:xsd="http://www.w3.org/2001/XMLSchema">` +
+      `<soap12:Header>` +
+      `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+      `<cUF>91</cUF><versaoDados>1.01</versaoDados>` +
+      `</nfeCabecMsg>` +
+      `</soap12:Header>` +
+      `<soap12:Body>` +
+      `<nfeConsultaNFDestinatarioNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+      `<nfeDadosMsg>${corpo}</nfeDadosMsg>` +
+      `</nfeConsultaNFDestinatarioNF>` +
+      `</soap12:Body>` +
+      `</soap12:Envelope>`
+    );
+  }
+  return (
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ` +
+    `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+    `xmlns:xsd="http://www.w3.org/2001/XMLSchema">` +
+    `<soap:Header>` +
+    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+    `<cUF>91</cUF><versaoDados>1.01</versaoDados>` +
+    `</nfeCabecMsg>` +
+    `</soap:Header>` +
+    `<soap:Body>` +
+    `<nfeConsultaNFDestinatarioNF xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaDest">` +
+    `<nfeDadosMsg>${corpo}</nfeDadosMsg>` +
+    `</nfeConsultaNFDestinatarioNF>` +
+    `</soap:Body>` +
+    `</soap:Envelope>`
+  );
+}
+
+/** Parser do retConsNFeDest — extrai chaves e NSU de cada resNFe retornado. */
+function parseRetConsNFeDest(xml: string): {
+  cStat: string;
+  xMotivo: string;
+  ultNSU: string;
+  maxNSU: string;
+  chaves: Array<{ chave: string; nsu: string; dhRecbto?: string }>;
+} {
+  const cStat = xml.match(/<cStat>(\d+)<\/cStat>/)?.[1] ?? "";
+  const xMotivo = xml.match(/<xMotivo>([^<]*)<\/xMotivo>/)?.[1] ?? "";
+  const ultNSU = xml.match(/<ultNSU>(\d+)<\/ultNSU>/)?.[1] ?? "0";
+  const maxNSU = xml.match(/<maxNSU>(\d+)<\/maxNSU>/)?.[1] ?? "0";
+  const chaves: Array<{ chave: string; nsu: string; dhRecbto?: string }> = [];
+  const regex = /<resNFe[^>]*>([\s\S]*?)<\/resNFe>/g;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(xml)) !== null) {
+    const bloco = m[1];
+    const chave = bloco.match(/<chNFe>(\d{44})<\/chNFe>/)?.[1];
+    const nsu = bloco.match(/<NSU>(\d+)<\/NSU>/)?.[1] ?? "0";
+    const dhRecbto = bloco.match(/<dhRecbto>([^<]*)<\/dhRecbto>/)?.[1];
+    if (chave) chaves.push({ chave, nsu, dhRecbto });
+  }
+  return { cStat, xMotivo, ultNSU, maxNSU, chaves };
+}
+
+/**
  * Monta o envelope SOAP do NFeDistribuicaoDFe.
  *
  * O WSDL desse serviço expõe DOIS bindings:
@@ -437,8 +534,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (action !== "consultar-nsu" && action !== "consultar-chave") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave', 'status' ou 'worker-ping'.` }, 400);
+    if (action !== "consultar-nsu" && action !== "consultar-chave" && action !== "consultar-destinatario") {
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu', 'consultar-chave', 'consultar-destinatario', 'status' ou 'worker-ping'.` }, 400);
     }
 
     // Autorização granular: ambas as actions exigem ao menos `visualizar`
@@ -632,6 +729,78 @@ Deno.serve(async (req) => {
         );
       }
     }
+
+    // ── Action: consultar-destinatario (consNFeDest) ───────────────
+    // Endpoint NFeConsultaDest — busca retroativa de NF-e por destinatário
+    // sem depender do cursor NSU do DistDFe. Pagina por `ultNSU` (até 50/req).
+    if (action === "consultar-destinatario") {
+      const ultNSUDest = String(body.ultNSU ?? "0").padStart(15, "0");
+      const indNFe = String(body.indNFe ?? "0");
+      const indEmi = String(body.indEmi ?? "0");
+      const xmlConsulta = montarConsNFeDest({ ambiente, cnpj, indNFe, indEmi, ultNSU: ultNSUDest });
+      const urlDest = endpointNFeDest(ambiente);
+
+      const tentativasDest: SoapVariant[] = ["soap12", "soap11"];
+      let xmlRet = "";
+      for (const variant of tentativasDest) {
+        const envelope = envelopeSoapDest(xmlConsulta, variant);
+        const headersSoap = headersFor(variant);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45_000);
+        try {
+          const resp = usarProxy
+            ? await fetch(proxyUrl!, {
+                method: "POST",
+                headers: {
+                  "x-proxy-secret": proxySecret!,
+                  "x-target-url": urlDest,
+                  "Content-Type": headersSoap["Content-Type"] ?? "application/soap+xml; charset=utf-8",
+                  ...(headersSoap["SOAPAction"] ? { soapaction: headersSoap["SOAPAction"] } : {}),
+                },
+                body: envelope,
+                signal: controller.signal,
+              })
+            : await fetch(urlDest, {
+                method: "POST",
+                headers: headersSoap,
+                body: envelope,
+                // @ts-ignore — Deno option
+                client: client!,
+                signal: controller.signal,
+              });
+          clearTimeout(timer);
+          xmlRet = await resp.text();
+          if (xmlRet.includes("<cStat>")) break;
+        } catch (e) {
+          clearTimeout(timer);
+          if (variant === "soap11") {
+            try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+            return json({ sucesso: false, erro: `Falha de transporte: ${(e as Error).message}` }, 500);
+          }
+        }
+      }
+
+      try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+      const parsed = parseRetConsNFeDest(xmlRet);
+      log.info("retConsNFeDest", {
+        cStat: parsed.cStat,
+        xMotivo: parsed.xMotivo,
+        chaves: parsed.chaves.length,
+        ultNSU: parsed.ultNSU,
+        maxNSU: parsed.maxNSU,
+      });
+      return json({
+        sucesso: true,
+        cnpj,
+        ambiente,
+        cStat: parsed.cStat,
+        xMotivo: parsed.xMotivo,
+        ultNSU: parsed.ultNSU,
+        maxNSU: parsed.maxNSU,
+        chaves: parsed.chaves,
+      });
+    }
+    // ── fim consultar-destinatario ────────────────────────────────
 
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
