@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { formatCurrency } from "@/lib/format";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
-import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 import type { DailyPoint, TopPoint } from "@/pages/dashboard/hooks/types";
 
 export type KpiMetricKey = "receber" | "pagar" | "saldo" | "estoque";
@@ -39,7 +38,6 @@ interface KpiDetailDrawerProps {
  */
 export function KpiDetailDrawer({ metric, payload, onClose }: KpiDetailDrawerProps) {
   const navigate = useNavigate();
-  const { range: globalRange } = useGlobalPeriod();
 
   const goAndClose = (path: string) => {
     onClose();
@@ -84,7 +82,7 @@ export function KpiDetailDrawer({ metric, payload, onClose }: KpiDetailDrawerPro
                     {metric === "receber" && (
                       <DrawerLink
                         onClick={() =>
-                          goAndClose(buildDrilldownUrl({ kind: "financeiro:receber-aberto", range: globalRange }))
+                          goAndClose(buildDrilldownUrl({ kind: "financeiro:receber-aberto" }))
                         }
                       >
                         Ver todos os títulos →
@@ -93,7 +91,7 @@ export function KpiDetailDrawer({ metric, payload, onClose }: KpiDetailDrawerPro
                     {metric === "pagar" && (
                       <DrawerLink
                         onClick={() =>
-                          goAndClose(buildDrilldownUrl({ kind: "financeiro:pagar-aberto", range: globalRange }))
+                          goAndClose(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" }))
                         }
                       >
                         Ver todos os títulos →

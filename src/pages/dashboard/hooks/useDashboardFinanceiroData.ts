@@ -23,19 +23,17 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
     const { dateFrom, dateTo } = range;
     const today = new Date().toISOString().slice(0, 10);
 
-    const buildTotalQuery = (tipo: "receber" | "pagar") => {
-      let query = supabase
+    // KPIs "A Receber" / "A Pagar" são SNAPSHOT atual: não respeitam o
+    // período global do dashboard. Saldo em aberto existe hoje independente
+    // da janela. Top clientes e gráficos diários continuam respeitando o
+    // período mais abaixo.
+    const buildTotalQuery = (tipo: "receber" | "pagar") =>
+      supabase
         .from("financeiro_lancamentos")
         .select("valor, saldo_restante, status")
         .eq("tipo", tipo)
         .eq("ativo", true)
         .in("status", ["aberto", "vencido", "parcial"]);
-
-      if (dateFrom) query = query.gte("data_vencimento", dateFrom);
-      if (dateTo) query = query.lte("data_vencimento", dateTo);
-
-      return query;
-    };
 
     const nextDays = buildIsoDayRange(0, 7);
 
