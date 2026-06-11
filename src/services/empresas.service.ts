@@ -37,7 +37,8 @@ export async function listEmpresas(): Promise<Empresa[]> {
   const { data, error } = await supabase
     .from("empresas")
     .select("id, nome, cnpj, ativo, created_at, updated_at")
-    .order("nome", { ascending: true });
+    .order("nome", { ascending: true })
+    .limit(50); // multi-tenant: pouquíssimas empresas por instância
   if (error) throw error;
   return (data ?? []) as Empresa[];
 }
