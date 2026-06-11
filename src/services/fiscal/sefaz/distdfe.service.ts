@@ -12,6 +12,68 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Código de erro estável devolvido quando o destinatário da NF-e consultada
+ * não corresponde ao CNPJ configurado em `empresa_config`. A UI usa esse
+ * prefixo para exibir um toast com ação "Conferir certificado".
+ */
+export const DEST_MISMATCH_PREFIX = "DEST_MISMATCH";
+
+let _cnpjEmpresaCache: { value: string | null; at: number } | null = null;
+
+/** CNPJ da empresa configurada em `empresa_config` (somente dígitos). Cache 60s. */
+async function carregarCnpjEmpresa(): Promise<string | null> {
+  const agora = Date.now();
+  if (_cnpjEmpresaCache && agora - _cnpjEmpresaCache.at < 60_000) {
+    return _cnpjEmpresaCache.value;
+  }
+  try {
+    const { data } = await supabase
+      .from("empresa_config")
+      .select("cnpj")
+      .limit(1)
+      .maybeSingle();
+    const raw = (data as { cnpj?: string | null } | null)?.cnpj ?? null;
+    const digits = raw ? raw.replace(/\D/g, "") : null;
+    _cnpjEmpresaCache = { value: digits, at: agora };
+    return digits;
+  } catch {
+    return null;
+  }
+}
+
+/** Invalida o cache de CNPJ da empresa (após mudança em Administração). */
+export function invalidarCnpjEmpresaCache(): void {
+  _cnpjEmpresaCache = null;
+}
+
+/**
+ * Valida se o destinatário do XML corresponde ao CNPJ configurado em
+ * `empresa_config`. Retorna `null` se válido; uma string `DEST_MISMATCH: …`
+ * pronta para virar `erro` quando inválido.
+ */
+async function validarDestinatarioPertenceCertificado(
+  cnpjDest: string | undefined | null,
+  nomeDest: string | undefined | null,
+): Promise<string | null> {
+  const cnpjEmpresa = await carregarCnpjEmpresa();
+  if (!cnpjEmpresa) return null; // empresa sem CNPJ — não bloqueia
+  const destDigits = (cnpjDest ?? "").replace(/\D/g, "");
+  if (!destDigits) {
+    // Sem destinatário identificável no XML — não classificamos como mismatch.
+    return null;
+  }
+  if (destDigits === cnpjEmpresa) return null;
+  const fmt = (d: string) =>
+    d.length === 14
+      ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+      : d.length === 11
+        ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4")
+        : d;
+  const nomeTxt = nomeDest ? `${nomeDest.trim()} — ` : "";
+  return `${DEST_MISMATCH_PREFIX}: Esta NF-e não é destinada ao CNPJ do certificado A1 configurado (${fmt(cnpjEmpresa)}). Destinatário do XML: ${nomeTxt}${fmt(destDigits)}. Verifique o certificado em Administração ou solicite a chave correta.`;
+}
+
 // ── Helpers de ambiente e circuit breaker ────────────────────────
 
 /**
