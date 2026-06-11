@@ -302,6 +302,25 @@ export default function DistDFeHistorico() {
         </div>
       )}
 
+      {circuitBreakerInfo?.ativo && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <div className="font-medium text-amber-700 dark:text-amber-300">
+              Circuit breaker ativo — sincronização bloqueada por cStat 656
+            </div>
+            {circuitBreakerInfo.minutosRestantes != null && (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Aguarde ~{circuitBreakerInfo.minutosRestantes} minuto(s) antes de tentar novamente.
+                {circuitBreakerInfo.ate && (
+                  <> Liberação prevista às {new Date(circuitBreakerInfo.ate).toLocaleTimeString("pt-BR")}.</>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {lastResult && (
         <div
           className={`rounded-md border px-4 py-3 text-sm ${
