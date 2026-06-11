@@ -179,11 +179,14 @@ export default function DistDFeHistorico() {
             : `${r.novos} nova(s), ${r.duplicados} existente(s).`,
         });
       } else if (cStat656) {
-        const cb656: CircuitBreakerInfo = { ativo: true, minutosRestantes: 65 };
+        const cb656: CircuitBreakerInfo = { ativo: true, minutosRestantes: 60 };
         setCircuitBreakerInfo(cb656);
-        toast.error("SEFAZ recusou (cStat 656 — Consumo Indevido)", {
+        toast.error("SEFAZ — Consumo Indevido (cStat 656)", {
           description:
-            "O Ambiente Nacional bloqueou consultas por ~1 hora. O sistema irá aguardar automaticamente antes de permitir nova sincronização.",
+            "O Ambiente Nacional bloqueou consultas para este CNPJ por ~1 hora. " +
+            "Isso ocorre quando a mesma consulta é repetida sem usar o último NSU retornado. " +
+            "O sistema aguardará automaticamente. Tente novamente em ~60 minutos.",
+          duration: 10000,
         });
       } else {
         toast.error("Falha na sincronização", {

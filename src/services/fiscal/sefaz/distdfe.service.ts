@@ -255,6 +255,21 @@ export async function sincronizarDistDFe(
     };
   }
 
+  // cStat 656 = bloqueio por consumo indevido — a Edge retorna sucesso:true mas
+  // com docs:[] e cStat=656. Tratar explicitamente como erro para que o caller
+  // exiba mensagem correta e não mostre "0 novos" enganosamente.
+  if (data.cStat === "656") {
+    return {
+      sucesso: false,
+      novos: 0,
+      duplicados: 0,
+      cStat: "656",
+      xMotivo: data.xMotivo ?? "Consumo Indevido",
+      erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). Aguarde antes de tentar novamente.",
+      circuitBreaker: { ativo: true, minutosRestantes: 60 },
+    };
+  }
+
   // 3) Persiste documentos (apenas os com chave de NF-e)
   const docs = (data.docs ?? []).filter((d) => d.chave && /^\d{44}$/.test(d.chave));
   let novos = 0;
@@ -263,6 +278,16 @@ export async function sincronizarDistDFe(
 
   for (const d of docs) {
     const r = d.resumo ?? {};
+    // Classifica o schema DistDFe para persistir tipo_documento corretamente.
+    // Sem isso, upsert com ignoreDuplicates:false sobrescreveria para o DEFAULT
+    // 'resNFe' qualquer nota já inserida pelo cron com tipo 'procNFe'.
+    const schema = (d.schema ?? "").toLowerCase();
+    let tipoDocumento: "procNFe" | "resNFe" | "resEvento" | "procEventoNFe" = "resNFe";
+    if (schema.includes("proceventonfe")) tipoDocumento = "procEventoNFe";
+    else if (schema.includes("resevento")) tipoDocumento = "resEvento";
+    else if (schema.includes("procnfe")) tipoDocumento = "procNFe";
+    else if (schema.includes("resnfe")) tipoDocumento = "resNFe";
+
     const payload = {
       chave_acesso: d.chave!,
       nsu: d.nsu,
@@ -273,6 +298,8 @@ export async function sincronizarDistDFe(
       data_emissao: r.dataEmissao ?? null,
       valor_total: r.valorTotal ?? null,
       status_manifestacao: "sem_manifestacao",
+      tipo_documento: tipoDocumento,
+      xml_nfe: tipoDocumento === "procNFe" ? d.xml ?? null : null,
       usuario_id: user?.id ?? null,
     };
     const { error: upErr, data: upData } = await supabase

@@ -98,6 +98,7 @@ type NfeCapturada = NfeCapturadaRow;
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   sem_manifestacao: { label: "Sem manifestação", variant: "outline" },
   ciencia: { label: "Ciência", variant: "secondary" },
+  ciencia_operacao: { label: "Ciência (auto)", variant: "secondary" },
   confirmada: { label: "Confirmada", variant: "default" },
   desconhecida: { label: "Desconhecida", variant: "destructive" },
   nao_realizada: { label: "Não realizada", variant: "destructive" },
