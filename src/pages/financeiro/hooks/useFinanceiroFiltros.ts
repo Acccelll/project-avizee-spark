@@ -49,6 +49,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
       cartao: { type: "stringArray" },
       period: { type: "string" },
       mes: { type: "string" },
+      from: { type: "string" },
+      to: { type: "string" },
     },
   });
 
@@ -62,6 +64,9 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const period: Period = isPeriod(filterState.period || null) ? (filterState.period as Period) : "todos";
   const mesRaw = filterState.mes;
   const mes = mesRaw && /^\d{4}-\d{2}$/.test(mesRaw) ? mesRaw : null;
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const fromIso = ISO.test(filterState.from || "") ? filterState.from : null;
+  const toIso = ISO.test(filterState.to || "") ? filterState.to : null;
 
   const setSearchTerm = (v: string) => setFilters({ search: v });
   const applyArr = (key: "tipo" | "status" | "banco" | "origem" | "forma" | "cartao", current: string[]) =>
@@ -88,14 +93,18 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const monthRange = monthToRange(mes);
-    const { dateFrom, dateTo } = monthRange
-      ? { dateFrom: monthRange.from, dateTo: monthRange.to }
+    // Range explícito vindo do Dashboard (`?from&to`) tem prioridade sobre
+    // `mes` e `period`, garantindo paridade com o KPI que originou o drill-down.
+    const explicitRange = fromIso && toIso ? { from: fromIso, to: toIso } : null;
+    const effectiveRange = explicitRange ?? monthRange;
+    const { dateFrom, dateTo } = effectiveRange
+      ? { dateFrom: effectiveRange.from, dateTo: effectiveRange.to }
       : periodToFinancialRange(period);
-    const isOverdueFilter = !monthRange && period === "vencidos";
+    const isOverdueFilter = !effectiveRange && period === "vencidos";
 
     return data.filter((l) => {
       const effectiveStatus = getLancamentoStatus(l);
-      if (!monthRange && period === "todos") {
+      if (!effectiveRange && period === "todos") {
         // sem filtro de período
       } else if (isOverdueFilter) {
         if (effectiveStatus !== "vencido") return false;
@@ -136,7 +145,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
 
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, searchTerm, period, mes, getLancamentoStatus]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, searchTerm, period, mes, fromIso, toIso, getLancamentoStatus]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
