@@ -37,7 +37,9 @@ export async function listPrecosEspeciais(filters: {
     .eq("ativo", true);
   if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
   if (filters.produtoId) query = query.eq("produto_id", filters.produtoId);
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data || []) as unknown as PrecoEspecialRow[];
 }
@@ -46,7 +48,8 @@ export async function listClientesAtivosBasic() {
   const { data, error } = await supabase
     .from("clientes")
     .select("id, nome_razao_social")
-    .eq("ativo", true);
+    .eq("ativo", true)
+    .limit(500); // cadastro pequeno — teto defensivo
   if (error) throw error;
   return data || [];
 }
@@ -55,7 +58,8 @@ export async function listProdutosAtivosBasic() {
   const { data, error } = await supabase
     .from("produtos")
     .select("id, nome, sku, variacoes")
-    .eq("ativo", true);
+    .eq("ativo", true)
+    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return data || [];
 }
