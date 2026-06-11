@@ -258,7 +258,7 @@ export function SaudeSistemaSection() {
                         <td className="py-2 font-medium">{row.job_name}</td>
                         <td className="py-2">
                           <HealthBadge
-                            status={errored || overdue ? "down" : "ok"}
+                            status={errored || overdue ? "down" : "healthy"}
                             details={
                               errored
                                 ? row.last_error ?? "erro"
