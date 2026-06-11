@@ -49,8 +49,9 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
-import { gerarDanfePdf } from "@/services/fiscal/danfe.service";
+import type { DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
+import { DanfeRender, DANFE_CONTAINER_ID, downloadDanfeFromDom } from "./components/DanfeRender";
 
 interface PortalRow {
   id: string;
@@ -142,7 +143,7 @@ export default function PortalFiscal() {
   const [xmlConteudo, setXmlConteudo] = useState<string>("");
   const [carregandoXml, setCarregandoXml] = useState(false);
   const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; row: PortalRow } | null>(null);
+  const [danfePreview, setDanfePreview] = useState<{ data: DanfeInput; row: PortalRow } | null>(null);
 
   const buscar = useCallback(
     async (f: Filtros, p: number) => {
@@ -316,20 +317,18 @@ export default function PortalFiscal() {
         return;
       }
       const danfe = parseNfeXmlToDanfeInput(xml);
-      const blob = await gerarDanfePdf(danfe, false);
-      const numero = sanitizeFilename(row.numero ?? danfe.numero ?? "NF");
-      const emit = sanitizeFilename(row.nome_emitente ?? danfe.emitente.razao_social ?? "emitente");
-      const filename = `${numero} - ${emit}.pdf`;
-      if (modo === "download") {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (modo === "preview") {
+        setDanfePreview({ data: danfe, row });
       } else {
-        const url = URL.createObjectURL(blob);
-        setPdfPreview({ url, row });
+        // Garante que o nó esteja montado no DOM (abre o preview invisível se necessário).
+        const ensureMounted = !document.getElementById(DANFE_CONTAINER_ID);
+        if (ensureMounted) setDanfePreview({ data: danfe, row });
+        // Aguarda render no próximo frame.
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        const numero = sanitizeFilename(row.numero ?? danfe.numero ?? "NF");
+        const emit = sanitizeFilename(row.nome_emitente ?? danfe.emitente.razao_social ?? "emitente");
+        await downloadDanfeFromDom(DANFE_CONTAINER_ID, `${numero} - ${emit}.pdf`);
       }
     } catch (e) {
       toast.error("Falha ao gerar DANFE", {
@@ -340,9 +339,20 @@ export default function PortalFiscal() {
     }
   };
 
-  const fecharPreview = () => {
-    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
-    setPdfPreview(null);
+  const fecharPreview = () => setDanfePreview(null);
+
+  const baixarDanfeAtual = async () => {
+    if (!danfePreview) return;
+    const { data, row } = danfePreview;
+    const numero = sanitizeFilename(row.numero ?? data.numero ?? "NF");
+    const emit = sanitizeFilename(row.nome_emitente ?? data.emitente.razao_social ?? "emitente");
+    try {
+      await downloadDanfeFromDom(DANFE_CONTAINER_ID, `${numero} - ${emit}.pdf`);
+    } catch (e) {
+      toast.error("Falha ao gerar PDF", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    }
   };
 
   const verXml = async (row: PortalRow) => {
@@ -716,32 +726,28 @@ export default function PortalFiscal() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!pdfPreview} onOpenChange={(v) => !v && fecharPreview()}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
+      <Dialog open={!!danfePreview} onOpenChange={(v) => !v && fecharPreview()}>
+        <DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b bg-background">
             <DialogTitle className="flex items-center justify-between gap-3">
-              <span className="truncate">
-                DANFE — Nº {pdfPreview?.row.numero ?? "—"} ·{" "}
-                {pdfPreview?.row.nome_emitente ?? "—"}
+              <span className="truncate text-sm">
+                DANFE — Nº {danfePreview?.row.numero ?? "—"} ·{" "}
+                {danfePreview?.row.nome_emitente ?? "—"}
               </span>
-              {pdfPreview && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void gerarPdf(pdfPreview.row, "download")}
-                >
+              {danfePreview && (
+                <Button size="sm" onClick={() => void baixarDanfeAtual()}>
                   <Download className="h-4 w-4 mr-2" />
-                  Baixar
+                  Baixar PDF
                 </Button>
               )}
             </DialogTitle>
           </DialogHeader>
-          {pdfPreview && (
-            <iframe
-              src={pdfPreview.url}
-              title="DANFE PDF"
-              className="w-full h-[80vh] border rounded"
-            />
+          {danfePreview && (
+            <div className="overflow-auto bg-neutral-200 p-4" style={{ maxHeight: "80vh" }}>
+              <div className="shadow-lg">
+                <DanfeRender data={danfePreview.data} />
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
