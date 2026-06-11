@@ -257,12 +257,14 @@ export async function testarWorkerDistDFe(
  */
 export async function sincronizarDistDFe(
   ambiente?: "1" | "2",
+  opcoes?: { maxLotes?: number; onProgresso?: (info: { lote: number; ultNSU: string; maxNSU: string; novos: number }) => void },
 ): Promise<{
   sucesso: boolean;
   novos: number;
   duplicados: number;
   novasNFe?: number;
   novosEventos?: number;
+  lotes?: number;
   ultNSU?: string;
   maxNSU?: string;
   cStat?: string;
@@ -287,62 +289,82 @@ export async function sincronizarDistDFe(
     };
   }
 
-  // 1) Buscar CNPJ via edge function (que extrai do A1) — aqui usamos o
-  //    valor armazenado em `nfe_distdfe_sync` se existir; senão começa em '0'
-  //    e a edge function preenche o CNPJ.
-
-  // Sondagem inicial: tenta obter um registro de sync existente (qualquer CNPJ);
-  // a edge function retorna o CNPJ correto e atualizamos depois.
+  // Sondagem inicial: tenta obter um registro de sync existente para o CNPJ
+  // do certificado. A edge function devolve o CNPJ correto a cada chamada e
+  // atualizamos o `nfe_distdfe_sync` ao fim de cada lote.
   const { data: syncs } = await supabase
     .from("nfe_distdfe_sync")
     .select("cnpj, ultimo_nsu")
     .eq("ambiente", ambienteResolvido)
     .limit(1);
-  const ultNSU = syncs?.[0]?.ultimo_nsu ?? "0";
+  let ultNSUAtual = syncs?.[0]?.ultimo_nsu ?? "0";
 
-  // 2) Chama edge function
-  const { data, error } = await supabase.functions.invoke<DistDFeResponse>(
-    "sefaz-distdfe",
-    { body: { action: "consultar-nsu", ambiente: ambienteResolvido, ultNSU } },
-  );
-  if (error) {
-    return { sucesso: false, novos: 0, duplicados: 0, erro: error.message };
-  }
-  if (!data?.sucesso) {
-    return {
-      sucesso: false,
-      novos: 0,
-      duplicados: 0,
-      cStat: data?.cStat,
-      xMotivo: data?.xMotivo,
-      erro: data?.erro ?? "Resposta inesperada do Ambiente Nacional",
-    };
-  }
-
-  // cStat 656 = bloqueio por consumo indevido — a Edge retorna sucesso:true mas
-  // com docs:[] e cStat=656. Tratar explicitamente como erro para que o caller
-  // exiba mensagem correta e não mostre "0 novos" enganosamente.
-  if (data.cStat === "656") {
-    return {
-      sucesso: false,
-      novos: 0,
-      duplicados: 0,
-      cStat: "656",
-      xMotivo: data.xMotivo ?? "Consumo Indevido",
-      erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). Aguarde antes de tentar novamente.",
-      circuitBreaker: { ativo: true, minutosRestantes: 60 },
-    };
-  }
-
-  // 3) Persiste documentos (apenas os com chave de NF-e)
-  const docs = (data.docs ?? []).filter((d) => d.chave && /^\d{44}$/.test(d.chave));
+  const { data: { user } } = await supabase.auth.getUser();
   let novos = 0;
   let duplicados = 0;
   let novasNFe = 0;
   let novosEventos = 0;
-  const { data: { user } } = await supabase.auth.getUser();
+  let lotes = 0;
+  let ultDataResposta: DistDFeResponse | null = null;
+  // Limite defensivo: 20 lotes × 50 docs/lote = 1.000 documentos por clique.
+  // Cobre meses de backlog sem risco de loop infinito e respeita orçamento de
+  // edge function (~ < 60 s no Deno Deploy).
+  const maxLotes = Math.max(1, Math.min(opcoes?.maxLotes ?? 20, 50));
 
-  for (const d of docs) {
+  for (let lote = 0; lote < maxLotes; lote++) {
+    const { data, error } = await supabase.functions.invoke<DistDFeResponse>(
+      "sefaz-distdfe",
+      { body: { action: "consultar-nsu", ambiente: ambienteResolvido, ultNSU: ultNSUAtual } },
+    );
+    if (error) {
+      // Falha de rede no meio do lote: devolve o que já foi processado e marca
+      // como erro para o caller exibir o motivo.
+      return {
+        sucesso: lotes > 0,
+        novos,
+        duplicados,
+        novasNFe,
+        novosEventos,
+        lotes,
+        ultNSU: ultNSUAtual,
+        maxNSU: ultDataResposta?.maxNSU,
+        erro: error.message,
+      };
+    }
+    if (!data?.sucesso) {
+      return {
+        sucesso: lotes > 0,
+        novos,
+        duplicados,
+        novasNFe,
+        novosEventos,
+        lotes,
+        cStat: data?.cStat,
+        xMotivo: data?.xMotivo,
+        erro: data?.erro ?? "Resposta inesperada do Ambiente Nacional",
+      };
+    }
+
+    if (data.cStat === "656") {
+      return {
+        sucesso: lotes > 0,
+        novos,
+        duplicados,
+        novasNFe,
+        novosEventos,
+        lotes,
+        cStat: "656",
+        xMotivo: data.xMotivo ?? "Consumo Indevido",
+        erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). Aguarde antes de tentar novamente.",
+        circuitBreaker: { ativo: true, minutosRestantes: 60 },
+      };
+    }
+
+    ultDataResposta = data;
+    const docs = (data.docs ?? []).filter((d) => d.chave && /^\d{44}$/.test(d.chave));
+    let novosLote = 0;
+
+    for (const d of docs) {
     const r = d.resumo ?? {};
     // Classifica o schema DistDFe para persistir tipo_documento corretamente.
     // Sem isso, upsert com ignoreDuplicates:false sobrescreveria para o DEFAULT
@@ -398,26 +420,45 @@ export async function sincronizarDistDFe(
     }
     if (upData) {
       novos++;
+      novosLote++;
       if (isEvento) novosEventos++;
       else novasNFe++;
     }
-  }
+    }
 
-  // 4) Atualiza nfe_distdfe_sync (upsert por cnpj+ambiente)
-  if (data.cnpj) {
-    await supabase.from("nfe_distdfe_sync").upsert(
-      {
-        cnpj: data.cnpj,
-        ambiente: ambienteResolvido,
-        ultimo_nsu: data.ultNSU ?? ultNSU,
-        max_nsu: data.maxNSU ?? null,
-        ultima_sync_at: new Date().toISOString(),
-        ultima_resposta_cstat: data.cStat ?? null,
-        ultima_resposta_xmotivo: data.xMotivo ?? null,
-        ultima_qtd_docs: docs.length,
-      },
-      { onConflict: "cnpj,ambiente" },
-    );
+    // Atualiza checkpoint após cada lote — assim, se algo falhar no próximo
+    // lote, o NSU não é perdido e a próxima sincronização retoma daqui.
+    const novoUltNSU = data.ultNSU ?? ultNSUAtual;
+    if (data.cnpj) {
+      await supabase.from("nfe_distdfe_sync").upsert(
+        {
+          cnpj: data.cnpj,
+          ambiente: ambienteResolvido,
+          ultimo_nsu: novoUltNSU,
+          max_nsu: data.maxNSU ?? null,
+          ultima_sync_at: new Date().toISOString(),
+          ultima_resposta_cstat: data.cStat ?? null,
+          ultima_resposta_xmotivo: data.xMotivo ?? null,
+          ultima_qtd_docs: docs.length,
+        },
+        { onConflict: "cnpj,ambiente" },
+      );
+    }
+
+    lotes++;
+    opcoes?.onProgresso?.({ lote: lotes, ultNSU: novoUltNSU, maxNSU: data.maxNSU ?? "0", novos: novosLote });
+
+    // Critérios de parada:
+    //  - cStat 137 = "Nenhum documento localizado" (alcançou o fim).
+    //  - ultNSU não avançou (proteção contra loop).
+    //  - ultNSU >= maxNSU (não há mais nada na fila do AN).
+    const avancou = novoUltNSU !== ultNSUAtual;
+    ultNSUAtual = novoUltNSU;
+    const maxNSU = data.maxNSU ?? "0";
+    const fim = !avancou
+      || data.cStat === "137"
+      || BigInt(ultNSUAtual || "0") >= BigInt(maxNSU || "0");
+    if (fim) break;
   }
 
   return {
@@ -426,10 +467,11 @@ export async function sincronizarDistDFe(
     duplicados,
     novasNFe,
     novosEventos,
-    ultNSU: data.ultNSU,
-    maxNSU: data.maxNSU,
-    cStat: data.cStat,
-    xMotivo: data.xMotivo,
+    lotes,
+    ultNSU: ultNSUAtual,
+    maxNSU: ultDataResposta?.maxNSU,
+    cStat: ultDataResposta?.cStat,
+    xMotivo: ultDataResposta?.xMotivo,
   };
 }
 
