@@ -624,14 +624,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Transporte mTLS: Worker Cloudflare DESATIVADO em código (jun/2026).
-    // Toda chamada usa Deno.createHttpClient direto contra a SEFAZ com o A1 do Vault.
-    // Os secrets SEFAZ_USE_MTLS_PROXY / SEFAZ_MTLS_PROXY_URL / SEFAZ_MTLS_PROXY_SECRET
-    // são deliberadamente ignorados aqui; mantidos no projeto apenas como histórico.
-    const proxyUrl: string | undefined = undefined;
-    const proxySecret: string | undefined = undefined;
-    const usarProxy = false;
-    log.info("transporte resolvido", { usarProxy, transporte: "deno-mtls" });
+    // Transporte mTLS: Worker Cloudflare REATIVADO (jun/2026).
+    // O Deno/rustls NÃO suporta a renegociação TLS exigida pelo IIS da SEFAZ
+    // (denoland/deno#32245) — o transporte direto deno-mtls nunca conecta no AN.
+    // O Worker (binding mtls_certificate cobrindo www1 e hom1) é obrigatório.
+    const flagProxy = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim().toLowerCase();
+    const proxyUrl: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim() || undefined;
+    const proxySecret: string | undefined = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim() || undefined;
+    const usarProxy = ["true", "1", "yes", "sim"].includes(flagProxy) && !!proxyUrl && !!proxySecret;
+    log.info("transporte resolvido", {
+      usarProxy,
+      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
+      flagAtiva: ["true", "1", "yes", "sim"].includes(flagProxy),
+      hasProxyUrl: !!proxyUrl,
+      hasProxySecret: !!proxySecret,
+    });
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {
