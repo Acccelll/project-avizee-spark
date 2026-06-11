@@ -12,6 +12,71 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// ── Helpers de ambiente e circuit breaker ────────────────────────
+
+/**
+ * Lê o ambiente SEFAZ configurado em empresa_config.
+ * Prioridade: ambiente_sefaz ("1"/"2") > ambiente_padrao ("producao"/"homologacao").
+ * Fallback conservador: "2" (homologação).
+ */
+export async function resolverAmbienteDistDFe(): Promise<"1" | "2"> {
+  try {
+    const { data: cfg } = await supabase
+      .from("empresa_config")
+      .select("ambiente_sefaz, ambiente_padrao")
+      .limit(1)
+      .maybeSingle();
+    const c = cfg as { ambiente_sefaz?: string | null; ambiente_padrao?: string | null } | null;
+    if (c?.ambiente_sefaz === "1" || c?.ambiente_sefaz === "2") {
+      return c.ambiente_sefaz as "1" | "2";
+    }
+    if (c?.ambiente_padrao === "producao") return "1";
+    if (c?.ambiente_padrao === "homologacao") return "2";
+  } catch {
+    // fallback conservador
+  }
+  return "2";
+}
+
+export interface CircuitBreakerInfo {
+  ativo: boolean;
+  /** ISO timestamp até quando o bloqueio está ativo. */
+  ate?: string;
+  /** Minutos restantes arredondados. */
+  minutosRestantes?: number;
+}
+
+/**
+ * Verifica se o circuit breaker de cStat 656 está ativo para o ambiente.
+ * Consulta app_configuracoes chave `distdfe_circuit_break_until_<ambiente>`.
+ */
+export async function verificarCircuitBreaker(
+  ambiente: "1" | "2",
+): Promise<CircuitBreakerInfo> {
+  try {
+    const chave = `distdfe_circuit_break_until_${ambiente}`;
+    const { data } = await supabase
+      .from("app_configuracoes")
+      .select("valor")
+      .eq("chave", chave)
+      .maybeSingle();
+    const until = (data?.valor as { until?: string } | null)?.until;
+    if (until) {
+      const diff = new Date(until).getTime() - Date.now();
+      if (diff > 0) {
+        return {
+          ativo: true,
+          ate: until,
+          minutosRestantes: Math.ceil(diff / 60_000),
+        };
+      }
+    }
+  } catch {
+    // fail-open: não bloqueia se não conseguir ler
+  }
+  return { ativo: false };
+}
+
 export interface DistDFeDoc {
   nsu: string;
   schema: string;
