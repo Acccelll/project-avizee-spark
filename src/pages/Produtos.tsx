@@ -267,9 +267,9 @@ const Produtos = () => {
       if (primeiraVar) meta.push(`Var. ${primeiraVar}${restantes > 0 ? ` +${restantes}` : ""}`);
       return (
         <div className="min-w-0">
-          <span className="font-medium text-sm leading-snug block truncate">{p.nome}</span>
+          <span className="font-medium text-sm leading-snug block break-words line-clamp-2">{p.nome}</span>
           {meta.length > 0 && (
-            <span className="text-[11px] text-muted-foreground font-mono block truncate" title={meta.join(" · ")}>
+            <span className="text-[11px] text-muted-foreground font-mono block break-words line-clamp-2" title={meta.join(" · ")}>
               {meta.join(" · ")}
             </span>
           )}
