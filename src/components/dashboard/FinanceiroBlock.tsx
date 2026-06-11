@@ -66,7 +66,7 @@ export function FinanceiroBlock({
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
           Financeiro
-          <ScopeBadge scope={{ kind: 'global-range', eixo: 'data_vencimento' }} variant="subtle" />
+          <ScopeBadge scope={{ kind: 'snapshot' }} variant="subtle" />
         </h3>
         <Button
           variant="ghost"
