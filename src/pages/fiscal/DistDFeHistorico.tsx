@@ -6,16 +6,18 @@ import {
   obterStatusDistDFe,
   testarWorkerDistDFe,
   verificarCircuitBreaker,
+  buscarNFeDestinatario,
   type DistDFeStatus,
   type WorkerPingResult,
   type CircuitBreakerInfo,
+  type BuscaDestinatarioResult,
 } from "@/services/fiscal/sefaz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion, Activity, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
