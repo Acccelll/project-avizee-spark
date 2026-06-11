@@ -342,7 +342,7 @@ export async function gerarDanfePdf(data: DanfeInput, salvar = true): Promise<Bl
   cell(M, y, W * 0.6, 8, "NATUREZA DA OPERAÇÃO", safe(data.natureza_operacao));
   cell(M + W * 0.6, y, W * 0.4, 8, "PROTOCOLO DE AUTORIZAÇÃO DE USO",
     data.protocolo_autorizacao
-      ? `${data.protocolo_autorizacao} - ${formatDate(data.data_emissao)}`
+      ? `${data.protocolo_autorizacao} - ${formatDate(data.protocolo_data ?? data.data_emissao)}`
       : "—");
   y += 8;
 
