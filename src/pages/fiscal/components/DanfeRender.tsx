@@ -74,6 +74,39 @@ const PAG_LABEL: Record<string, string> = {
   "99": "Outros",
 };
 
+const IND_PRES_LABEL: Record<string, string> = {
+  "0": "Não se aplica",
+  "1": "Presencial",
+  "2": "Internet",
+  "3": "Teleatendimento",
+  "4": "NFC-e entrega domicílio",
+  "5": "Presencial fora do estabelecimento",
+  "9": "Não presencial, outros",
+};
+const TP_EMIS_LABEL: Record<string, string> = {
+  "1": "Normal",
+  "2": "Contingência FS-IA",
+  "3": "Contingência SCAN",
+  "4": "Contingência DPEC",
+  "5": "Contingência FS-DA",
+  "6": "Contingência SVC-AN",
+  "7": "Contingência SVC-RS",
+  "9": "Contingência off-line NFC-e",
+};
+const FIN_NFE_LABEL: Record<string, string> = {
+  "1": "Normal",
+  "2": "Complementar",
+  "3": "Ajuste",
+  "4": "Devolução",
+};
+
+function fmtDataHora(d?: string | null): string {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return d;
+  return dt.toLocaleString("pt-BR");
+}
+
 export const DANFE_CONTAINER_ID = "danfe-render-root";
 
 export function DanfeRender({ data, containerId = DANFE_CONTAINER_ID }: { data: DanfeInput; containerId?: string }) {
