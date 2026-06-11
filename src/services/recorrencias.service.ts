@@ -25,7 +25,8 @@ export async function listRecorrencias(): Promise<Recorrencia[]> {
   const { data, error } = await supabase
     .from("financeiro_recorrencias")
     .select(SELECT_FULL)
-    .order("proxima_geracao", { ascending: true });
+    .order("proxima_geracao", { ascending: true })
+    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
   if (error) throw error;
   return (data || []) as Recorrencia[];
 }
