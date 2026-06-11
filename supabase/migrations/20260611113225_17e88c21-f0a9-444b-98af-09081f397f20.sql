@@ -1,0 +1,1 @@
+UPDATE public.empresa_config SET ambiente_sefaz = 1, ambiente_padrao = 'producao', updated_at = now();
