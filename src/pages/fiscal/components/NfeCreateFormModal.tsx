@@ -8,7 +8,7 @@ import type { CartaoCredito } from "@/services/cartoesCredito.service";
 export interface FornecedorRefMin { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 export interface ClienteRefMin { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 export interface ProdutoRefMin { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; variacoes: string[] | null; }
-export interface OrdemVendaRefMin { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
+export interface OrdemVendaRefMin { id: string; numero: string; cliente_id?: string | null; clientes?: { nome_razao_social: string } | null; }
 export interface ContaContabilRefMin { id: string; codigo: string; descricao: string; }
 
 /**
