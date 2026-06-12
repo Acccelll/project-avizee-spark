@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { BrandLoader } from "./BrandLoader";
 
 export type SpinnerSize = "sm" | "md" | "lg";
 
@@ -77,7 +76,7 @@ export function FullPageSpinner({ label = "Carregando...", hideLabel = false }: 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <BrandLoader size="lg" label={label} />
+        <Spinner size="lg" label={label} />
         {!hideLabel && (
           <p className="text-sm text-muted-foreground" aria-hidden="true">
             {label}
@@ -99,7 +98,7 @@ export function ContentSpinner({ label = "Carregando...", hideLabel = false }: P
   return (
     <div className="flex items-center justify-center flex-1 min-h-[calc(100vh-4rem)]">
       <div className="flex flex-col items-center gap-3">
-        <BrandLoader size="md" label={label} />
+        <Spinner size="md" label={label} />
         {!hideLabel && (
           <p className="text-sm text-muted-foreground" aria-hidden="true">
             {label}
