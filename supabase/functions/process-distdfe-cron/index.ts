@@ -177,6 +177,57 @@ async function baixarXmlCompletoChave(
   }
 }
 
+/**
+ * Extrai campos básicos de um XML procNFe/nfeProc para popular as colunas
+ * de listagem em `nfe_distribuicao`. Restringe a busca de CNPJ/xNome ao bloco
+ * <emit> para não confundir com <infRespTec> (responsável técnico), e ao
+ * <ICMSTot> para o valor total. Tolera ordens diferentes dos elementos.
+ */
+function extrairCamposBasicosDoXml(xml: string): {
+  cnpjEmitente?: string;
+  nomeEmitente?: string;
+  ufEmitente?: string;
+  numero?: string;
+  serie?: string;
+  dataEmissao?: string;
+  valorTotal?: number;
+  naturezaOperacao?: string;
+  cnpjDestinatario?: string;
+  nomeDestinatario?: string;
+} {
+  if (!xml || typeof xml !== "string" || !xml.includes("<")) return {};
+  const emit = /<emit\b[^>]*>([\s\S]*?)<\/emit>/i.exec(xml)?.[1] ?? "";
+  const dest = /<dest\b[^>]*>([\s\S]*?)<\/dest>/i.exec(xml)?.[1] ?? "";
+  const ide = /<ide\b[^>]*>([\s\S]*?)<\/ide>/i.exec(xml)?.[1] ?? "";
+  const total = /<ICMSTot\b[^>]*>([\s\S]*?)<\/ICMSTot>/i.exec(xml)?.[1] ?? "";
+  const inBlock = (block: string, t: string): string | undefined =>
+    new RegExp(`<${t}[^>]*>([\\s\\S]*?)<\\/${t}>`, "i").exec(block)?.[1]?.trim();
+
+  const cnpj = inBlock(emit, "CNPJ");
+  const nome = inBlock(emit, "xNome");
+  const uf = inBlock(emit, "UF");
+  const numero = inBlock(ide, "nNF");
+  const serie = inBlock(ide, "serie");
+  const dhEmi = inBlock(ide, "dhEmi");
+  const natOp = inBlock(ide, "natOp");
+  const vNF = inBlock(total, "vNF");
+  const vNum = vNF ? Number(vNF) : undefined;
+  const cnpjDest = inBlock(dest, "CNPJ") ?? inBlock(dest, "CPF");
+  const nomeDest = inBlock(dest, "xNome");
+  return {
+    cnpjEmitente: cnpj || undefined,
+    nomeEmitente: nome || undefined,
+    ufEmitente: uf || undefined,
+    numero: numero || undefined,
+    serie: serie || undefined,
+    dataEmissao: dhEmi || undefined,
+    valorTotal: Number.isFinite(vNum) ? vNum : undefined,
+    naturezaOperacao: natOp || undefined,
+    cnpjDestinatario: cnpjDest || undefined,
+    nomeDestinatario: nomeDest || undefined,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -375,15 +426,25 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Para procNFe, extrai metadados direto do XML completo (mais
+        // confiável que o `resumo` leve da Distribuição, que usa o 1º <CNPJ>
+        // do XML e pode capturar o do <infRespTec>).
+        const basicos = tipoDoc === "procNFe" && d.xml
+          ? extrairCamposBasicosDoXml(d.xml)
+          : {};
         const payload = {
           chave_acesso: d.chave!,
           nsu: d.nsu,
-          cnpj_emitente: r.cnpjEmitente ?? null,
-          nome_emitente: r.nomeEmitente ?? null,
-          numero: r.numero ?? null,
-          serie: r.serie ?? null,
-          data_emissao: r.dataEmissao ?? null,
-          valor_total: r.valorTotal ?? null,
+          cnpj_emitente: basicos.cnpjEmitente ?? r.cnpjEmitente ?? null,
+          nome_emitente: basicos.nomeEmitente ?? r.nomeEmitente ?? null,
+          uf_emitente: basicos.ufEmitente ?? null,
+          numero: basicos.numero ?? r.numero ?? null,
+          serie: basicos.serie ?? r.serie ?? null,
+          data_emissao: basicos.dataEmissao ?? r.dataEmissao ?? null,
+          valor_total: basicos.valorTotal ?? r.valorTotal ?? null,
+          natureza_operacao: basicos.naturezaOperacao ?? null,
+          cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+          nome_destinatario: basicos.nomeDestinatario ?? null,
           status_manifestacao: "sem_manifestacao",
           tipo_documento: tipoDoc,
           // procNFe traz a NF-e completa autorizada — guardamos o XML.
@@ -437,9 +498,26 @@ Deno.serve(async (req) => {
                 anonKey,
               );
               if (xmlCompleto) {
+                // Re-extrai metadados do XML completo (resNFe não traz
+                // numero/serie/UF/natOp), senão a linha fica só com xml e
+                // todo o restante NULL na listagem do Portal Fiscal.
+                const basicosFull = extrairCamposBasicosDoXml(xmlCompleto);
                 await admin
                   .from("nfe_distribuicao")
-                  .update({ xml_nfe: xmlCompleto })
+                  .update({
+                    xml_nfe: xmlCompleto,
+                    tipo_documento: "procNFe",
+                    cnpj_emitente: basicosFull.cnpjEmitente ?? null,
+                    nome_emitente: basicosFull.nomeEmitente ?? null,
+                    uf_emitente: basicosFull.ufEmitente ?? null,
+                    numero: basicosFull.numero ?? null,
+                    serie: basicosFull.serie ?? null,
+                    data_emissao: basicosFull.dataEmissao ?? null,
+                    valor_total: basicosFull.valorTotal ?? null,
+                    natureza_operacao: basicosFull.naturezaOperacao ?? null,
+                    cnpj_destinatario: basicosFull.cnpjDestinatario ?? null,
+                    nome_destinatario: basicosFull.nomeDestinatario ?? null,
+                  })
                   .eq("chave_acesso", d.chave!);
               }
             } else {
