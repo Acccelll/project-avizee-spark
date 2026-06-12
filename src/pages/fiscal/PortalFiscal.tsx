@@ -350,15 +350,24 @@ export default function PortalFiscal() {
           `${r.duplicados} existente(s)`,
           `${lotes} lote(s)`,
         ].join(" · ");
-        const desc =
-          restantes > 0
-            ? `${partes}. Ainda restam ~${restantes} documento(s) na fila — clique em Sincronizar novamente.`
-            : nfes === 0 && (r.novos ?? 0) > 0
-              ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
-              : partes;
-        toast.success("Sincronização concluída", {
-          description: desc,
-        });
+        // "Cursor parado": o AN devolveu apenas duplicatas e ainda há fila.
+        // Costuma ser quirk transitório do AN para o NSU atual. Aviso ao invés
+        // de sucesso para o usuário não achar que perdeu tempo.
+        const cursorParado =
+          (r.novos ?? 0) === 0 && r.duplicados > 0 && restantes > 0;
+        if (cursorParado) {
+          toast.warning("Sincronização sem novidades", {
+            description: `A SEFAZ devolveu ${r.duplicados} documento(s) que já estavam na base. Cursor permanece em ${r.ultNSU ?? "?"} — restam ~${restantes} no AN. Tente novamente em alguns minutos.`,
+          });
+        } else {
+          const desc =
+            restantes > 0
+              ? `${partes}. Ainda restam ~${restantes} documento(s) na fila — clique em Sincronizar novamente.`
+              : nfes === 0 && (r.novos ?? 0) > 0
+                ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
+                : partes;
+          toast.success("Sincronização concluída", { description: desc });
+        }
         void buscar(aplicados, page, incluirOutros);
         void carregarStatus();
       } else {
