@@ -346,6 +346,23 @@ export async function sincronizarDistDFe(
     }
 
     if (data.cStat === "656") {
+      // Persiste o circuit breaker para o próximo clique cair em
+      // `verificarCircuitBreaker` antes de tocar a SEFAZ — evita que o
+      // usuário "rebloqueie" o CNPJ por insistir no botão Sincronizar.
+      const ate = new Date(Date.now() + 60 * 60_000).toISOString();
+      try {
+        await supabase
+          .from("app_configuracoes")
+          .upsert(
+            {
+              chave: `distdfe_circuit_break_until_${ambienteResolvido}`,
+              valor: { until: ate },
+            },
+            { onConflict: "chave" },
+          );
+      } catch {
+        // best-effort — não derruba o retorno por falha de gravação
+      }
       return {
         sucesso: lotes > 0,
         novos,
@@ -356,7 +373,7 @@ export async function sincronizarDistDFe(
         cStat: "656",
         xMotivo: data.xMotivo ?? "Consumo Indevido",
         erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). Aguarde antes de tentar novamente.",
-        circuitBreaker: { ativo: true, minutosRestantes: 60 },
+        circuitBreaker: { ativo: true, ate, minutosRestantes: 60 },
       };
     }
 

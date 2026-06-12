@@ -49,7 +49,11 @@ import {
 import { AlertCircle, CheckCircle2, Clock, Database } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
+import {
+  sincronizarDistDFe,
+  resolverAmbienteDistDFe,
+  verificarCircuitBreaker,
+} from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
@@ -171,6 +175,14 @@ export default function PortalFiscal() {
   } | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
+  // Circuit breaker: bloqueio temporário do CNPJ pela SEFAZ (cStat 656).
+  // Enquanto ativo, o botão Sincronizar fica desabilitado e nenhuma
+  // requisição é disparada — o próximo clique pioraria o bloqueio.
+  const [bloqueio, setBloqueio] = useState<{
+    ate: string;
+    minutosRestantes: number;
+  } | null>(null);
+
   useEffect(() => {
     void supabase
       .from("empresa_config")
@@ -271,6 +283,19 @@ export default function PortalFiscal() {
         ultimoXmotivo: s?.ultima_resposta_xmotivo ?? null,
         porTipo,
       });
+
+      // Estado do circuit breaker do ambiente ativo.
+      try {
+        const amb = await resolverAmbienteDistDFe();
+        const cb = await verificarCircuitBreaker(amb);
+        if (cb.ativo && cb.ate) {
+          setBloqueio({ ate: cb.ate, minutosRestantes: cb.minutosRestantes ?? 0 });
+        } else {
+          setBloqueio(null);
+        }
+      } catch {
+        setBloqueio(null);
+      }
     } catch {
       // silencioso — card simplesmente não renderiza
     } finally {
@@ -297,6 +322,12 @@ export default function PortalFiscal() {
   };
 
   const sincronizar = async () => {
+    if (bloqueio) {
+      toast.error("Sincronização bloqueada pela SEFAZ", {
+        description: `Aguarde até ${format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })} (~${bloqueio.minutosRestantes} min). Insistir agora prolonga o bloqueio.`,
+      });
+      return;
+    }
     setSyncing(true);
     try {
       const r = await sincronizarDistDFe();
@@ -331,6 +362,12 @@ export default function PortalFiscal() {
         void buscar(aplicados, page, incluirOutros);
         void carregarStatus();
       } else {
+        if (r.circuitBreaker?.ativo && r.circuitBreaker.ate) {
+          setBloqueio({
+            ate: r.circuitBreaker.ate,
+            minutosRestantes: r.circuitBreaker.minutosRestantes ?? 60,
+          });
+        }
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
         });
@@ -535,7 +572,16 @@ export default function PortalFiscal() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => void sincronizar()} disabled={syncing}>
+          <Button
+            variant="outline"
+            onClick={() => void sincronizar()}
+            disabled={syncing || !!bloqueio}
+            title={
+              bloqueio
+                ? `CNPJ bloqueado pela SEFAZ até ${format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })}. Aguarde ~${bloqueio.minutosRestantes} min.`
+                : undefined
+            }
+          >
             {syncing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -597,6 +643,22 @@ export default function PortalFiscal() {
       {/* Card de status da sincronização */}
       {(syncStatus !== null || loadingStatus) && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          {bloqueio && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <div className="font-medium">
+                  CNPJ bloqueado pela SEFAZ até{" "}
+                  {format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })}{" "}
+                  (~{bloqueio.minutosRestantes} min restantes)
+                </div>
+                <div className="text-xs opacity-90">
+                  cStat 656 — Consumo Indevido. Novas tentativas durante o bloqueio
+                  prolongam o período. O botão Sincronizar será reabilitado automaticamente.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Status da sincronização
