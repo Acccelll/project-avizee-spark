@@ -7,8 +7,7 @@
  * adaptativa em vez de um spinner cinza isolado.
  */
 
-import { Spinner } from "@/components/ui/spinner";
-import { useBranding } from "@/hooks/useBranding";
+import { BrandLoader } from "@/components/ui/BrandLoader";
 
 export type AuthLoadingMode = "session" | "permissions" | "restoring";
 
@@ -26,21 +25,13 @@ export interface AuthLoadingScreenProps {
 
 export function AuthLoadingScreen({ mode = "session", label }: AuthLoadingScreenProps) {
   const finalLabel = label ?? LABELS[mode];
-  const branding = useBranding();
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-6 animate-fade-in">
       <div className="flex flex-col items-center gap-6">
-        <img
-          src={branding.logoUrl}
-          alt={branding.marcaTexto || "ERP"}
-          className="h-14 drop-shadow-sm opacity-95"
-        />
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="md" label={finalLabel} />
-          <p className="text-sm text-muted-foreground" aria-hidden="true">
-            {finalLabel}…
-          </p>
-        </div>
+        <BrandLoader size="lg" label={finalLabel} />
+        <p className="text-sm text-muted-foreground" aria-hidden="true">
+          {finalLabel}…
+        </p>
       </div>
     </div>
   );
