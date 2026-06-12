@@ -49,7 +49,11 @@ import {
 import { AlertCircle, CheckCircle2, Clock, Database } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
+import {
+  sincronizarDistDFe,
+  resolverAmbienteDistDFe,
+  verificarCircuitBreaker,
+} from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
@@ -170,6 +174,14 @@ export default function PortalFiscal() {
     porTipo: Record<string, number>;
   } | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
+
+  // Circuit breaker: bloqueio temporário do CNPJ pela SEFAZ (cStat 656).
+  // Enquanto ativo, o botão Sincronizar fica desabilitado e nenhuma
+  // requisição é disparada — o próximo clique pioraria o bloqueio.
+  const [bloqueio, setBloqueio] = useState<{
+    ate: string;
+    minutosRestantes: number;
+  } | null>(null);
 
   useEffect(() => {
     void supabase
