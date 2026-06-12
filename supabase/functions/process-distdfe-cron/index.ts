@@ -177,6 +177,57 @@ async function baixarXmlCompletoChave(
   }
 }
 
+/**
+ * Extrai campos básicos de um XML procNFe/nfeProc para popular as colunas
+ * de listagem em `nfe_distribuicao`. Restringe a busca de CNPJ/xNome ao bloco
+ * <emit> para não confundir com <infRespTec> (responsável técnico), e ao
+ * <ICMSTot> para o valor total. Tolera ordens diferentes dos elementos.
+ */
+function extrairCamposBasicosDoXml(xml: string): {
+  cnpjEmitente?: string;
+  nomeEmitente?: string;
+  ufEmitente?: string;
+  numero?: string;
+  serie?: string;
+  dataEmissao?: string;
+  valorTotal?: number;
+  naturezaOperacao?: string;
+  cnpjDestinatario?: string;
+  nomeDestinatario?: string;
+} {
+  if (!xml || typeof xml !== "string" || !xml.includes("<")) return {};
+  const emit = /<emit\b[^>]*>([\s\S]*?)<\/emit>/i.exec(xml)?.[1] ?? "";
+  const dest = /<dest\b[^>]*>([\s\S]*?)<\/dest>/i.exec(xml)?.[1] ?? "";
+  const ide = /<ide\b[^>]*>([\s\S]*?)<\/ide>/i.exec(xml)?.[1] ?? "";
+  const total = /<ICMSTot\b[^>]*>([\s\S]*?)<\/ICMSTot>/i.exec(xml)?.[1] ?? "";
+  const inBlock = (block: string, t: string): string | undefined =>
+    new RegExp(`<${t}[^>]*>([\\s\\S]*?)<\\/${t}>`, "i").exec(block)?.[1]?.trim();
+
+  const cnpj = inBlock(emit, "CNPJ");
+  const nome = inBlock(emit, "xNome");
+  const uf = inBlock(emit, "UF");
+  const numero = inBlock(ide, "nNF");
+  const serie = inBlock(ide, "serie");
+  const dhEmi = inBlock(ide, "dhEmi");
+  const natOp = inBlock(ide, "natOp");
+  const vNF = inBlock(total, "vNF");
+  const vNum = vNF ? Number(vNF) : undefined;
+  const cnpjDest = inBlock(dest, "CNPJ") ?? inBlock(dest, "CPF");
+  const nomeDest = inBlock(dest, "xNome");
+  return {
+    cnpjEmitente: cnpj || undefined,
+    nomeEmitente: nome || undefined,
+    ufEmitente: uf || undefined,
+    numero: numero || undefined,
+    serie: serie || undefined,
+    dataEmissao: dhEmi || undefined,
+    valorTotal: Number.isFinite(vNum) ? vNum : undefined,
+    naturezaOperacao: natOp || undefined,
+    cnpjDestinatario: cnpjDest || undefined,
+    nomeDestinatario: nomeDest || undefined,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
