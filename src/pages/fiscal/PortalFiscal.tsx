@@ -789,6 +789,11 @@ export default function PortalFiscal() {
                   isso é maior que o número de NF-es completas na base.
                 </div>
               )}
+              <div className="basis-full text-xs text-muted-foreground">
+                Documentos com mais de ~90 dias não ficam disponíveis no
+                Ambiente Nacional — para esses, use <strong>Buscar por chave</strong>{" "}
+                na barra superior.
+              </div>
             </div>
           ) : null}
         </div>
