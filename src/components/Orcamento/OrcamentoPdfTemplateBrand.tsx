@@ -67,7 +67,7 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
     fontFamily: "'Montserrat', 'Inter', system-ui, sans-serif",
     fontVariantNumeric: "tabular-nums",
     fontFeatureSettings: '"tnum" 1, "zero" 0',
-    lineHeight: 1.15,
+    lineHeight: 1.5,
   };
   const labelStyle: React.CSSProperties = {
     fontSize: "8.5px",
@@ -83,10 +83,9 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
     fontWeight: 500,
     color: INK,
     lineHeight: 1.6,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    paddingBottom: "2px",
+    paddingBottom: "4px",
+    minWidth: 0,
+    wordBreak: "break-word",
   };
 
   // Componente Field stacked (label + valor)
