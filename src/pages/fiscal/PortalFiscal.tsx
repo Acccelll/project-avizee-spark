@@ -781,6 +781,14 @@ export default function PortalFiscal() {
                   </span>
                 </div>
               )}
+
+              {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
+                <div className="basis-full text-xs text-muted-foreground">
+                  O universo do AN ({syncStatus.maxNsu} NSU) inclui eventos e
+                  documentos de outros destinatários filtrados pelo CNPJ — por
+                  isso é maior que o número de NF-es completas na base.
+                </div>
+              )}
             </div>
           ) : null}
         </div>
