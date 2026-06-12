@@ -127,7 +127,8 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
     fontSize: "9.5px", textTransform: "uppercase", letterSpacing: "0.12em",
   };
   const tdBase: React.CSSProperties = {
-    padding: "0 10px", height: "36px",
+    padding: "7px 10px", height: "36px", boxSizing: "border-box",
+    lineHeight: 1.35,
     borderBottom: `1px solid ${SOFTRULE}`, color: INK,
     verticalAlign: "middle",
   };
@@ -142,7 +143,7 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
     }}>
       {/* 4.1 — Cabeçalho: 3 células em uma única caixa */}
       <div style={{
-        border: `1px solid ${RULE}`, borderRadius: "4px", overflow: "hidden",
+        border: `1px solid ${RULE}`, borderRadius: "4px",
         display: "grid", gridTemplateColumns: "auto 1fr 200px",
       }}>
         {/* Logo */}
@@ -165,14 +166,14 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
         </div>
         {/* Nº / Data */}
         <div style={{ borderLeft: `1px solid ${RULE}`, display: "grid", gridTemplateRows: "auto auto auto auto" }}>
-          <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Orçamento</div>
-          <div style={{ padding: "4px 10px 12px", textAlign: "center", borderBottom: `1px solid ${RULE}` }}>
-            <span style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.25, color: SECONDARY, display: "inline-block" }}>
+          <div style={{ padding: "6px 10px 4px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Orçamento</div>
+          <div style={{ padding: "2px 10px 8px", textAlign: "center", borderBottom: `1px solid ${RULE}` }}>
+            <span style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3, color: SECONDARY, display: "inline-block" }}>
               Nº <span style={mono}>{numeroDisplay}</span>
             </span>
           </div>
-          <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Data</div>
-          <div style={{ padding: "4px 10px 12px", textAlign: "center", ...mono, fontSize: "13px", fontWeight: 600, color: INK, lineHeight: 1.5 }}>
+          <div style={{ padding: "6px 10px 4px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Data</div>
+          <div style={{ padding: "2px 10px 10px", textAlign: "center", ...mono, fontSize: "13px", fontWeight: 600, color: INK, lineHeight: 1.4 }}>
             {formatDate(data)}
           </div>
         </div>
