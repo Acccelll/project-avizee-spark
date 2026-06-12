@@ -445,7 +445,24 @@ export async function sincronizarDistDFe(
 
     // Atualiza checkpoint após cada lote — assim, se algo falhar no próximo
     // lote, o NSU não é perdido e a próxima sincronização retoma daqui.
-    const novoUltNSU = data.ultNSU ?? ultNSUAtual;
+    let novoUltNSU = data.ultNSU ?? ultNSUAtual;
+    // Fallback defensivo: se o AN devolveu o mesmo ultNSU que enviamos mas
+    // os docZips trazem NSU > cursor, usar o maior NSU recebido. Cobre quirk
+    // do envelope SOAP que faz o parser pegar um ultNSU "eco" no lugar do
+    // ultNSU de resposta. Se nenhum doc é maior, fica inerte (cursor parado).
+    try {
+      if (novoUltNSU === ultNSUAtual && data.docs?.length) {
+        let maxDocNsu = ultNSUAtual;
+        for (const d of data.docs) {
+          if (d.nsu && /^\d+$/.test(d.nsu) && BigInt(d.nsu) > BigInt(maxDocNsu)) {
+            maxDocNsu = d.nsu;
+          }
+        }
+        if (BigInt(maxDocNsu) > BigInt(ultNSUAtual)) novoUltNSU = maxDocNsu;
+      }
+    } catch {
+      // BigInt parse defensiva — mantém novoUltNSU original
+    }
     if (data.cnpj) {
       await supabase.from("nfe_distdfe_sync").upsert(
         {

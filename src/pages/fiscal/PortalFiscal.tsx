@@ -350,15 +350,24 @@ export default function PortalFiscal() {
           `${r.duplicados} existente(s)`,
           `${lotes} lote(s)`,
         ].join(" · ");
-        const desc =
-          restantes > 0
-            ? `${partes}. Ainda restam ~${restantes} documento(s) na fila — clique em Sincronizar novamente.`
-            : nfes === 0 && (r.novos ?? 0) > 0
-              ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
-              : partes;
-        toast.success("Sincronização concluída", {
-          description: desc,
-        });
+        // "Cursor parado": o AN devolveu apenas duplicatas e ainda há fila.
+        // Costuma ser quirk transitório do AN para o NSU atual. Aviso ao invés
+        // de sucesso para o usuário não achar que perdeu tempo.
+        const cursorParado =
+          (r.novos ?? 0) === 0 && r.duplicados > 0 && restantes > 0;
+        if (cursorParado) {
+          toast.warning("Sincronização sem novidades", {
+            description: `A SEFAZ devolveu ${r.duplicados} documento(s) que já estavam na base. Cursor permanece em ${r.ultNSU ?? "?"} — restam ~${restantes} no AN. Tente novamente em alguns minutos.`,
+          });
+        } else {
+          const desc =
+            restantes > 0
+              ? `${partes}. Ainda restam ~${restantes} documento(s) na fila — clique em Sincronizar novamente.`
+              : nfes === 0 && (r.novos ?? 0) > 0
+                ? `${partes}. Apenas eventos foram recebidos — nenhuma NF-e nova aparece no grid.`
+                : partes;
+          toast.success("Sincronização concluída", { description: desc });
+        }
         void buscar(aplicados, page, incluirOutros);
         void carregarStatus();
       } else {
@@ -690,7 +699,12 @@ export default function PortalFiscal() {
                   ) : (
                     <Clock className="h-4 w-4 text-warning flex-shrink-0" />
                   )}
-                  <span className="text-muted-foreground">NSU:</span>
+                  <span
+                    className="text-muted-foreground cursor-help"
+                    title="NSU é o contador interno da SEFAZ por CNPJ. Cada NSU pode ser uma NF-e completa (procNFe), um resumo (resNFe) ou um evento (ciência, cancelamento, manifestação). Por isso o universo do AN costuma ser bem maior que o número de NF-es completas no grid."
+                  >
+                    Cursor NSU (universo AN):
+                  </span>
                   <span className="font-mono font-medium">
                     {syncStatus.ultimoNsu}
                     {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
@@ -765,6 +779,14 @@ export default function PortalFiscal() {
                       .filter(Boolean)
                       .join(" · ") || "nenhum documento ainda"}
                   </span>
+                </div>
+              )}
+
+              {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
+                <div className="basis-full text-xs text-muted-foreground">
+                  O universo do AN ({syncStatus.maxNsu} NSU) inclui eventos e
+                  documentos de outros destinatários filtrados pelo CNPJ — por
+                  isso é maior que o número de NF-es completas na base.
                 </div>
               )}
             </div>

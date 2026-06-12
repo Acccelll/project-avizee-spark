@@ -919,6 +919,18 @@ Deno.serve(async (req) => {
 
     try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
 
+    // Telemetria de diagnóstico: preview do retDistDFeInt + NSUs dos docZips.
+    // Permite distinguir entre cursor travado no AN vs parser pegando o ultNSU
+    // errado quando há eco/aninhamento no envelope SOAP. Não loga conteúdo de
+    // docs — só os atributos NSU (públicos no envelope).
+    try {
+      const retPreview = extrairTag(xmlRetorno, "retDistDFeInt") ?? xmlRetorno;
+      log.info("retDistDFeInt preview", {
+        preview: retPreview.slice(0, 1500),
+        totalBytes: xmlRetorno.length,
+      });
+    } catch (_) { /* best-effort */ }
+
     const parsed = parseRetDistDFeInt(xmlRetorno);
     log.info("retDistDFeInt", {
       cStat: parsed.cStat,
@@ -927,6 +939,7 @@ Deno.serve(async (req) => {
       ultNSU: parsed.ultNSU,
       maxNSU: parsed.maxNSU,
     });
+    log.info("docZips NSUs", { nsus: parsed.docs.map((d) => d.nsu) });
 
     return json({
       sucesso: true,
