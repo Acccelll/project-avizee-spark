@@ -346,6 +346,36 @@ export async function sincronizarDistDFe(
     }
 
     if (data.cStat === "656") {
+      // O AN devolve o ultNSU consolidado mesmo no 656. Se ele for MAIOR que o
+      // nosso cursor (ex.: respondeu 137 quando enviamos 50), significa que
+      // todos os documentos até lá já foram entregues em syncs anteriores.
+      // Persistir esse cursor evita repetir a consulta com NSU antigo após o
+      // desbloqueio — que causaria novo 656 em loop.
+      try {
+        const nsuRetornado = data.ultNSU ?? "";
+        if (
+          /^\d+$/.test(nsuRetornado) &&
+          BigInt(nsuRetornado) > BigInt(ultNSUAtual || "0")
+        ) {
+          const cnpjCursor = data.cnpj ?? syncs?.[0]?.cnpj;
+          if (cnpjCursor) {
+            await supabase.from("nfe_distdfe_sync").upsert(
+              {
+                cnpj: cnpjCursor,
+                ambiente: ambienteResolvido,
+                ultimo_nsu: nsuRetornado,
+                ultima_sync_at: new Date().toISOString(),
+                ultima_resposta_cstat: "656",
+                ultima_resposta_xmotivo: data.xMotivo ?? null,
+              },
+              { onConflict: "cnpj,ambiente" },
+            );
+            ultNSUAtual = nsuRetornado;
+          }
+        }
+      } catch {
+        // best-effort — não derruba o retorno por falha de gravação
+      }
       // Persiste o circuit breaker para o próximo clique cair em
       // `verificarCircuitBreaker` antes de tocar a SEFAZ — evita que o
       // usuário "rebloqueie" o CNPJ por insistir no botão Sincronizar.
@@ -372,7 +402,8 @@ export async function sincronizarDistDFe(
         lotes,
         cStat: "656",
         xMotivo: data.xMotivo ?? "Consumo Indevido",
-        erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). Aguarde antes de tentar novamente.",
+        ultNSU: ultNSUAtual,
+        erro: "O Ambiente Nacional bloqueou consultas para este CNPJ por aproximadamente 1 hora (cStat 656). O cursor foi atualizado — aguarde e tente novamente depois.",
         circuitBreaker: { ativo: true, ate, minutosRestantes: 60 },
       };
     }
