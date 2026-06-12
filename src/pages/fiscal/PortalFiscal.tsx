@@ -246,8 +246,7 @@ export default function PortalFiscal() {
           .maybeSingle(),
         supabase
           .from("nfe_distribuicao")
-          .select("tipo_documento")
-          .eq("ativo", true),
+          .select("tipo_documento"),
       ]);
 
       const porTipo: Record<string, number> = {};
