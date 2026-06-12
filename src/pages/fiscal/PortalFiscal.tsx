@@ -283,6 +283,19 @@ export default function PortalFiscal() {
         ultimoXmotivo: s?.ultima_resposta_xmotivo ?? null,
         porTipo,
       });
+
+      // Estado do circuit breaker do ambiente ativo.
+      try {
+        const amb = await resolverAmbienteDistDFe();
+        const cb = await verificarCircuitBreaker(amb);
+        if (cb.ativo && cb.ate) {
+          setBloqueio({ ate: cb.ate, minutosRestantes: cb.minutosRestantes ?? 0 });
+        } else {
+          setBloqueio(null);
+        }
+      } catch {
+        setBloqueio(null);
+      }
     } catch {
       // silencioso — card simplesmente não renderiza
     } finally {
