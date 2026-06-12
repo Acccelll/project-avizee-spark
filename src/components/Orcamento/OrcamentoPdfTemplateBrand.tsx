@@ -60,6 +60,13 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
   const cepEmpresa = empresa?.cep || "13145-706";
   const cnpjEmpresa = empresa?.cnpj || "53.078.538/0001-85";
   const foneEmpresa = empresa?.telefone || "(19) 99898-2930";
+  const cnpjEmpresaFmt = cpfCnpjMask(cnpjEmpresa);
+  const cepEmpresaFmt = cepMask(cepEmpresa);
+  const foneEmpresaFmt = phoneMask(foneEmpresa);
+  const clienteDocFmt = cliente.cpf_cnpj ? cpfCnpjMask(cliente.cpf_cnpj) : "—";
+  const clienteCepFmt = cliente.cep ? cepMask(cliente.cep) : "—";
+  const clienteFoneFmt = cliente.telefone ? phoneMask(cliente.telefone) : "—";
+  const clienteCelFmt = cliente.celular ? phoneMask(cliente.celular) : "—";
 
   // Tipografia helpers — projeto inteiro usa Montserrat (inclusive PDF).
   // Para colunas/valores numéricos, herdamos Montserrat e ativamos tabular-nums.
@@ -151,9 +158,9 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
           <div style={{ fontSize: "12.5px", fontWeight: 700, letterSpacing: "-0.01em", color: INK }}>{empresaNome}</div>
           <div style={{ marginTop: "4px", color: MUTED, fontSize: "10.5px", lineHeight: 1.55 }}>
             <div>{enderecoEmpresa}</div>
-            <div>Fone: <span style={mono}>{foneEmpresa}</span></div>
-            <div>{cidadeEmpresa} · CEP: <span style={mono}>{cepEmpresa}</span></div>
-            <div>CNPJ: <span style={mono}>{cnpjEmpresa}</span></div>
+            <div>Fone: <span style={mono}>{foneEmpresaFmt}</span></div>
+            <div>{cidadeEmpresa} · CEP: <span style={mono}>{cepEmpresaFmt}</span></div>
+            <div>CNPJ: <span style={mono}>{cnpjEmpresaFmt}</span></div>
           </div>
         </div>
         {/* Nº / Data */}
@@ -190,12 +197,12 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
           <Field label="Bairro" value={cliente.bairro || "—"} />
           <Field label={`Cidade${cliente.uf ? " / UF" : ""}`} value={[cliente.cidade, cliente.uf].filter(Boolean).join(" / ") || "—"} />
           <Field label="E-mail" value={<span style={{ whiteSpace: "normal", wordBreak: "break-all" }}>{cliente.email || "—"}</span>} title={cliente.email} />
-          <Field label="CNPJ / CPF" value={cliente.cpf_cnpj || "—"} monoValue />
+          <Field label="CNPJ / CPF" value={clienteDocFmt} monoValue />
           <Field label="I.E." value={cliente.inscricao_estadual || "—"} monoValue />
-          <Field label="CEP" value={cliente.cep || "—"} monoValue />
+          <Field label="CEP" value={clienteCepFmt} monoValue />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", minWidth: 0 }}>
-            <Field label="Fone" value={cliente.telefone || "—"} monoValue />
-            <Field label="Celular" value={cliente.celular || "—"} monoValue />
+            <Field label="Fone" value={clienteFoneFmt} monoValue />
+            <Field label="Celular" value={clienteCelFmt} monoValue />
           </div>
         </div>
       </div>
