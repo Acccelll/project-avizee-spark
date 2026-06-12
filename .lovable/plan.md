@@ -1,32 +1,53 @@
-# Plano — GIF AviZee como símbolo de carregamento
+# Plano: Bloqueio SEFAZ 656 não pode se repetir a cada clique
 
-## 1. Processar o GIF
-- Copiar `user-uploads://Flat_logo_animation_rotating_gear_202606120954_1.gif` para `/tmp/`.
-- Usar ImageMagick (`nix run nixpkgs#imagemagick`) para remover o fundo preto, preservando a animação:
-  - `convert input.gif -coalesce -fuzz 8% -transparent black -layers Optimize /tmp/avizee-loader.gif`
-- Subir como Lovable Asset (CDN) gerando `src/assets/avizee-loader.gif.asset.json` — evita binário no repositório.
-- QA: abrir 1 frame para confirmar que o fundo ficou transparente e o engrenagem/letras seguem nítidos.
+## Diagnóstico
 
-## 2. Novo componente `BrandLoader`
-Criar `src/components/ui/BrandLoader.tsx`:
-- Renderiza o GIF importado do asset pointer.
-- Props: `size` (`sm` 32px / `md` 56px / `lg` 88px), `label`, `className`.
-- Mantém `role="status"` + `aria-label` para acessibilidade (substituindo o `Spinner` visualmente, mas com semântica equivalente).
-- Como já é animado, não aplica `animate-spin`. Respeita `prefers-reduced-motion` via classe `reduce-motion:opacity-90` (sem hack de pausar GIF, mas reduzindo destaque).
+Olhei o código de `sincronizarDistDFe` (`src/services/fiscal/sefaz/distdfe.service.ts`) e o estado do banco:
 
-## 3. Integração nos pontos de carregamento
-Trocar o `Spinner` pelo `BrandLoader` em:
-- `src/components/ui/spinner.tsx` → `FullPageSpinner` e `ContentSpinner` (tela cheia + fallback do `LazyPage`).
-- `src/components/auth/AuthLoadingScreen.tsx` → substitui o logo estático + `Spinner` por um único `BrandLoader` tamanho `lg` (o GIF já contém marca + movimento).
+- `nfe_distdfe_sync` (ambiente=1): última sync **ontem 21:43**, com `ultimo_nsu=50`, `max_nsu=137`, `cStat=138`. Hoje, ao clicar Sincronizar, a SEFAZ está devolvendo **cStat 656** ("Consumo Indevido — CNPJ bloqueado por ~1h").
+- Existe um circuit breaker client-side (`verificarCircuitBreaker`) que lê `app_configuracoes` na chave `distdfe_circuit_break_until_<ambiente>`. **Essa chave está vazia.** Ninguém grava nela quando o 656 acontece. Resultado: cada clique reabre o chamado contra a SEFAZ, alimenta o bloqueio e devolve o mesmo texto de "1 hora".
+- O botão "Sincronizar SEFAZ" não tem nenhum gate — fica sempre habilitado, mesmo durante o bloqueio.
+- O card de status novo já mostra `cStat 138` da última sync OK, mas não mostra o bloqueio atual.
 
-`Spinner` "inline" (usado dentro de botões/inputs) permanece como anel CSS — GIF não cabe nesses contextos.
+Ou seja: o erro é real (SEFAZ 656), mas o app está **propagando** o problema porque (a) não persiste o bloqueio e (b) não impede novos cliques.
 
-## 4. Verificação
-- Rodar a preview em `/` (rota lazy) para ver o `ContentSpinner` exibindo o GIF transparente sobre o fundo do app.
-- Navegar enquanto auth carrega para validar `AuthLoadingScreen`.
-- Conferir no DevTools que o asset vem via CDN e tem fundo transparente em tema claro **e** escuro.
+## O que muda
 
-## Detalhes técnicos
-- Caminho do asset: `src/assets/avizee-loader.gif.asset.json` (importado como `import loaderAsset from "@/assets/avizee-loader.gif.asset.json"`).
-- Tamanhos do `BrandLoader` aplicam apenas `height`; `width: auto` preserva a proporção do logotipo "AVIZEE + engrenagem".
-- Sem mudanças em telas públicas (Login/Signup) — `AuthBrandingPanel` continua com o logo institucional estático.
+Apenas dois arquivos. Zero migrations, zero edge function nova.
+
+### 1. `src/services/fiscal/sefaz/distdfe.service.ts`
+
+Quando a chamada à edge `sefaz-distdfe` voltar com `cStat === "656"` (já existe o `if` na linha 348), gravar antes do `return`:
+
+```ts
+const until = new Date(Date.now() + 60 * 60_000).toISOString();
+await supabase.from("app_configuracoes").upsert(
+  { chave: `distdfe_circuit_break_until_${ambienteResolvido}`, valor: { until } },
+  { onConflict: "chave" },
+);
+```
+
+E ajustar `minutosRestantes` no retorno para refletir os 60 min reais. Assim o próximo clique já cai no `verificarCircuitBreaker` (linha 279) e nem chega à SEFAZ — exatamente o que a memória `mem://tech/sefaz-mtls-transporte` recomenda para 656.
+
+### 2. `src/pages/fiscal/PortalFiscal.tsx`
+
+- Adicionar estado `bloqueio: { ate: string; minutosRestantes: number } | null`.
+- Em `carregarStatus`, ler `app_configuracoes` da chave `distdfe_circuit_break_until_1` (ou 2). Se `until > now`, preencher `bloqueio`. Se vencido, limpar.
+- Em `sincronizar`, se `r.circuitBreaker?.ativo`, atualizar o `bloqueio` local com o que voltou (evita esperar o reload).
+- Card de status: quando `bloqueio` ativo, mostrar uma faixa vermelha:
+  > "CNPJ bloqueado pela SEFAZ até `HH:MM` (~N min). Aguardando expirar."
+- Botão "Sincronizar SEFAZ": `disabled={syncing || !!bloqueio}`. Tooltip explicando que está aguardando o desbloqueio.
+
+## Por que isso encerra o loop
+
+- Primeiro 656 grava a janela de 60 min em `app_configuracoes`.
+- Próximos cliques caem no breaker antes de qualquer fetch à SEFAZ — não há mais request → não há como o "1 hora" se repetir vindo da SEFAZ.
+- O botão fica desabilitado, então o usuário não consegue mais provocar o mesmo erro acidentalmente.
+- Quando o `until` expira, `carregarStatus` zera `bloqueio`, botão reabilita, fluxo normal volta sozinho.
+
+## Fora de escopo
+
+- Não mexer na edge function `sefaz-distdfe`.
+- Não mudar nada de RLS, RPC, ou estrutura de `nfe_distdfe_sync`.
+- Não alterar o transporte mTLS / Cloudflare Worker.
+- Não mudar a UI de filtros/grid/CSV — só o card de status + estado do botão.
