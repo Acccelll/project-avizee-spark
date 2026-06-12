@@ -409,8 +409,18 @@ export default function OrcamentoForm() {
   const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
-  // isLocked: orçamentos que já saíram de "rascunho" são imutáveis (snapshot histórico).
-  const isLocked = isEdit && !!status && status !== "rascunho";
+  // isLocked: somente estados terminais/derivados são imutáveis.
+  // "rascunho", "pendente" e "aprovado" continuam editáveis para permitir ajustes
+  // antes da conversão em pedido. "convertido", "rejeitado", "expirado" e
+  // "cancelado" permanecem como snapshot histórico — exigem nova revisão.
+  const LOCKED_STATUSES = new Set([
+    "convertido",
+    "rejeitado",
+    "expirado",
+    "cancelado",
+    "historico",
+  ]);
+  const isLocked = isEdit && !!status && LOCKED_STATUSES.has(status);
 
   // Opções de status filtradas por permissão. "Convertido" nunca é selecionável manualmente.
   const statusOptions = useMemo(() => {
@@ -1307,7 +1317,7 @@ export default function OrcamentoForm() {
         </>
       }
     >
-      {isEdit && status && status !== 'rascunho' && (
+      {isEdit && status && isLocked && (
         <Alert variant="default" className="mb-4 border-warning/40 bg-warning/5">
           <Lock className="h-4 w-4" />
           <AlertTitle>Orçamento bloqueado para edição</AlertTitle>
