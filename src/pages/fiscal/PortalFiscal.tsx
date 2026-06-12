@@ -643,6 +643,22 @@ export default function PortalFiscal() {
       {/* Card de status da sincronização */}
       {(syncStatus !== null || loadingStatus) && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          {bloqueio && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <div className="font-medium">
+                  CNPJ bloqueado pela SEFAZ até{" "}
+                  {format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })}{" "}
+                  (~{bloqueio.minutosRestantes} min restantes)
+                </div>
+                <div className="text-xs opacity-90">
+                  cStat 656 — Consumo Indevido. Novas tentativas durante o bloqueio
+                  prolongam o período. O botão Sincronizar será reabilitado automaticamente.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Status da sincronização
