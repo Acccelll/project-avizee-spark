@@ -167,7 +167,7 @@ const Produtos = () => {
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
-    searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
+    searchColumns: ["nome", "sku", "codigo_interno", "ncm", "variacoes_text"],
     pageSize: 50,
     orderBy: sort.orderBy,
     ascending: sort.ascending,
