@@ -57,8 +57,9 @@ interface NFItem {
   valor_unitario: number;
   cst?: string | null;
   cfop?: string | null;
+  descricao?: string | null;
   conta_contabil_id?: string | null;
-  produtos?: { id: string; nome: string; sku: string } | null;
+  produtos?: { id: string; nome: string; sku: string; variacoes?: string[] | null } | null;
   contas_contabeis?: { codigo: string; descricao: string } | null;
 }
 
