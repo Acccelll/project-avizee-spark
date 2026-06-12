@@ -594,6 +594,122 @@ export default function PortalFiscal() {
         </label>
       </div>
 
+      {/* Card de status da sincronização */}
+      {(syncStatus !== null || loadingStatus) && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Status da sincronização
+            </span>
+            <button
+              onClick={() => void carregarStatus()}
+              disabled={loadingStatus}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50"
+              aria-label="Atualizar status"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingStatus ? "animate-spin" : ""}`} />
+              Atualizar
+            </button>
+          </div>
+
+          {loadingStatus && !syncStatus ? (
+            <div className="flex gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-4 w-24 rounded bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : syncStatus ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {syncStatus.ultimoNsu !== null && (
+                <div className="flex items-center gap-1.5">
+                  {syncStatus.maxNsu &&
+                  BigInt(syncStatus.ultimoNsu || "0") >= BigInt(syncStatus.maxNsu || "0") ? (
+                    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                  ) : (
+                    <Clock className="h-4 w-4 text-warning flex-shrink-0" />
+                  )}
+                  <span className="text-muted-foreground">NSU:</span>
+                  <span className="font-mono font-medium">
+                    {syncStatus.ultimoNsu}
+                    {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
+                      <span className="text-muted-foreground"> / {syncStatus.maxNsu}</span>
+                    )}
+                  </span>
+                  {syncStatus.maxNsu &&
+                    BigInt(syncStatus.ultimoNsu || "0") < BigInt(syncStatus.maxNsu || "0") && (
+                      <span className="text-xs font-medium text-warning">
+                        (~{Number(
+                          BigInt(syncStatus.maxNsu) - BigInt(syncStatus.ultimoNsu || "0"),
+                        )}{" "}
+                        pendentes — clique em Sincronizar)
+                      </span>
+                    )}
+                </div>
+              )}
+
+              {syncStatus.ultimaSyncAt && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span>
+                    Última sync:{" "}
+                    <span className="text-foreground">
+                      {format(new Date(syncStatus.ultimaSyncAt), "dd/MM HH:mm", { locale: ptBR })}
+                    </span>
+                  </span>
+                </div>
+              )}
+
+              {syncStatus.ultimoCstat && (
+                <div className="flex items-center gap-1.5">
+                  {syncStatus.ultimoCstat === "137" || syncStatus.ultimoCstat === "138" ? (
+                    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-warning flex-shrink-0" />
+                  )}
+                  <span className="text-muted-foreground">cStat:</span>
+                  <span className="font-mono font-medium">{syncStatus.ultimoCstat}</span>
+                  {syncStatus.ultimoXmotivo && (
+                    <span
+                      className="text-muted-foreground text-xs truncate max-w-[200px]"
+                      title={syncStatus.ultimoXmotivo}
+                    >
+                      — {syncStatus.ultimoXmotivo}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {Object.keys(syncStatus.porTipo).length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Database className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground">Na base:</span>
+                  <span className="text-foreground text-xs">
+                    {[
+                      syncStatus.porTipo["procNFe"]
+                        ? `${syncStatus.porTipo["procNFe"]} NF-e completas`
+                        : null,
+                      syncStatus.porTipo["resNFe"]
+                        ? `${syncStatus.porTipo["resNFe"]} resumos`
+                        : null,
+                      (syncStatus.porTipo["resEvento"] ?? 0) +
+                        (syncStatus.porTipo["procEventoNFe"] ?? 0) >
+                      0
+                        ? `${
+                            (syncStatus.porTipo["resEvento"] ?? 0) +
+                            (syncStatus.porTipo["procEventoNFe"] ?? 0)
+                          } eventos`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "nenhum documento ainda"}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
