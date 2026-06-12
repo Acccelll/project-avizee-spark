@@ -57,8 +57,9 @@ interface NFItem {
   valor_unitario: number;
   cst?: string | null;
   cfop?: string | null;
+  descricao?: string | null;
   conta_contabil_id?: string | null;
-  produtos?: { id: string; nome: string; sku: string } | null;
+  produtos?: { id: string; nome: string; sku: string; variacoes?: string[] | null } | null;
   contas_contabeis?: { codigo: string; descricao: string } | null;
 }
 
@@ -364,7 +365,20 @@ export function NotaFiscalDrawer({
                         <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
                       </RelationalLink>
                     ) : (
-                      <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
+                      <span className="font-medium text-sm truncate block">{i.produtos?.nome || i.descricao || "—"}</span>
+                    )}
+                    {i.descricao && i.descricao !== i.produtos?.nome && (
+                      <span className="block text-[11px] text-muted-foreground mt-0.5 break-words">{i.descricao}</span>
+                    )}
+                    {Array.isArray(i.produtos?.variacoes) && i.produtos!.variacoes!.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {i.produtos!.variacoes!.slice(0, 3).map((v, k) => (
+                          <Badge key={k} variant="secondary" className="text-[10px]">{v}</Badge>
+                        ))}
+                        {i.produtos!.variacoes!.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground">+{i.produtos!.variacoes!.length - 3}</span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="font-mono font-bold text-sm shrink-0">
@@ -406,13 +420,30 @@ export function NotaFiscalDrawer({
                 {items.map((i, idx) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-3 py-2">
-                      {i.produtos?.id ? (
-                        <RelationalLink type="produto" id={i.produtos.id}>
-                          <span className="truncate max-w-[120px] block">{i.produtos?.nome || "—"}</span>
-                        </RelationalLink>
-                      ) : (
-                        i.produtos?.nome || "—"
-                      )}
+                      <div className="min-w-0">
+                        {i.produtos?.id ? (
+                          <RelationalLink type="produto" id={i.produtos.id}>
+                            <span className="truncate max-w-[200px] block">{i.produtos?.nome || "—"}</span>
+                          </RelationalLink>
+                        ) : (
+                          <span className="truncate max-w-[200px] block">{i.produtos?.nome || i.descricao || "—"}</span>
+                        )}
+                        {i.descricao && i.descricao !== i.produtos?.nome && (
+                          <span className="block text-[10px] text-muted-foreground mt-0.5 max-w-[260px] truncate" title={i.descricao}>
+                            {i.descricao}
+                          </span>
+                        )}
+                        {Array.isArray(i.produtos?.variacoes) && i.produtos!.variacoes!.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {i.produtos!.variacoes!.slice(0, 3).map((v, k) => (
+                              <Badge key={k} variant="secondary" className="text-[10px]">{v}</Badge>
+                            ))}
+                            {i.produtos!.variacoes!.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{i.produtos!.variacoes!.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{i.quantidade}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">

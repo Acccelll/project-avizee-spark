@@ -90,7 +90,7 @@ export async function fetchNotaFiscalDetalhes(notaFiscalId: string) {
     await Promise.all([
       supabase
         .from("notas_fiscais_itens")
-        .select("*, produtos(id, nome, sku)")
+        .select("*, produtos(id, nome, sku, variacoes)")
         .eq("nota_fiscal_id", notaFiscalId),
       supabase
         .from("financeiro_lancamentos")

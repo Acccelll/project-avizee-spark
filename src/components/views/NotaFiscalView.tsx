@@ -19,7 +19,8 @@ interface NfViewItem {
   quantidade: number | null;
   valor_unitario: number | null;
   valor_total: number | null;
-  produtos?: { id: string; nome: string; sku: string | null } | null;
+  descricao?: string | null;
+  produtos?: { id: string; nome: string; sku: string | null; variacoes?: string[] | null } | null;
 }
 
 interface NfDetail {
@@ -48,7 +49,7 @@ export function NotaFiscalView({ id }: Props) {
 
     const { data: it, error: itErr } = await supabase
       .from("notas_fiscais_itens")
-      .select("*, produtos(id, nome, sku)")
+      .select("*, produtos(id, nome, sku, variacoes)")
       .eq("nota_fiscal_id", nfId)
       .abortSignal(signal);
     if (itErr) throw itErr;
@@ -131,9 +132,26 @@ export function NotaFiscalView({ id }: Props) {
                 {items.map((i, idx) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2">
-                      <button onClick={() => pushView("produto", i.produtos?.id)} className="text-left hover:underline block truncate max-w-[120px]">
-                        {i.produtos?.nome || "—"}
-                      </button>
+                      <div className="min-w-0 max-w-[180px]">
+                        <button onClick={() => pushView("produto", i.produtos?.id)} className="text-left hover:underline block truncate w-full">
+                          {i.produtos?.nome || i.descricao || "—"}
+                        </button>
+                        {i.descricao && i.descricao !== i.produtos?.nome && (
+                          <span className="block text-[10px] text-muted-foreground truncate" title={i.descricao}>
+                            {i.descricao}
+                          </span>
+                        )}
+                        {Array.isArray(i.produtos?.variacoes) && i.produtos!.variacoes!.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {i.produtos!.variacoes!.slice(0, 2).map((v, k) => (
+                              <span key={k} className="inline-flex items-center rounded-full border bg-muted/50 px-1.5 py-0 text-[9px] text-muted-foreground">{v}</span>
+                            ))}
+                            {i.produtos!.variacoes!.length > 2 && (
+                              <span className="text-[9px] text-muted-foreground">+{i.produtos!.variacoes!.length - 2}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-xs">{i.quantidade}</td>
                     <td className="px-2 py-2 text-right font-mono text-xs font-medium">{formatCurrency(i.valor_total || (i.quantidade ?? 0) * (i.valor_unitario ?? 0))}</td>

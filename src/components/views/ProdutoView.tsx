@@ -59,6 +59,7 @@ interface ProdutoDetail {
   composicao: ComposicaoItemRow[];
   movimentos: MovimentoEstoqueRow[];
   fornecedoresProd: ProdutoFornecedorViewRow[];
+  custoMaxEntrada: number | null;
 }
 
 export function ProdutoView({ id }: Props) {
@@ -74,7 +75,7 @@ export function ProdutoView({ id }: Props) {
   const { data, loading, error } = useDetailFetch<ProdutoDetail>(id, async (pId, signal) => {
     const res = await fetchProdutoDetalhes(pId, signal);
     if (!res) return null;
-    const { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes } = res;
+    const { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes, custoMaxRes } = res;
 
     const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T): T => {
       if (r.status !== "fulfilled") return fallback;
@@ -88,6 +89,10 @@ export function ProdutoView({ id }: Props) {
     const movData = pickData(movRes, [] as unknown[]);
     const fornData = pickData(fornRes, [] as unknown[]);
     const grupoData = pickData(grupoRes, null as Record<string, unknown> | null);
+    const custoMaxData = pickData(custoMaxRes, [] as Array<{ valor_unitario: number | null }>);
+    const custoMaxEntrada = Array.isArray(custoMaxData) && custoMaxData.length > 0
+      ? Number(custoMaxData[0]?.valor_unitario ?? 0) || null
+      : null;
 
     return {
       produto: p,
@@ -104,6 +109,7 @@ export function ProdutoView({ id }: Props) {
       })),
       movimentos: movData as MovimentoEstoqueRow[],
       fornecedoresProd: fornData as ProdutoFornecedorViewRow[],
+      custoMaxEntrada,
     };
   });
 
@@ -114,13 +120,19 @@ export function ProdutoView({ id }: Props) {
   const composicao = data?.composicao ?? [];
   const movimentos = data?.movimentos ?? [];
   const fornecedoresProd = data?.fornecedoresProd ?? [];
+  // Custo doutrinário: maior valor unitário pago em entradas (decisão do usuário).
+  // Fallback para `preco_custo` cadastrado quando ainda não há histórico de entradas.
+  const custoMaxEntrada = data?.custoMaxEntrada ?? null;
+  const custoEfetivo = custoMaxEntrada != null && custoMaxEntrada > 0
+    ? custoMaxEntrada
+    : Number(selected?.preco_custo || 0);
 
-  const selectedMargem = selected && (selected.preco_custo || 0) > 0 ? (selected.preco_venda / (selected.preco_custo || 1) - 1) * 100 : 0;
-  const lucroBruto = selected ? selected.preco_venda - (selected.preco_custo || 0) : 0;
+  const selectedMargem = selected && custoEfetivo > 0 ? (selected.preco_venda / (custoEfetivo || 1) - 1) * 100 : 0;
+  const lucroBruto = selected ? selected.preco_venda - custoEfetivo : 0;
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
-  const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
+  const estoqueValor = selected ? (selected.estoque_atual || 0) * custoEfetivo : 0;
 
-  const custoNum = Number(selected?.preco_custo || 0);
+  const custoNum = custoEfetivo;
   const vendaNum = Number(selected?.preco_venda || 0);
   const markupPct = custoNum > 0 ? ((vendaNum / custoNum) - 1) * 100 : null;
   const margemSobreVendaPct = vendaNum > 0 ? ((vendaNum - custoNum) / vendaNum) * 100 : null;
@@ -135,8 +147,8 @@ export function ProdutoView({ id }: Props) {
   const totalVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0), 0);
   const valorVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
   const ticketMedioVenda = totalVendido > 0 ? valorVendido / totalVendido : 0;
-  const margemMediaVenda = ticketMedioVenda > 0 && (selected?.preco_custo || 0) > 0
-    ? ((ticketMedioVenda / Number(selected!.preco_custo)) - 1) * 100
+  const margemMediaVenda = ticketMedioVenda > 0 && custoEfetivo > 0
+    ? ((ticketMedioVenda / custoEfetivo) - 1) * 100
     : 0;
 
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
@@ -313,7 +325,12 @@ export function ProdutoView({ id }: Props) {
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
-        <DrawerSummaryCard label="Custo" value={formatCurrency(selected.preco_custo || 0)} align="center" />
+        <DrawerSummaryCard
+          label="Custo"
+          value={formatCurrency(custoEfetivo)}
+          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor pago em entradas" : undefined}
+          align="center"
+        />
         <DrawerSummaryCard
           label="Lucro Bruto"
           value={formatCurrency(lucroBruto)}
@@ -322,7 +339,7 @@ export function ProdutoView({ id }: Props) {
         />
         <DrawerSummaryCard
           label="Margem"
-          value={(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
+          value={custoEfetivo > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
           tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
           align="center"
         />
@@ -545,8 +562,12 @@ export function ProdutoView({ id }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Custo</span>
-                <p className="font-mono font-semibold text-lg">{formatCurrency(selected.preco_custo || 0)}</p>
-                {semCusto && <p className="text-[10px] text-warning mt-0.5">Sem custo</p>}
+                <p className="font-mono font-semibold text-lg">{formatCurrency(custoEfetivo)}</p>
+                {custoMaxEntrada != null && custoMaxEntrada > 0 ? (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Maior valor pago em entradas</p>
+                ) : semCusto ? (
+                  <p className="text-[10px] text-warning mt-0.5">Sem custo</p>
+                ) : null}
               </div>
               <div>
                 <Tooltip>
@@ -798,7 +819,7 @@ export function ProdutoView({ id }: Props) {
                 <DrawerSummaryCard label="Ticket Médio" value={formatCurrency(ticketMedioVenda)} align="center" />
                 <DrawerSummaryCard
                   label="Margem Méd."
-                  value={(selected.preco_custo || 0) > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
+                  value={custoEfetivo > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
                   tone={margemMediaVenda > 0 ? "success" : margemMediaVenda < 0 ? "destructive" : "neutral"}
                   align="center"
                 />
