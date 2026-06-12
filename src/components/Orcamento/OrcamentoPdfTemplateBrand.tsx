@@ -166,13 +166,13 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
         {/* Nº / Data */}
         <div style={{ borderLeft: `1px solid ${RULE}`, display: "grid", gridTemplateRows: "auto auto auto auto" }}>
           <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Orçamento</div>
-          <div style={{ padding: "4px 10px 8px", textAlign: "center", borderBottom: `1px solid ${RULE}` }}>
-            <span style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1, color: SECONDARY }}>
+          <div style={{ padding: "4px 10px 12px", textAlign: "center", borderBottom: `1px solid ${RULE}` }}>
+            <span style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.25, color: SECONDARY, display: "inline-block" }}>
               Nº <span style={mono}>{numeroDisplay}</span>
             </span>
           </div>
           <div style={{ padding: "6px 10px 2px", textAlign: "center", borderBottom: `1px solid ${SOFTRULE}`, ...labelStyle }}>Data</div>
-          <div style={{ padding: "4px 10px 8px", textAlign: "center", ...mono, fontSize: "13px", fontWeight: 600, color: INK }}>
+          <div style={{ padding: "4px 10px 12px", textAlign: "center", ...mono, fontSize: "13px", fontWeight: 600, color: INK, lineHeight: 1.5 }}>
             {formatDate(data)}
           </div>
         </div>
@@ -261,8 +261,8 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
             padding: "10px", display: "flex", flexDirection: "column", gap: "4px",
             minWidth: 0, borderRight: i < 5 ? `1px solid ${SOFTRULE}` : `1px solid ${SOFTRULE}`,
           }}>
-            <span style={{ fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cell.label}</span>
-            <span style={{ ...mono, fontSize: "11.5px", fontWeight: 600, color: INK, whiteSpace: "nowrap" }}>{fmtMoney(cell.value)}</span>
+            <span style={{ fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, color: MUTED, lineHeight: 1.5, paddingBottom: "2px" }}>{cell.label}</span>
+            <span style={{ ...mono, fontSize: "11.5px", fontWeight: 600, color: INK, lineHeight: 1.5, paddingBottom: "2px" }}>{fmtMoney(cell.value)}</span>
           </div>
         ))}
         <div style={{
