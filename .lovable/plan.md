@@ -1,74 +1,60 @@
-## Por que só vieram NF-es de Maio (e nem todas)
+## Objetivo
+Fazer a leitura de código de barras (CODE-128 do DANFE) e QR Code (NFC-e) funcionar de fato nos modos **Câmera ao vivo** e **Tirar foto** da NF de Entrada. Manter intactos os modos Digitar e Upload (que já funcionam) e a interface do dialog.
 
-### Diagnóstico (dados reais)
+## Diagnóstico
 
-Estado atual da base e do cursor (`nfe_distdfe_sync` ambiente=1, CNPJ 53.078.538/0001-85):
+`src/pages/fiscal/hooks/useQrScanner.ts` hoje:
 
-- `ultimo_nsu` = **137**, `max_nsu` = **137**, último `cStat` = **656** (Consumo Indevido).
-- `nfe_distribuicao`: **11 linhas** (5 procNFe + 6 eventos), NSUs entre **10 e 46**, datas de emissão entre **06/05/2026 e 14/05/2026**.
+- Em **câmera ao vivo** decodifica apenas via ZXing varrendo frames do elemento `<video>` na resolução do preview (640–1280 px). Para CODE-128 de 44 dígitos do DANFE essa resolução é insuficiente — câmera abre, mas o callback de detecção nunca dispara.
+- Em **Tirar foto** (com câmera já ativa) usa `canvas.drawImage(video)` em `video.videoWidth/Height` — captura o mesmo frame do preview, não uma foto em resolução de sensor. Resultado idêntico ao live: nada detectado.
+- Nunca tenta `window.BarcodeDetector` (suportado em Chrome Android e Edge), que decodifica CODE-128 em tempo real com a câmera traseira.
+- Não pede `focusMode: continuous` nem ajusta zoom; sem ROI no centro.
 
-Cruzando com o histórico de syncs no `distdfe.service.ts`, há **duas causas distintas** para o que o usuário está vendo:
+Os caminhos **Digitar/colar** e **Upload de imagem** continuam funcionando — não serão alterados.
 
-### 1. Por que "só Maio" — janela de 90 dias do Ambiente Nacional
+## Mudanças
 
-O AN só mantém disponível para download (DistDFe) os documentos dos **últimos ~90 dias** por CNPJ. A primeira sincronização foi em 09/06/2026; o menor NSU devolvido pelo AN foi **10** com emissão em **06/05/2026**, ou seja: o primeiro NSU disponível para esse CNPJ já era de Maio. Documentos anteriores a essa janela (Março/Abril, e Maio antes do dia 06) **não estão mais no AN** — só podem ser recuperados via `consChNFe` por chave específica (consulta avulsa). É comportamento da SEFAZ, não bug do ERP.
+Editar **um único arquivo**: `src/pages/fiscal/hooks/useQrScanner.ts`.
 
-### 2. Por que "nem todas de Maio" — o cursor pulou docs sem baixá-los
+### 1. Detector híbrido em camadas
+Criar uma função interna `decodificarBitmapOuVideo(source, formats)` que tenta, nesta ordem:
+1. `window.BarcodeDetector` se existir e listar `code_128` / `qr_code` em `getSupportedFormats()` — passar `ImageBitmap`/`HTMLVideoElement`.
+2. ZXing (`BrowserMultiFormatReader.decodeFromImageElement` / `decodeFromCanvas`) como fallback.
 
-O AN devolveu o primeiro lote com `ultNSU=50` trazendo 50 docZips, mas apenas **11** foram persistidos (NSUs 10, 13, 23, 24, 29, 30, 32, 34, 40, 41, 46). Os outros 39 NSUs do intervalo 1–50 foram descartados porque o filtro `docs.filter(d => d.chave && /^\d{44}$/.test(d.chave))` em `distdfe.service.ts:412` rejeita qualquer docZip sem chave de 44 dígitos — **incluindo `resNFe` (resumos), `procEventoNFe` e `resEvento` que vêm sem a chave extraída no parser**, e schemas auxiliares do AN (resCancNFe, etc.).
+Centralizar para que **live**, **tirar foto** e **upload** usem o mesmo pipeline e a mesma normalização de retorno (`text`).
 
-Esse filtro é defensivo demais. O esperado é:
-- `resNFe`: tem chave de 44 dígitos no XML — deveria ser persistido. Se não foi, é falha do parser que extrai `chave` no edge function (não está pegando do `<resNFe>` quando o `procNFe` completo não veio).
-- `procEventoNFe` / `resEvento`: têm chave de 44 dígitos da NF-e referenciada — deveriam ser persistidos como evento.
+### 2. Câmera ao vivo
+- Em `iniciarCamera`, após `getUserMedia`, pedir `track.applyConstraints({ advanced: [{ focusMode: "continuous" }] })` (try/catch silencioso — nem todo device suporta).
+- Subir `width/height` para `{ ideal: 2560, min: 1280 }` para aumentar a chance de decode em CODE-128.
+- Substituir o loop `reader.decodeFromStream` por:
+  - **Se BarcodeDetector disponível**: `requestAnimationFrame` chamando `detector.detect(video)` a cada ~200 ms. Ao retornar resultado, parar e disparar `onDetect`.
+  - **Senão**: manter ZXing `decodeFromStream` (comportamento atual), com `tryHarder` e `delayBetweenScanAttempts: 120`.
+- Ambos respeitam `IScannerControls`-like (`stop`) já usado pelo `pararCamera`.
 
-Pior: depois desse lote, o próximo clique recebeu `cStat 656` (consumo indevido). A correção anterior (do turno passado) avançou o cursor para **137** lendo `data.ultNSU` da resposta 656. Isso é incorreto: no 656, o AN devolve o **último NSU consolidado entregue para o CNPJ**, não os NSUs ainda não baixados pelo cliente. Resultado: os docs **51–137** foram "pulados" do cursor sem nunca terem sido entregues ao ERP, e agora não voltam mais — a única forma de recuperá-los é resetar o cursor.
+### 3. Tirar foto (câmera ativa)
+Reescrever `tirarFoto`:
+1. Pegar a `MediaStreamTrack` ativa.
+2. Se `ImageCapture` existir: `new ImageCapture(track).takePhoto()` → `Blob` → `createImageBitmap(blob)` (resolução de foto, alta).
+3. Fallback: `imageCapture.grabFrame()` (já melhor que `videoWidth`) → `ImageBitmap`.
+4. Fallback final: canvas a partir de `video` (comportamento atual) usando `track.getSettings().width/height` quando disponível.
+5. Passar o resultado pelo detector híbrido. Em sucesso, parar câmera + `onDetect`; em falha, mensagem específica orientando aproximar e manter paralelo.
 
-### O que muda
+### 4. Upload de imagem
+Reusar o mesmo detector híbrido (`decodeFromImageUrl` → `createImageBitmap` + BarcodeDetector quando disponível, ZXing como fallback). Mantém comportamento mas melhora taxa de leitura em fotos de DANFE.
 
-#### A. Reset do cursor + remoção da lógica errada de avanço no 656
+### 5. Mensagens e UX
+- Manter assinatura/contrato exportado de `useQrScanner` — `FiscalChaveScannerDialog` não precisa mudar.
+- Erros: distinguir "câmera não suporta foto em alta resolução" (informativo, ainda tenta canvas) de "decoder não reconheceu" (acionável).
 
-Migration: voltar `nfe_distdfe_sync.ultimo_nsu` para `'000000000000000'` (zerar) para reentregar todos os 137 NSUs do universo na próxima sincronização. `ultima_resposta_cstat` e `xmotivo` resetados.
+## Fora de escopo
+- Alterar `FiscalChaveScannerDialog.tsx` (UI), `chaveAcesso.parser.ts` ou tipos.
+- Tocar em backend, RLS, edge functions, fluxo de sincronização SEFAZ.
+- Suporte a PDF direto (continua exigindo print).
+- Tornar o app PWA/Capacitor.
 
-```sql
-UPDATE public.nfe_distdfe_sync
-   SET ultimo_nsu = '000000000000000',
-       ultima_resposta_cstat = NULL,
-       ultima_resposta_xmotivo = 'Cursor resetado em <data> para recuperar docs perdidos por avanço indevido no 656',
-       updated_at = now()
- WHERE cnpj = '53078538000185' AND ambiente = 1;
-```
-
-Também limpar o circuit breaker da chave `app_configuracoes.distdfe_circuit_break_until_1` se ainda estiver ativo.
-
-Em `src/services/fiscal/sefaz/distdfe.service.ts` (linhas 348–409): **remover** o trecho que faz `upsert` do `ultimo_nsu` com o valor devolvido no 656. No 656 o cursor **fica parado** — só o circuit breaker é persistido e o usuário aguarda 1h. Sem isso, a próxima sincronização tenta o mesmo NSU velho e o AN responde 137 (nenhum doc novo) ou 138 com novo lote.
-
-#### B. Corrigir o filtro que descarta docs sem chave
-
-Em `distdfe.service.ts:412`, a regra atual ignora qualquer docZip sem `d.chave` de 44d. Trocar para uma estratégia em camadas:
-
-1. Se `d.chave` está presente e válida → persistir normalmente.
-2. Se `d.chave` está vazia, tentar extrair da raiz do XML interno (`chNFe`, `chave`, atributo `Id="NFe..."`). Já existe um helper de extração no edge function — espelhar a mesma lógica no cliente como fallback.
-3. Só descartar quando, mesmo após o fallback, não houver chave (eventos de manifestação 3ª parte sem referência).
-
-Logar `console.warn` com `{ nsu, schema, motivo: 'sem_chave_extraivel' }` para qualquer descarte, para visibilidade futura sem precisar mexer no edge function.
-
-#### C. Aviso na UI sobre a janela de 90 dias
-
-Em `src/pages/fiscal/PortalFiscal.tsx`, no card de status do DistDF-e, acrescentar abaixo da linha "Na base":
-
-> "Documentos com mais de ~90 dias não ficam disponíveis no Ambiente Nacional — para esses, use **Buscar por chave** na barra superior."
-
-Sem nova feature; só texto explicativo.
-
-### Verificação
-
-1. Após deploy + migration, clicar **Sincronizar** uma vez.
-2. Esperar `~137 documentos novos` (todos os NSUs 1–137 reentregues pelo AN).
-3. Conferir `nfe_distribuicao`: contagem deve subir de 11 para algo próximo de 50–80 (descontando resumos sem chave e duplicados de evento).
-4. Conferir nos logs do edge function se aparecem `console.warn` de descarte — caso sim, listar para decidir se vale ajustar o parser do edge function em outro turno.
-
-### Fora de escopo
-
-- Não tocar no parser do edge function `sefaz-distdfe` nesta rodada (só o filtro do cliente). Se sobrarem docs sem chave após o fallback, abre-se turno separado.
-- Não implementar UI para `consChNFe` em massa (recuperação de docs > 90 dias) — fora do pedido.
-- Não mexer em RLS, schema de tabelas, transporte mTLS, manifestação automática.
+## Validação
+1. Live preview no desktop (sem BarcodeDetector): câmera abre, ZXing decodifica QR de NFC-e e DANFE quando aproximado.
+2. Chrome Android (com BarcodeDetector): live decodifica CODE-128 do DANFE a ~20 cm.
+3. iPhone Safari (sem BarcodeDetector e sem ImageCapture): "Tirar foto" cai no canvas e usa ZXing — segue funcional para QR; orientar uso de "Imagem" como reserva para CODE-128.
+4. Upload de print PNG do DANFE: decodifica como antes ou melhor.
+5. Rodar `bunx vitest run src/services/fiscal/__tests__/chaveAcesso.parser.test.ts` para garantir que o parser de chave (consumidor final) não regrediu.
