@@ -699,7 +699,12 @@ export default function PortalFiscal() {
                   ) : (
                     <Clock className="h-4 w-4 text-warning flex-shrink-0" />
                   )}
-                  <span className="text-muted-foreground">NSU:</span>
+                  <span
+                    className="text-muted-foreground cursor-help"
+                    title="NSU é o contador interno da SEFAZ por CNPJ. Cada NSU pode ser uma NF-e completa (procNFe), um resumo (resNFe) ou um evento (ciência, cancelamento, manifestação). Por isso o universo do AN costuma ser bem maior que o número de NF-es completas no grid."
+                  >
+                    Cursor NSU (universo AN):
+                  </span>
                   <span className="font-mono font-medium">
                     {syncStatus.ultimoNsu}
                     {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
