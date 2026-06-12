@@ -572,7 +572,16 @@ export default function PortalFiscal() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => void sincronizar()} disabled={syncing}>
+          <Button
+            variant="outline"
+            onClick={() => void sincronizar()}
+            disabled={syncing || !!bloqueio}
+            title={
+              bloqueio
+                ? `CNPJ bloqueado pela SEFAZ até ${format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })}. Aguarde ~${bloqueio.minutosRestantes} min.`
+                : undefined
+            }
+          >
             {syncing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
