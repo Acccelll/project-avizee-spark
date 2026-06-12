@@ -6688,6 +6688,7 @@ export type Database = {
           unidade_tributavel: string | null
           updated_at: string
           variacoes: string[] | null
+          variacoes_text: string | null
         }
         Insert: {
           aliquota_iss?: number | null
@@ -6733,6 +6734,7 @@ export type Database = {
           unidade_tributavel?: string | null
           updated_at?: string
           variacoes?: string[] | null
+          variacoes_text?: string | null
         }
         Update: {
           aliquota_iss?: number | null
@@ -6778,6 +6780,7 @@ export type Database = {
           unidade_tributavel?: string | null
           updated_at?: string
           variacoes?: string[] | null
+          variacoes_text?: string | null
         }
         Relationships: [
           {
