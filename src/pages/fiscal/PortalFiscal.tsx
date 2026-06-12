@@ -322,6 +322,12 @@ export default function PortalFiscal() {
   };
 
   const sincronizar = async () => {
+    if (bloqueio) {
+      toast.error("Sincronização bloqueada pela SEFAZ", {
+        description: `Aguarde até ${format(new Date(bloqueio.ate), "HH:mm", { locale: ptBR })} (~${bloqueio.minutosRestantes} min). Insistir agora prolonga o bloqueio.`,
+      });
+      return;
+    }
     setSyncing(true);
     try {
       const r = await sincronizarDistDFe();
@@ -356,6 +362,12 @@ export default function PortalFiscal() {
         void buscar(aplicados, page, incluirOutros);
         void carregarStatus();
       } else {
+        if (r.circuitBreaker?.ativo && r.circuitBreaker.ate) {
+          setBloqueio({
+            ate: r.circuitBreaker.ate,
+            minutosRestantes: r.circuitBreaker.minutosRestantes ?? 60,
+          });
+        }
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
         });
