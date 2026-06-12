@@ -498,9 +498,26 @@ Deno.serve(async (req) => {
                 anonKey,
               );
               if (xmlCompleto) {
+                // Re-extrai metadados do XML completo (resNFe não traz
+                // numero/serie/UF/natOp), senão a linha fica só com xml e
+                // todo o restante NULL na listagem do Portal Fiscal.
+                const basicosFull = extrairCamposBasicosDoXml(xmlCompleto);
                 await admin
                   .from("nfe_distribuicao")
-                  .update({ xml_nfe: xmlCompleto })
+                  .update({
+                    xml_nfe: xmlCompleto,
+                    tipo_documento: "procNFe",
+                    cnpj_emitente: basicosFull.cnpjEmitente ?? null,
+                    nome_emitente: basicosFull.nomeEmitente ?? null,
+                    uf_emitente: basicosFull.ufEmitente ?? null,
+                    numero: basicosFull.numero ?? null,
+                    serie: basicosFull.serie ?? null,
+                    data_emissao: basicosFull.dataEmissao ?? null,
+                    valor_total: basicosFull.valorTotal ?? null,
+                    natureza_operacao: basicosFull.naturezaOperacao ?? null,
+                    cnpj_destinatario: basicosFull.cnpjDestinatario ?? null,
+                    nome_destinatario: basicosFull.nomeDestinatario ?? null,
+                  })
                   .eq("chave_acesso", d.chave!);
               }
             } else {
