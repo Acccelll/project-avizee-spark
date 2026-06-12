@@ -46,6 +46,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Database } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
@@ -159,6 +160,17 @@ export default function PortalFiscal() {
   const [incluirOutros, setIncluirOutros] = useState(false);
   const [limpando, setLimpando] = useState(false);
 
+  // Status da sincronização
+  const [syncStatus, setSyncStatus] = useState<{
+    ultimoNsu: string | null;
+    maxNsu: string | null;
+    ultimaSyncAt: string | null;
+    ultimoCstat: string | null;
+    ultimoXmotivo: string | null;
+    porTipo: Record<string, number>;
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
   useEffect(() => {
     void supabase
       .from("empresa_config")
@@ -222,6 +234,56 @@ export default function PortalFiscal() {
     void buscar(aplicados, page, incluirOutros);
   }, [aplicados, page, buscar, incluirOutros]);
 
+  const carregarStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    try {
+      const [{ data: sync }, { data: tipos }] = await Promise.all([
+        supabase
+          .from("nfe_distdfe_sync")
+          .select("ultimo_nsu, max_nsu, ultima_sync_at, ultima_resposta_cstat, ultima_resposta_xmotivo")
+          .order("ultima_sync_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("nfe_distribuicao")
+          .select("tipo_documento"),
+      ]);
+
+      const porTipo: Record<string, number> = {};
+      for (const row of tipos ?? []) {
+        const t = (row as { tipo_documento?: string }).tipo_documento ?? "outros";
+        porTipo[t] = (porTipo[t] ?? 0) + 1;
+      }
+
+      const s = sync as {
+        ultimo_nsu?: string | null;
+        max_nsu?: string | null;
+        ultima_sync_at?: string | null;
+        ultima_resposta_cstat?: string | null;
+        ultima_resposta_xmotivo?: string | null;
+      } | null;
+
+      setSyncStatus({
+        ultimoNsu: s?.ultimo_nsu ?? null,
+        maxNsu: s?.max_nsu ?? null,
+        ultimaSyncAt: s?.ultima_sync_at ?? null,
+        ultimoCstat: s?.ultima_resposta_cstat ?? null,
+        ultimoXmotivo: s?.ultima_resposta_xmotivo ?? null,
+        porTipo,
+      });
+    } catch {
+      // silencioso — card simplesmente não renderiza
+    } finally {
+      setLoadingStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void carregarStatus();
+  }, [carregarStatus]);
+
+  const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(aplicados);
+
   const aplicarFiltros = () => {
     setPage(0);
     setAplicados({ ...filtros });
@@ -267,6 +329,7 @@ export default function PortalFiscal() {
           description: desc,
         });
         void buscar(aplicados, page, incluirOutros);
+        void carregarStatus();
       } else {
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
@@ -531,6 +594,122 @@ export default function PortalFiscal() {
         </label>
       </div>
 
+      {/* Card de status da sincronização */}
+      {(syncStatus !== null || loadingStatus) && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Status da sincronização
+            </span>
+            <button
+              onClick={() => void carregarStatus()}
+              disabled={loadingStatus}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50"
+              aria-label="Atualizar status"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingStatus ? "animate-spin" : ""}`} />
+              Atualizar
+            </button>
+          </div>
+
+          {loadingStatus && !syncStatus ? (
+            <div className="flex gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-4 w-24 rounded bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : syncStatus ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {syncStatus.ultimoNsu !== null && (
+                <div className="flex items-center gap-1.5">
+                  {syncStatus.maxNsu &&
+                  BigInt(syncStatus.ultimoNsu || "0") >= BigInt(syncStatus.maxNsu || "0") ? (
+                    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                  ) : (
+                    <Clock className="h-4 w-4 text-warning flex-shrink-0" />
+                  )}
+                  <span className="text-muted-foreground">NSU:</span>
+                  <span className="font-mono font-medium">
+                    {syncStatus.ultimoNsu}
+                    {syncStatus.maxNsu && syncStatus.maxNsu !== "0" && (
+                      <span className="text-muted-foreground"> / {syncStatus.maxNsu}</span>
+                    )}
+                  </span>
+                  {syncStatus.maxNsu &&
+                    BigInt(syncStatus.ultimoNsu || "0") < BigInt(syncStatus.maxNsu || "0") && (
+                      <span className="text-xs font-medium text-warning">
+                        (~{Number(
+                          BigInt(syncStatus.maxNsu) - BigInt(syncStatus.ultimoNsu || "0"),
+                        )}{" "}
+                        pendentes — clique em Sincronizar)
+                      </span>
+                    )}
+                </div>
+              )}
+
+              {syncStatus.ultimaSyncAt && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span>
+                    Última sync:{" "}
+                    <span className="text-foreground">
+                      {format(new Date(syncStatus.ultimaSyncAt), "dd/MM HH:mm", { locale: ptBR })}
+                    </span>
+                  </span>
+                </div>
+              )}
+
+              {syncStatus.ultimoCstat && (
+                <div className="flex items-center gap-1.5">
+                  {syncStatus.ultimoCstat === "137" || syncStatus.ultimoCstat === "138" ? (
+                    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-warning flex-shrink-0" />
+                  )}
+                  <span className="text-muted-foreground">cStat:</span>
+                  <span className="font-mono font-medium">{syncStatus.ultimoCstat}</span>
+                  {syncStatus.ultimoXmotivo && (
+                    <span
+                      className="text-muted-foreground text-xs truncate max-w-[200px]"
+                      title={syncStatus.ultimoXmotivo}
+                    >
+                      — {syncStatus.ultimoXmotivo}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {Object.keys(syncStatus.porTipo).length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Database className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground">Na base:</span>
+                  <span className="text-foreground text-xs">
+                    {[
+                      syncStatus.porTipo["procNFe"]
+                        ? `${syncStatus.porTipo["procNFe"]} NF-e completas`
+                        : null,
+                      syncStatus.porTipo["resNFe"]
+                        ? `${syncStatus.porTipo["resNFe"]} resumos`
+                        : null,
+                      (syncStatus.porTipo["resEvento"] ?? 0) +
+                        (syncStatus.porTipo["procEventoNFe"] ?? 0) >
+                      0
+                        ? `${
+                            (syncStatus.porTipo["resEvento"] ?? 0) +
+                            (syncStatus.porTipo["procEventoNFe"] ?? 0)
+                          } eventos`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "nenhum documento ainda"}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -660,7 +839,7 @@ export default function PortalFiscal() {
               </Select>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <Button onClick={aplicarFiltros} disabled={loading}>
               <Search className="h-4 w-4 mr-2" />
               Buscar
@@ -669,6 +848,16 @@ export default function PortalFiscal() {
               <X className="h-4 w-4 mr-2" />
               Limpar
             </Button>
+            {filtrosPendentes && !loading && (
+              <button
+                onClick={aplicarFiltros}
+                className="flex items-center gap-1.5 rounded-full bg-warning/15 border border-warning/40 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/25 transition-colors"
+                aria-label="Filtros alterados — clique para aplicar"
+              >
+                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                Filtros alterados — clique em Buscar
+              </button>
+            )}
             <span className="ml-auto text-sm text-muted-foreground">
               {loading ? "Buscando…" : `${total} documento(s)`}
             </span>
