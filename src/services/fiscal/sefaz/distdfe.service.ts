@@ -346,36 +346,10 @@ export async function sincronizarDistDFe(
     }
 
     if (data.cStat === "656") {
-      // O AN devolve o ultNSU consolidado mesmo no 656. Se ele for MAIOR que o
-      // nosso cursor (ex.: respondeu 137 quando enviamos 50), significa que
-      // todos os documentos até lá já foram entregues em syncs anteriores.
-      // Persistir esse cursor evita repetir a consulta com NSU antigo após o
-      // desbloqueio — que causaria novo 656 em loop.
-      try {
-        const nsuRetornado = data.ultNSU ?? "";
-        if (
-          /^\d+$/.test(nsuRetornado) &&
-          BigInt(nsuRetornado) > BigInt(ultNSUAtual || "0")
-        ) {
-          const cnpjCursor = data.cnpj ?? syncs?.[0]?.cnpj;
-          if (cnpjCursor) {
-            await supabase.from("nfe_distdfe_sync").upsert(
-              {
-                cnpj: cnpjCursor,
-                ambiente: ambienteResolvido,
-                ultimo_nsu: nsuRetornado,
-                ultima_sync_at: new Date().toISOString(),
-                ultima_resposta_cstat: "656",
-                ultima_resposta_xmotivo: data.xMotivo ?? null,
-              },
-              { onConflict: "cnpj,ambiente" },
-            );
-            ultNSUAtual = nsuRetornado;
-          }
-        }
-      } catch {
-        // best-effort — não derruba o retorno por falha de gravação
-      }
+      // No 656 (Consumo Indevido) o AN devolve o ultNSU consolidado por CNPJ,
+      // NÃO o ponto até onde o cliente já baixou. Avançar o cursor aqui faria
+      // pular docs ainda não entregues (51..ultNSU). Mantemos o cursor parado
+      // e só persistimos o circuit breaker para evitar novo 656 em loop.
       // Persiste o circuit breaker para o próximo clique cair em
       // `verificarCircuitBreaker` antes de tocar a SEFAZ — evita que o
       // usuário "rebloqueie" o CNPJ por insistir no botão Sincronizar.
@@ -409,7 +383,25 @@ export async function sincronizarDistDFe(
     }
 
     ultDataResposta = data;
-    const docs = (data.docs ?? []).filter((d) => d.chave && /^\d{44}$/.test(d.chave));
+    // Fallback: alguns schemas (resNFe, resEvento, procEventoNFe) podem chegar
+    // sem `d.chave` extraída. Tentamos resgatar a chave do XML interno antes
+    // de descartar. Só descartamos quando, após o fallback, ainda não há
+    // chave de 44 dígitos — esse descarte é logado para diagnóstico.
+    const docs = (data.docs ?? []).flatMap((d) => {
+      if (d.chave && /^\d{44}$/.test(d.chave)) return [d];
+      const xml = d.xml ?? "";
+      const m =
+        xml.match(/<chNFe>(\d{44})<\/chNFe>/) ??
+        xml.match(/<chave>(\d{44})<\/chave>/) ??
+        xml.match(/Id=["']NFe(\d{44})["']/) ??
+        xml.match(/infNFe[^>]*Id=["']NFe(\d{44})["']/);
+      if (m?.[1]) return [{ ...d, chave: m[1] }];
+      console.warn("[distdfe] doc descartado sem chave extraível", {
+        nsu: d.nsu,
+        schema: d.schema,
+      });
+      return [];
+    });
     let novosLote = 0;
 
     for (const d of docs) {
