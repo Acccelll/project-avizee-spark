@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import type { OrcamentoItem } from "./OrcamentoItemsGrid";
+import { cpfCnpjMask, cepMask, phoneMask } from "@/utils/masks";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
