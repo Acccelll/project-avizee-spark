@@ -325,7 +325,12 @@ export function ProdutoView({ id }: Props) {
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
-        <DrawerSummaryCard label="Custo" value={formatCurrency(selected.preco_custo || 0)} align="center" />
+        <DrawerSummaryCard
+          label="Custo"
+          value={formatCurrency(custoEfetivo)}
+          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor pago em entradas" : undefined}
+          align="center"
+        />
         <DrawerSummaryCard
           label="Lucro Bruto"
           value={formatCurrency(lucroBruto)}
@@ -334,7 +339,7 @@ export function ProdutoView({ id }: Props) {
         />
         <DrawerSummaryCard
           label="Margem"
-          value={(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
+          value={custoEfetivo > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
           tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
           align="center"
         />
@@ -557,8 +562,12 @@ export function ProdutoView({ id }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Custo</span>
-                <p className="font-mono font-semibold text-lg">{formatCurrency(selected.preco_custo || 0)}</p>
-                {semCusto && <p className="text-[10px] text-warning mt-0.5">Sem custo</p>}
+                <p className="font-mono font-semibold text-lg">{formatCurrency(custoEfetivo)}</p>
+                {custoMaxEntrada != null && custoMaxEntrada > 0 ? (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Maior valor pago em entradas</p>
+                ) : semCusto ? (
+                  <p className="text-[10px] text-warning mt-0.5">Sem custo</p>
+                ) : null}
               </div>
               <div>
                 <Tooltip>
