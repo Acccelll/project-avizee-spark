@@ -824,8 +824,9 @@ export default function OrcamentoForm() {
   };
 
   const handleSave = async () => {
-    // Guard de status: orçamentos não-rascunho são imutáveis (preserva snapshot histórico).
-    if (isEdit && status && status !== 'rascunho') {
+    // Guard de status: apenas status finais (LOCKED_STATUSES) são imutáveis.
+    // rascunho/pendente/aprovado permanecem editáveis para ajustes antes da conversão.
+    if (isLocked) {
       toast.error(`Orçamento "${status}" não pode ser editado.`, {
         description: "Use \"Criar revisão\" no drawer para gerar uma nova versão.",
       });
