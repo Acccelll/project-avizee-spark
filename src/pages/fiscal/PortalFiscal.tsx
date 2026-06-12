@@ -46,6 +46,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Database } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { sincronizarDistDFe } from "@/services/fiscal/sefaz";
@@ -159,6 +160,17 @@ export default function PortalFiscal() {
   const [incluirOutros, setIncluirOutros] = useState(false);
   const [limpando, setLimpando] = useState(false);
 
+  // Status da sincronização
+  const [syncStatus, setSyncStatus] = useState<{
+    ultimoNsu: string | null;
+    maxNsu: string | null;
+    ultimaSyncAt: string | null;
+    ultimoCstat: string | null;
+    ultimoXmotivo: string | null;
+    porTipo: Record<string, number>;
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
   useEffect(() => {
     void supabase
       .from("empresa_config")
@@ -222,6 +234,57 @@ export default function PortalFiscal() {
     void buscar(aplicados, page, incluirOutros);
   }, [aplicados, page, buscar, incluirOutros]);
 
+  const carregarStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    try {
+      const [{ data: sync }, { data: tipos }] = await Promise.all([
+        supabase
+          .from("nfe_distdfe_sync")
+          .select("ultimo_nsu, max_nsu, ultima_sync_at, ultima_resposta_cstat, ultima_resposta_xmotivo")
+          .order("ultima_sync_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("nfe_distribuicao")
+          .select("tipo_documento")
+          .eq("ativo", true),
+      ]);
+
+      const porTipo: Record<string, number> = {};
+      for (const row of tipos ?? []) {
+        const t = (row as { tipo_documento?: string }).tipo_documento ?? "outros";
+        porTipo[t] = (porTipo[t] ?? 0) + 1;
+      }
+
+      const s = sync as {
+        ultimo_nsu?: string | null;
+        max_nsu?: string | null;
+        ultima_sync_at?: string | null;
+        ultima_resposta_cstat?: string | null;
+        ultima_resposta_xmotivo?: string | null;
+      } | null;
+
+      setSyncStatus({
+        ultimoNsu: s?.ultimo_nsu ?? null,
+        maxNsu: s?.max_nsu ?? null,
+        ultimaSyncAt: s?.ultima_sync_at ?? null,
+        ultimoCstat: s?.ultima_resposta_cstat ?? null,
+        ultimoXmotivo: s?.ultima_resposta_xmotivo ?? null,
+        porTipo,
+      });
+    } catch {
+      // silencioso — card simplesmente não renderiza
+    } finally {
+      setLoadingStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void carregarStatus();
+  }, [carregarStatus]);
+
+  const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(aplicados);
+
   const aplicarFiltros = () => {
     setPage(0);
     setAplicados({ ...filtros });
@@ -267,6 +330,7 @@ export default function PortalFiscal() {
           description: desc,
         });
         void buscar(aplicados, page, incluirOutros);
+        void carregarStatus();
       } else {
         toast.error("Falha na sincronização", {
           description: r.erro ?? r.xMotivo ?? `cStat ${r.cStat ?? "?"}`,
