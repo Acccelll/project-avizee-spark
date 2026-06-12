@@ -426,15 +426,25 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Para procNFe, extrai metadados direto do XML completo (mais
+        // confiável que o `resumo` leve da Distribuição, que usa o 1º <CNPJ>
+        // do XML e pode capturar o do <infRespTec>).
+        const basicos = tipoDoc === "procNFe" && d.xml
+          ? extrairCamposBasicosDoXml(d.xml)
+          : {};
         const payload = {
           chave_acesso: d.chave!,
           nsu: d.nsu,
-          cnpj_emitente: r.cnpjEmitente ?? null,
-          nome_emitente: r.nomeEmitente ?? null,
-          numero: r.numero ?? null,
-          serie: r.serie ?? null,
-          data_emissao: r.dataEmissao ?? null,
-          valor_total: r.valorTotal ?? null,
+          cnpj_emitente: basicos.cnpjEmitente ?? r.cnpjEmitente ?? null,
+          nome_emitente: basicos.nomeEmitente ?? r.nomeEmitente ?? null,
+          uf_emitente: basicos.ufEmitente ?? null,
+          numero: basicos.numero ?? r.numero ?? null,
+          serie: basicos.serie ?? r.serie ?? null,
+          data_emissao: basicos.dataEmissao ?? r.dataEmissao ?? null,
+          valor_total: basicos.valorTotal ?? r.valorTotal ?? null,
+          natureza_operacao: basicos.naturezaOperacao ?? null,
+          cnpj_destinatario: basicos.cnpjDestinatario ?? null,
+          nome_destinatario: basicos.nomeDestinatario ?? null,
           status_manifestacao: "sem_manifestacao",
           tipo_documento: tipoDoc,
           // procNFe traz a NF-e completa autorizada — guardamos o XML.
