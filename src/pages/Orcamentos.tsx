@@ -529,48 +529,50 @@ const Orcamentos = () => {
             rowExtraActions={(o: Orcamento) => (
               <>
                 {canSendOrcamento(o.status) && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
-                    <Send className="w-3 h-3" /> Enviar
+                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }} title="Enviar para aprovação" aria-label="Enviar para aprovação">
+                    <Send className="h-4 w-4" />
                   </Button>
                 )}
                 {canApproveOrcamento(o.status) && canAprovar && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={approveLock.pending}>
-                    <CheckCircle className="w-3 h-3" /> Aprovar
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={approveLock.pending} title="Aprovar" aria-label="Aprovar">
+                    <CheckCircle className="h-4 w-4" />
                   </Button>
                 )}
                 {canConvertOrcamento(o.status) && (
-                  <Button size="sm" variant="default" className="h-7 px-2 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => {
+                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={convertLock.pending} onClick={(e) => {
                     e.stopPropagation();
                     setPoNumberCliente("");
                     setDataPoCliente("");
                     setConvertingId(o.id);
-                  }}>
-                    <ArrowRightCircle className="w-3 h-3" /> Converter em Pedido
+                  }} title="Converter em pedido" aria-label="Converter em pedido">
+                    <ArrowRightCircle className="h-4 w-4" />
                   </Button>
                 )}
                 {normalizeOrcamentoStatus(o.status) === "convertido" && (
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs gap-1"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/pedidos?cotacao=${o.id}`);
                     }}
                     title="Abrir pedido gerado a partir deste orçamento"
+                    aria-label="Abrir pedido"
                   >
-                    <ArrowRightCircle className="w-3 h-3" /> Abrir pedido
+                    <ArrowRightCircle className="h-4 w-4" />
                   </Button>
                 )}
                 {["aprovado", "convertido"].includes(normalizeOrcamentoStatus(o.status)) && (
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs gap-1"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
                     onClick={(e) => { e.stopPropagation(); setVincularNfId(o.id); }}
                     title="Vincular este orçamento a uma NF de saída já emitida"
+                    aria-label="Vincular NF"
                   >
-                    <Link2 className="w-3 h-3" /> Vincular NF
+                    <Link2 className="h-4 w-4" />
                   </Button>
                 )}
               </>
