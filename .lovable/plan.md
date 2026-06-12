@@ -1,84 +1,74 @@
-# Plano: Cursor NSU travado e contagem "138 vs 5 NF-e" confusa
+## Por que só vieram NF-es de Maio (e nem todas)
 
-## Diagnóstico (logs reais)
+### Diagnóstico (dados reais)
 
-Pelo `edge-function-logs` do `sefaz-distdfe` e pelo estado de `nfe_distdfe_sync`:
+Estado atual da base e do cursor (`nfe_distdfe_sync` ambiente=1, CNPJ 53.078.538/0001-85):
 
-- O serviço enviou `ultNSU="000000000000050"` (correto, era o último cursor salvo).
-- A SEFAZ respondeu **`cStat 138`, `ultNSU=000000000000050`, `maxNSU=000000000000137`, 50 docZips**.
-- Ou seja: o AN devolveu o **mesmo** `ultNSU` que recebeu — o cursor não andou.
-- O loop em `sincronizarDistDFe` (`distdfe.service.ts:472-478`) tem proteção contra loop infinito (`if (!avancou) break;`) — então sai depois de 1 lote, mostrando "0 NF-e novas, 50 existentes, ainda restam ~87 documento(s)". Próximo clique repete a mesma resposta. **Comportamento atual está correto** — sem essa guarda viraria loop com risco de 656.
-- Sobre "138 vs 5 NF-e": **138 é o `maxNSU`** (universo total de NSUs do CNPJ no AN), não o número de NF-es. A base hoje tem 5 `procNFe` + 6 eventos = 11 linhas. Os outros NSUs (até 137) podem ser eventos para outras notas, resumos, ou notas para outros destinatários — só dá pra confirmar olhando o XML real de cada docZip.
+- `ultimo_nsu` = **137**, `max_nsu` = **137**, último `cStat` = **656** (Consumo Indevido).
+- `nfe_distribuicao`: **11 linhas** (5 procNFe + 6 eventos), NSUs entre **10 e 46**, datas de emissão entre **06/05/2026 e 14/05/2026**.
 
-## Por que a SEFAZ está devolvendo o mesmo cursor
+Cruzando com o histórico de syncs no `distdfe.service.ts`, há **duas causas distintas** para o que o usuário está vendo:
 
-Duas hipóteses precisam ser distinguidas com log adicional:
+### 1. Por que "só Maio" — janela de 90 dias do Ambiente Nacional
 
-1. **AN está re-entregando docs ≤ 50** (NF-es já processadas). Acontece quando o cron/cliente nunca confirmou avanço, ou quando há quirk do AN para CNPJ com poucos NSUs novos.
-2. **Parser está lendo o `ultNSU` errado** do envelope SOAP. Se SEFAZ devolveu, por exemplo, `<ultNSU>100</ultNSU>`, mas há outro `<ultNSU>` antes (header SOAP, retorno aninhado, eco da requisição), o regex `extrairTag("ultNSU")` casa o primeiro.
+O AN só mantém disponível para download (DistDFe) os documentos dos **últimos ~90 dias** por CNPJ. A primeira sincronização foi em 09/06/2026; o menor NSU devolvido pelo AN foi **10** com emissão em **06/05/2026**, ou seja: o primeiro NSU disponível para esse CNPJ já era de Maio. Documentos anteriores a essa janela (Março/Abril, e Maio antes do dia 06) **não estão mais no AN** — só podem ser recuperados via `consChNFe` por chave específica (consulta avulsa). É comportamento da SEFAZ, não bug do ERP.
 
-Sem ver os primeiros KB da resposta crua, não dá para escolher entre (1) e (2). O plano inclui um log defensivo para essa próxima sync e um fallback que destrava o cursor sem risco quando os docZips trazem NSU maior do que o `ultNSU` devolvido.
+### 2. Por que "nem todas de Maio" — o cursor pulou docs sem baixá-los
 
-## O que muda
+O AN devolveu o primeiro lote com `ultNSU=50` trazendo 50 docZips, mas apenas **11** foram persistidos (NSUs 10, 13, 23, 24, 29, 30, 32, 34, 40, 41, 46). Os outros 39 NSUs do intervalo 1–50 foram descartados porque o filtro `docs.filter(d => d.chave && /^\d{44}$/.test(d.chave))` em `distdfe.service.ts:412` rejeita qualquer docZip sem chave de 44 dígitos — **incluindo `resNFe` (resumos), `procEventoNFe` e `resEvento` que vêm sem a chave extraída no parser**, e schemas auxiliares do AN (resCancNFe, etc.).
 
-### 1. `supabase/functions/sefaz-distdfe/index.ts` — diagnóstico mínimo
+Esse filtro é defensivo demais. O esperado é:
+- `resNFe`: tem chave de 44 dígitos no XML — deveria ser persistido. Se não foi, é falha do parser que extrai `chave` no edge function (não está pegando do `<resNFe>` quando o `procNFe` completo não veio).
+- `procEventoNFe` / `resEvento`: têm chave de 44 dígitos da NF-e referenciada — deveriam ser persistidos como evento.
 
-Logar, **após o unwrap do Worker**, os primeiros 1.500 chars do bloco `retDistDFeInt` (já existe `extrairTag` para isolar). Antes do `parseRetDistDFeInt`:
+Pior: depois desse lote, o próximo clique recebeu `cStat 656` (consumo indevido). A correção anterior (do turno passado) avançou o cursor para **137** lendo `data.ultNSU` da resposta 656. Isso é incorreto: no 656, o AN devolve o **último NSU consolidado entregue para o CNPJ**, não os NSUs ainda não baixados pelo cliente. Resultado: os docs **51–137** foram "pulados" do cursor sem nunca terem sido entregues ao ERP, e agora não voltam mais — a única forma de recuperá-los é resetar o cursor.
 
-```ts
-log.info("retDistDFeInt preview", {
-  preview: (extrairTag(xmlRetorno, "retDistDFeInt") ?? xmlRetorno).slice(0, 1500),
-  totalBytes: xmlRetorno.length,
-});
+### O que muda
+
+#### A. Reset do cursor + remoção da lógica errada de avanço no 656
+
+Migration: voltar `nfe_distdfe_sync.ultimo_nsu` para `'000000000000000'` (zerar) para reentregar todos os 137 NSUs do universo na próxima sincronização. `ultima_resposta_cstat` e `xmotivo` resetados.
+
+```sql
+UPDATE public.nfe_distdfe_sync
+   SET ultimo_nsu = '000000000000000',
+       ultima_resposta_cstat = NULL,
+       ultima_resposta_xmotivo = 'Cursor resetado em <data> para recuperar docs perdidos por avanço indevido no 656',
+       updated_at = now()
+ WHERE cnpj = '53078538000185' AND ambiente = 1;
 ```
 
-E logar a lista de NSUs dos docZips processados (apenas atributo, não conteúdo):
+Também limpar o circuit breaker da chave `app_configuracoes.distdfe_circuit_break_until_1` se ainda estiver ativo.
 
-```ts
-log.info("docZips NSUs", { nsus: parsed.docs.map(d => d.nsu) });
-```
+Em `src/services/fiscal/sefaz/distdfe.service.ts` (linhas 348–409): **remover** o trecho que faz `upsert` do `ultimo_nsu` com o valor devolvido no 656. No 656 o cursor **fica parado** — só o circuit breaker é persistido e o usuário aguarda 1h. Sem isso, a próxima sincronização tenta o mesmo NSU velho e o AN responde 137 (nenhum doc novo) ou 138 com novo lote.
 
-Zero impacto funcional — só telemetria para a próxima sync revelar se a SEFAZ está realmente travada no NSU 50 ou se o parser está pulando o `ultNSU` correto.
+#### B. Corrigir o filtro que descarta docs sem chave
 
-### 2. `src/services/fiscal/sefaz/distdfe.service.ts` — cursor defensivo
+Em `distdfe.service.ts:412`, a regra atual ignora qualquer docZip sem `d.chave` de 44d. Trocar para uma estratégia em camadas:
 
-No loop, depois de receber `data` e calcular `novoUltNSU`, se `novoUltNSU === ultNSUAtual` **mas** `data.docs` tem algum `nsu > ultNSUAtual`, considerar o cursor como o **maior NSU dentre os docZips recebidos**:
+1. Se `d.chave` está presente e válida → persistir normalmente.
+2. Se `d.chave` está vazia, tentar extrair da raiz do XML interno (`chNFe`, `chave`, atributo `Id="NFe..."`). Já existe um helper de extração no edge function — espelhar a mesma lógica no cliente como fallback.
+3. Só descartar quando, mesmo após o fallback, não houver chave (eventos de manifestação 3ª parte sem referência).
 
-```ts
-let novoUltNSU = data.ultNSU ?? ultNSUAtual;
-if (novoUltNSU === ultNSUAtual && data.docs?.length) {
-  const maxDocNsu = data.docs
-    .map((d) => d.nsu)
-    .filter((n) => /^\d+$/.test(n))
-    .reduce((acc, n) => (BigInt(n) > BigInt(acc) ? n : acc), ultNSUAtual);
-  if (BigInt(maxDocNsu) > BigInt(ultNSUAtual)) novoUltNSU = maxDocNsu;
-}
-```
+Logar `console.warn` com `{ nsu, schema, motivo: 'sem_chave_extraivel' }` para qualquer descarte, para visibilidade futura sem precisar mexer no edge function.
 
-Se a hipótese (2) (parser/echo) for verdade, isso destrava o cursor para o próximo lote sem precisar mexer em parser. Se for hipótese (1) (AN realmente parado em 50), o fallback fica inerte — o cursor continua em 50 e a guarda anti-loop continua barrando, exatamente como hoje. Não há piora possível.
+#### C. Aviso na UI sobre a janela de 90 dias
 
-### 3. `src/pages/fiscal/PortalFiscal.tsx` — clareza no card e no toast
+Em `src/pages/fiscal/PortalFiscal.tsx`, no card de status do DistDF-e, acrescentar abaixo da linha "Na base":
 
-O número "138" no toast atual vem como `~87 documento(s) na fila` (correto), mas o card mostra "138 / 50" sem contexto do que é cada coisa. Ajustes:
+> "Documentos com mais de ~90 dias não ficam disponíveis no Ambiente Nacional — para esses, use **Buscar por chave** na barra superior."
 
-- Renomear no card o rótulo "NSU" para "Cursor NSU (universo do AN)" e adicionar tooltip:
-  > "NSU é um contador interno da SEFAZ por CNPJ. Cada NSU pode ser uma NF-e completa, um resumo (resNFe) ou um evento (ciência, cancelamento, manifestação). Por isso o universo (138) costuma ser maior que o número de NF-es completas no grid."
-- Quando o sync devolver `novos === 0 && duplicados > 0 && restantes > 0`, mudar o toast para **aviso** em vez de sucesso, com descrição:
-  > "A SEFAZ devolveu N documento(s) que já estavam na base. Cursor permanece em X — clique novamente em alguns minutos."
-- No card, complementar a linha "Na base" para refletir o universo SEFAZ:
-  > "Na base: 5 NF-e completas · 6 eventos · 0 resumos. (Universo SEFAZ: 137 NSU — os demais costumam ser eventos para outras NF-es ou documentos de outros destinatários filtrados pelo CNPJ.)"
+Sem nova feature; só texto explicativo.
 
-## Verificação
+### Verificação
 
-Depois do deploy:
+1. Após deploy + migration, clicar **Sincronizar** uma vez.
+2. Esperar `~137 documentos novos` (todos os NSUs 1–137 reentregues pelo AN).
+3. Conferir `nfe_distribuicao`: contagem deve subir de 11 para algo próximo de 50–80 (descontando resumos sem chave e duplicados de evento).
+4. Conferir nos logs do edge function se aparecem `console.warn` de descarte — caso sim, listar para decidir se vale ajustar o parser do edge function em outro turno.
 
-1. Pedir ao usuário para clicar **uma vez** em Sincronizar.
-2. Ler os novos logs: `retDistDFeInt preview` + `docZips NSUs`.
-3. Se NSUs > 50 aparecerem na lista → confirma hipótese (2), o fallback do passo 2 já fez o cursor avançar — pronto.
-4. Se NSUs forem todos ≤ 50 → confirma hipótese (1), abrir tíquete no PSC/SEFAZ ou usar `consChNFe` por chave específica; o app está correto.
+### Fora de escopo
 
-## Fora de escopo
-
-- Não mexer em RLS, RPC, schema, transporte mTLS ou edge functions além do log defensivo.
-- Não tocar no parser de NSU sem a evidência do preview (mudar regex às cegas pode quebrar casos OK).
-- Não adicionar nova tabela.
+- Não tocar no parser do edge function `sefaz-distdfe` nesta rodada (só o filtro do cliente). Se sobrarem docs sem chave após o fallback, abre-se turno separado.
+- Não implementar UI para `consChNFe` em massa (recuperação de docs > 90 dias) — fora do pedido.
+- Não mexer em RLS, schema de tabelas, transporte mTLS, manifestação automática.
