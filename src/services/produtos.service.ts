@@ -288,7 +288,7 @@ export async function fetchProdutoDetalhes(
   if (pError) throw pError;
   if (!p) return null;
 
-  const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+  const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes, custoMaxRes] = await Promise.allSettled([
     supabase
       .from("notas_fiscais_itens")
       .select(
@@ -339,7 +339,16 @@ export async function fetchProdutoDetalhes(
           .abortSignal(signal)
           .maybeSingle()
       : Promise.resolve({ data: null as Record<string, unknown> | null }),
+    // Maior valor unitário pago em entradas — usado como "Custo" no detalhe do produto.
+    supabase
+      .from("notas_fiscais_itens")
+      .select("valor_unitario, notas_fiscais!inner(tipo)")
+      .eq("produto_id", p.id)
+      .in("notas_fiscais.tipo", ["entrada", "compra"])
+      .order("valor_unitario", { ascending: false })
+      .abortSignal(signal)
+      .limit(1),
   ]);
 
-  return { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes };
+  return { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes, custoMaxRes };
 }
