@@ -839,7 +839,7 @@ export default function PortalFiscal() {
               </Select>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <Button onClick={aplicarFiltros} disabled={loading}>
               <Search className="h-4 w-4 mr-2" />
               Buscar
@@ -848,6 +848,16 @@ export default function PortalFiscal() {
               <X className="h-4 w-4 mr-2" />
               Limpar
             </Button>
+            {filtrosPendentes && !loading && (
+              <button
+                onClick={aplicarFiltros}
+                className="flex items-center gap-1.5 rounded-full bg-warning/15 border border-warning/40 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/25 transition-colors"
+                aria-label="Filtros alterados — clique para aplicar"
+              >
+                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                Filtros alterados — clique em Buscar
+              </button>
+            )}
             <span className="ml-auto text-sm text-muted-foreground">
               {loading ? "Buscando…" : `${total} documento(s)`}
             </span>
