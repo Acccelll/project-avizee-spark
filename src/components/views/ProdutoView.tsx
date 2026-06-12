@@ -819,7 +819,7 @@ export function ProdutoView({ id }: Props) {
                 <DrawerSummaryCard label="Ticket Médio" value={formatCurrency(ticketMedioVenda)} align="center" />
                 <DrawerSummaryCard
                   label="Margem Méd."
-                  value={(selected.preco_custo || 0) > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
+                  value={custoEfetivo > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
                   tone={margemMediaVenda > 0 ? "success" : margemMediaVenda < 0 ? "destructive" : "neutral"}
                   align="center"
                 />
