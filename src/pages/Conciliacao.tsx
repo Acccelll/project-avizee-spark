@@ -58,6 +58,8 @@ interface LancamentoComStatus extends Lancamento {
 interface Match {
   extratoId: string;
   lancamentoId: string;
+  origem?: "heuristica" | "ia";
+  justificativa?: string;
 }
 
 /** Lightweight shape for the contas bancárias dropdown. */
@@ -253,9 +255,10 @@ export default function Conciliacao() {
   };
 
   // ─── Auto-match ──────────────────────────────────────────────────────────
-  const handleAutoMatch = () => {
+  const handleAutoMatch = async () => {
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
+    const semMatch: typeof extratoItems = [];
 
     for (const extrato of extratoItems) {
       const candidate = lancamentos.find((l) => {
@@ -269,13 +272,59 @@ export default function Conciliacao() {
       });
 
       if (candidate) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id });
+        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
         usedLancamentos.add(candidate.id);
+      } else {
+        semMatch.push(extrato);
+      }
+    }
+
+    // Fallback IA: para extratos ambíguos, pedimos ao modelo escolher entre os
+    // lançamentos ainda disponíveis. Custo controlado: máx. 5 chamadas.
+    let iaCount = 0;
+    if (semMatch.length > 0) {
+      const disponiveis = lancamentos
+        .filter((l) => !usedLancamentos.has(l.id))
+        .map((l) => ({
+          id: l.id,
+          descricao: l.descricao ?? null,
+          valor: Math.abs(Number(l.valor)),
+          data_vencimento: l.data_vencimento,
+          data_baixa: (l as unknown as { data_baixa?: string | null }).data_baixa ?? null,
+        }));
+      if (disponiveis.length > 0) {
+        const { sugerirConciliacaoIaRemota } = await import("@/services/ia/sugestao.service");
+        const alvos = semMatch.slice(0, 5);
+        const resultados = await Promise.allSettled(
+          alvos.map((e) =>
+            sugerirConciliacaoIaRemota({
+              transacao: { id: e.id, descricao: e.descricao, valor: e.valor, data: e.data },
+              candidatos: disponiveis,
+            }),
+          ),
+        );
+        for (let i = 0; i < resultados.length; i++) {
+          const r = resultados[i];
+          if (r.status !== "fulfilled" || !r.value.lancamento_id) continue;
+          if (usedLancamentos.has(r.value.lancamento_id)) continue;
+          newMatches.push({
+            extratoId: alvos[i].id,
+            lancamentoId: r.value.lancamento_id,
+            origem: "ia",
+            justificativa: r.value.justificativa,
+          });
+          usedLancamentos.add(r.value.lancamento_id);
+          iaCount++;
+        }
       }
     }
 
     setMatches(newMatches);
-    toast.success(`${newMatches.length} pares encontrados automaticamente.`);
+    toast.success(
+      iaCount > 0
+        ? `${newMatches.length} pares encontrados — ${iaCount} sugerido(s) por IA.`
+        : `${newMatches.length} pares encontrados automaticamente.`,
+    );
   };
 
   const handleManualMatch = (extratoId: string, lancamentoId: string) => {

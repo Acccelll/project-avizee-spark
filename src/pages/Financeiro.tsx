@@ -55,6 +55,8 @@ import { useFinanceiroLancamentosPaged, useResetPageOnFiltersChange } from "@/pa
 import { buildFinanceiroColumns } from "@/pages/financeiro/config/financeiroColumns";
 import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/FinanceiroLancamentoForm";
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
+import { ImportarDocumentoIaDialog } from "@/components/financeiro/ImportarDocumentoIaDialog";
+import { Sparkles } from "lucide-react";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
 import { displayObservacoes } from "@/lib/displayLancamento";
@@ -98,6 +100,8 @@ const Financeiro = () => {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelProcessing, setCancelProcessing] = useState(false);
   const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [importIaOpen, setImportIaOpen] = useState(false);
+  const [iaFields, setIaFields] = useState<Set<keyof LancamentoForm>>(new Set());
   const [bulkCancelMotivo, setBulkCancelMotivo] = useState("");
   const [bulkCancelProcessing, setBulkCancelProcessing] = useState(false);
 
@@ -315,6 +319,7 @@ const Financeiro = () => {
   const openCreate = () => {
     setMode("create");
     setForm({ ...emptyLancamentoForm });
+    setIaFields(new Set());
     setModalOpen(true);
   };
 
@@ -434,6 +439,15 @@ const Financeiro = () => {
             onClick={() => handleExportar("excel")}
           >
             <FileDown className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Exportar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+            onClick={() => setImportIaOpen(true)}
+            title="Pré-preencher um lançamento a partir de boleto ou nota fiscal (IA)"
+          >
+            <Sparkles className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Importar (IA)
           </Button>
           <Button
             size="sm"
@@ -700,8 +714,20 @@ const Financeiro = () => {
             e.preventDefault();
             handleSubmit(mode, form, selected, () => setModalOpen(false));
           }}
+          iaFields={iaFields}
         />
       </FormModal>
+
+      <ImportarDocumentoIaDialog
+        open={importIaOpen}
+        onClose={() => setImportIaOpen(false)}
+        onExtracted={(defaults, ia) => {
+          setMode("create");
+          setForm({ ...emptyLancamentoForm, ...defaults });
+          setIaFields(ia);
+          setModalOpen(true);
+        }}
+      />
 
       <FinanceiroDrawer
         open={drawerOpen}

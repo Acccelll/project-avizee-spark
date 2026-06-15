@@ -13,6 +13,7 @@ import { parseOFX, type TransacaoExtrato } from "@/services/financeiro/ofxParser
 import {
   sugerirConciliacao,
   conciliarTransacao,
+  sugerirConciliacaoIa,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import {
@@ -30,6 +31,10 @@ import { useState } from "react";
 export interface ParConciliacao {
   extratoId: string;
   lancamentoId: string;
+  /** Origem da sugestão: heurística determinística ou IA fallback. */
+  origem?: "heuristica" | "ia";
+  /** Justificativa textual quando origem === "ia". */
+  justificativa?: string;
 }
 
 /** Estado completo do processo de conciliação para uma conta. */
@@ -144,6 +149,7 @@ export function useConciliacaoBancaria(
   const autoMatch = useCallback(async () => {
     const usados = new Set<string>();
     const novosPares: ParConciliacao[] = [];
+    const semMatch: TransacaoExtrato[] = [];
 
     // Tenta primeiro a RPC com pg_trgm; em falha, usa heurística client.
     try {
@@ -164,8 +170,14 @@ export function useConciliacaoBancaria(
         const cands = (grouped.get(extrato.id) || []).sort((a, b) => b.score - a.score);
         const escolhido = cands.find((c) => !usados.has(c.lancamento_id));
         if (escolhido) {
-          novosPares.push({ extratoId: extrato.id, lancamentoId: escolhido.lancamento_id });
+          novosPares.push({
+            extratoId: extrato.id,
+            lancamentoId: escolhido.lancamento_id,
+            origem: "heuristica",
+          });
           usados.add(escolhido.lancamento_id);
+        } else {
+          semMatch.push(extrato);
         }
       }
     } catch {
@@ -174,14 +186,50 @@ export function useConciliacaoBancaria(
         const disponiveis = lancamentos.filter((l) => !usados.has(l.id));
         const sugestao = sugerirConciliacao(extrato, disponiveis);
         if (sugestao) {
-          novosPares.push({ extratoId: extrato.id, lancamentoId: sugestao.titulo.id });
+          novosPares.push({
+            extratoId: extrato.id,
+            lancamentoId: sugestao.titulo.id,
+            origem: "heuristica",
+          });
           usados.add(sugestao.titulo.id);
+        } else {
+          semMatch.push(extrato);
+        }
+      }
+    }
+
+    // ── Fallback IA: para extratos sem par confiável ───────────────────────
+    // Custo controlado: até 5 chamadas por execução, em paralelo.
+    let iaSugeridos = 0;
+    if (semMatch.length > 0 && lancamentos.length > 0) {
+      const candidatosBase = lancamentos.filter((l) => !usados.has(l.id));
+      if (candidatosBase.length > 0) {
+        const alvos = semMatch.slice(0, 5);
+        const resultados = await Promise.allSettled(
+          alvos.map((extrato) => sugerirConciliacaoIa(extrato, candidatosBase)),
+        );
+        for (let i = 0; i < resultados.length; i++) {
+          const r = resultados[i];
+          if (r.status !== "fulfilled" || !r.value) continue;
+          if (usados.has(r.value.titulo.id)) continue;
+          novosPares.push({
+            extratoId: alvos[i].id,
+            lancamentoId: r.value.titulo.id,
+            origem: "ia",
+            justificativa: r.value.justificativa,
+          });
+          usados.add(r.value.titulo.id);
+          iaSugeridos++;
         }
       }
     }
 
     setPares(novosPares);
-    toast.success(`${novosPares.length} par(es) encontrado(s) automaticamente.`);
+    toast.success(
+      iaSugeridos > 0
+        ? `${novosPares.length} par(es) encontrado(s) — ${iaSugeridos} sugerido(s) por IA.`
+        : `${novosPares.length} par(es) encontrado(s) automaticamente.`,
+    );
   }, [extratoItems, lancamentos, contaId]);
 
   // ── Persistir conciliação ─────────────────────────────────────────────────

@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
+import { sugerirClassificacao } from "@/services/ia/sugestao.service";
 
 interface Props {
   form: LancamentoForm;
@@ -38,6 +40,8 @@ interface Props {
   setForm: (next: LancamentoForm) => void;
   onCancel: () => void;
   onSubmit: (e: FormEvent) => void;
+  /** Conjunto de campos pré-preenchidos por IA (badge "IA"). Opcional. */
+  iaFields?: Set<keyof LancamentoForm>;
 }
 
 // Status editáveis no formulário: apenas `aberto` e `cancelado`.
@@ -62,10 +66,60 @@ export function FinanceiroLancamentoForm({
   setForm,
   onCancel,
   onSubmit,
+  iaFields,
 }: Props) {
   const updateField = <K extends keyof LancamentoForm>(field: K, value: LancamentoForm[K]) => {
     setForm({ ...form, [field]: value });
   };
+
+  // ── IA: sugestão de conta contábil / centro de custo ─────────────────
+  const [iaSuggesting, setIaSuggesting] = useState(false);
+  const [iaJustificativa, setIaJustificativa] = useState<string | null>(null);
+  const handleSugerirClassificacao = async () => {
+    if (!form.descricao?.trim()) {
+      toast.error("Preencha a descrição antes de pedir a sugestão.");
+      return;
+    }
+    setIaSuggesting(true);
+    try {
+      const fornecedor = fornecedores.find((f) => f.id === form.fornecedor_id) as
+        | (typeof fornecedores)[number]
+        | undefined;
+      const fornecedorNome =
+        (fornecedor as unknown as { nome_razao_social?: string; razao_social?: string } | undefined)
+          ?.nome_razao_social ??
+        (fornecedor as unknown as { razao_social?: string } | undefined)?.razao_social ??
+        null;
+      const res = await sugerirClassificacao({
+        descricao: form.descricao,
+        valor: form.valor,
+        fornecedor_nome: fornecedorNome,
+        tipo: form.tipo === "receber" ? "receber" : "pagar",
+      });
+      if (!res.conta_contabil_id) {
+        toast.warning("IA não conseguiu sugerir uma conta com confiança suficiente.");
+        setIaJustificativa(res.justificativa || null);
+      } else {
+        setForm({
+          ...form,
+          conta_contabil_id: res.conta_contabil_id,
+        });
+        setIaJustificativa(res.justificativa || null);
+        toast.success(`Conta sugerida (${res.confianca}).`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha na sugestão da IA.");
+    } finally {
+      setIaSuggesting(false);
+    }
+  };
+
+  const iaBadge = (field: keyof LancamentoForm) =>
+    iaFields?.has(field) ? (
+      <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] gap-0.5">
+        <Sparkles className="h-2.5 w-2.5" /> IA
+      </Badge>
+    ) : null;
 
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
   // Admin/Financeiro podem editar mesmo em status pago/parcial — backend
@@ -352,7 +406,28 @@ export function FinanceiroLancamentoForm({
         </div>
         {contasContabeis.length > 0 && (
         <div className="space-y-2">
-          <Label>Conta Contábil (opcional)</Label>
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-1">
+              Conta Contábil (opcional)
+              {iaBadge("conta_contabil_id")}
+            </Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1"
+              onClick={handleSugerirClassificacao}
+              disabled={iaSuggesting || !form.descricao?.trim()}
+              title={!form.descricao?.trim() ? "Preencha a descrição primeiro" : "Sugerir classificação por IA"}
+            >
+              {iaSuggesting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              Sugerir (IA)
+            </Button>
+          </div>
           <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => updateField("conta_contabil_id", v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger>
             <SelectContent>
@@ -360,6 +435,11 @@ export function FinanceiroLancamentoForm({
               {contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
             </SelectContent>
           </Select>
+          {iaJustificativa && (
+            <p className="text-[11px] text-muted-foreground italic">
+              <Sparkles className="inline h-3 w-3 mr-0.5" /> {iaJustificativa}
+            </p>
+          )}
         </div>
         )}
 

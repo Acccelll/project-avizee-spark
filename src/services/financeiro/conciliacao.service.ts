@@ -12,6 +12,7 @@ import {
   financeiroConciliarBaixaRpc,
   financeiroConciliarLoteRpc,
 } from "@/types/rpc";
+import { sugerirConciliacaoIaRemota } from "@/services/ia/sugestao.service";
 
 /** Representa um título/lançamento financeiro para fins de conciliação. */
 export interface TituloParaConciliacao {
@@ -182,6 +183,39 @@ export function sugerirConciliacao(
     score: melhor.score,
     confidence: classificarConfianca(melhor.score),
   };
+}
+
+/**
+ * Fallback IA: só chama o modelo quando a heurística não encontrou par
+ * confiável (score < 0.5). O modelo escolhe entre os candidatos passados
+ * e justifica em texto curto. Não persiste nada — devolve apenas a sugestão.
+ */
+export async function sugerirConciliacaoIa(
+  transacao: TransacaoExtrato,
+  candidatos: TituloParaConciliacao[],
+): Promise<{ titulo: TituloParaConciliacao; justificativa: string; confianca: "alta" | "media" | "baixa" } | null> {
+  if (candidatos.length === 0) return null;
+  // Limita os candidatos a 15 para economizar tokens.
+  const lista = candidatos.slice(0, 15);
+  const res = await sugerirConciliacaoIaRemota({
+    transacao: {
+      id: transacao.id,
+      descricao: transacao.descricao,
+      valor: transacao.valor,
+      data: transacao.data,
+    },
+    candidatos: lista.map((c) => ({
+      id: c.id,
+      descricao: c.descricao,
+      valor: c.valor,
+      data_vencimento: c.data_vencimento,
+      data_baixa: c.data_baixa ?? null,
+    })),
+  });
+  if (!res.lancamento_id) return null;
+  const titulo = lista.find((c) => c.id === res.lancamento_id);
+  if (!titulo) return null;
+  return { titulo, justificativa: res.justificativa, confianca: res.confianca };
 }
 
 /**
