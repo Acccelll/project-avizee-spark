@@ -82,11 +82,18 @@ export function FinanceiroLancamentoForm({
     }
     setIaSuggesting(true);
     try {
-      const fornecedor = fornecedores.find((f) => f.id === form.fornecedor_id);
+      const fornecedor = fornecedores.find((f) => f.id === form.fornecedor_id) as
+        | (typeof fornecedores)[number]
+        | undefined;
+      const fornecedorNome =
+        (fornecedor as unknown as { nome_razao_social?: string; razao_social?: string } | undefined)
+          ?.nome_razao_social ??
+        (fornecedor as unknown as { razao_social?: string } | undefined)?.razao_social ??
+        null;
       const res = await sugerirClassificacao({
         descricao: form.descricao,
         valor: form.valor,
-        fornecedor_nome: fornecedor?.nome ?? null,
+        fornecedor_nome: fornecedorNome,
         tipo: form.tipo === "receber" ? "receber" : "pagar",
       });
       if (!res.conta_contabil_id) {
