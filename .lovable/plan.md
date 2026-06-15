@@ -1,60 +1,92 @@
-## Objetivo
-Fazer a leitura de código de barras (CODE-128 do DANFE) e QR Code (NFC-e) funcionar de fato nos modos **Câmera ao vivo** e **Tirar foto** da NF de Entrada. Manter intactos os modos Digitar e Upload (que já funcionam) e a interface do dialog.
+# Diagnóstico real do erro "Worker→SEFAZ HTTP 520"
 
-## Diagnóstico
+## O que os logs realmente mostram
 
-`src/pages/fiscal/hooks/useQrScanner.ts` hoje:
+Logs de `sefaz-distdfe` (request_id `3dde0088-…`, 17:46:21–17:46:26 UTC):
 
-- Em **câmera ao vivo** decodifica apenas via ZXing varrendo frames do elemento `<video>` na resolução do preview (640–1280 px). Para CODE-128 de 44 dígitos do DANFE essa resolução é insuficiente — câmera abre, mas o callback de detecção nunca dispara.
-- Em **Tirar foto** (com câmera já ativa) usa `canvas.drawImage(video)` em `video.videoWidth/Height` — captura o mesmo frame do preview, não uma foto em resolução de sensor. Resultado idêntico ao live: nada detectado.
-- Nunca tenta `window.BarcodeDetector` (suportado em Chrome Android e Edge), que decodifica CODE-128 em tempo real com a câmera traseira.
-- Não pede `focusMode: continuous` nem ajusta zoom; sem ROI no centro.
+- 4 tentativas (soap12/soap11 alternados) contra `https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx` (ambiente=1, produção).
+- Em todas, o Cloudflare Worker devolve **HTTP 200** com o JSON envelope:
+  ```
+  {"success":false,"status":520,"statusText":"<none>",
+   "contentType":"text/plain; charset=UTF-8","contentLength":"15",
+   "body":"error code: 520"}
+  ```
 
-Os caminhos **Digitar/colar** e **Upload de imagem** continuam funcionando — não serão alterados.
+A string `error code: 520` com `Content-Type: text/plain` e `Content-Length: 15` **não é resposta do BIG-IP da SEFAZ** — é a página de erro padrão que o **próprio Cloudflare** devolve quando o `fetch()` do Worker para a origem falha no nível de conexão/TLS. O BIG-IP da SEFAZ, quando recusa, devolve HTML, SOAP fault ou pelo menos `text/html` com tamanho > 15 bytes.
 
-## Mudanças
+A mensagem mostrada ao usuário ("Aguarde alguns minutos…") está incorreta: ela é hardcoded em `sefaz-distdfe/index.ts:907-909` para o código `WORKER_UPSTREAM_520`, mesmo quando o 520 vem do Cloudflare e não da SEFAZ. O "ping ok" do texto também é hardcoded — **nenhum ping real foi feito** nessa transação.
 
-Editar **um único arquivo**: `src/pages/fiscal/hooks/useQrScanner.ts`.
+## Causa raiz (hipótese forte, validável com 1 teste)
 
-### 1. Detector híbrido em camadas
-Criar uma função interna `decodificarBitmapOuVideo(source, formats)` que tenta, nesta ordem:
-1. `window.BarcodeDetector` se existir e listar `code_128` / `qr_code` em `getSupportedFormats()` — passar `ImageBitmap`/`HTMLVideoElement`.
-2. ZXing (`BrowserMultiFormatReader.decodeFromImageElement` / `decodeFromCanvas`) como fallback.
+A própria memória do projeto (`mem://tech/sefaz-mtls-transporte`) já documenta esse cenário:
 
-Centralizar para que **live**, **tirar foto** e **upload** usem o mesmo pipeline e a mesma normalização de retorno (`text`).
+> "O binding do Worker precisa cobrir o hostname de PRODUÇÃO `www1.nfe.fazenda.gov.br` (não só hom1), senão o Worker devolve HTTP 520."
 
-### 2. Câmera ao vivo
-- Em `iniciarCamera`, após `getUserMedia`, pedir `track.applyConstraints({ advanced: [{ focusMode: "continuous" }] })` (try/catch silencioso — nem todo device suporta).
-- Subir `width/height` para `{ ideal: 2560, min: 1280 }` para aumentar a chance de decode em CODE-128.
-- Substituir o loop `reader.decodeFromStream` por:
-  - **Se BarcodeDetector disponível**: `requestAnimationFrame` chamando `detector.detect(video)` a cada ~200 ms. Ao retornar resultado, parar e disparar `onDetect`.
-  - **Senão**: manter ZXing `decodeFromStream` (comportamento atual), com `tryHarder` e `delayBetweenScanAttempts: 120`.
-- Ambos respeitam `IScannerControls`-like (`stop`) já usado pelo `pararCamera`.
+E o próprio código admite no diagnóstico do `worker-ping` (linha 494):
 
-### 3. Tirar foto (câmera ativa)
-Reescrever `tirarFoto`:
-1. Pegar a `MediaStreamTrack` ativa.
-2. Se `ImageCapture` existir: `new ImageCapture(track).takePhoto()` → `Blob` → `createImageBitmap(blob)` (resolução de foto, alta).
-3. Fallback: `imageCapture.grabFrame()` (já melhor que `videoWidth`) → `ImageBitmap`.
-4. Fallback final: canvas a partir de `video` (comportamento atual) usando `track.getSettings().width/height` quando disponível.
-5. Passar o resultado pelo detector híbrido. Em sucesso, parar câmera + `onDetect`; em falha, mensagem específica orientando aproximar e manter paralelo.
+> "Worker respondeu 520 — o binding mTLS provavelmente não cobre este hostname."
 
-### 4. Upload de imagem
-Reusar o mesmo detector híbrido (`decodeFromImageUrl` → `createImageBitmap` + BarcodeDetector quando disponível, ZXing como fallback). Mantém comportamento mas melhora taxa de leitura em fotos de DANFE.
+Sintomas batem 1:1:
+- Ambiente=1 → URL `www1.nfe.fazenda.gov.br` (não `hom1`).
+- 4/4 falhas idênticas, sem variação por SOAP variant nem por tentativa → não é intermitência, é determinístico.
+- Corpo exatamente "error code: 520" → Cloudflare-origin failure, não BIG-IP.
 
-### 5. Mensagens e UX
-- Manter assinatura/contrato exportado de `useQrScanner` — `FiscalChaveScannerDialog` não precisa mudar.
-- Erros: distinguir "câmera não suporta foto em alta resolução" (informativo, ainda tenta canvas) de "decoder não reconheceu" (acionável).
+Causas possíveis no Cloudflare Worker:
+1. **`mtls_certificate` binding sem `allowed_hosts` para `www1.nfe.fazenda.gov.br`** (só cobre `hom1`).
+2. Certificado A1 expirado/revogado/substituído sem reupload no Cloudflare.
+3. Worker referenciando outro binding name (typo) ao detectar produção.
 
-## Fora de escopo
-- Alterar `FiscalChaveScannerDialog.tsx` (UI), `chaveAcesso.parser.ts` ou tipos.
-- Tocar em backend, RLS, edge functions, fluxo de sincronização SEFAZ.
-- Suporte a PDF direto (continua exigindo print).
-- Tornar o app PWA/Capacitor.
+## Passo 1 — Confirmar a causa com diagnóstico real (sem alterar nada ainda)
 
-## Validação
-1. Live preview no desktop (sem BarcodeDetector): câmera abre, ZXing decodifica QR de NFC-e e DANFE quando aproximado.
-2. Chrome Android (com BarcodeDetector): live decodifica CODE-128 do DANFE a ~20 cm.
-3. iPhone Safari (sem BarcodeDetector e sem ImageCapture): "Tirar foto" cai no canvas e usa ZXing — segue funcional para QR; orientar uso de "Imagem" como reserva para CODE-128.
-4. Upload de print PNG do DANFE: decodifica como antes ou melhor.
-5. Rodar `bunx vitest run src/services/fiscal/__tests__/chaveAcesso.parser.test.ts` para garantir que o parser de chave (consumidor final) não regrediu.
+Antes de qualquer mudança, rodar o `worker-ping` apontando para **produção** e ver a resposta crua. Se devolver `statusHttp:520` com `preview:"error code: 520"`, está confirmado que é o binding/cert do Cloudflare, não a SEFAZ.
+
+Será executado via `supabase--curl_edge_functions`:
+
+```
+POST /functions/v1/sefaz-distdfe
+{ "action": "worker-ping", "ambiente": "1" }
+```
+
+E também ambiente 2 (homologação) como controle — se 2 passa e 1 falha, é prova final.
+
+## Passo 2 — Correção (dependente do resultado)
+
+### Caso A (esperado): ping prod = 520, ping hom = 200/SOAP
+
+Não é código do app. Ação necessária no **Cloudflare Worker** (fora do repositório Lovable, gerenciado por você):
+
+1. No painel do Cloudflare → Worker `sefaz-mtls-proxy` (ou o nome em uso) → **Settings → Variables → mTLS Certificates**.
+2. Verificar o `mtls_certificate` binding ativo. Confirmar:
+   - O certificado A1 atual está válido (data de validade > hoje).
+   - O campo **Hostnames** / `allowed_hosts` inclui **exatamente** `www1.nfe.fazenda.gov.br` (além de `hom1.nfe.fazenda.gov.br`).
+3. Se faltar, adicionar o hostname e redeployar o Worker.
+
+No app: ajustes pequenos para parar de mentir para o usuário:
+
+- `sefaz-distdfe/index.ts`: detectar o padrão `body === "error code: 520"` (`contentType` text/plain, length ≤ 32) e classificar como `CLOUDFLARE_ORIGIN_FAIL` em vez de `WORKER_UPSTREAM_520`. Para esse código, **não retentar 4×** (é determinístico) e retornar mensagem específica: "Falha no transporte do Worker mTLS para a SEFAZ produção (o Cloudflare não conseguiu estabelecer a conexão com a origem). Provável: o binding mTLS do Worker não cobre `www1.nfe.fazenda.gov.br` ou o certificado A1 instalado no Cloudflare expirou. Verifique no painel do Cloudflare."
+- Remover o texto hardcoded "(ping ok)" do erro — só dizer "ping ok" quando um ping de verdade tiver rodado nessa sessão.
+- Reduzir o backoff/tentativas quando o código for `CLOUDFLARE_ORIGIN_FAIL` (1 tentativa basta).
+
+### Caso B: ping prod retorna SOAP fault / HTML > 100 bytes
+
+Aí sim é intermitência do BIG-IP da SEFAZ AN. Mensagem atual é apropriada, mas vamos exibir o `preview` real (primeiros 120 chars do body) para o operador, em vez de texto genérico.
+
+### Caso C: ping prod com erro de rede (`worker-unreachable`)
+
+Worker offline. Reportar URL/secret e instruir a verificar o deploy do Worker.
+
+## Detalhes técnicos
+
+Arquivos potencialmente tocados (apenas no Caso A, mudanças cirúrgicas):
+
+- `supabase/functions/sefaz-distdfe/index.ts`
+  - Trecho `if (workerFail)` (linhas ~782-803): adicionar detecção `CLOUDFLARE_ORIGIN_FAIL` e `break` em vez de `continue` quando for esse código.
+  - Trecho de tradução de erro final (linhas ~900-915): novo branch para `CLOUDFLARE_ORIGIN_FAIL` com mensagem precisa; remover "(ping ok)" do branch `WORKER_UPSTREAM_520`.
+
+Nenhuma migração SQL, nenhuma mudança em RLS, nenhuma alteração no front-end (a UI já mostra `sucesso:false` + `erro` da edge function via toast).
+
+## Entregável
+
+1. Resultado bruto dos pings (prod e hom) colado na resposta para você ter prova documental.
+2. Veredito: binding/certificado vs. SEFAZ.
+3. Patch mínimo na edge function para a mensagem de erro corresponder à realidade (sem mascarar o problema infraestrutural, que precisa ser resolvido por você no Cloudflare).

@@ -484,16 +484,39 @@ Deno.serve(async (req) => {
         });
         clearTimeout(t);
         const txt = await r.text();
+        // Desembrulha o envelope JSON do Worker para enxergar o status REAL upstream.
+        // Sem isso, o ping ficava "sucesso:true" mesmo quando o Cloudflare devolvia
+        // sua própria página "error code: 520" — falsa sensação de transporte ok.
+        let upstreamStatus = r.status;
+        let upstreamBody = txt;
+        let upstreamContentType = r.headers.get("content-type") ?? "";
+        if (txt.trimStart().startsWith("{")) {
+          try {
+            const wj = JSON.parse(txt);
+            if (wj && typeof wj === "object") {
+              if (typeof wj.status === "number") upstreamStatus = wj.status;
+              if (typeof wj.body === "string") upstreamBody = wj.body;
+              if (typeof wj.contentType === "string") upstreamContentType = wj.contentType;
+            }
+          } catch (_) { /* não é envelope JSON */ }
+        }
+        const isCloudflareOriginFail =
+          upstreamStatus === 520 &&
+          /^error code:\s*520\s*$/i.test(String(upstreamBody).trim());
         return json({
-          sucesso: r.status !== 520 && r.status !== 401,
+          sucesso: !isCloudflareOriginFail && upstreamStatus !== 401 && upstreamStatus < 500,
           ambiente: ambientePing,
           alvo,
-          statusHttp: r.status,
-          preview: txt.slice(0, 300),
-          diagnostico: r.status === 520
-            ? "Worker respondeu 520 — o binding mTLS provavelmente não cobre este hostname."
-            : r.status === 401
+          statusHttp: upstreamStatus,
+          statusHttpWorker: r.status,
+          contentType: upstreamContentType,
+          preview: String(upstreamBody).slice(0, 300),
+          diagnostico: isCloudflareOriginFail
+            ? "Cloudflare devolveu a página \"error code: 520\" (origin unreachable). O Worker mTLS NÃO conseguiu falar com a SEFAZ — provável certificado A1 expirado/removido ou binding mtls_certificate desconfigurado no painel do Cloudflare."
+            : upstreamStatus === 401
             ? "Worker rejeitou o secret (401) — confira SEFAZ_MTLS_PROXY_SECRET."
+            : upstreamStatus >= 500
+            ? `SEFAZ respondeu HTTP ${upstreamStatus} (instabilidade real do BIG-IP do Ambiente Nacional).`
             : "Transporte Worker→SEFAZ alcançou o servidor (qualquer status HTTP da SEFAZ é prova de conectividade).",
         }, 200);
       } catch (e: any) {
@@ -786,6 +809,24 @@ Deno.serve(async (req) => {
               upstreamStatus: workerFail.status,
               upstreamBody: workerFail.body,
             });
+            // Detecta a página de erro padrão do CLOUDFLARE (não do BIG-IP da SEFAZ):
+            // `Content-Type: text/plain`, `Content-Length: 15`, body literal
+            // "error code: 520". Indica que o fetch do Worker para a origem falhou
+            // antes mesmo de chegar na SEFAZ — tipicamente binding `mtls_certificate`
+            // ausente/desconfigurado ou certificado A1 expirado no Cloudflare.
+            // Determinístico: retry não resolve, abortamos imediatamente.
+            const isCloudflareOriginFail =
+              workerFail.status === 520 &&
+              /^error code:\s*520\s*$/i.test(workerFail.body.trim());
+            if (isCloudflareOriginFail) {
+              ultimoErroTransporte = {
+                raw:
+                  "Cloudflare Worker não conseguiu estabelecer conexão com a SEFAZ " +
+                  "(retornou a página de erro 520 do próprio Cloudflare, não da SEFAZ).",
+                codigo: "CLOUDFLARE_ORIGIN_FAIL",
+              };
+              break;
+            }
             ultimoErroTransporte = {
               raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
               codigo: workerFail.status === 520
@@ -906,7 +947,10 @@ Deno.serve(async (req) => {
           " — falha de transporte contra o Ambiente Nacional após tentar SOAP 1.2 e SOAP 1.1. Possíveis causas: cadeia ICP-Brasil incompleta no A1, certificado expirado/de outro ambiente, ou bloqueio temporário do CNPJ no AN. O Portal NF-e segue funcionando, então o serviço da Receita está no ar.";
       } else if (codigo === "WORKER_UPSTREAM_520") {
         hint =
-          " — o Ambiente Nacional respondeu 520 nas 4 tentativas (instabilidade do BIG-IP da SEFAZ ou bloqueio temporário do CNPJ). O transporte Worker→SEFAZ está funcional (ping ok). Aguarde alguns minutos e sincronize de novo.";
+          " — o Ambiente Nacional respondeu HTTP 520 nas 4 tentativas (instabilidade do BIG-IP da SEFAZ ou bloqueio temporário do CNPJ). Aguarde alguns minutos e sincronize de novo.";
+      } else if (codigo === "CLOUDFLARE_ORIGIN_FAIL") {
+        hint =
+          " — o problema NÃO é a SEFAZ. O próprio Cloudflare devolveu a página \"error code: 520\" (origin unreachable), o que significa que o Worker mTLS não conseguiu abrir conexão TLS com a SEFAZ. Causas prováveis, em ordem: (1) certificado A1 instalado no Cloudflare expirou ou foi removido; (2) o binding `mtls_certificate` do Worker não está mais associado/ativo; (3) o binding não inclui o hostname alvo. Verifique no painel do Cloudflare → Worker → Settings → mTLS Certificates e refaça o upload do certificado A1 se necessário.";
       }
       return json({
         sucesso: false,
