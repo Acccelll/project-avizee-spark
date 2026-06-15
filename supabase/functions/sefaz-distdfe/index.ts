@@ -786,6 +786,24 @@ Deno.serve(async (req) => {
               upstreamStatus: workerFail.status,
               upstreamBody: workerFail.body,
             });
+            // Detecta a página de erro padrão do CLOUDFLARE (não do BIG-IP da SEFAZ):
+            // `Content-Type: text/plain`, `Content-Length: 15`, body literal
+            // "error code: 520". Indica que o fetch do Worker para a origem falhou
+            // antes mesmo de chegar na SEFAZ — tipicamente binding `mtls_certificate`
+            // ausente/desconfigurado ou certificado A1 expirado no Cloudflare.
+            // Determinístico: retry não resolve, abortamos imediatamente.
+            const isCloudflareOriginFail =
+              workerFail.status === 520 &&
+              /^error code:\s*520\s*$/i.test(workerFail.body.trim());
+            if (isCloudflareOriginFail) {
+              ultimoErroTransporte = {
+                raw:
+                  "Cloudflare Worker não conseguiu estabelecer conexão com a SEFAZ " +
+                  "(retornou a página de erro 520 do próprio Cloudflare, não da SEFAZ).",
+                codigo: "CLOUDFLARE_ORIGIN_FAIL",
+              };
+              break;
+            }
             ultimoErroTransporte = {
               raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
               codigo: workerFail.status === 520
