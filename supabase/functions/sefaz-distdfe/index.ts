@@ -484,16 +484,39 @@ Deno.serve(async (req) => {
         });
         clearTimeout(t);
         const txt = await r.text();
+        // Desembrulha o envelope JSON do Worker para enxergar o status REAL upstream.
+        // Sem isso, o ping ficava "sucesso:true" mesmo quando o Cloudflare devolvia
+        // sua própria página "error code: 520" — falsa sensação de transporte ok.
+        let upstreamStatus = r.status;
+        let upstreamBody = txt;
+        let upstreamContentType = r.headers.get("content-type") ?? "";
+        if (txt.trimStart().startsWith("{")) {
+          try {
+            const wj = JSON.parse(txt);
+            if (wj && typeof wj === "object") {
+              if (typeof wj.status === "number") upstreamStatus = wj.status;
+              if (typeof wj.body === "string") upstreamBody = wj.body;
+              if (typeof wj.contentType === "string") upstreamContentType = wj.contentType;
+            }
+          } catch (_) { /* não é envelope JSON */ }
+        }
+        const isCloudflareOriginFail =
+          upstreamStatus === 520 &&
+          /^error code:\s*520\s*$/i.test(String(upstreamBody).trim());
         return json({
-          sucesso: r.status !== 520 && r.status !== 401,
+          sucesso: !isCloudflareOriginFail && upstreamStatus !== 401 && upstreamStatus < 500,
           ambiente: ambientePing,
           alvo,
-          statusHttp: r.status,
-          preview: txt.slice(0, 300),
-          diagnostico: r.status === 520
-            ? "Worker respondeu 520 — o binding mTLS provavelmente não cobre este hostname."
-            : r.status === 401
+          statusHttp: upstreamStatus,
+          statusHttpWorker: r.status,
+          contentType: upstreamContentType,
+          preview: String(upstreamBody).slice(0, 300),
+          diagnostico: isCloudflareOriginFail
+            ? "Cloudflare devolveu a página \"error code: 520\" (origin unreachable). O Worker mTLS NÃO conseguiu falar com a SEFAZ — provável certificado A1 expirado/removido ou binding mtls_certificate desconfigurado no painel do Cloudflare."
+            : upstreamStatus === 401
             ? "Worker rejeitou o secret (401) — confira SEFAZ_MTLS_PROXY_SECRET."
+            : upstreamStatus >= 500
+            ? `SEFAZ respondeu HTTP ${upstreamStatus} (instabilidade real do BIG-IP do Ambiente Nacional).`
             : "Transporte Worker→SEFAZ alcançou o servidor (qualquer status HTTP da SEFAZ é prova de conectividade).",
         }, 200);
       } catch (e: any) {
