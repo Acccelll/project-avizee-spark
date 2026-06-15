@@ -9955,6 +9955,48 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      detectar_divergencia_preco_compra: {
+        Args: { p_janela?: number; p_limite_desvio?: number }
+        Returns: {
+          compra_id: string
+          compra_item_id: string
+          data_compra: string
+          desvio_percentual: number
+          fornecedor_id: string
+          mediana: number
+          produto_id: string
+          valor_unitario: number
+        }[]
+      }
+      detectar_gasto_fora_padrao: {
+        Args: { p_dias?: number; p_z?: number }
+        Returns: {
+          conta_contabil_id: string
+          data_vencimento: string
+          descricao: string
+          desvio: number
+          fornecedor_id: string
+          lancamento_id: string
+          media: number
+          valor: number
+          z_score: number
+        }[]
+      }
+      detectar_nf_duplicada: {
+        Args: never
+        Returns: {
+          chave_acesso: string
+          data_emissao_max: string
+          data_emissao_min: string
+          fornecedor_id: string
+          motivo: string
+          nota_ids: string[]
+          numero: string
+          quantidade: number
+          serie: string
+          valor_total: number
+        }[]
+      }
       duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
       editar_baixa_admin: {
         Args: { p_baixa_id: string; p_motivo: string; p_payload: Json }
