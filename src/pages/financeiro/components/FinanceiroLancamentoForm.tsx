@@ -406,7 +406,28 @@ export function FinanceiroLancamentoForm({
         </div>
         {contasContabeis.length > 0 && (
         <div className="space-y-2">
-          <Label>Conta Contábil (opcional)</Label>
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-1">
+              Conta Contábil (opcional)
+              {iaBadge("conta_contabil_id")}
+            </Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1"
+              onClick={handleSugerirClassificacao}
+              disabled={iaSuggesting || !form.descricao?.trim()}
+              title={!form.descricao?.trim() ? "Preencha a descrição primeiro" : "Sugerir classificação por IA"}
+            >
+              {iaSuggesting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              Sugerir (IA)
+            </Button>
+          </div>
           <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => updateField("conta_contabil_id", v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger>
             <SelectContent>
@@ -414,6 +435,11 @@ export function FinanceiroLancamentoForm({
               {contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
             </SelectContent>
           </Select>
+          {iaJustificativa && (
+            <p className="text-[11px] text-muted-foreground italic">
+              <Sparkles className="inline h-3 w-3 mr-0.5" /> {iaJustificativa}
+            </p>
+          )}
         </div>
         )}
 
