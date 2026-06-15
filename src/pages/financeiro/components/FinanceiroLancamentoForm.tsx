@@ -27,7 +27,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { sugerirClassificacao } from "@/services/ia/sugestao.service";
-import type { Fornecedor } from "@/types/domain";
 
 interface Props {
   form: LancamentoForm;
@@ -67,10 +66,53 @@ export function FinanceiroLancamentoForm({
   setForm,
   onCancel,
   onSubmit,
+  iaFields,
 }: Props) {
   const updateField = <K extends keyof LancamentoForm>(field: K, value: LancamentoForm[K]) => {
     setForm({ ...form, [field]: value });
   };
+
+  // ── IA: sugestão de conta contábil / centro de custo ─────────────────
+  const [iaSuggesting, setIaSuggesting] = useState(false);
+  const [iaJustificativa, setIaJustificativa] = useState<string | null>(null);
+  const handleSugerirClassificacao = async () => {
+    if (!form.descricao?.trim()) {
+      toast.error("Preencha a descrição antes de pedir a sugestão.");
+      return;
+    }
+    setIaSuggesting(true);
+    try {
+      const fornecedor = fornecedores.find((f) => f.id === form.fornecedor_id);
+      const res = await sugerirClassificacao({
+        descricao: form.descricao,
+        valor: form.valor,
+        fornecedor_nome: fornecedor?.nome ?? null,
+        tipo: form.tipo === "receber" ? "receber" : "pagar",
+      });
+      if (!res.conta_contabil_id) {
+        toast.warning("IA não conseguiu sugerir uma conta com confiança suficiente.");
+        setIaJustificativa(res.justificativa || null);
+      } else {
+        setForm({
+          ...form,
+          conta_contabil_id: res.conta_contabil_id,
+        });
+        setIaJustificativa(res.justificativa || null);
+        toast.success(`Conta sugerida (${res.confianca}).`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha na sugestão da IA.");
+    } finally {
+      setIaSuggesting(false);
+    }
+  };
+
+  const iaBadge = (field: keyof LancamentoForm) =>
+    iaFields?.has(field) ? (
+      <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] gap-0.5">
+        <Sparkles className="h-2.5 w-2.5" /> IA
+      </Badge>
+    ) : null;
 
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
   // Admin/Financeiro podem editar mesmo em status pago/parcial — backend
