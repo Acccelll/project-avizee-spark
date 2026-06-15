@@ -104,9 +104,9 @@ export async function extrairDocumento<T extends TipoExtracao>(
     throw new Error(payload?.erro ?? "Não foi possível interpretar o documento.");
   }
 
-  return {
+  return ({
     tipo,
-    dados: payload.dados as never,
+    dados: payload.dados,
     confianca: payload.confianca ?? "media",
-  } as ExtracaoResultado<T>;
+  } as unknown) as ExtracaoResultado<T>;
 }
