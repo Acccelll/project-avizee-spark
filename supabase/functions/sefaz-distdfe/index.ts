@@ -924,7 +924,10 @@ Deno.serve(async (req) => {
           " — falha de transporte contra o Ambiente Nacional após tentar SOAP 1.2 e SOAP 1.1. Possíveis causas: cadeia ICP-Brasil incompleta no A1, certificado expirado/de outro ambiente, ou bloqueio temporário do CNPJ no AN. O Portal NF-e segue funcionando, então o serviço da Receita está no ar.";
       } else if (codigo === "WORKER_UPSTREAM_520") {
         hint =
-          " — o Ambiente Nacional respondeu 520 nas 4 tentativas (instabilidade do BIG-IP da SEFAZ ou bloqueio temporário do CNPJ). O transporte Worker→SEFAZ está funcional (ping ok). Aguarde alguns minutos e sincronize de novo.";
+          " — o Ambiente Nacional respondeu HTTP 520 nas 4 tentativas (instabilidade do BIG-IP da SEFAZ ou bloqueio temporário do CNPJ). Aguarde alguns minutos e sincronize de novo.";
+      } else if (codigo === "CLOUDFLARE_ORIGIN_FAIL") {
+        hint =
+          " — o problema NÃO é a SEFAZ. O próprio Cloudflare devolveu a página \"error code: 520\" (origin unreachable), o que significa que o Worker mTLS não conseguiu abrir conexão TLS com a SEFAZ. Causas prováveis, em ordem: (1) certificado A1 instalado no Cloudflare expirou ou foi removido; (2) o binding `mtls_certificate` do Worker não está mais associado/ativo; (3) o binding não inclui o hostname alvo. Verifique no painel do Cloudflare → Worker → Settings → mTLS Certificates e refaça o upload do certificado A1 se necessário.";
       }
       return json({
         sucesso: false,
