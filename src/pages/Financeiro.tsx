@@ -319,6 +319,7 @@ const Financeiro = () => {
   const openCreate = () => {
     setMode("create");
     setForm({ ...emptyLancamentoForm });
+    setIaFields(new Set());
     setModalOpen(true);
   };
 
@@ -704,8 +705,20 @@ const Financeiro = () => {
             e.preventDefault();
             handleSubmit(mode, form, selected, () => setModalOpen(false));
           }}
+          iaFields={iaFields}
         />
       </FormModal>
+
+      <ImportarDocumentoIaDialog
+        open={importIaOpen}
+        onClose={() => setImportIaOpen(false)}
+        onExtracted={(defaults, ia) => {
+          setMode("create");
+          setForm({ ...emptyLancamentoForm, ...defaults });
+          setIaFields(ia);
+          setModalOpen(true);
+        }}
+      />
 
       <FinanceiroDrawer
         open={drawerOpen}
