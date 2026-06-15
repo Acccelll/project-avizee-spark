@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
+import { sugerirClassificacao } from "@/services/ia/sugestao.service";
+import type { Fornecedor } from "@/types/domain";
 
 interface Props {
   form: LancamentoForm;
@@ -38,6 +41,8 @@ interface Props {
   setForm: (next: LancamentoForm) => void;
   onCancel: () => void;
   onSubmit: (e: FormEvent) => void;
+  /** Conjunto de campos pré-preenchidos por IA (badge "IA"). Opcional. */
+  iaFields?: Set<keyof LancamentoForm>;
 }
 
 // Status editáveis no formulário: apenas `aberto` e `cancelado`.
