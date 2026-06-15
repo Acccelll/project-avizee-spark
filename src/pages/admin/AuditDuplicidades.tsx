@@ -258,20 +258,23 @@ export default function AuditDuplicidades() {
   return (
     <>
       <ModulePage
-        title="Auditoria de Duplicidades"
-        subtitle="Revisão de lançamentos financeiros potencialmente duplicados (apenas administradores)"
+        title="Auditoria & Anomalias"
+        subtitle="Detectores determinísticos de duplicidades e anomalias do sistema (apenas administradores)"
         headerActions={
-          <Button onClick={handleScan} disabled={scanning} variant="outline">
-            {scanning ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <ScanSearch className="w-4 h-4 mr-2" />
-            )}
-            {scanning ? "Escaneando..." : "Escanear duplicidades"}
-          </Button>
+          topTab === "duplicidades" ? (
+            <Button onClick={handleScan} disabled={scanning} variant="outline">
+              {scanning ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ScanSearch className="w-4 h-4 mr-2" />
+              )}
+              {scanning ? "Escaneando..." : "Escanear duplicidades"}
+            </Button>
+          ) : undefined
         }
         summaryCards={
-          <>
+          topTab === "duplicidades" ? (
+            <>
             <SummaryCard
               title="Grupos"
               value={String(counts.total)}
@@ -306,9 +309,24 @@ export default function AuditDuplicidades() {
               active={classFilter === "manual_review"}
               aria-label="Filtrar duplicidades para revisão manual"
             />
-          </>
+            </>
+          ) : undefined
         }
       >
+        <Tabs value={topTab} onValueChange={(v) => setTopTab(v as TopTab)} className="w-full mb-4">
+          <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 max-sm:h-11">
+            <TabsTrigger value="duplicidades">Duplicidades</TabsTrigger>
+            <TabsTrigger value="divergencia_preco">Divergência de preço</TabsTrigger>
+            <TabsTrigger value="nf_duplicada">NF duplicada</TabsTrigger>
+            <TabsTrigger value="gasto_fora_padrao">Gastos fora do padrão</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {topTab === "divergencia_preco" && <DivergenciaPrecoPanel />}
+        {topTab === "nf_duplicada" && <NfDuplicadaPanel />}
+        {topTab === "gasto_fora_padrao" && <GastoForaPadraoPanel />}
+
+        {topTab === "duplicidades" && (
         <Tabs value={tab} onValueChange={(v) => setTab(v as StatusTab)} className="w-full">
           <TabsList className="w-full grid grid-cols-3 max-sm:h-11">
             <TabsTrigger value="pendente">Pendentes</TabsTrigger>
@@ -358,6 +376,7 @@ export default function AuditDuplicidades() {
             />
           </TabsContent>
         </Tabs>
+        )}
       </ModulePage>
 
       {destructiveDialog}
