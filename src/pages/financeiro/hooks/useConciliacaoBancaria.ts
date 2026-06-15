@@ -13,6 +13,7 @@ import { parseOFX, type TransacaoExtrato } from "@/services/financeiro/ofxParser
 import {
   sugerirConciliacao,
   conciliarTransacao,
+  sugerirConciliacaoIa,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import {
@@ -30,6 +31,10 @@ import { useState } from "react";
 export interface ParConciliacao {
   extratoId: string;
   lancamentoId: string;
+  /** Origem da sugestão: heurística determinística ou IA fallback. */
+  origem?: "heuristica" | "ia";
+  /** Justificativa textual quando origem === "ia". */
+  justificativa?: string;
 }
 
 /** Estado completo do processo de conciliação para uma conta. */
