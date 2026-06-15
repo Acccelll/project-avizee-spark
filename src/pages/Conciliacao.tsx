@@ -58,6 +58,8 @@ interface LancamentoComStatus extends Lancamento {
 interface Match {
   extratoId: string;
   lancamentoId: string;
+  origem?: "heuristica" | "ia";
+  justificativa?: string;
 }
 
 /** Lightweight shape for the contas bancárias dropdown. */
