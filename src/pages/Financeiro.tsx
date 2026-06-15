@@ -55,6 +55,8 @@ import { useFinanceiroLancamentosPaged, useResetPageOnFiltersChange } from "@/pa
 import { buildFinanceiroColumns } from "@/pages/financeiro/config/financeiroColumns";
 import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/FinanceiroLancamentoForm";
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
+import { ImportarDocumentoIaDialog } from "@/components/financeiro/ImportarDocumentoIaDialog";
+import { Sparkles } from "lucide-react";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
 import { displayObservacoes } from "@/lib/displayLancamento";
@@ -98,6 +100,8 @@ const Financeiro = () => {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelProcessing, setCancelProcessing] = useState(false);
   const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [importIaOpen, setImportIaOpen] = useState(false);
+  const [iaFields, setIaFields] = useState<Set<keyof LancamentoForm>>(new Set());
   const [bulkCancelMotivo, setBulkCancelMotivo] = useState("");
   const [bulkCancelProcessing, setBulkCancelProcessing] = useState(false);
 
