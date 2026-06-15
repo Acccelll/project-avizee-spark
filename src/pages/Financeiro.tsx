@@ -442,6 +442,15 @@ const Financeiro = () => {
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+            onClick={() => setImportIaOpen(true)}
+            title="Pré-preencher um lançamento a partir de boleto ou nota fiscal (IA)"
+          >
+            <Sparkles className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Importar (IA)
+          </Button>
+          <Button
+            size="sm"
             variant={pendenciasOpen ? "default" : "outline"}
             className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0 relative"
             onClick={() => setPendenciasOpen(true)}
