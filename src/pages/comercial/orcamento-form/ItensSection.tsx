@@ -8,15 +8,15 @@ import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard"
 import { MobileSection } from "./MobileSection";
 import type { Tables } from "@/integrations/supabase/types";
 import type { OrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
-import type { RentabilidadeResult } from "@/lib/orcamentoRentabilidade";
+import type { RentabilidadeAnalise } from "@/lib/orcamentoRentabilidade";
 
 interface ItensSectionProps {
   items: OrcamentoItem[];
   onItemsChange: (items: OrcamentoItem[]) => void;
   produtos: React.ComponentProps<typeof OrcamentoItemsGrid>["produtos"];
   precosEspeciais: Tables<"precos_especiais">[];
-  baseAnalysis: RentabilidadeResult;
-  scenarioAnalysis: RentabilidadeResult;
+  baseAnalysis: RentabilidadeAnalise;
+  scenarioAnalysis: RentabilidadeAnalise;
   scenarioConfig: RentabilidadeScenarioConfig;
   onScenarioConfigChange: (cfg: RentabilidadeScenarioConfig) => void;
   internalAccess: OrcamentoInternalAccess;
