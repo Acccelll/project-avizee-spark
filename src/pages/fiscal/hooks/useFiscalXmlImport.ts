@@ -3,7 +3,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { GridItem } from "@/components/ui/ItemsGrid";
-import { useNFeXmlImport, type TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
+import {
+  useNFeXmlImport,
+  type TraducaoLinha,
+  type FornecedorMatchRef,
+  type ClienteMatchRef,
+  type ProdutoMatchRef,
+} from "@/pages/fiscal/hooks/useNFeXmlImport";
 import {
   emptyFiscalForm as emptyForm,
   type FiscalFormState as FiscalForm,
@@ -34,14 +40,9 @@ interface PendingXmlImport {
 }
 
 interface UseFiscalXmlImportArgs {
-  fornecedores: Array<{ id: string; nome_razao_social?: string | null }>;
-  clientes: Array<{ id: string; nome_razao_social?: string | null }>;
-  produtos: Array<{
-    id: string;
-    nome?: string | null;
-    codigo_interno?: string | null;
-    preco_custo?: number | null;
-  }>;
+  fornecedores: FornecedorMatchRef[];
+  clientes: ClienteMatchRef[];
+  produtos: ProdutoMatchRef[];
   cnpjEmpresa: string | undefined;
   refetchFornecedores: () => Promise<unknown> | unknown;
   refetchClientes: () => Promise<unknown> | unknown;
