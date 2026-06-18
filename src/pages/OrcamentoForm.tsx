@@ -22,6 +22,7 @@ import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
 import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import { ActionsToolbar } from "@/pages/comercial/orcamento-form/ActionsToolbar";
+import { EditMetaBanner } from "@/pages/comercial/orcamento-form/EditMetaBanner";
 import {
   emptyCliente,
   STATUS_LABEL,
