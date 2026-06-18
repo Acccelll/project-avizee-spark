@@ -1,69 +1,72 @@
-## Etapa 3 — Segurança & LGPD (escopo aprovado)
+# Etapa 6 — Refatoração dos monólitos
 
-### 3.1/3.2 — Fechar gaps remanescentes de RLS / SECURITY DEFINER
+Princípio para todos: **comportamento idêntico**, só reorganização. Página vira orquestrador (~300 linhas) que compõe `useXxx` (estado/queries/mutations) + componentes de UI puros + services. Validar entre cada alvo: `typecheck:core`, build, suíte vitest e smokes.
 
-Lookup tables (`bancos`, `formas_pagamento`, `centros_custo`, `contas_contabeis*`, `empresas`, `empresa_config`, `grupos_*`, `ibge_municipios`, `unidades_medida`, `transportadoras`, `produto_composicoes`, `produtos_fornecedores`, `produto_identificadores_legacy`, `remessa_itens`, `social_*`, `bancos`, `comentarios`) **permanecem `USING(true)` para `authenticated`** — alinhado com a memória `rls-single-tenant.md` (não há grant para `anon`).
+## Estado atual real (auditoria nesta sessão)
 
-Migração endurece o resto:
+| Arquivo | Linhas hoje | Roadmap dizia | Observação |
+|---|---|---|---|
+| `src/pages/OrcamentoForm.tsx` | **708** | 2096 | Já parcialmente decomposto (pasta `comercial/orcamento-form/` com ~30 sub-arquivos). Falta só finalizar. |
+| `src/pages/Fiscal.tsx` | **1766** | 1934 | Pasta `fiscal/components/` existe mas página ainda concentra orquestração de abas + estado. |
+| `src/pages/faturamento/EmitirNFeWizard.tsx` | **1718** | 1718 | Sem decomposição prévia. Maior risco. |
+| `src/pages/Conciliacao.tsx` | **1456** | 1406 | Sem decomposição prévia. |
 
-| Tabela | SELECT hoje | SELECT depois |
-|---|---|---|
-| `stg_cadastros`, `stg_compras_xml`, `stg_estoque_inicial`, `stg_faturamento`, `stg_financeiro_aberto` | `true` | `has_role(auth.uid(),'admin')` |
-| `apresentacao_comentarios`, `apresentacao_geracoes`, `apresentacao_templates`, `apresentacao_slide_telemetria` | `true` | `admin OR financeiro` |
-| `cliente_registros_comunicacao`, `clientes_enderecos_entrega` | `true` | `admin OR vendedor OR financeiro` |
-| `nfe_distdfe_sync` | `true` | `admin OR financeiro` |
-| `importacao_logs`, `importacao_lotes` | duplicado (`true` + admin) | drop policy `true`, mantém admin |
+Ordem proposta: 6.1 → 6.4 → 6.3 → 6.2 (menor risco/menor arquivo primeiro; Wizard NF-e por último por ser o mais crítico e preparar terreno para Reforma Tributária).
 
-Mantém `empresa_id` previsto (não introduz filtro multi-tenant agora; só comenta).
+## 6.1 OrcamentoForm (mais simples, fechar o que falta)
 
-`SECURITY DEFINER` views: já catalogadas em `security-definer-views.md` (4 exceções com `COMMENT`). Sweep adicional: confirmar nenhuma view nova DEFINER, garantir `SET search_path = public` em todas as `SECURITY DEFINER` functions (memória `seguranca-funcoes-sql.md`).
+Auditar `src/pages/OrcamentoForm.tsx` e extrair o que sobrou inline:
+- Mover estado/orquestração para novo hook `useOrcamentoForm` em `src/pages/comercial/orcamento-form/useOrcamentoForm.ts`, consolidando os hooks já existentes (`useOrcamentoLoad`, `useOrcamentoSave`, `useOrcamentoDraft`, `useOrcamentoRentabilidade`, `useOrcamentoFormTemplates`).
+- Garantir que não restou `supabase.from/rpc` na página (mover p/ `orcamentos.service.ts`).
+- Corrigir os 2 fetch-all residuais em `orcamentos.service.ts` (substituir `.limit(N)` por `fetchAllPages`).
+- Meta: página final < 300 linhas, apenas JSX + composição.
 
-### 3.3 — MFA TOTP (opcional para todos)
+## 6.4 Conciliacao
 
-Novo hook `useMfa()` (`enroll`, `verify`, `unenroll`, `listFactors`). Substitui o card "Em breve" em `SegurancaSection.tsx` por bloco real:
-- Lista fatores ativos (com `created_at`, opção remover).
-- Botão "Adicionar autenticador" → drawer/modal com QR code + campo de 6 dígitos.
-- Toast de sucesso e atualização do estado.
+Criar `src/pages/financeiro/conciliacao/`:
+- `useConciliacao.ts` — estado de extrato, candidatos, seleção, mutations.
+- `ImportarExtratoSection.tsx` — upload/preview/parse.
+- `ParesSugeridosList.tsx` — lista de pares com score.
+- `PainelConfirmacao.tsx` — confirmação e desfazer.
+- `ResumoConciliacaoBar.tsx` — totais.
+- Não tocar em `conciliacao.service.ts` (`sugerirConciliacao`, `calcularScoreConciliacao`, `confirmarConciliacao` preservados).
+- Página vira orquestrador < 300 linhas.
 
-Login: o cliente Supabase já dispara `aal2` automaticamente quando há fator. Adicionar tela `MfaChallenge` (rota `/mfa`) chamada de `Login` quando `currentLevel='aal1' && nextLevel='aal2'`. Sem enforcement por papel (escolha do usuário).
+## 6.3 Fiscal
 
-### 3.4 — Rate limit em edge functions expostas
+Aproveitar `src/pages/fiscal/components/` já existente. Quebrar por aba:
+- `tabs/EmitidasTab.tsx`, `tabs/RecebidasTab.tsx` (DistDFe), `tabs/EventosTab.tsx`, `tabs/ConfiguracaoTab.tsx`.
+- Cada aba carrega dados próprios via lazy + hook dedicado (`useFiscalEmitidas`, etc.) — reduz custo inicial.
+- Estado compartilhado (filtros globais, seleção) num hook `useFiscalPage`.
+- Página vira shell com `<Tabs>` + Suspense.
 
-Novo helper `supabase/functions/_shared/rate-limit.ts` em memória (Map por instância, janela deslizante) — suficiente para o caso comum sem persistir tabela. Assinatura: `await checkRateLimit(key, {limit, windowSec})` → lança 429.
+## 6.2 EmitirNFeWizard (por último, maior risco)
 
-Aplicado a: `ia-extracao-documento`, `ia-sugestao`, `consultadanfe-proxy`, `social-sync` (já validados em PRs anteriores; só plugar o limit). Chave = `userId || ip`.
+Criar `src/pages/faturamento/emitir-nfe/`:
+- `useEmitirNFe.ts` — máquina de passos + validação via `preEmissao.validator.ts` (já existe).
+- Um arquivo por passo: `steps/DestinatarioStep.tsx`, `ItensStep.tsx`, `TributosStep.tsx`, `TransporteStep.tsx`, `PagamentoStep.tsx`, `RevisaoStep.tsx`.
+- `useEmitirNFeNavigation.ts` — back/next/validação por passo.
+- Extrair montagem do payload/XML para `src/services/fiscal/emitirNfe/buildPayload.ts` (puro, testável) — prepara IBS/CBS NT 2025.002.
+- Página vira shell de wizard < 300 linhas.
 
-### 3.5 — Base LGPD
+## Trilhos comuns (todos os 4 alvos)
 
-**Migração:**
-- `lgpd_solicitacoes` (`titular_tipo` ∈ cliente|fornecedor|funcionario, `titular_id`, `tipo` ∈ exportar|anonimizar, `status`, `solicitado_por`, `concluido_em`, `payload` jsonb p/ exportação, `motivo`).
-- RPC `exportar_dados_titular(_tipo, _id)` → jsonb consolidando cadastro + comunicações + orçamentos/pedidos/NFs/lançamentos relacionados.
-- RPC `anonimizar_titular(_tipo, _id)` — preserva NFs autorizadas (substitui nome/email/telefone/endereço no cadastro mestre por `[ANONIMIZADO #id]`; CPF/CNPJ vira hash; **não** toca snapshots de NF emitida nem `financeiro_lancamentos` históricos). Registra em `lgpd_solicitacoes` e `auditoria_logs`.
-- Ambas `SECURITY DEFINER`, `SET search_path = public`, guard `has_role admin`.
-- Novo recurso `lgpd` em `permissions.ts`/`RESOURCE_ACTIONS` (apenas para admin).
-- Coluna `consentimento_lgpd_em timestamptz` em `clientes`/`fornecedores`/`funcionarios` (nullable).
+- Sem alteração visual nem de fluxo — pixel-equivalente.
+- Toda I/O via `src/services/` (regra `mem://tech/camada-services-unica`).
+- `console.*` proibido — usar `src/lib/logger`.
+- Tipos de domínio em `src/types/domain.ts`; nada de `any`.
+- Após cada alvo: rodar `bunx vitest run`, `npm run build`, smokes (`auth-routing`, `dashboard`, `financeiro`) + smoke novo se a Etapa 7 já tiver entregue (caso contrário, validar manualmente).
+- Cada refator entra como commit isolado para permitir reverter.
 
-**UI:**
-- Nova seção em `/administracao` (`LgpdSection`) listando solicitações + form "Nova solicitação" (busca titular por tipo, escolhe ação, mostra preview).
-- Botão "Registrar consentimento LGPD" nos formulários de cliente/fornecedor/funcionário (toggle simples gravando `consentimento_lgpd_em = now()`).
+## Fora de escopo desta etapa
 
-### Verificação
+- Mudanças de UX, novos campos, novas regras de negócio.
+- Reforma Tributária IBS/CBS (épico próprio).
+- Cobertura de testes nova (Etapa 7).
 
-- `psql` confirma novas policies.
-- Linter sem novos avisos relevantes.
-- Tests `vitest run` continuam verdes (785).
-- Smoke manual: vendedor não vê `stg_*`; admin enrola MFA, desloga, loga com challenge; admin exporta titular e anonimiza um cliente de teste — NF preservada.
+## Critérios de aceite
 
-### Arquivos previstos
-
-- `supabase/migrations/<ts>_etapa3_rls_lgpd_mfa.sql`
-- `supabase/functions/_shared/rate-limit.ts` (+ aplicação nas 4 funções)
-- `src/pages/configuracoes/hooks/useMfa.ts`
-- `src/pages/configuracoes/sections/SegurancaSection.tsx` (substitui placeholder)
-- `src/pages/MfaChallenge.tsx` + rota
-- `src/pages/admin/sections/LgpdSection.tsx`
-- `src/services/lgpd.service.ts`
-- `src/lib/permissions.ts` (+ `lgpd`)
-- `.lovable/memory/features/lgpd.md` + atualização de `rls-single-tenant.md`
-
-Estimativa: 1 migração grande + ~10 arquivos novos/editados. Sem refactor de monólitos.
+- Os 4 arquivos-página com **< 300 linhas** cada.
+- Zero regressão funcional (suíte verde + verificação manual nos fluxos críticos).
+- Zero novo round-trip a banco/edge function.
+- `npm run typecheck:core` e build OK; lint sem novas violações.
