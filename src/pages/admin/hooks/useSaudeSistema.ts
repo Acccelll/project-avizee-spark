@@ -15,6 +15,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { HealthStatus } from "@/components/HealthBadge";
+import {
+  fetchAuditEntidades,
+  fetchEmailStats,
+  fetchWebhookMetrics,
+  fetchEmailQueueMetrics,
+  type FilaEmailMetric as FilaEmailMetricSvc,
+} from "@/services/admin/saudeSistema.service";
 
 export interface ModuloEvento {
   entidade: string;
