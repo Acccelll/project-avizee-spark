@@ -20,7 +20,6 @@ import {
   fetchEmailStats,
   fetchWebhookMetrics,
   fetchEmailQueueMetrics,
-  type FilaEmailMetric as FilaEmailMetricSvc,
 } from "@/services/admin/saudeSistema.service";
 
 export interface ModuloEvento {
