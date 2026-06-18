@@ -44,8 +44,7 @@ import {
   useResetPageOnFiltersChange,
 } from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
-import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
-import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
+import { FiscalChaveDialogsSlot } from "@/pages/fiscal/components/FiscalChaveDialogsSlot";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
 import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
@@ -1645,40 +1644,14 @@ const Fiscal = () => {
       <FiscalDanfeViewer ref={danfeViewerRef} />
 
       {/* Busca de NF-e por chave de acesso (44 dígitos) — DistDFe local + sync SEFAZ */}
-      <BuscarPorChaveDialog
-        open={buscarChaveOpen}
-        chaveInicial={buscarChaveInicial}
-        onClose={() => {
-          setBuscarChaveOpen(false);
-          setBuscarChaveInicial(undefined);
-        }}
-        onXmlObtido={async (xml) => {
-          try {
-            await processarXmlImportado(xml);
-          } catch (err) {
-            logger.error("[fiscal] processar XML por chave:", err);
-            toast.error(
-              `Erro ao processar XML: ${err instanceof Error ? err.message : String(err)}`,
-            );
-          }
-        }}
-      />
-
-      {/* Scanner de chave (câmera/upload/digitação) — extrai apenas a chave;
-          os fluxos de consulta/XML continuam canônicos. */}
-      <FiscalChaveScannerDialog
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onBuscarXml={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
-        onConsultarSituacao={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
+      <FiscalChaveDialogsSlot
+        buscarChaveOpen={buscarChaveOpen}
+        buscarChaveInicial={buscarChaveInicial}
+        setBuscarChaveOpen={setBuscarChaveOpen}
+        setBuscarChaveInicial={setBuscarChaveInicial}
+        scannerOpen={scannerOpen}
+        setScannerOpen={setScannerOpen}
+        processarXmlImportado={processarXmlImportado}
       />
 
       {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
