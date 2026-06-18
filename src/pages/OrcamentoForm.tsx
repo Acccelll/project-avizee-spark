@@ -22,6 +22,9 @@ import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
 import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
 import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
 import { useOrcamentoRentabilidade } from "@/pages/comercial/orcamento-form/useOrcamentoRentabilidade";
+import { usePreviewAutoScale } from "@/pages/comercial/orcamento-form/usePreviewAutoScale";
+import { useOrcamentoDraft } from "@/pages/comercial/orcamento-form/useOrcamentoDraft";
+import { LockedAlert } from "@/pages/comercial/orcamento-form/LockedAlert";
 import {
   emptyCliente,
   STATUS_LABEL,
@@ -71,8 +74,6 @@ import {
   hasOrcamentoDraft,
   criarRevisaoOrcamento,
 } from "@/services/orcamentos.service";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lock } from "lucide-react";
 export default function OrcamentoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
