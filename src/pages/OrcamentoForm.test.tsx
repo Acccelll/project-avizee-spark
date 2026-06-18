@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import OrcamentoForm from "@/pages/OrcamentoForm";
 
 vi.mock("@/components/AppLayout", () => ({
@@ -51,10 +52,15 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 describe("OrcamentoForm", () => {
   it("deve renderizar a tela de nova cotação", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
     render(
-      <MemoryRouter>
-        <OrcamentoForm />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <OrcamentoForm />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
