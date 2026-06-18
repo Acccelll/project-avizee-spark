@@ -19,7 +19,7 @@ interface EditMetaBannerProps {
   clienteSnapshot: ClienteSnap;
   dataOrcamento?: string | null;
   validade?: string | null;
-  lastAutoSaveAt?: number | null;
+  lastAutoSaveAt?: string | null;
   valorTotal: number;
   pesoTotal: number;
   items: ItemLite[];
