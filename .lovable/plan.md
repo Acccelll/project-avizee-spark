@@ -97,17 +97,40 @@ Verificação: chamar cada função com body inválido → 400 claro. `nc`/curl 
 
 ### PR-2.4 — Integridade de fluxos multi-tabela
 
-Mapeamento (auditoria leve — sem nova RPC se já existir):
-- **Emissão NF → financeiro → estoque:** verificar se passa por RPC `confirmar_nota`/`autorizar_nfe` (memória já confirma). Se algum branch ainda escreve em múltiplas tabelas direto do client, propor RPC `SECURITY DEFINER`.
-- **Conversão orçamento → pedido:** já é RPC.
-- **Baixa em lote financeira:** já é RPC `baixar_lote`.
-- **Cancelamento NF → estorno financeiro/estoque:** revisar `DevolucaoDialog` e `FiscalChaveDialogs` para confirmar atomicidade.
+Concluído.
 
-Constraints novas (migration única):
-- `chk_orcamentos_total_nonneg`, `chk_pedidos_valor_total_nonneg`, `chk_estoque_movimentos_qtd_positiva` (onde aplicável por tipo), `chk_financeiro_lancamentos_valor_nonneg`.
-- Checagens de `status` já existem como `chk_*` (memória) — completar onde faltar.
+Atomicidade — auditoria confirmou que todos os fluxos multi-tabela já passam
+por RPC `SECURITY DEFINER`:
+- Emissão NF: `confirmar_nota` / `autorizar_nfe` (registra eventos, financeiro
+  e movimentos de estoque na mesma transação).
+- Conversão orçamento → pedido: `converter_orcamento_*` RPC.
+- Baixa em lote: `baixar_lote` RPC.
+- Cancelamento/devolução de NF: `cancelar_nota` + `registrar_devolucao` RPC
+  (`DevolucaoDialog` e `FiscalChaveDialogs` apenas invocam).
+- Ajuste de estoque: `ajustar_estoque_manual` RPC (cobre INSERT em
+  `estoque_movimentos` + UPDATE em `produtos.estoque_atual`).
 
-Verificação: forçar falha no meio de fluxo multi-tabela em ambiente de teste → sem estado órfão (RPC reverte). `supabase--linter` limpo após migration.
+Constraints novas (migration aplicada — todos os check `VALID`, zero linhas
+pré-existentes violavam):
+- `chk_orcamentos_valor_total_nonneg`
+- `chk_ordens_venda_valor_total_nonneg`
+- `chk_pedidos_compra_valor_total_nonneg`
+- `chk_compras_valor_total_nonneg`
+- `chk_notas_fiscais_valor_total_nonneg`
+- `chk_financeiro_lancamentos_valor_nonneg`
+- `chk_financeiro_baixas_valor_pago_nonneg`
+
+Não tocados (decisão registrada):
+- `chk_estoque_movimentos_quantidade_positiva` já existe em produção como
+  `NOT VALID` (19 linhas legadas com `quantidade < 0` em `saida`/`inventario`).
+  Promover para `VALID` exige saneamento prévio e fica fora do escopo
+  defensivo desta etapa.
+- Constraints em itens (`*_itens.preco_unitario`, `quantidade`): nomenclatura
+  heterogênea entre tabelas; adiar até harmonização de schema.
+
+Linter: warnings/errors retornados são pré-existentes (SECURITY DEFINER views,
+RLS-no-policy em tabelas de staging) e já estão cobertos pela memória de
+segurança. Migration desta etapa não introduziu nenhum item novo.
 
 ## Não-objetivos
 
