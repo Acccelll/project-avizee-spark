@@ -34,11 +34,26 @@ Criar `src/pages/financeiro/conciliacao/`:
 
 ## 6.3 Fiscal
 
-Aproveitar `src/pages/fiscal/components/` já existente. Quebrar por aba:
-- `tabs/EmitidasTab.tsx`, `tabs/RecebidasTab.tsx` (DistDFe), `tabs/EventosTab.tsx`, `tabs/ConfiguracaoTab.tsx`.
-- Cada aba carrega dados próprios via lazy + hook dedicado (`useFiscalEmitidas`, etc.) — reduz custo inicial.
-- Estado compartilhado (filtros globais, seleção) num hook `useFiscalPage`.
-- Página vira shell com `<Tabs>` + Suspense.
+Plano original previa quebra por abas, mas a página real **não é tabbed** —
+é uma listagem única de NF com fluxos pesados de XML/lifecycle. Plano revisado:
+decomposição por **camadas funcionais** em hooks dedicados.
+
+### Pass 1 (concluído)
+- `useFiscalAutoOpen` — cnpjEmpresa + ?new/?nf/?pedido_compra effects.
+- `useFiscalLifecycleActions` — handleConfirmar/Estornar/Inativar/CancelarRascunho,
+  baixarXmlArquivado, openEdit (hidratação do form).
+- `useFiscalSubmit` — handleSubmit (~370 linhas) + buildNfItemsPayload, com toda
+  a árvore de decisão de financeiro (XML, cartão, recorrente, auto-confirm,
+  pós-edição admin) preservada 1:1.
+- Resultado: **1766 → 1126 linhas** (-36%). Build e typecheck verdes.
+
+### Pass 2 (pendente para fechar 6.3)
+- `useFiscalXmlImport` — `processarXmlImportado`/`processarXmlParaAnexar`/
+  `aplicarImportacaoXml`/`salvarDeParaFornecedor`/`handleTraducao*`/handlers
+  de input XML (~500 linhas).
+- `FiscalQuickAddSlot` — três quick-add modals (produto/fornecedor/cliente)
+  + estado de retomada do XML pendente (~150 linhas).
+- Meta final: página < 300 linhas, apenas JSX.
 
 ## 6.2 EmitirNFeWizard (por último, maior risco)
 
