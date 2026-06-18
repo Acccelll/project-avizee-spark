@@ -144,3 +144,4 @@
 - [MFA TOTP](mem://features/mfa-totp) — 2FA opcional via supabase.auth.mfa; challenge em /mfa após signIn
 - [Edge Rate Limit](mem://tech/edge-rate-limit) — Helper in-memory para funções com APIs pagas (ia/consultadanfe/social)
 - [Design System Tokens & Exceções](mem://tech/design-system-tokens) — Tokens semânticos obrigatórios; chartColors.ts central; exceções (PDF/público/etiquetas)
+- [A11y & Mobile Checklist](mem://produto/a11y-mobile-checklist) — Padrão mobile-safe para touch targets; aria-label obrigatório em icon Buttons; auditoria por script

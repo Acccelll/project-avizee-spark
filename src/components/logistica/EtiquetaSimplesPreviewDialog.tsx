@@ -250,7 +250,7 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
               )}{" "}
               Baixar PDF
             </Button>
-            <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8">
+            <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8" aria-label="Fechar pré-visualização">
               <X className="h-4 w-4" />
             </Button>
           </div>

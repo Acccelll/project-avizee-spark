@@ -228,6 +228,7 @@ export function PagamentoNFe({ disabled }: Props) {
                       className="h-7 w-7"
                       onClick={() => remove(idx)}
                       disabled={disabled || fields.length <= 1}
+                      aria-label="Remover forma de pagamento"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
