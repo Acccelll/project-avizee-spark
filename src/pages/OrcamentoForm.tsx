@@ -1368,9 +1368,6 @@ export default function OrcamentoForm() {
         userId={user?.id}
         applyDraft={(payload) => applyDraft(payload as Parameters<typeof applyDraft>[0])}
       />
-      <Dialog open={false} onOpenChange={() => {}}>
-        <DialogContent />
-      </Dialog>
 
       <QuickAddClientModal
         open={quickAddOpen}
