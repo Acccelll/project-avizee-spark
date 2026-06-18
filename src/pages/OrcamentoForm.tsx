@@ -42,11 +42,7 @@ import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pa
 import { RestoreDraftDialog } from "@/pages/comercial/orcamento-form/RestoreDraftDialog";
 import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStickyFooter";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
-import {
-  validateOrcamentoItems,
-  mapItemsToPayload,
-  persistOrcamento,
-} from "@/pages/comercial/orcamento-form/saveHelpers";
+import { useOrcamentoSave } from "@/pages/comercial/orcamento-form/useOrcamentoSave";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,7 +59,6 @@ import {
   listProdutosAtivosComFornecedores,
   getFormaPagamentoDescricao,
   listPrecosEspeciaisAtuais,
-  deleteOrcamentoDraft,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
@@ -81,7 +76,6 @@ export default function OrcamentoForm() {
   const isAdmin = roles.includes("admin");
   const canApprove = isAdmin || can("orcamentos:aprovar");
 
-  const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
   const queryClient = useQueryClient();
   // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
@@ -364,113 +358,13 @@ export default function OrcamentoForm() {
       override,
     });
 
-  const handleSave = async () => {
-    // Guard de status: apenas status finais (LOCKED_STATUSES) são imutáveis.
-    // rascunho/pendente/aprovado permanecem editáveis para ajustes antes da conversão.
-    if (isLocked) {
-      toast.error(`Orçamento "${status}" não pode ser editado.`, {
-        description: "Use \"Criar revisão\" no drawer para gerar uma nova versão.",
-      });
-      return;
-    }
-    // Guard de permissão: bloquear escolha manual de "aprovado"/"convertido" no Select.
-    const formStatus = getValues().status;
-    if (formStatus === "aprovado" && !canApprove) {
-      toast.error("Você não tem permissão para aprovar orçamentos.", {
-        description: "Use o fluxo de aprovação na lista de orçamentos.",
-      });
-      return;
-    }
-    if (formStatus === "convertido") {
-      toast.error("Conversão em pedido deve ser feita pela lista de orçamentos.");
-      return;
-    }
-    // Validar formulário via react-hook-form
-    const valid = await trigger(['numero', 'clienteId']);
-    if (!valid) {
-      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
-      return;
-    }
-    const { numero, clienteId } = getValues();
-    if (!numero || !clienteId) {
-      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
-      return;
-    }
-
-    const itemsCheck = validateOrcamentoItems(items, "salvar");
-    if (!itemsCheck.ok) {
-      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
-      return;
-    }
-    const validItems = itemsCheck.validItems;
-
-    setSaving(true);
-    try {
-      const payload = buildOrcamentoPayload();
-      const { orcId, numero: numeroSalvo } = await persistOrcamento({
-        id: isEdit ? id! : null,
-        payload,
-        itens: mapItemsToPayload(validItems),
-        fetchServerNumero: !isEdit,
-      });
-
-      localStorage.removeItem(draftKey);
-      if (user?.id) {
-        try {
-          await deleteOrcamentoDraft(user.id, draftKey);
-        } catch {/* ignore */}
-      }
-      // Reflete o número definitivo (gerado server-side via proximo_numero_orcamento())
-      // no campo do form — pode diferir do peek se houve criação concorrente.
-      if (!isEdit && numeroSalvo) setValue("numero", numeroSalvo);
-      // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
-      // a inclusão/edição sem F5. Inclui também filtros server-side.
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      ]);
-      toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${numeroSalvo} salvo.`,
-        action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
-      });
-      if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
-    } catch (err: unknown) {
-      logger.error('[orcamento]', err);
-      notifyError(err);
-    }
-    setSaving(false);
-  };
-
-  const handleDuplicate = async () => {
-    if (!id) { toast.error("Salve o orçamento antes de duplicar"); return; }
-    const itemsCheck = validateOrcamentoItems(items, "duplicar");
-    if (!itemsCheck.ok) {
-      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
-      return;
-    }
-    const validItems = itemsCheck.validItems;
-    try {
-      // Compartilha a forma do payload com `handleSave` via override.
-      // numero vazio => `salvar_orcamento` gera atomicamente via `proximo_numero_orcamento()`.
-      const payload = buildOrcamentoPayload({
-        numero: "",
-        status: "rascunho",
-        validade: null,
-      });
-      const { orcId, numero: numeroDup } = await persistOrcamento({
-        id: null,
-        payload,
-        itens: mapItemsToPayload(validItems),
-        fetchServerNumero: true,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      toast.success(`Duplicado: ${numeroDup}`);
-      navigate(`/orcamentos/${orcId}`, { replace: true });
-    } catch (err: unknown) {
-      logger.error('[orcamento] duplicar:', err);
-      notifyError(err);
-    }
-  };
+  const { saving, handleSave, handleDuplicate } = useOrcamentoSave({
+    id, isEdit, isLocked, status, canApprove, draftKey,
+    userId: user?.id, items,
+    trigger, getValues, setValue,
+    buildOrcamentoPayload,
+    queryClient, navigate,
+  });
 
   const handleGeneratePdf = async () => {
     generateOrcamentoPdf({
