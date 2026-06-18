@@ -37,6 +37,7 @@ import {
   type SalvarOrcamentoItemPayload,
 } from "@/pages/comercial/orcamento-form/types";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
+import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -149,23 +150,6 @@ export default function OrcamentoForm() {
   useEffect(() => {
     if (previewOpen) setPreviewZoom(0);
   }, [previewFullscreen, previewOpen]);
-
-  const ensurePdfFontsReady = useCallback(async () => {
-    if (typeof document === "undefined" || !("fonts" in document)) return;
-
-    try {
-      await Promise.all([
-        document.fonts.load("400 16px Montserrat"),
-        document.fonts.load("500 16px Montserrat"),
-        document.fonts.load("600 16px Montserrat"),
-        document.fonts.load("700 16px Montserrat"),
-        document.fonts.load("800 16px Montserrat"),
-        document.fonts.ready,
-      ]);
-    } catch {
-      // Não bloqueia a exportação se a API de fontes falhar.
-    }
-  }, []);
 
   const {
     register,
@@ -849,61 +833,16 @@ export default function OrcamentoForm() {
   };
 
   const handleGeneratePdf = async () => {
-    // Captura a partir do template renderizado off-screen (sempre montado).
-    const capture = async () => {
-      const node = offscreenPdfRef.current;
-      if (!node) return;
-      try {
-        await ensurePdfFontsReady();
-        const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-          import("html2canvas"),
-          import("jspdf"),
-        ]);
-        const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: "#fff" });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        const safeCliente = (clienteSnapshot.nome_razao_social || "CLIENTE")
-          .toUpperCase()
-          .replace(/[\\/:*?"<>|]/g, "")
-          .trim();
-        pdf.save(`${numero || "ORCAMENTO"} - ${safeCliente}.pdf`);
-        toast.success("PDF gerado com sucesso!");
-      } catch (err: unknown) {
-        notifyError(err);
-      }
-    };
-    requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
+    generateOrcamentoPdf({
+      node: offscreenPdfRef.current,
+      numero,
+      clienteNome: clienteSnapshot.nome_razao_social,
+    });
   };
 
   // Gera o PDF como Blob (sem download) — usado para anexar em e-mail.
-  // Captura o template renderizado OFF-SCREEN, sem abrir o preview.
-  const buildPdfBlob = async (): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(async () => {
-        try {
-          const node = offscreenPdfRef.current;
-          if (!node) return resolve(null);
-          await ensurePdfFontsReady();
-          const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-            import("html2canvas"),
-            import("jspdf"),
-          ]);
-          const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: "#fff" });
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF("p", "mm", "a4");
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-          resolve(pdf.output("blob"));
-        } catch {
-          resolve(null);
-        }
-      }));
-    });
-  };
+  const buildPdfBlob = (): Promise<Blob | null> =>
+    buildOrcamentoPdfBlob(offscreenPdfRef.current);
 
   const handleTotalChange = (field: string, value: number) => {
     const fieldMap: Record<string, keyof OrcamentoFormValues> = {
