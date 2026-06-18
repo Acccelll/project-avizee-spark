@@ -116,8 +116,6 @@ export default function OrcamentoForm() {
   const [items, setItems] = useState<OrcamentoItem[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'classico' | 'marca'>('marca');
   const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
@@ -525,11 +523,19 @@ export default function OrcamentoForm() {
   const applyDraft = (draft: Record<string, unknown>) =>
     applyOrcamentoDraft(draft, { reset, setClienteSnapshot, setItems });
 
-  // Templates: estado e persistência isolados em hook (Fase 5 — comercial-modelo).
-  const { templates, saveTemplate: persistTemplate } = useOrcamentoTemplates(user?.id);
-
-  const saveTemplate = async (escopo: "usuario" | "equipe") => {
-    const payload: TemplateConfig = {
+  // Templates: estado, persistência e handlers consolidados no hook do form.
+  const {
+    templates,
+    templateName,
+    setTemplateName,
+    templateDialogOpen,
+    setTemplateDialogOpen,
+    openTemplateDialog,
+    saveTemplate,
+    applyTemplate,
+  } = useOrcamentoFormTemplates({
+    userId: user?.id,
+    getTemplatePayload: (): TemplateConfig => ({
       items,
       pagamento,
       prazoPagamento,
@@ -538,26 +544,11 @@ export default function OrcamentoForm() {
       freteTipo: servicoFrete || freteTipo,
       observacoes,
       observacoes_internas: observacoesInternas,
-    };
-    const ok = await persistTemplate({
-      nome: templateName,
-      escopo,
-      payload,
-      onConfirmOverwrite: () =>
-        confirmAction({
-          title: "Sobrescrever template?",
-          description: "Template com este nome já existe. Deseja sobrescrever?",
-          confirmLabel: "Sobrescrever",
-          confirmVariant: "destructive",
-        }),
-    });
-    if (ok) setTemplateName("");
-  };
-
-  const applyTemplate = (tpl: OrcamentoTemplate) => {
-    applyOrcamentoTemplate(tpl, { setValue, setItems });
-    toast.success(`Template '${tpl.nome}' aplicado`);
-  };
+    }),
+    setValue,
+    setItems,
+    confirmAction,
+  });
 
   const buildOrcamentoPayload = (
     override?: Partial<{ numero: string; status: string; validade: string | null }>,
