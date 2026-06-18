@@ -39,8 +39,9 @@ import {
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
-import { applyOrcamentoDraft, applyOrcamentoTemplate } from "@/pages/comercial/orcamento-form/draftTemplate";
+import { applyOrcamentoDraft } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSaveDialog";
+import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import {
   validateOrcamentoItems,
@@ -59,7 +60,6 @@ import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamen
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { logger } from "@/lib/logger";
 import {
   listClientesAtivosOrcamento,
