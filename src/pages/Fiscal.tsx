@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { OriginContextBanner } from "@/components/navigation/OriginContextBanner";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
