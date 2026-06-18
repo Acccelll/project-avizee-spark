@@ -405,7 +405,6 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
                     onClick={() => setPageIdx((p) => Math.max(0, p - 1))}
                     disabled={safePageIdx === 0}
                     aria-label="Página anterior"
-                    aria-label="Página anterior"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -418,7 +417,6 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
                     className="h-7 w-7"
                     onClick={() => setPageIdx((p) => Math.min(totalPages - 1, p + 1))}
                     disabled={safePageIdx >= totalPages - 1}
-                    aria-label="Próxima página"
                     aria-label="Próxima página"
                   >
                     <ChevronRight className="h-4 w-4" />
