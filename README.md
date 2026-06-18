@@ -42,27 +42,36 @@ npm run dev
 
 ## Segurança / RLS
 
-O sistema opera atualmente em **modo single-tenant**: todas as tabelas críticas
-(`financeiro_lancamentos`, `clientes`, `fornecedores`, `compras`, `compras_itens`,
-`estoque_movimentos`, `financeiro_baixas`, `conciliacao_bancaria`, `notas_fiscais`,
-`notas_fiscais_itens`) possuem políticas RLS **permissivas para usuários
-autenticados** (`USING (true)`). Esses comportamentos estão documentados no
-catálogo do banco via `COMMENT ON TABLE`.
+O sistema opera em **modo single-tenant** com RLS escopado por `empresa_id`
+(`current_empresa_id()`) nas tabelas transacionais, complementado por
+verificações de papel (`public.has_role(...)`).
 
-A tabela `app_configuracoes` é uma exceção: leitura, escrita e atualização exigem
-role `admin` (verificada por `public.has_role(auth.uid(), 'admin')`).
+Resumo do estado atual (pós Ondas 1–4 + Fase 1.1):
+
+- **Multi-tenant aplicado**: `clientes`, `fornecedores`, `produtos`,
+  `orcamentos`, `ordens_venda`, `compras`, `compras_itens`, `pedidos_compra`,
+  `estoque_movimentos`, `conciliacao_bancaria`, `financeiro_lancamentos`,
+  `financeiro_baixas`, `notas_fiscais` (+ `notas_fiscais_itens` via FK).
+- **Leitura por papel (Fase 1.1)**: `eventos_fiscais`, `nfe_distribuicao` (+ itens),
+  `nota_fiscal_anexos`, `nota_fiscal_eventos`, `inutilizacoes_numeracao`,
+  `matriz_fiscal`, `naturezas_operacao` exigem `admin`/`financeiro`/`vendedor`.
+  `cotacoes_compra` (+ itens/propostas) exige `admin`/`gestor_compras`/`financeiro`.
+  `financeiro_baixa_lotes` exige `admin`/`financeiro`.
+- **Admin-only**: `app_configuracoes` (leitura/escrita).
+- **Service-role bypass**: edge functions (`process-*`, `admin-*`, `sefaz-*`)
+  rodam com service-role e portanto não dependem das policies acima.
+
+Tabelas auxiliares de cadastro compartilhado (`bancos`, `unidades_medida`,
+`centros_custo`, `formas_pagamento`, `grupos_*`, `transportadoras`, etc.)
+mantêm `SELECT USING (true)` por design — são lookups consumidos por toda a
+aplicação. Escrita continua restrita a admin/papel correspondente.
 
 ### Migração para multi-tenant
 
-Quando for necessário separar dados por empresa:
-
-1. Adicionar coluna `empresa_id uuid NOT NULL` em todas as tabelas listadas acima.
-2. Popular automaticamente via trigger `BEFORE INSERT` lendo `current_setting('app.empresa_id')`
-   ou `user_roles.empresa_id` do usuário autenticado.
-3. Substituir as policies `USING (true)` por `USING (empresa_id = ...)` —
-   manter o `has_role` para administração global.
-4. Reescrever views e RPCs (`vw_workbook_*`, `proximo_numero_*`, etc.) para
-   propagar o filtro de empresa.
+Já aplicado para as tabelas transacionais (Ondas 1–4). Para uma 2ª empresa
+real, ainda falta: (a) UI de seleção/troca de empresa no header,
+(b) propagar `empresa_id` em views (`vw_workbook_*`) e RPCs que ainda usam
+`current_setting('app.empresa_id')` implicitamente.
 
 > **Nota sobre credenciais.** `VITE_SUPABASE_PUBLISHABLE_KEY` é a *anon key* do
 > Supabase — pública por design e protegida pelo RLS. Secrets reais
@@ -84,6 +93,7 @@ supabase functions deploy sefaz-proxy
 | `SUPABASE_URL`              | `sefaz-proxy`   | URL do projeto Supabase (geralmente injetada pelo runtime).      |
 | `SUPABASE_SERVICE_ROLE_KEY` | `sefaz-proxy`   | Service-role para validar JWT e acessar Storage privado.         |
 | `CERTIFICADO_PFX_SENHA`     | `sefaz-proxy`   | Senha do certificado A1 armazenado em `dbavizee/certificados/`.  |
+| `SEFAZ_C14N_LEGACY`         | `sefaz-proxy`   | Opt-in inverso temporário (`true`) para forçar C14N legado. Default agora é C14N real. |
 
 Se a função não estiver deployada, o cliente recebe a mensagem amigável
 _"Serviço de emissão fiscal não está disponível. Contate o suporte técnico
@@ -207,25 +217,28 @@ a origem permitida no cabeçalho `Access-Control-Allow-Origin`.
 
 ## Dívida Técnica
 
-### `@ts-nocheck` remanescentes
+### Concluído
 
-~121 arquivos ainda possuem `// @ts-nocheck`. Prioridade de remoção:
-
-1. ~~Services~~ ✅ Removido
-2. ~~Contexts~~ ✅ Removido
-3. ~~Hooks principais~~ ✅ Removido
-4. ~~Componentes compartilhados~~ ✅ Removido
-5. **Páginas core** — próximo passo
-6. **Componentes de módulo** — fase seguinte
-7. **Dashboard e importação** — fase final
+- `@ts-nocheck`: **0 arquivos** em `src/` (limpeza completa).
+- Camada de serviços: 150+ arquivos em `src/services/`; regra "sem
+  `supabase.from/rpc/storage` fora de `services/`" enforçada via memory
+  `mem://tech/camada-services-unica`.
+- Multi-tenant nas tabelas transacionais (Ondas 1–4).
+- Fase 1.1: SELECT por papel em tabelas fiscais e correlatas.
+- Fase 1.2: `SEFAZ_C14N_REAL` default-on (opt-in inverso via `SEFAZ_C14N_LEGACY`).
+- Fase 1.3: baseline reference do schema em `supabase/migrations/_baseline_*.sql.reference`.
 
 ### Próximos Passos
 
-1. Remover `@ts-nocheck` das 14 páginas core (Produtos, Clientes, Financeiro, etc.)
-2. Adicionar verificações `can()` em botões de ações sensíveis
-3. Extrair lógica de negócio de páginas monolíticas para hooks/services
-4. Padronizar estados de loading/empty/error entre telas
-5. Adicionar testes para services e fluxos críticos
+1. **Refactor dos monólitos** (`Fiscal.tsx` 1.9k, `OrcamentoForm.tsx` 2.1k,
+   `EmitirNFeWizard.tsx` 1.7k, `Conciliacao.tsx` 1.4k, `ProdutoForm.tsx` 1.4k):
+   mover queries para os services existentes e quebrar em subcomponentes.
+   Meta: nenhum arquivo > 800 linhas.
+2. Auditoria de `useSupabaseCrud` em modo `'all'` implícito — o hook agora
+   emite warning em dev; trocar para `pageSize` explícito nas listas grandes.
+3. Remover fallback C14N legado após validação de uma emissão real (PR à parte).
+4. Padronizar loading/empty/error entre telas.
+5. Aumentar cobertura de testes em fluxos fiscais/financeiros.
 
 ## Scripts Disponíveis
 

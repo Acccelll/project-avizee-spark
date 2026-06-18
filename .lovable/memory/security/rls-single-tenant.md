@@ -5,7 +5,8 @@ type: constraint
 ---
 # RLS — Modo single-tenant
 
-**Estado atual (28/abr/2026).** Multi-tenant **completo** após Ondas 1–4.
+**Estado atual (18/jun/2026).** Multi-tenant completo após Ondas 1–4 +
+endurecimento de SELECT por papel na Fase 1.1.
 Nenhuma tabela de domínio permanece em modo `USING (true)`.
 
 Tabelas com `empresa_id = public.current_empresa_id()`:
@@ -13,6 +14,14 @@ Tabelas com `empresa_id = public.current_empresa_id()`:
 - Onda 2: `orcamentos`, `ordens_venda`, `compras`, `compras_itens`, `pedidos_compra`.
 - Onda 3: `estoque_movimentos`, `conciliacao_bancaria`.
 - Onda 4: `financeiro_lancamentos`, `financeiro_baixas`, `notas_fiscais` (+ `notas_fiscais_itens` herda via FK).
+
+Tabelas com SELECT escopado por papel (Fase 1.1, sem `empresa_id`):
+- `admin`/`financeiro`/`vendedor`: `eventos_fiscais`, `nfe_distribuicao`,
+  `nfe_distribuicao_itens`, `nota_fiscal_anexos`, `nota_fiscal_eventos`,
+  `inutilizacoes_numeracao`, `matriz_fiscal`, `naturezas_operacao`.
+- `admin`/`gestor_compras`/`financeiro`: `cotacoes_compra`,
+  `cotacoes_compra_itens`, `cotacoes_compra_propostas`.
+- `admin`/`financeiro`: `financeiro_baixa_lotes`.
 
 Financeiro/Fiscal mantêm exigência adicional de papel (`admin` OR `financeiro` para SELECT/INSERT/UPDATE em `financeiro_*`; `notas_fiscais` UPDATE preserva regra de status autorizada/cancelada/inutilizada).
 
