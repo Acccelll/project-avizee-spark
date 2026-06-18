@@ -217,25 +217,28 @@ a origem permitida no cabeçalho `Access-Control-Allow-Origin`.
 
 ## Dívida Técnica
 
-### `@ts-nocheck` remanescentes
+### Concluído
 
-~121 arquivos ainda possuem `// @ts-nocheck`. Prioridade de remoção:
-
-1. ~~Services~~ ✅ Removido
-2. ~~Contexts~~ ✅ Removido
-3. ~~Hooks principais~~ ✅ Removido
-4. ~~Componentes compartilhados~~ ✅ Removido
-5. **Páginas core** — próximo passo
-6. **Componentes de módulo** — fase seguinte
-7. **Dashboard e importação** — fase final
+- `@ts-nocheck`: **0 arquivos** em `src/` (limpeza completa).
+- Camada de serviços: 150+ arquivos em `src/services/`; regra "sem
+  `supabase.from/rpc/storage` fora de `services/`" enforçada via memory
+  `mem://tech/camada-services-unica`.
+- Multi-tenant nas tabelas transacionais (Ondas 1–4).
+- Fase 1.1: SELECT por papel em tabelas fiscais e correlatas.
+- Fase 1.2: `SEFAZ_C14N_REAL` default-on (opt-in inverso via `SEFAZ_C14N_LEGACY`).
+- Fase 1.3: baseline reference do schema em `supabase/migrations/_baseline_*.sql.reference`.
 
 ### Próximos Passos
 
-1. Remover `@ts-nocheck` das 14 páginas core (Produtos, Clientes, Financeiro, etc.)
-2. Adicionar verificações `can()` em botões de ações sensíveis
-3. Extrair lógica de negócio de páginas monolíticas para hooks/services
-4. Padronizar estados de loading/empty/error entre telas
-5. Adicionar testes para services e fluxos críticos
+1. **Refactor dos monólitos** (`Fiscal.tsx` 1.9k, `OrcamentoForm.tsx` 2.1k,
+   `EmitirNFeWizard.tsx` 1.7k, `Conciliacao.tsx` 1.4k, `ProdutoForm.tsx` 1.4k):
+   mover queries para os services existentes e quebrar em subcomponentes.
+   Meta: nenhum arquivo > 800 linhas.
+2. Auditoria de `useSupabaseCrud` em modo `'all'` implícito — o hook agora
+   emite warning em dev; trocar para `pageSize` explícito nas listas grandes.
+3. Remover fallback C14N legado após validação de uma emissão real (PR à parte).
+4. Padronizar loading/empty/error entre telas.
+5. Aumentar cobertura de testes em fluxos fiscais/financeiros.
 
 ## Scripts Disponíveis
 
