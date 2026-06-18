@@ -1,16 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
-import { type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
-import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
+import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { useOrcamentoForm } from "@/pages/comercial/orcamento-form/useOrcamentoForm";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
 import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import { ActionsToolbar } from "@/pages/comercial/orcamento-form/ActionsToolbar";
@@ -21,687 +14,211 @@ import { ObservacoesSection } from "@/pages/comercial/orcamento-form/Observacoes
 import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
 import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
 import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
-import { useOrcamentoRentabilidade } from "@/pages/comercial/orcamento-form/useOrcamentoRentabilidade";
-import { usePreviewAutoScale } from "@/pages/comercial/orcamento-form/usePreviewAutoScale";
-import { useOrcamentoDraft } from "@/pages/comercial/orcamento-form/useOrcamentoDraft";
-import { useOrcamentoLoad } from "@/pages/comercial/orcamento-form/useOrcamentoLoad";
 import { LockedAlert } from "@/pages/comercial/orcamento-form/LockedAlert";
-import {
-  emptyCliente,
-  STATUS_LABEL,
-  type ClienteSnapshot,
-} from "@/pages/comercial/orcamento-form/types";
-import { JustCreatedBanner } from "@/components/JustCreatedBanner";
-import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
-import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
-import { applyOrcamentoDraft } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSaveDialog";
-import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
-import { EnviarEmailDialog, type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
+import { EnviarEmailDialog } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pages/comercial/orcamento-form/PreviewDialog";
 import { RestoreDraftDialog } from "@/pages/comercial/orcamento-form/RestoreDraftDialog";
 import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStickyFooter";
-import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
-import { useOrcamentoSave } from "@/pages/comercial/orcamento-form/useOrcamentoSave";
-import { QuickAddClientModal } from "@/components/QuickAddClientModal";
-import { type ProductWithForn } from "@/components/ui/DataSelector";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCan } from "@/hooks/useCan";
-import { Tables } from "@/integrations/supabase/types";
-import { TemplateConfig } from "@/types/orcamento";
-import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
+import { STATUS_LABEL } from "@/pages/comercial/orcamento-form/types";
 import { notifyError } from "@/utils/errorMessages";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import {
-  listClientesAtivosOrcamento,
-  listProdutosAtivosComFornecedores,
-  getFormaPagamentoDescricao,
-  listPrecosEspeciaisAtuais,
-} from "@/services/orcamentos.service";
-import { getEmpresaConfig } from "@/services/fiscal.service";
-import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import { criarRevisaoOrcamento } from "@/services/orcamentos.service";
-import { logger } from "@/lib/logger";
+
 export default function OrcamentoForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const pdfRef = useRef<HTMLDivElement>(null);
-  const offscreenPdfRef = useRef<HTMLDivElement>(null);
-  const isEdit = !!id;
-  const isMobile = useIsMobile();
-  const { user, roles, extraPermissions } = useAuth();
-  const { can } = useCan();
-  const isAdmin = roles.includes("admin");
-  const canApprove = isAdmin || can("orcamentos:aprovar");
+  const v = useOrcamentoForm();
 
-  const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
-  const queryClient = useQueryClient();
-  // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
-  const { data: clientes = [] } = useQuery<Tables<"clientes">[]>({
-    queryKey: ["orcamento-form", "clientes-ativos"],
-    queryFn: () => listClientesAtivosOrcamento(),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-  const { data: produtos = [] } = useQuery<ProductWithForn[]>({
-    queryKey: ["orcamento-form", "produtos-ativos"],
-    queryFn: () => listProdutosAtivosComFornecedores() as unknown as Promise<ProductWithForn[]>,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-  const [precosEspeciais, setPrecosEspeciais] = useState<Tables<"precos_especiais">[]>([]);
-  const [clienteSnapshot, setClienteSnapshot] = useState<ClienteSnapshot>(emptyCliente);
-  const [items, setItems] = useState<OrcamentoItem[]>([]);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
-  const [layoutTemplate, setLayoutTemplate] = useState<'classico' | 'marca'>('marca');
-  const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
-  const previewStageRef = useRef<HTMLDivElement>(null);
-  const autoScale = usePreviewAutoScale(previewStageRef, previewOpen, previewFullscreen);
-  const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
-
-  // Ao alternar para fullscreen, voltar para auto-fit para enquadrar tudo
-  useEffect(() => {
-    if (previewOpen) setPreviewZoom(0);
-  }, [previewFullscreen, previewOpen]);
-
-  const {
-    register,
-    control,
-    watch,
-    setValue,
-    getValues,
-    reset,
-    trigger,
-    formState: { errors: fieldErrors },
-  } = useForm<OrcamentoFormValues>({
-    resolver: zodResolver(orcamentoSchema),
-    mode: 'onChange',
-    defaultValues: {
-      numero: '',
-      dataOrcamento: new Date().toISOString().split('T')[0],
-      status: 'rascunho',
-      clienteId: '',
-      validade: '',
-      desconto: 0,
-      impostoSt: 0,
-      impostoIpi: 0,
-      freteValor: 0,
-      outrasDespesas: 0,
-      pagamento: '',
-      prazoPagamento: '',
-      prazoEntrega: '',
-      freteTipo: '',
-      servicoFrete: '',
-      modalidade: '',
-      observacoes: '',
-      observacoesInternas: '',
-    },
-  });
-
-  const {
-    numero,
-    dataOrcamento,
-    status,
-    clienteId,
-    validade,
-    desconto,
-    impostoSt,
-    impostoIpi,
-    freteValor,
-    outrasDespesas,
-    pagamento,
-    prazoPagamento,
-    prazoEntrega,
-    freteTipo,
-    servicoFrete,
-    modalidade,
-    observacoes,
-    observacoesInternas,
-  } = watch();
-  const [mailModalOpen, setMailModalOpen] = useState(false);
-  const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
-  // Stepper de envio de e-mail: idle → pdf → upload → email → done
-  const [mailStep, setMailStep] = useState<MailStep>('idle');
-  const [mailError, setMailError] = useState<string | null>(null);
-  const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
-  const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string | null>(null);
-
-  // Dados de frete do simulador
-  const [freteSimulacaoId, setFreteSimulacaoId] = useState<string | null>(null);
-  const [freteTransportadoraId, setFreteTransportadoraId] = useState<string | null>(null);
-  const [freteOrigemFrete, setFreteOrigemFrete] = useState<string | null>(null);
-  const [freteServico, setFreteServico] = useState<string | null>(null);
-  const [fretePrazoEntregaDias, setFretePrazoEntregaDias] = useState<number | null>(null);
-  const [freteVolumes, setFreteVolumes] = useState<number>(1);
-  const [freteAlturaCm, setFreteAlturaCm] = useState<number>(15);
-  const [freteLarguraCm, setFreteLarguraCm] = useState<number>(10);
-  const [freteComprimentoCm, setFreteComprimentoCm] = useState<number>(30);
-  const [pesoEmbalagemTotal, setPesoEmbalagemTotal] = useState<number>(0);
-  const [pesoTotalOverride, setPesoTotalOverride] = useState<number | null>(null);
-
-  const [scenarioConfig, setScenarioConfig] = useState<RentabilidadeScenarioConfig>({
-    freteSimulado: 0,
-    impostosSimulados: 0,
-    outrosCustosSimulados: 0,
-    descontoGlobalSimulado: 0,
-    reajusteGlobalPrecoPercent: 0,
-    reajusteGlobalCustoPercent: 0,
-    nomeCenario: "",
-  });
-
-  const draftKey = useMemo(() => `orcamento:draft:${id || 'novo'}:${user?.id || 'anon'}`, [id, user?.id]);
-
-
-  const totalProdutos = items.reduce((sum, i) => sum + (i.valor_total || 0), 0);
-  const valorTotal = totalProdutos - desconto + impostoSt + impostoIpi + freteValor + outrasDespesas;
-  const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
-  const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
-  const pesoTotalCalculado = pesoTotalItens + (pesoEmbalagemTotal || 0);
-  const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
-  const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
-
-  // isLocked: somente estados terminais/derivados são imutáveis.
-  // "rascunho", "pendente" e "aprovado" continuam editáveis para permitir ajustes
-  // antes da conversão em pedido. "convertido", "rejeitado", "expirado" e
-  // "cancelado" permanecem como snapshot histórico — exigem nova revisão.
-  const LOCKED_STATUSES = new Set([
-    "convertido",
-    "rejeitado",
-    "expirado",
-    "cancelado",
-    "historico",
-  ]);
-  const isLocked = isEdit && !!status && LOCKED_STATUSES.has(status);
-
-  // Opções de status filtradas por permissão. "Convertido" nunca é selecionável manualmente.
-  const statusOptions = useMemo(() => {
-    const base: { value: string; label: string }[] = [
-      { value: "rascunho", label: "Rascunho" },
-      { value: "pendente", label: "Aguardando Aprovação" },
-      { value: "cancelado", label: "Cancelado" },
-    ];
-    if (canApprove) {
-      base.push(
-        { value: "aprovado", label: "Aprovado" },
-        { value: "rejeitado", label: "Rejeitado" },
-        { value: "expirado", label: "Expirado" },
-      );
-    }
-    // Garante que o status atual sempre apareça (ex.: "convertido" em orçamento já convertido).
-    if (status && !base.some((o) => o.value === status)) {
-      base.push({ value: status, label: STATUS_LABEL[status] || status });
-    }
-    return base;
-  }, [canApprove, status]);
-
-  const { baseAnalysis, scenarioAnalysis } = useOrcamentoRentabilidade({
-    produtos,
-    items,
-    desconto,
-    freteValor,
-    impostoSt,
-    impostoIpi,
-    outrasDespesas,
-    scenarioConfig,
-  });
-
-  useOrcamentoLoad({
-    id, isEdit, queryClient, produtos,
-    reset, getValues, setValue,
-    setClienteSnapshot, setItems, setPesoTotalOverride,
-    setFreteSimulacaoId, setFreteTransportadoraId, setFreteOrigemFrete,
-    setFreteServico, setFretePrazoEntregaDias, setFreteVolumes,
-    setFreteAlturaCm, setFreteLarguraCm, setFreteComprimentoCm,
-  });
-
-  const handleClienteChange = useCallback(async (cId: string) => {
-    setValue('clienteId', cId);
-    const c = clientes.find((cl) => cl.id === cId);
-    if (c) {
-      setClienteSnapshot(mapClienteToSnapshot(c));
-      // Auto-fill payment preferences: prioriza FK forma_pagamento_id (descrição via join);
-      // mantém leitura legada de forma_pagamento_padrao como fallback até backfill estar completo.
-      if (!pagamento) {
-        let descricaoForma: string | null = null;
-        if (c.forma_pagamento_id) {
-          descricaoForma = await getFormaPagamentoDescricao(c.forma_pagamento_id);
-        }
-        const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
-        if (fallback) setValue('pagamento', fallback);
+  const handleCriarRevisao = async () => {
+    if (!v.id) return;
+    try {
+      const novoId = await criarRevisaoOrcamento(v.id);
+      if (novoId) {
+        toast.success("Revisão criada.");
+        v.navigate(`/orcamentos/${novoId}`, { replace: true });
       }
-      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} DDL`);
-      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
-
-      // Load special prices for this client (only active and within validity period)
-      listPrecosEspeciaisAtuais(cId)
-        .then((rules) => {
-          const tipadas = rules as Tables<"precos_especiais">[];
-          setPrecosEspeciais(tipadas);
-          const { items: next, changedCount } = recalcItemsWithSpecialPrices(
-            items,
-            tipadas as RegraPrecoEspecial[],
-          );
-          if (changedCount > 0) {
-            setItems(next);
-            toast.info("Preços recalculados com base nas regras do cliente selecionado");
-          }
-        })
-        .catch((err) => {
-          logger.error("[orcamento] preços especiais:", err);
-          notifyError(err);
-        });
-    } else {
-      setPrecosEspeciais([]);
-    }
-  }, [clientes, pagamento, prazoPagamento, items, setValue]);
-
-  const buildDraftPayload = useCallback(() => ({
-    ...getValues(),
-    clienteSnapshot,
-    items,
-    savedAt: new Date().toISOString(),
-  }), [getValues, clienteSnapshot, items]);
-
-  const applyDraft = (draft: Record<string, unknown>) =>
-    applyOrcamentoDraft(draft, { reset, setClienteSnapshot, setItems });
-
-  // Templates: estado, persistência e handlers consolidados no hook do form.
-  const {
-    templates,
-    templateName,
-    setTemplateName,
-    templateDialogOpen,
-    setTemplateDialogOpen,
-    openTemplateDialog,
-    saveTemplate,
-    applyTemplate,
-  } = useOrcamentoFormTemplates({
-    userId: user?.id,
-    getTemplatePayload: (): TemplateConfig => ({
-      items,
-      pagamento,
-      prazoPagamento,
-      prazoEntrega,
-      modalidade,
-      freteTipo: servicoFrete || freteTipo,
-      observacoes,
-      observacoes_internas: observacoesInternas,
-    }),
-    setValue,
-    setItems,
-    confirmAction,
-  });
-
-  const buildOrcamentoPayload = (
-    override?: Partial<{ numero: string; status: string; validade: string | null }>,
-  ) =>
-    buildOrcamentoPayloadHelper({
-      formValues: getValues(),
-      isEdit,
-      totals: { valorTotal, quantidadeTotal, pesoTotal },
-      clienteSnapshot,
-      frete: {
-        transportadoraId: freteTransportadoraId,
-        simulacaoId: freteSimulacaoId,
-        origem: freteOrigemFrete,
-        servico: freteServico,
-        prazoDias: fretePrazoEntregaDias,
-        volumes: freteVolumes,
-        alturaCm: freteAlturaCm,
-        larguraCm: freteLarguraCm,
-        comprimentoCm: freteComprimentoCm,
-      },
-      override,
-    });
-
-  const { saving, handleSave, handleDuplicate } = useOrcamentoSave({
-    id, isEdit, isLocked, status, canApprove, draftKey,
-    userId: user?.id, items,
-    trigger, getValues, setValue,
-    buildOrcamentoPayload,
-    queryClient, navigate,
-  });
-
-  const handleGeneratePdf = async () => {
-    generateOrcamentoPdf({
-      node: offscreenPdfRef.current,
-      numero,
-      clienteNome: clienteSnapshot.nome_razao_social,
-    });
+    } catch (err) { notifyError(err); }
   };
 
-  // Gera o PDF como Blob (sem download) — usado para anexar em e-mail.
-  const buildPdfBlob = (): Promise<Blob | null> =>
-    buildOrcamentoPdfBlob(offscreenPdfRef.current);
-
-  const handleTotalChange = (field: string, value: number) => {
-    const fieldMap: Record<string, keyof OrcamentoFormValues> = {
-      desconto: 'desconto',
-      imposto_st: 'impostoSt',
-      imposto_ipi: 'impostoIpi',
-      frete_valor: 'freteValor',
-      outras_despesas: 'outrasDespesas',
-    };
-    const key = fieldMap[field];
-    if (key) setValue(key, value);
+  const pdfData: OrcamentoPdfData = {
+    numero: v.numero, dataOrcamento: v.dataOrcamento, clienteSnapshot: v.clienteSnapshot, items: v.items,
+    totalProdutos: v.totalProdutos, desconto: v.desconto, impostoSt: v.impostoSt, impostoIpi: v.impostoIpi,
+    freteValor: v.freteValor, outrasDespesas: v.outrasDespesas, valorTotal: v.valorTotal,
+    quantidadeTotal: v.quantidadeTotal, pesoTotal: v.pesoTotal, pagamento: v.pagamento,
+    prazoPagamento: v.prazoPagamento, prazoEntrega: v.prazoEntrega,
+    freteTipo: v.freteTipo, servicoFrete: v.servicoFrete, modalidade: v.modalidade,
+    observacoes: v.observacoes, empresaConfig: v.empresaConfig,
   };
-
-  const handleCondicaoChange = (field: string, value: string) => {
-    const fieldMap: Record<string, keyof OrcamentoFormValues> = {
-      pagamento: 'pagamento',
-      prazo_pagamento: 'prazoPagamento',
-      prazo_entrega: 'prazoEntrega',
-      servico_frete: 'servicoFrete',
-      modalidade: 'modalidade',
-    };
-    const key = fieldMap[field];
-    if (key) setValue(key, value);
-  };
-
-
-  useOrcamentoDraft({
-    draftKey,
-    isEdit,
-    status,
-    userId: user?.id,
-    items,
-    getValues,
-    buildDraftPayload,
-    setRestoreDraftOpen,
-    setLastAutoSaveAt,
-  });
-
-  useEffect(() => {
-    getEmpresaConfig()
-      .then((data) => {
-        if (data) setEmpresaConfig(data as unknown as Record<string, string>);
-      })
-      .catch(() => {/* opcional — não bloqueia o form */});
-  }, []);
-
-  const clienteOptions = clientes.map((c) => ({
-    id: c.id,
-    label: c.nome_razao_social,
-    sublabel: `${c.cpf_cnpj || "sem documento"} ${Number(c.limite_credito || 0) > 10000 ? "· Cliente Premium - 10% desconto" : ""}`.trim(),
-    rightMeta: c.cidade ? `${c.cidade}/${c.uf || ""}` : undefined,
-    searchTerms: [c.nome_razao_social, c.nome_fantasia, c.cpf_cnpj].filter(Boolean) as string[],
-  }));
 
   return (
     <PageShell
       backTo="/orcamentos"
-      title={isEdit ? (isMobile ? "Editar Orçamento" : `Editando Orçamento${numero ? ` — ${numero}` : ""}`) : "Novo Orçamento"}
+      title={v.isEdit ? (v.isMobile ? "Editar Orçamento" : `Editando Orçamento${v.numero ? ` — ${v.numero}` : ""}`) : "Novo Orçamento"}
       subtitle={
-        isMobile && isEdit && numero
-          ? `${numero} · ${STATUS_LABEL[status] || status}`
-          : isEdit
-          ? "Revisão e ajuste da proposta comercial"
-          : "Criação e emissão da proposta comercial"
+        v.isMobile && v.isEdit && v.numero
+          ? `${v.numero} · ${STATUS_LABEL[v.status] || v.status}`
+          : v.isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"
       }
       actions={
         <ActionsToolbar
-          saving={saving}
-          isEdit={isEdit}
-          isLocked={isLocked}
-          templates={templates}
-          onSave={handleSave}
-          onPreview={() => setPreviewOpen(true)}
-          onGeneratePdf={handleGeneratePdf}
-          onDuplicate={handleDuplicate}
-          onCriarRevisao={async () => {
-            if (!id) return;
-            try {
-              const novoId = await criarRevisaoOrcamento(id);
-              if (novoId) {
-                toast.success("Revisão criada.");
-                navigate(`/orcamentos/${novoId}`, { replace: true });
-              }
-            } catch (err) { notifyError(err); }
-          }}
-          onApplyTemplate={applyTemplate}
-          onOpenTemplateDialog={openTemplateDialog}
+          saving={v.saving}
+          isEdit={v.isEdit}
+          isLocked={v.isLocked}
+          templates={v.templates}
+          onSave={v.handleSave}
+          onPreview={() => v.setPreviewOpen(true)}
+          onGeneratePdf={v.handleGeneratePdf}
+          onDuplicate={v.handleDuplicate}
+          onCriarRevisao={handleCriarRevisao}
+          onApplyTemplate={v.applyTemplate}
+          onOpenTemplateDialog={v.openTemplateDialog}
         />
       }
       meta={
         <EditMetaBanner
-          isEdit={isEdit}
-          isMobile={isMobile}
-          numero={numero}
-          status={status}
-          clienteSnapshot={clienteSnapshot}
-          dataOrcamento={dataOrcamento}
-          validade={validade}
-          lastAutoSaveAt={lastAutoSaveAt}
-          valorTotal={valorTotal}
-          pesoTotal={pesoTotal}
-          items={items}
+          isEdit={v.isEdit} isMobile={v.isMobile} numero={v.numero} status={v.status}
+          clienteSnapshot={v.clienteSnapshot} dataOrcamento={v.dataOrcamento} validade={v.validade}
+          lastAutoSaveAt={v.lastAutoSaveAt} valorTotal={v.valorTotal} pesoTotal={v.pesoTotal}
+          items={v.items}
         />
       }
     >
-      {isEdit && status && isLocked && (
-        <LockedAlert
-          status={status}
-          onCriarRevisao={async () => {
-            if (!id) return;
-            try {
-              const novoId = await criarRevisaoOrcamento(id);
-              if (novoId) {
-                toast.success("Revisão criada.");
-                navigate(`/orcamentos/${novoId}`, { replace: true });
-              }
-            } catch (err) { notifyError(err); }
-          }}
-        />
+      {v.isEdit && v.status && v.isLocked && (
+        <LockedAlert status={v.status} onCriarRevisao={handleCriarRevisao} />
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
-        <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
-        <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70 contents">
-          <IdentificacaoCard
-            register={register}
-            control={control}
-            fieldErrors={fieldErrors}
-            numero={numero}
-            status={status}
-            id={id}
-            isLocked={isLocked}
-            statusOptions={statusOptions}
-          />
-
-          <ClienteCard
-            clienteOptions={clienteOptions}
-            clientes={clientes}
-            clienteId={clienteId}
-            clienteSnapshot={clienteSnapshot}
-            fieldErrors={fieldErrors}
-            onClienteChange={handleClienteChange}
-            onQuickAdd={() => setQuickAddOpen(true)}
-          />
-
-          <ItensSection
-            items={items}
-            onItemsChange={setItems}
-            produtos={produtos}
-            precosEspeciais={precosEspeciais}
-            baseAnalysis={baseAnalysis}
-            scenarioAnalysis={scenarioAnalysis}
-            scenarioConfig={scenarioConfig}
-            onScenarioConfigChange={setScenarioConfig}
-            internalAccess={internalAccess}
-            totalProdutos={totalProdutos}
-            pesoTotalCalculado={pesoTotalCalculado}
-            pesoTotalOverride={pesoTotalOverride}
-            onPesoOverrideChange={setPesoTotalOverride}
-            valorTotal={valorTotal}
-            desconto={desconto}
-            impostoSt={impostoSt}
-            impostoIpi={impostoIpi}
-            freteValor={freteValor}
-            outrasDespesas={outrasDespesas}
-            onTotalChange={handleTotalChange}
-            freteSimulacaoId={freteSimulacaoId}
-            freteServico={freteServico || servicoFrete || null}
-            onClearFrete={() => {
-              setValue('freteValor', 0);
-              setValue('servicoFrete', '');
-              setFreteSimulacaoId(null);
-            }}
-          />
-
-          <FreteSection
-            orcamentoId={id || null}
-            clienteId={clienteId}
-            cepDestino={clienteSnapshot.cep}
-            pesoTotal={pesoTotal}
-            valorMercadoria={totalProdutos}
-            freteValor={freteValor}
-            simulacaoId={freteSimulacaoId}
-            onEmbalagemPesoChange={setPesoEmbalagemTotal}
-            onSelect={(payload) => {
-              setValue('freteValor', payload.freteValor);
-              setValue('servicoFrete', payload.servicoFrete || payload.freteTipo);
-              if (payload.modalidade && ['CIF','FOB','sem_frete'].includes(payload.modalidade)) {
-                setValue('freteTipo', payload.modalidade);
-              }
-              setValue('prazoEntrega', payload.prazoEntrega);
-              setValue('modalidade', payload.modalidade || modalidade);
-              setFreteSimulacaoId(payload.freteSimulacaoId);
-              setFreteTransportadoraId(payload.transportadoraId);
-              setFreteOrigemFrete(payload.origemFrete);
-              setFreteServico(payload.servicoFrete);
-              setFretePrazoEntregaDias(payload.prazoEntregaDias);
-              setFreteVolumes(payload.volumes);
-              setFreteAlturaCm(payload.alturaCm);
-              setFreteLarguraCm(payload.larguraCm);
-              setFreteComprimentoCm(payload.comprimentoCm);
-            }}
-          />
-
-          <CondicoesSection
-            quantidadeTotal={quantidadeTotal}
-            pesoTotal={pesoTotal}
-            pagamento={pagamento}
-            prazoPagamento={prazoPagamento}
-            prazoEntrega={prazoEntrega}
-            servicoFrete={servicoFrete || ''}
-            modalidade={modalidade}
-            onChange={handleCondicaoChange}
-          />
-
-          <ObservacoesSection register={register} isLocked={isLocked} />
-        </fieldset>
+        <div className={cn("lg:col-span-8 space-y-5", v.isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
+          <fieldset disabled={v.isLocked} className="space-y-5 disabled:opacity-70 contents">
+            <IdentificacaoCard
+              register={v.register} control={v.control} fieldErrors={v.fieldErrors}
+              numero={v.numero} status={v.status} id={v.id} isLocked={v.isLocked}
+              statusOptions={v.statusOptions}
+            />
+            <ClienteCard
+              clienteOptions={v.clienteOptions} clientes={v.clientes}
+              clienteId={v.clienteId} clienteSnapshot={v.clienteSnapshot}
+              fieldErrors={v.fieldErrors} onClienteChange={v.handleClienteChange}
+              onQuickAdd={() => v.setQuickAddOpen(true)}
+            />
+            <ItensSection
+              items={v.items} onItemsChange={v.setItems} produtos={v.produtos}
+              precosEspeciais={v.precosEspeciais}
+              baseAnalysis={v.baseAnalysis} scenarioAnalysis={v.scenarioAnalysis}
+              scenarioConfig={v.scenarioConfig} onScenarioConfigChange={v.setScenarioConfig}
+              internalAccess={v.internalAccess} totalProdutos={v.totalProdutos}
+              pesoTotalCalculado={v.pesoTotalCalculado} pesoTotalOverride={v.pesoTotalOverride}
+              onPesoOverrideChange={v.setPesoTotalOverride}
+              valorTotal={v.valorTotal} desconto={v.desconto}
+              impostoSt={v.impostoSt} impostoIpi={v.impostoIpi}
+              freteValor={v.freteValor} outrasDespesas={v.outrasDespesas}
+              onTotalChange={v.handleTotalChange}
+              freteSimulacaoId={v.freteSimulacaoId}
+              freteServico={v.freteServico || v.servicoFrete || null}
+              onClearFrete={() => {
+                v.setValue('freteValor', 0);
+                v.setValue('servicoFrete', '');
+                v.setFreteSimulacaoId(null);
+              }}
+            />
+            <FreteSection
+              orcamentoId={v.id || null} clienteId={v.clienteId}
+              cepDestino={v.clienteSnapshot.cep}
+              pesoTotal={v.pesoTotal} valorMercadoria={v.totalProdutos}
+              freteValor={v.freteValor} simulacaoId={v.freteSimulacaoId}
+              onEmbalagemPesoChange={v.setPesoEmbalagemTotal}
+              onSelect={(payload) => {
+                v.setValue('freteValor', payload.freteValor);
+                v.setValue('servicoFrete', payload.servicoFrete || payload.freteTipo);
+                if (payload.modalidade && ['CIF','FOB','sem_frete'].includes(payload.modalidade)) {
+                  v.setValue('freteTipo', payload.modalidade);
+                }
+                v.setValue('prazoEntrega', payload.prazoEntrega);
+                v.setValue('modalidade', payload.modalidade || v.modalidade);
+                v.setFreteSimulacaoId(payload.freteSimulacaoId);
+                v.setFreteTransportadoraId(payload.transportadoraId);
+                v.setFreteOrigemFrete(payload.origemFrete);
+                v.setFreteServico(payload.servicoFrete);
+                v.setFretePrazoEntregaDias(payload.prazoEntregaDias);
+                v.setFreteVolumes(payload.volumes);
+                v.setFreteAlturaCm(payload.alturaCm);
+                v.setFreteLarguraCm(payload.larguraCm);
+                v.setFreteComprimentoCm(payload.comprimentoCm);
+              }}
+            />
+            <CondicoesSection
+              quantidadeTotal={v.quantidadeTotal} pesoTotal={v.pesoTotal}
+              pagamento={v.pagamento} prazoPagamento={v.prazoPagamento}
+              prazoEntrega={v.prazoEntrega} servicoFrete={v.servicoFrete || ''}
+              modalidade={v.modalidade} onChange={v.handleCondicaoChange}
+            />
+            <ObservacoesSection register={v.register} isLocked={v.isLocked} />
+          </fieldset>
         </div>
 
         <div className="hidden lg:col-span-4 lg:block">
           <OrcamentoSidebarSummary
-            qtdItens={items.filter(i => i.produto_id).length} totalProdutos={totalProdutos}
-            freteValor={freteValor} valorTotal={valorTotal}
-            pesoTotal={pesoTotal} validade={validade}
+            qtdItens={v.items.filter(i => i.produto_id).length} totalProdutos={v.totalProdutos}
+            freteValor={v.freteValor} valorTotal={v.valorTotal}
+            pesoTotal={v.pesoTotal} validade={v.validade}
           />
-          {isEdit && (
+          {v.isEdit && (
             <ShareCard
-              id={id}
-              dataOrcamento={dataOrcamento}
-              validade={validade}
-              clienteEmail={clienteSnapshot.email}
-              onOpenMailModal={() => setMailModalOpen(true)}
+              id={v.id} dataOrcamento={v.dataOrcamento} validade={v.validade}
+              clienteEmail={v.clienteSnapshot.email}
+              onOpenMailModal={() => v.setMailModalOpen(true)}
             />
           )}
         </div>
       </div>
 
+      <MidSummaryBar items={v.items} pesoTotal={v.pesoTotal} validade={v.validade} valorTotal={v.valorTotal} />
 
-        {/* Footer sticky mobile consolidado — único, acima do MobileBottomNav */}
-
-      {/* Resumo compacto fixo — visível apenas entre md e lg (sem sidebar) */}
-      <MidSummaryBar items={items} pesoTotal={pesoTotal} validade={validade} valorTotal={valorTotal} />
-
-      {(() => {
-        const pdfData: OrcamentoPdfData = {
-          numero, dataOrcamento, clienteSnapshot, items,
-          totalProdutos, desconto, impostoSt, impostoIpi, freteValor, outrasDespesas, valorTotal,
-          quantidadeTotal, pesoTotal, pagamento, prazoPagamento, prazoEntrega,
-          freteTipo, servicoFrete, modalidade, observacoes, empresaConfig,
-        };
-        return (
-          <>
-            <PreviewDialog
-              open={previewOpen}
-              onOpenChange={setPreviewOpen}
-              fullscreen={previewFullscreen}
-              onToggleFullscreen={() => setPreviewFullscreen((v) => !v)}
-              layout={layoutTemplate}
-              onLayoutChange={setLayoutTemplate}
-              zoom={previewZoom}
-              onZoomChange={setPreviewZoom}
-              autoScale={autoScale}
-              stageRef={previewStageRef}
-              pdfRef={pdfRef}
-              data={pdfData}
-              onDownloadPdf={handleGeneratePdf}
-            />
-            <OffscreenPdfTemplate ref={offscreenPdfRef} data={pdfData} layout={layoutTemplate} />
-          </>
-        );
-      })()}
+      <PreviewDialog
+        open={v.previewOpen} onOpenChange={v.setPreviewOpen}
+        fullscreen={v.previewFullscreen}
+        onToggleFullscreen={() => v.setPreviewFullscreen((x) => !x)}
+        layout={v.layoutTemplate} onLayoutChange={v.setLayoutTemplate}
+        zoom={v.previewZoom} onZoomChange={v.setPreviewZoom}
+        autoScale={v.autoScale} stageRef={v.previewStageRef} pdfRef={v.pdfRef}
+        data={pdfData} onDownloadPdf={v.handleGeneratePdf}
+      />
+      <OffscreenPdfTemplate ref={v.offscreenPdfRef} data={pdfData} layout={v.layoutTemplate} />
 
       <EnviarEmailDialog
-        open={mailModalOpen}
-        onOpenChange={setMailModalOpen}
-        mailStep={mailStep}
-        setMailStep={setMailStep}
-        mailError={mailError}
-        setMailError={setMailError}
-        emailTemplate={emailTemplate}
-        setEmailTemplate={setEmailTemplate}
-        clienteSnapshot={clienteSnapshot}
-        orcamentoId={id ?? null}
-        numero={numero}
-        validade={validade}
-        valorTotal={valorTotal}
-        buildPdfBlob={buildPdfBlob}
+        open={v.mailModalOpen} onOpenChange={v.setMailModalOpen}
+        mailStep={v.mailStep} setMailStep={v.setMailStep}
+        mailError={v.mailError} setMailError={v.setMailError}
+        emailTemplate={v.emailTemplate} setEmailTemplate={v.setEmailTemplate}
+        clienteSnapshot={v.clienteSnapshot} orcamentoId={v.id ?? null}
+        numero={v.numero} validade={v.validade} valorTotal={v.valorTotal}
+        buildPdfBlob={v.buildPdfBlob}
       />
 
-      {/* (footer mobile único renderizado abaixo) */}
-
       <RestoreDraftDialog
-        open={restoreDraftOpen}
-        onOpenChange={setRestoreDraftOpen}
-        draftKey={draftKey}
-        userId={user?.id}
-        applyDraft={(payload) => applyDraft(payload as Parameters<typeof applyDraft>[0])}
+        open={v.restoreDraftOpen} onOpenChange={v.setRestoreDraftOpen}
+        draftKey={v.draftKey} userId={v.user?.id}
+        applyDraft={(payload) => v.applyDraft(payload as Parameters<typeof v.applyDraft>[0])}
       />
 
       <QuickAddClientModal
-        open={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
+        open={v.quickAddOpen} onClose={() => v.setQuickAddOpen(false)}
         onCreated={async (newId) => {
-          // Invalida o cache de clientes ativos para refletir o novo cadastro.
-          await queryClient.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
-          handleClienteChange(newId);
+          await v.queryClient.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
+          v.handleClienteChange(newId);
         }}
       />
 
       <TemplateSaveDialog
-        open={templateDialogOpen}
-        onOpenChange={(open) => !open && setTemplateDialogOpen(null)}
-        name={templateName}
-        onNameChange={setTemplateName}
-        onConfirm={saveTemplate}
+        open={v.templateDialogOpen}
+        onOpenChange={(open) => !open && v.setTemplateDialogOpen(null)}
+        name={v.templateName} onNameChange={v.setTemplateName}
+        onConfirm={v.saveTemplate}
       />
 
-      {confirmActionDialog}
+      {v.confirmActionDialog}
 
       <MobileStickyFooter
-        items={items}
-        valorTotal={valorTotal}
-        saving={saving}
-        onSave={handleSave}
-        onPreview={() => setPreviewOpen(true)}
-        onGeneratePdf={handleGeneratePdf}
+        items={v.items} valorTotal={v.valorTotal} saving={v.saving}
+        onSave={v.handleSave} onPreview={() => v.setPreviewOpen(true)}
+        onGeneratePdf={v.handleGeneratePdf}
       />
     </PageShell>
   );
