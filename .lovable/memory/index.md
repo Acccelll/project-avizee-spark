@@ -143,3 +143,4 @@
 - [LGPD](mem://features/lgpd) — lgpd_solicitacoes + RPCs exportar/anonimizar; anonimização preserva NFs autorizadas
 - [MFA TOTP](mem://features/mfa-totp) — 2FA opcional via supabase.auth.mfa; challenge em /mfa após signIn
 - [Edge Rate Limit](mem://tech/edge-rate-limit) — Helper in-memory para funções com APIs pagas (ia/consultadanfe/social)
+- [Design System Tokens & Exceções](mem://tech/design-system-tokens) — Tokens semânticos obrigatórios; chartColors.ts central; exceções (PDF/público/etiquetas)

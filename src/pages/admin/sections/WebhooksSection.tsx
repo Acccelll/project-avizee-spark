@@ -42,9 +42,9 @@ function formatRel(iso: string | null) {
 function statusBadge(status: WebhookEventoStatus | null) {
   if (!status) return <Badge variant="outline">—</Badge>;
   const map: Record<WebhookEventoStatus, { label: string; cls: string; Icon: typeof CheckCircle2 }> = {
-    sucesso: { label: "Sucesso", cls: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30", Icon: CheckCircle2 },
+    sucesso: { label: "Sucesso", cls: "bg-success/10 text-success border-success/30", Icon: CheckCircle2 },
     falha: { label: "Falha", cls: "bg-destructive/10 text-destructive border-destructive/30", Icon: XCircle },
-    pendente: { label: "Pendente", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30", Icon: Clock },
+    pendente: { label: "Pendente", cls: "bg-warning/10 text-warning border-warning/30", Icon: Clock },
     cancelado: { label: "Cancelado", cls: "bg-muted text-muted-foreground border-border", Icon: AlertCircle },
   };
   const { label, cls, Icon } = map[status];
@@ -137,7 +137,7 @@ export function WebhooksSection() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <div>
-                        <span className="text-green-600">{ep.total_sucesso} ✓</span>
+                        <span className="text-success">{ep.total_sucesso} ✓</span>
                         <span className="text-muted-foreground"> · </span>
                         <span className="text-destructive">{ep.total_falha} ✗</span>
                         <span className="text-muted-foreground"> · {formatRel(ep.ultimo_disparo_em)}</span>
@@ -203,7 +203,7 @@ export function WebhooksSection() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right text-xs">
-                        <span className="text-green-600">{ep.total_sucesso}</span>
+                        <span className="text-success">{ep.total_sucesso}</span>
                         <span className="text-muted-foreground"> / </span>
                         <span className="text-destructive">{ep.total_falha}</span>
                       </TableCell>
