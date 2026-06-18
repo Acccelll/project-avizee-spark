@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sanitizeForLog } from "../_shared/sanitize.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
 
 type TipoExtracao = "boleto" | "nota" | "extrato";
 
@@ -199,7 +200,7 @@ Deno.serve(async (req) => {
 
   let gatewayResp: Response;
   try {
-    gatewayResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    gatewayResp = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -212,8 +213,12 @@ Deno.serve(async (req) => {
         max_tokens: 1500,
         temperature: 0,
       }),
-    });
+    }, 60_000);
   } catch (e) {
+    if (isTimeoutError(e)) {
+      log.warn("gateway timeout", { url: e.url, ms: e.ms });
+      return timeoutResponse(corsHeaders, "IA demorou demais para responder");
+    }
     log.error("gateway fetch failed", e);
     return new Response(
       JSON.stringify({ erro: "Falha ao contatar a IA. Tente novamente." }),
