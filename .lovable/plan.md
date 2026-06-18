@@ -147,10 +147,26 @@ follow-up trivial sem impacto no LOC da página.
   só expõem CRUD assíncrono. Sem código puro hoje para testar.
 
 ### 7.2 — Gate de cobertura
-- Adicionar `--coverage` ao `npm test` + provider `v8`.
-- Definir thresholds: global 60%, `src/services/**` e `src/utils/**` 80%.
-- Job CI dedicado lendo `coverage/coverage-summary.json`.
-- Subir limiar gradualmente conforme 7.1 evolui.
+
+Entregue:
+- `@vitest/coverage-v8@^3.2.4` instalado (alinhado à versão do vitest).
+- `vitest.config.ts` com provider v8, reporters `text` / `text-summary` /
+  `json-summary` / `html` e thresholds por pasta.
+- Script `npm run test:coverage`.
+- Workflow CI `coverage`: roda os thresholds e publica artefato
+  `coverage-report` (HTML + JSON) com retenção de 14 dias.
+
+Floors anti-regressão (linha base medida em 18/06/2026):
+
+| Escopo            | stmts | funcs | branches |
+|-------------------|------:|------:|---------:|
+| Global            |  10%  |  20%  |   45%    |
+| `src/utils/**`    |  70%  |  80%  |   75%    |
+| `src/services/**` |  12%  |  20%  |   60%    |
+
+TODO progressivo (subir junto com Pass 3 da 7.1) — meta do roadmap segue
+sendo global 60% e services/utils 80%; cada novo teste de pure function
+deve vir junto de um bump no threshold correspondente.
 
 ### 7.3 — E2E Playwright
 - Setup `@playwright/test` + workflow dedicado.
