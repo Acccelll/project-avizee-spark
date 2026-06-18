@@ -753,32 +753,19 @@ export default function OrcamentoForm() {
       }
     >
       {isEdit && status && isLocked && (
-        <Alert variant="default" className="mb-4 border-warning/40 bg-warning/5">
-          <Lock className="h-4 w-4" />
-          <AlertTitle>Orçamento bloqueado para edição</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
-            <span>
-              Este orçamento está no status <strong>{status}</strong> e não pode mais ser alterado.
-              Para ajustar, gere uma nova revisão.
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                if (!id) return;
-                try {
-                  const novoId = await criarRevisaoOrcamento(id);
-                  if (novoId) {
-                    toast.success("Revisão criada.");
-                    navigate(`/orcamentos/${novoId}`, { replace: true });
-                  }
-                } catch (err) { notifyError(err); }
-              }}
-            >
-              Criar revisão
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <LockedAlert
+          status={status}
+          onCriarRevisao={async () => {
+            if (!id) return;
+            try {
+              const novoId = await criarRevisaoOrcamento(id);
+              if (novoId) {
+                toast.success("Revisão criada.");
+                navigate(`/orcamentos/${novoId}`, { replace: true });
+              }
+            } catch (err) { notifyError(err); }
+          }}
+        />
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
