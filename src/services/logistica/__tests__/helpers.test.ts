@@ -101,8 +101,9 @@ describe("base64ToBlob", () => {
     const blob = base64ToBlob("UERG");
     expect(blob.type).toBe("application/pdf");
     expect(blob.size).toBe(3);
-    const text = await blob.text();
-    expect(text).toBe("PDF");
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    expect(Array.from(bytes)).toEqual([0x50, 0x44, 0x46]); // "P","D","F"
   });
 
   it("respeita mime customizado", () => {
