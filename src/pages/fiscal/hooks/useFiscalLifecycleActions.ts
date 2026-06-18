@@ -191,9 +191,9 @@ export function useFiscalLifecycleActions(args: UseFiscalLifecycleActionsArgs) {
     if (isMobile) { navigate(`/fiscal/${n.id}/editar`); return; }
     setMode("edit"); setSelected(n);
     setForm({
-      tipo: n.tipo, numero: n.numero, serie: n.serie || "1", chave_acesso: n.chave_acesso || "",
-      data_emissao: n.data_emissao, fornecedor_id: n.fornecedor_id || "", cliente_id: n.cliente_id || "",
-      valor_total: n.valor_total, status: n.status, observacoes: n.observacoes || "",
+      tipo: n.tipo ?? "", numero: n.numero ?? "", serie: n.serie || "1", chave_acesso: n.chave_acesso || "",
+      data_emissao: n.data_emissao ?? "", fornecedor_id: n.fornecedor_id || "", cliente_id: n.cliente_id || "",
+      valor_total: n.valor_total ?? 0, status: n.status ?? "pendente", observacoes: n.observacoes || "",
       movimenta_estoque: n.movimenta_estoque !== false, gera_financeiro: n.gera_financeiro !== false,
       forma_pagamento: n.forma_pagamento || "", condicao_pagamento: n.condicao_pagamento || "a_vista",
       ordem_venda_id: n.ordem_venda_id || "", conta_contabil_id: n.conta_contabil_id || "",
