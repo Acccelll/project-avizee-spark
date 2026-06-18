@@ -36,7 +36,14 @@ describe("listarSessoes", () => {
   });
 
   it("retorna lista de sessões quando a edge function responde com sucesso", async () => {
-    const data = [buildEdgeSessao(), buildEdgeSessao({ id: "session-2", user_id: "user-2" })];
+    const data = [
+      buildEdgeSessao(),
+      buildEdgeSessao({
+        id: "session-2",
+        user_id: "user-2",
+        last_sign_in_at: "2026-04-09T10:00:00Z",
+      }),
+    ];
     invokeMock.mockResolvedValue({ data, error: null });
 
     const result = await listarSessoes({ apenasAtivas: false });
