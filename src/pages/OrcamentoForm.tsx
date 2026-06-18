@@ -17,7 +17,7 @@ import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebar
 import { StatusBadge } from "@/components/StatusBadge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Wand2, RefreshCw, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, ChevronDown, BarChart3, Truck, CreditCard } from "lucide-react";
+import { Save, Eye, FileText, Copy, Wand2, RefreshCw, CheckCircle2, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, ChevronDown, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
