@@ -1361,41 +1361,15 @@ export default function OrcamentoForm() {
       {/* (footer mobile único renderizado abaixo) */}
 
       <Dialog open={restoreDraftOpen} onOpenChange={setRestoreDraftOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Restaurar rascunho não finalizado?</DialogTitle>
-            <DialogDescription>Encontramos um rascunho salvo automaticamente para este orçamento.</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={async () => {
-                localStorage.removeItem(draftKey);
-                 if (user?.id) {
-                   try {
-                     await deleteOrcamentoDraft(user.id, draftKey);
-                   } catch {/* ignore */}
-                 }
-                setRestoreDraftOpen(false);
-              }}
-            >Descartar</Button>
-            <Button
-              onClick={async () => {
-                 let payload: unknown = null;
-                 if (user?.id) {
-                   payload = await getOrcamentoDraftPayload(user.id, draftKey).catch(() => null);
-                 }
-                if (!payload) {
-                  const raw = localStorage.getItem(draftKey);
-                  if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
-                }
-                if (payload) applyDraft(payload as Parameters<typeof applyDraft>[0]);
-                setRestoreDraftOpen(false);
-              }}
-              className="gap-2"
-            ><RefreshCw className="h-4 w-4" />Restaurar</Button>
-          </div>
-        </DialogContent>
+      <RestoreDraftDialog
+        open={restoreDraftOpen}
+        onOpenChange={setRestoreDraftOpen}
+        draftKey={draftKey}
+        userId={user?.id}
+        applyDraft={(payload) => applyDraft(payload as Parameters<typeof applyDraft>[0])}
+      />
+      <Dialog open={false} onOpenChange={() => {}}>
+        <DialogContent />
       </Dialog>
 
       <QuickAddClientModal
