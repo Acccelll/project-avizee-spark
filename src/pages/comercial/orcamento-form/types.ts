@@ -1,5 +1,3 @@
-import type { Json } from "@/integrations/supabase/types";
-
 export interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
   inscricao_estadual: string; email: string; telefone: string; celular: string;
@@ -71,6 +69,3 @@ export const STATUS_LABEL: Record<string, string> = {
   cancelado: "Cancelado",
   historico: "Histórico",
 };
-
-// Ensure Json import retained for downstream consumers.
-export type _OrcamentoTypesJsonRef = Json;
