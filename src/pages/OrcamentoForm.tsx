@@ -29,6 +29,8 @@ import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { StatusStepper } from "@/pages/comercial/orcamento-form/StatusStepper";
+import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
+import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import {
   emptyCliente,
   STATUS_LABEL,
