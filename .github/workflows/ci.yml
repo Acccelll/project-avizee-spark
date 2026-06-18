@@ -43,6 +43,33 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  audit:
+    name: npm audit (high+)
+    runs-on: ubuntu-latest
+    # Não bloqueia o PR enquanto saneamos as dependências legadas;
+    # promover a bloqueante após zerar 'high' e 'critical'.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+
   schema-drift:
     name: Schema drift check
     runs-on: ubuntu-latest
@@ -58,7 +85,6 @@ jobs:
   db-tests:
     name: pgTAP (database)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -70,7 +96,6 @@ jobs:
   touch-targets:
     name: Touch targets (advisory)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
