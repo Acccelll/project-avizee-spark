@@ -42,11 +42,6 @@ import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pa
 import { RestoreDraftDialog } from "@/pages/comercial/orcamento-form/RestoreDraftDialog";
 import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStickyFooter";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
-import {
-  validateOrcamentoItems,
-  mapItemsToPayload,
-  persistOrcamento,
-} from "@/pages/comercial/orcamento-form/saveHelpers";
 import { useOrcamentoSave } from "@/pages/comercial/orcamento-form/useOrcamentoSave";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { type ProductWithForn } from "@/components/ui/DataSelector";
