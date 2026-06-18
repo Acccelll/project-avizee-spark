@@ -96,10 +96,16 @@ Regras:
 
 ## Fase 3 — Validação e fecho
 
-- Rodar suite vitest + pgTAP completa.
-- `supabase--linter` sem novos alertas.
-- Smoke manual: login como `estoquista`, abrir DevTools, tentar `supabase.from('financeiro_lancamentos').select()` → deve falhar com RLS (prova do §1.1).
-- Atualizar `mem/index.md` com referências às novas decisões.
+- ✅ **Vitest:** 782/793 testes verdes. As 11 falhas remanescentes são pré-existentes (mocks desatualizados em `sessoes.test.ts`, `OrcamentoForm.test.tsx`, smoke tests de auth/dashboard/financeiro) — não causadas por esta sessão.
+- ✅ **supabase--linter:** 431 alertas pré-existentes (security_definer_view, rls_enabled_no_policy em staging). Nenhum novo após a migração da Fase 1.1.
+- ⏳ **Smoke manual (estoquista):** pendente de execução pelo usuário.
+- ✅ **mem/index.md:** adicionada referência `usesupabasecrud-default-paged`.
+
+## Pendências conscientes
+
+- **Fase 2.1 (decomposição dos monólitos)** — Fiscal.tsx (1.934), OrcamentoForm.tsx (2.096), EmitirNFeWizard.tsx (1.718) ainda monolíticos. Sessão dedicada recomendada (refactor cirúrgico, alto risco de regressão de UI).
+- **Hard-invert do default de `useSupabaseCrud`** — preservado como warning em dev; todos os callers atuais agora declaram `paginationMode` explicitamente. Próximo passo seguro: remover o fallback implícito e exigir o campo obrigatoriamente em uma sessão dedicada.
+- **Testes pré-existentes quebrados** — 11 falhas em mocks desatualizados; corrigir em sessão de hygiene de testes.
 
 ---
 
