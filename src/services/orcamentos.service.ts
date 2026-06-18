@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 interface OrcamentoBase {
   id: string;
@@ -254,26 +255,22 @@ type Json = Database["public"]["Tables"]["orcamentos"]["Row"]["cliente_snapshot"
 
 /** Lista de clientes ativos (com todas as colunas usadas pelo form). */
 export async function listClientesAtivosOrcamento(): Promise<Tables<"clientes">[]> {
-  const { data, error } = await supabase
-    .from("clientes")
-    .select("*")
-    .eq("ativo", true)
-    .order("nome_razao_social")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data ?? []) as Tables<"clientes">[];
+  const data = await fetchAllPages<Tables<"clientes">>(() =>
+    supabase.from("clientes").select("*").eq("ativo", true).order("nome_razao_social") as never,
+  );
+  return data;
 }
 
 /** Lista de produtos ativos com vínculos de fornecedores (para sugestão de custo). */
 export async function listProdutosAtivosComFornecedores(): Promise<Tables<"produtos">[]> {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))")
-    .eq("ativo", true)
-    .order("nome")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data ?? []) as Tables<"produtos">[];
+  const data = await fetchAllPages<Tables<"produtos">>(() =>
+    supabase
+      .from("produtos")
+      .select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))")
+      .eq("ativo", true)
+      .order("nome") as never,
+  );
+  return data;
 }
 
 /** Carrega o cabeçalho de um orçamento. */

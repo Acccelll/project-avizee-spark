@@ -10,7 +10,26 @@ Ordem de execução (4 PRs, baixo→médio risco):
 
 ### PR-2.1 — Paginação server-side dos `TODO(paginação)`
 
-Padrão único: cada `list*` ganha overload paginado retornando `{ rows, totalCount, hasMore }` via `.select("...", { count: "exact" }).range(from, to)`. Telas consumidoras passam a usar `serverPagination={ page, setPage, totalCount, hasMore }` já suportado pelo `DataTable`/`useSupabaseCrud`. Assinatura legada mantida (chama paginada com `pageSize=2000, page=0`) para não quebrar callers, mas marcada `@deprecated`.
+Concluído (abordagem revisada): substituídos os `.limit(N) // TODO(paginação)` por
+`fetchAllPages` (chunks de 1000, hard cap de 50k) via novo helper
+`src/services/_lib/fetchAllPages.ts` (re-export do canônico em
+`services/relatorios/lib/`). Isso elimina o teto silencioso (1k/2k) sem alterar
+assinaturas públicas nem UIs. Lista paginada server-side com `count: exact` fica
+reservada para casos em que volume real comprovar necessidade (Financeiro/Notas
+Fiscais já adotam o padrão via `useFinanceiroLancamentosPaged` /
+`fetchNotasFiscaisPaged`).
+
+Services atualizados:
+- `orcamentos.service.ts` (2x lookups)
+- `estoque.service.ts` (3x: produtos, vw_estoque_posicao, movimentos)
+- `cotacoesCompra.service.ts` (1x produtos)
+- `pedidosCompra.service.ts` (3x: produtos, pedidos, produtos para form)
+- `recorrencias.service.ts` (1x)
+- `precosEspeciais.service.ts` (2x)
+- `comercial/comprasLifecycle.service.ts` (1x)
+- `logistica/{remessas,prepostagem,entregas}.service.ts` (4x)
+
+Verificação: `rg "TODO\(pagina" src` → 0.
 
 Arquivos:
 - `src/services/orcamentos.service.ts` (2x — históricos, listagem)

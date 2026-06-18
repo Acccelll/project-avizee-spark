@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TableRow } from "@/types/domain";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export type PedidoCompraRow = TableRow<"pedidos_compra"> & {
   fornecedores?: { nome_razao_social: string | null; cpf_cnpj: string | null } | null;
@@ -67,14 +68,14 @@ export async function listFornecedoresAtivos(): Promise<FornecedorAtivo[]> {
 }
 
 export async function listProdutosAtivos(): Promise<ProdutoAtivoRow[]> {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, variacoes")
-    .eq("ativo", true)
-    .order("nome")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw new Error(error.message);
-  return (data ?? []) as ProdutoAtivoRow[];
+  const data = await fetchAllPages<ProdutoAtivoRow>(() =>
+    supabase
+      .from("produtos")
+      .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, variacoes")
+      .eq("ativo", true)
+      .order("nome"),
+  );
+  return data;
 }
 
 export async function listFormasPagamentoAtivas(): Promise<FormaPagamentoRow[]> {
@@ -100,14 +101,14 @@ export async function getCotacaoResumoById(cotacaoId: string): Promise<CotacaoCo
 /* ─────────── List helpers (usePedidosCompra) ─────────── */
 
 export async function listPedidosCompra(): Promise<PedidoCompraRow[]> {
-  const { data, error } = await supabase
-    .from("pedidos_compra")
-    .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
-    .eq("ativo", true)
-    .order("id", { ascending: false })
-    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data || []) as PedidoCompraRow[];
+  const data = await fetchAllPages<PedidoCompraRow>(() =>
+    supabase
+      .from("pedidos_compra")
+      .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
+      .eq("ativo", true)
+      .order("id", { ascending: false }) as never,
+  );
+  return data;
 }
 
 export async function listFornecedoresParaPedido() {
@@ -121,14 +122,13 @@ export async function listFornecedoresParaPedido() {
 }
 
 export async function listProdutosParaPedido() {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo, variacoes")
-    .eq("ativo", true)
-    .order("id", { ascending: false })
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return data || [];
+  return await fetchAllPages(() =>
+    supabase
+      .from("produtos")
+      .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo, variacoes")
+      .eq("ativo", true)
+      .order("id", { ascending: false }),
+  );
 }
 
 export async function listFormasPagamentoParaPedido() {

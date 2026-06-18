@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Entrega } from "@/types/logistica";
 import { logger } from "@/lib/logger";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 /**
  * Carrega a visão consolidada de entregas a partir de
@@ -12,31 +13,8 @@ import { logger } from "@/lib/logger";
  * `useEntregas` e nunca toca `supabase.from(...)` diretamente.
  */
 export async function fetchEntregasConsolidadas(): Promise<Entrega[]> {
-  const [vRes, remessasRes] = await Promise.all([
-    // TODO(paginação): migrar para serverPagination quando volume justificar
-    supabase.from("vw_entregas_consolidadas").select("*").limit(1000),
-    supabase
-      .from("remessas")
-      .select("id,ordem_venda_id,codigo_rastreio")
-      .eq("ativo", true)
-      .limit(2000), // TODO(paginação): migrar para serverPagination quando volume justificar
-  ]);
-  if (vRes.error) throw new Error(vRes.error.message);
-  if (remessasRes.error) {
-    // Não quebra a query principal — a view consolidada já traz status/total_remessas.
-    // Apenas registra para visibilidade em DevTools/Sentry.
-    logger.warn("[fetchEntregasConsolidadas] falha ao carregar remessas:", remessasRes.error.message);
-  }
-
-  const remessasByOv = new Map<string, { id: string; codigo_rastreio: string | null }[]>();
-  for (const r of remessasRes.data ?? []) {
-    const key = r.ordem_venda_id ?? "";
-    const list = remessasByOv.get(key) ?? [];
-    list.push({ id: r.id, codigo_rastreio: r.codigo_rastreio });
-    remessasByOv.set(key, list);
-  }
-
-  type Row = {
+  type RemessaLite = { id: string; ordem_venda_id: string | null; codigo_rastreio: string | null };
+  type ViewRow = {
     ordem_venda_id: string;
     numero_pedido: string | null;
     cliente: string | null;
@@ -54,7 +32,30 @@ export async function fetchEntregasConsolidadas(): Promise<Entrega[]> {
     responsavel_nome?: string | null;
   };
 
-  return ((vRes.data as Row[]) ?? []).map((r) => {
+  const [viewRows, remessasRows] = await Promise.all([
+    fetchAllPages<ViewRow>(() =>
+      supabase.from("vw_entregas_consolidadas").select("*") as never,
+    ),
+    fetchAllPages<RemessaLite>(() =>
+      supabase
+        .from("remessas")
+        .select("id,ordem_venda_id,codigo_rastreio")
+        .eq("ativo", true) as never,
+    ).catch((err: Error) => {
+      logger.warn("[fetchEntregasConsolidadas] falha ao carregar remessas:", err.message);
+      return [] as RemessaLite[];
+    }),
+  ]);
+
+  const remessasByOv = new Map<string, { id: string; codigo_rastreio: string | null }[]>();
+  for (const r of remessasRows) {
+    const key = r.ordem_venda_id ?? "";
+    const list = remessasByOv.get(key) ?? [];
+    list.push({ id: r.id, codigo_rastreio: r.codigo_rastreio });
+    remessasByOv.set(key, list);
+  }
+
+  return viewRows.map((r) => {
     const remessas = remessasByOv.get(r.ordem_venda_id) ?? [];
     const count = Number(r.total_remessas ?? remessas.length);
     return {

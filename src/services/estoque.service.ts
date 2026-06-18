@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TableRow, TableInsert } from "@/types/domain";
 import { invokeRpc } from "@/types/rpc";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export type ProdutoRow = TableRow<"produtos">;
 export type EstoqueMovimentoRow = TableRow<"estoque_movimentos">;
@@ -31,15 +32,10 @@ function isLegacySku(value: string | null | undefined): boolean {
 }
 
 export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("*")
-    .eq("ativo", true)
-    .order("nome")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-
-  if (error) throw new Error(error.message);
-  return (data ?? []).filter((produto) => !isLegacySku(produto.sku));
+  const data = await fetchAllPages<ProdutoRow>(() =>
+    supabase.from("produtos").select("*").eq("ativo", true).order("nome"),
+  );
+  return data.filter((produto) => !isLegacySku(produto.sku));
 }
 
 /**
@@ -59,24 +55,20 @@ function fromView(viewName: string) {
 }
 
 export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
-  const { data, error } = await fromView("vw_estoque_posicao")
-    .select("*")
-    .order("produto_nome")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as EstoquePosicaoRow[]).filter((row) => !isLegacySku(row.sku));
+  const data = await fetchAllPages<EstoquePosicaoRow>(() =>
+    fromView("vw_estoque_posicao").select("*").order("produto_nome") as never,
+  );
+  return data.filter((row) => !isLegacySku(row.sku));
 }
 
 export async function fetchMovimentacoes(): Promise<EstoqueMovimento[]> {
-  const { data, error } = await supabase
-    .from("estoque_movimentos")
-    .select("*, produtos(nome, sku, variacoes)")
-    .order("created_at", { ascending: false })
-    .limit(500); // TODO(paginação): migrar para serverPagination quando volume justificar
-
-  if (error) throw new Error(error.message);
-  return (data ?? []) as EstoqueMovimento[];
+  const data = await fetchAllPages<EstoqueMovimento>(() =>
+    supabase
+      .from("estoque_movimentos")
+      .select("*, produtos(nome, sku, variacoes)")
+      .order("created_at", { ascending: false }) as never,
+  );
+  return data;
 }
 
 export async function fetchMovimentacoesPorProduto(

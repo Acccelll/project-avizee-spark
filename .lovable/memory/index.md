@@ -25,6 +25,7 @@
 - [Email Infrastructure](mem://integracoes/email-notificacoes)
 - [Managerial Presentation](mem://features/apresentacao-gerencial)
 - [DataTable Virtualization](mem://tech/performance-virtualizacao)
+- [fetchAllPages em Services](mem://tech/fetch-all-pages-services)
 - [Inventory Data Integrity](mem://tech/integridade-dados-estoque)
 - [Edge Functions CORS](mem://tech/infraestrutura-cors)
 - [Bank Reconciliation](mem://features/conciliacao-bancaria)
