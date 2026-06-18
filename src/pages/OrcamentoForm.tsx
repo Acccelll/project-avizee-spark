@@ -15,7 +15,7 @@ import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { FileText, CheckCircle2, CalendarDays, Clock, BarChart3, Truck, CreditCard } from "lucide-react";
+import { FileText, CheckCircle2, CalendarDays, Clock, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
