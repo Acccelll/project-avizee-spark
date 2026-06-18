@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
+import { logger } from "@/lib/logger";
   listSessoesAtivas,
   revogarSessaoAtiva,
   type SessaoAtiva,
@@ -38,7 +39,7 @@ export function useSessoes() {
       toast.success("Sessão encerrada com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao revogar sessão:", err);
+      logger.error("[admin] Erro ao revogar sessão:", err);
       notifyError(err);
     },
   });

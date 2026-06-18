@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, ChevronsUpDown, ShieldAlert, CircleAlert } from "lucide-react";
 import type { TableRow } from "@/types/domain";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
+import { logger } from "@/lib/logger";
 
 type ProdutoRow = TableRow<"produtos">;
 
@@ -110,7 +111,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
       });
       onClose();
     } catch (err) {
-      console.error("[EstoqueAjusteSheet] executar:", err);
+      logger.error("[EstoqueAjusteSheet] executar:", err);
     } finally {
       setPendingSubmit(false);
       setConfirmOpen(false);

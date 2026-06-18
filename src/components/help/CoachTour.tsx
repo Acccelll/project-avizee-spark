@@ -5,6 +5,7 @@ import { useHelp } from '@/contexts/HelpContext';
 import { useHelpProgress } from '@/hooks/useHelpProgress';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { HelpTourStep } from '@/help/types';
+import { logger } from "@/lib/logger";
 
 /**
  * Resolve o seletor de um step. Aceita tanto valor cru de `data-help-id`
@@ -35,7 +36,7 @@ function resolveTarget(target: string): Element | null {
   // Step "fantasma" intencional usa target = '' e não dispara o warn.
   if (target && import.meta.env.DEV) {
     // eslint-disable-next-line no-console
-    console.warn('[CoachTour] anchor não encontrado:', target);
+    logger.warn('[CoachTour] anchor não encontrado:', target);
   }
   return null;
 }

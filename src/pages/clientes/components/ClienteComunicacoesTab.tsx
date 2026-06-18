@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+import { logger } from "@/lib/logger";
   listRegistrosComunicacao,
   createRegistroComunicacao,
 } from "@/services/clientes.service";
@@ -70,7 +71,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
       setComunicacoes(list);
       onCountChange?.(list.length);
     } catch (err) {
-      console.error("[clientes] erro ao carregar comunicações:", err);
+      logger.error("[clientes] erro ao carregar comunicações:", err);
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
       await load();
       toast.success("Comunicação registrada");
     } catch (err) {
-      console.error("[clientes] erro ao salvar comunicação:", err);
+      logger.error("[clientes] erro ao salvar comunicação:", err);
       notifyError(err);
     }
     setSaving(false);

@@ -17,6 +17,7 @@ import { RelatorioBody } from '@/pages/relatorios/components/RelatorioBody';
 import { RelatorioHeaderActions } from '@/pages/relatorios/components/RelatorioHeaderActions';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
+import { logger } from "@/lib/logger";
   useRelatoriosFiltrosData,
   useSelectedRefLabels,
 } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
@@ -178,7 +179,7 @@ export default function Relatorios() {
           // source instead of being papered over by a text heuristic.
           if (!kind && import.meta.env.DEV) {
             // eslint-disable-next-line no-console
-            console.warn(`[Relatorios] Row missing "${kindKey}" for column "${colDef.key}" in report "${tipo}". Loader must populate the *Kind field via statusMap.`);
+            logger.warn(`[Relatorios] Row missing "${kindKey}" for column "${colDef.key}" in report "${tipo}". Loader must populate the *Kind field via statusMap.`);
           }
           const variant = kind
             ? badgeVariantFromKind(kind as Parameters<typeof badgeVariantFromKind>[0])

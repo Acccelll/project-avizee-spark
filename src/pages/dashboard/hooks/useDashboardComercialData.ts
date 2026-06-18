@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValues } from "@/lib/dashboard/aggregations";
 import {
+import { logger } from "@/lib/logger";
   BACKLOG_FATURAMENTO_STATUSES,
   BACKLOG_OV_STATUSES,
   OPEN_ORCAMENTO_STATUSES,
@@ -117,9 +118,9 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         })(),
       ]);
 
-      if (orcamentosResult.error) console.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
-      if (backlogResult.error) console.error("[dashboard:comercial] backlog:", backlogResult.error.message);
-      if (nfAtualResult.error) console.error("[dashboard:comercial] nfAtual:", nfAtualResult.error.message);
+      if (orcamentosResult.error) logger.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
+      if (backlogResult.error) logger.error("[dashboard:comercial] backlog:", backlogResult.error.message);
+      if (nfAtualResult.error) logger.error("[dashboard:comercial] nfAtual:", nfAtualResult.error.message);
 
       const nfAtual = (nfAtualResult.data ?? []) as NfRow[];
 
@@ -137,7 +138,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         topProdutos: aggregateTopProdutos((itensResult.data ?? []) as NfItemRow[]),
       };
     } catch (error) {
-      console.error("[dashboard:comercial] erro inesperado:", error);
+      logger.error("[dashboard:comercial] erro inesperado:", error);
       return {
         orcamentos: 0,
         recentOrcamentos: [],

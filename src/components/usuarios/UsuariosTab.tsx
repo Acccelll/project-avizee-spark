@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+import { logger } from "@/lib/logger";
   Search,
   Shield,
   ShieldAlert,
@@ -86,7 +87,7 @@ export function UsuariosTab() {
       );
       setUsers(merged);
     } catch (err) {
-      console.error('[usuarios] Erro ao carregar usuários:', err);
+      logger.error('[usuarios] Erro ao carregar usuários:', err);
       toast.error('Erro ao carregar lista de usuários.');
     } finally {
       setLoading(false);
@@ -182,7 +183,7 @@ export function UsuariosTab() {
           : `${toggleTarget.nome} inativado com sucesso.`,
       );
     } catch (err) {
-      console.error('[usuarios] Erro ao alterar status:', err);
+      logger.error('[usuarios] Erro ao alterar status:', err);
       toast.error('Erro ao alterar status do usuário.');
     } finally {
       setToggleLoading(false);

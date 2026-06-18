@@ -6,6 +6,7 @@ import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/alias
 import { validarChaveAcesso, extrairInformacoesChave } from "@/services/fiscal/validadores/chaveAcesso.validator";
 import { normalizeText } from "@/lib/importacao/normalizers";
 import {
+import { logger } from "@/lib/logger";
   normalizarDescricao,
   contarPreviewMatches,
   type PreviewMatchCounts,
@@ -396,7 +397,7 @@ export function useImportacaoFaturamento() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação de faturamento:", error);
+      logger.error("Erro na importação de faturamento:", error);
       toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);

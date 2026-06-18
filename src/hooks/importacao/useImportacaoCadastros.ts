@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { toast } from "sonner";
 import {
+import { logger } from "@/lib/logger";
   validateProdutoImport,
   validateClienteImport,
   validateFornecedorImport
@@ -226,7 +227,7 @@ export function useImportacaoCadastros() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação:", error);
+      logger.error("Erro na importação:", error);
       toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
@@ -259,7 +260,7 @@ export function useImportacaoCadastros() {
       );
       return true;
     } catch (error: unknown) {
-      console.error("Erro na consolidação:", error);
+      logger.error("Erro na consolidação:", error);
       toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {

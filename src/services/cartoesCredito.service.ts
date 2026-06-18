@@ -8,6 +8,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { logger } from "@/lib/logger";
 
 export type CartaoCredito = Tables<"cartoes_credito"> & {
   bancos?: { nome: string } | null;
@@ -156,7 +157,7 @@ export async function syncFaturaStatus(faturaId: string): Promise<void> {
   });
   if (error) {
     // eslint-disable-next-line no-console
-    console.warn("[cartao] syncFaturaStatus falhou:", error.message);
+    logger.warn("[cartao] syncFaturaStatus falhou:", error.message);
   }
 }
 

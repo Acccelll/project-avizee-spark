@@ -324,7 +324,7 @@ export async function listPrecosEspeciaisAtuais(
     .or(`data_fim.is.null,data_fim.gte.${today}`)
     .or(`data_inicio.is.null,data_inicio.lte.${today}`);
   if (error) {
-    console.error("[orcamentos] listPrecosEspeciaisAtuais:", error);
+    logger.error("[orcamentos] listPrecosEspeciaisAtuais:", error);
     throw error;
   }
   return (data ?? []) as Tables<"precos_especiais">[];

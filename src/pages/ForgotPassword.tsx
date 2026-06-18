@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Mail, Send, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 const getResetPasswordRedirectUrl = () => {
   const configuredAppUrl = (import.meta.env.VITE_APP_URL as string | undefined)?.trim();
@@ -68,7 +69,7 @@ export default function ForgotPassword() {
       redirectTo: getResetPasswordRedirectUrl(),
     });
     if (err) {
-      console.error('[forgot-password]', err);
+      logger.error('[forgot-password]', err);
       const raw = (err.message || "").toLowerCase();
       if (raw.includes("rate") || raw.includes("too many")) {
         setServerError("Muitas tentativas. Aguarde alguns minutos antes de solicitar novamente.");

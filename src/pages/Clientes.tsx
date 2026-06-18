@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+import { logger } from "@/lib/logger";
   listGruposEconomicosAtivos,
   listFormasPagamentoAtivas,
   fetchKpiClientesQualidade,
@@ -336,7 +337,7 @@ const Clientes = () => {
         setGrupos(g as GrupoEconomico[]);
         setFormasPagamento(fp as FormaPagamentoBasic[]);
       })
-      .catch((err) => console.error("[clientes] erro ao carregar lookups:", err));
+      .catch((err) => logger.error("[clientes] erro ao carregar lookups:", err));
   }, []);
 
   useEditDeepLink<Cliente>({
@@ -431,7 +432,7 @@ const Clientes = () => {
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
-      console.error('[clientes] erro ao salvar:', err);
+      logger.error('[clientes] erro ao salvar:', err);
       notifyError(err);
     }
     setSaving(false);

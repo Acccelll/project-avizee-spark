@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+import { logger } from "@/lib/logger";
   Select,
   SelectContent,
   SelectItem,
@@ -276,7 +277,7 @@ export function UserFormModal({
       // — vive em portal e segue visível mesmo após o fechamento.
       onClose();
     } catch (err) {
-      console.error('[usuarios] Erro ao salvar usuário:', err);
+      logger.error('[usuarios] Erro ao salvar usuário:', err);
       notifyError(err);
     } finally {
       setSaving(false);

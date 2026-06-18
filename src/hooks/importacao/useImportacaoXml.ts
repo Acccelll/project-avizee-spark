@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
 import { uploadNfeXml } from "@/services/fiscal/xmlStorage.service";
 import {
+import { logger } from "@/lib/logger";
   createImportacaoLote,
   updateLoteStatus,
   logImportacaoBatch,
@@ -234,7 +235,7 @@ export function useImportacaoXml() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação XML:", error);
+      logger.error("Erro na importação XML:", error);
       toast.error(`Falha na importação: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }

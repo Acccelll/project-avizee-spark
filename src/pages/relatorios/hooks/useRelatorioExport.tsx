@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import {
+import { logger } from "@/lib/logger";
   exportarParaCsv,
   exportarParaExcel,
   exportarParaPdf,
@@ -143,7 +144,7 @@ export function useRelatorioExport({
       });
     } catch (e) {
       toast.error('Falha ao gerar PDF.', { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }
@@ -184,7 +185,7 @@ export function useRelatorioExport({
       });
     } catch (e) {
       toast.error('Falha ao gerar Excel.', { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }
@@ -238,7 +239,7 @@ export function useRelatorioExport({
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Falha ao gerar .zip';
       toast.error(msg, { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }

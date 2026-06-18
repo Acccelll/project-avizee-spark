@@ -6,6 +6,7 @@ import { validateEstoqueInicialImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
 import {
+import { logger } from "@/lib/logger";
   listProdutosLookup,
   createImportacaoLote,
   insertStagingChunks,
@@ -196,7 +197,7 @@ export function useImportacaoEstoque() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação de estoque:", error);
+      logger.error("Erro na importação de estoque:", error);
       toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
@@ -225,7 +226,7 @@ export function useImportacaoEstoque() {
       toast.success(`${result.inseridos} saldos de estoque atualizados.`);
       return true;
     } catch (error: unknown) {
-      console.error("Erro na consolidação de estoque:", error);
+      logger.error("Erro na consolidação de estoque:", error);
       toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {

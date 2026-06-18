@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+import { logger } from "@/lib/logger";
   Receipt,
   FileWarning,
   Inbox,
@@ -106,7 +107,7 @@ export default function FiscalDashboard() {
       await exportarDashboardFiscalPdf({ data, periodo });
       toast.success("PDF gerado com sucesso");
     } catch (err) {
-      console.error("[FiscalDashboard] export PDF", err);
+      logger.error("[FiscalDashboard] export PDF", err);
       toast.error("Falha ao gerar PDF");
     } finally {
       setExporting(false);

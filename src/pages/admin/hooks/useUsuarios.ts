@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
+import { logger } from "@/lib/logger";
   desativarUsuario,
   fetchUsuarios,
   setUsuarioRole,
@@ -38,7 +39,7 @@ export function useUsuarios() {
       toast.success("Usuário atualizado com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao atualizar usuário:", err);
+      logger.error("[admin] Erro ao atualizar usuário:", err);
       notifyError(err);
     },
   });
@@ -51,7 +52,7 @@ export function useUsuarios() {
       toast.success("Perfil do usuário atualizado.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao alterar perfil:", err);
+      logger.error("[admin] Erro ao alterar perfil:", err);
       notifyError(err);
     },
   });
@@ -63,7 +64,7 @@ export function useUsuarios() {
       toast.success("Usuário desativado.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao desativar usuário:", err);
+      logger.error("[admin] Erro ao desativar usuário:", err);
       notifyError(err);
     },
   });

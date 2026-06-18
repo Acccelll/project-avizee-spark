@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyError } from "@/utils/errorMessages";
 import {
+import { logger } from "@/lib/logger";
   autorizarNFe,
   consultarNFe,
   cancelarNFe,
@@ -207,7 +208,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
             });
           } catch (e) {
             // Falha ao registrar caminho não invalida a autorização SEFAZ.
-            console.warn("Falha ao persistir caminho_xml da NF-e:", e);
+            logger.warn("Falha ao persistir caminho_xml da NF-e:", e);
           }
         }
         setUltimoRetorno({

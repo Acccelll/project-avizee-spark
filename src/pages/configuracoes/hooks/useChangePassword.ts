@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { notifyError } from '@/utils/errorMessages';
 import { getPasswordCriteriaWithMatch, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
+import { logger } from "@/lib/logger";
   verifyPasswordReauth,
   updateUserPassword,
   signOutOtherSessions,
@@ -94,7 +95,7 @@ export function useChangePassword() {
           motivo: 'troca de senha pelo próprio usuário',
         });
       } catch (auditErr) {
-        console.warn('[perfil] auditoria self-password falhou:', auditErr);
+        logger.warn('[perfil] auditoria self-password falhou:', auditErr);
       }
       setCurrentPassword('');
       setNewPassword('');
@@ -102,7 +103,7 @@ export function useChangePassword() {
       setChangedAt(new Date());
       setShowSignOutOthers(true);
     } catch (err: unknown) {
-      console.error('[perfil] password:', err);
+      logger.error('[perfil] password:', err);
       notifyError(err);
     }
     setChanging(false);
@@ -115,7 +116,7 @@ export function useChangePassword() {
       toast.success('Sessões em outros dispositivos foram encerradas.');
       setShowSignOutOthers(false);
     } catch (err: unknown) {
-      console.error('[perfil] signOut others:', err);
+      logger.error('[perfil] signOut others:', err);
       notifyError(err);
     }
     setSigningOutOthers(false);

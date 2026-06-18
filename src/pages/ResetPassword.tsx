@@ -11,6 +11,7 @@ import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import { validatePassword } from "@/lib/passwordPolicy";
 import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
+import { logger } from "@/lib/logger";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -179,7 +180,7 @@ export default function ResetPassword() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      console.error('[reset-password]', error);
+      logger.error('[reset-password]', error);
       const raw = (error.message || "").toLowerCase();
       if (raw.includes("pwned") || raw.includes("compromised")) {
         toast.error("Esta senha apareceu em vazamentos conhecidos. Escolha outra.");
@@ -205,7 +206,7 @@ export default function ResetPassword() {
     setSigningOutOthers(true);
     const { error } = await supabase.auth.signOut({ scope: 'others' });
     if (error) {
-      console.error('[reset-password] signOut others:', error);
+      logger.error('[reset-password] signOut others:', error);
       toast.error("Não foi possível encerrar outras sessões. Tente novamente.");
     } else {
       setOthersDone(true);

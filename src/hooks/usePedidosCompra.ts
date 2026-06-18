@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { notifyError } from "@/utils/errorMessages";
 import { type GridItem } from "@/components/ui/ItemsGrid";
 import {
+import { logger } from "@/lib/logger";
   type PedidoCompra,
   type FornecedorOptionRow,
   type ProdutoOptionRow,
@@ -345,7 +346,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     try {
       itens = await pcs.listPedidoItensParaRecebimento(p.id);
     } catch (err) {
-      console.error("[darEntrada] fetch itens", err);
+      logger.error("[darEntrada] fetch itens", err);
       notifyError(err);
       return;
     }
@@ -398,7 +399,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       );
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[darEntrada]", err);
+      logger.error("[darEntrada]", err);
       notifyError(err);
     }
 

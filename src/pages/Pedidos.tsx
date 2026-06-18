@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatCurrencyCompact, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
 import { FileText, DollarSign } from "lucide-react";
 import {
+import { logger } from "@/lib/logger";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -292,7 +293,7 @@ const Pedidos = () => {
       // Não precisa refetch manual: o hook invalida ["ordens_venda"] em
       // INVALIDATION_KEYS.faturamentoPedido e o useQuery acima reage.
     } catch (err: unknown) {
-      console.error('[pedidos] gerar NF:', err);
+      logger.error('[pedidos] gerar NF:', err);
       // toast já emitido pelo hook
     } finally {
       setGeneratingNfId(null);

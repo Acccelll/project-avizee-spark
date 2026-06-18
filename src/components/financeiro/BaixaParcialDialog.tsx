@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { logger } from "@/lib/logger";
 
 interface ContaBancaria {
   id: string;
@@ -176,7 +177,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      console.error("[baixa]", err);
+      logger.error("[baixa]", err);
       notifyError(err);
     } finally {
       setSaving(false);

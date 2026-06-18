@@ -15,6 +15,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
+import { logger } from "@/lib/logger";
   FolderTree,
   FileText,
   GitBranch,
@@ -328,7 +329,7 @@ const ContasContabeis = () => {
         await create(payload);
       }
     } catch (err: unknown) {
-      console.error('[contas-contabeis] erro ao salvar:', err);
+      logger.error('[contas-contabeis] erro ao salvar:', err);
       throw err;
     }
   };

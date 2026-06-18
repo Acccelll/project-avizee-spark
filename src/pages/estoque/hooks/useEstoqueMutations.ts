@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { registrarMovimentacao, type EstoqueMovimentoInsert } from "@/services/estoque.service";
+import { logger } from "@/lib/logger";
 
 interface RegistrarMovimentacaoInput {
   payload: EstoqueMovimentoInsert;
@@ -23,7 +24,7 @@ export function useEstoqueMutations() {
       invalidate();
     },
     onError: (err) => {
-      console.error("[estoque] erro ao salvar:", err);
+      logger.error("[estoque] erro ao salvar:", err);
       notifyError(err);
     },
   });

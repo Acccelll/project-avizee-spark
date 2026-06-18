@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { notifyError } from '@/utils/errorMessages';
 import { saveUserProfile } from '@/services/auth.service';
+import { logger } from "@/lib/logger";
 
 const NOME_MIN = 2;
 const NOME_MAX = 80;
@@ -70,10 +71,10 @@ export function useProfileForm() {
       try {
         await refreshProfile();
       } catch (refreshErr) {
-        console.warn('[perfil] refreshProfile falhou:', refreshErr);
+        logger.warn('[perfil] refreshProfile falhou:', refreshErr);
       }
     } catch (err: unknown) {
-      console.error('[perfil] save:', err);
+      logger.error('[perfil] save:', err);
       notifyError(err);
     }
     setSaving(false);

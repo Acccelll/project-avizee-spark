@@ -15,6 +15,7 @@ import { VISUAL_SHEET_NAMES, RAW_SHEET_NAMES } from './templateMap';
 import { hashParametros } from './utils';
 import type { WorkbookParametros } from '@/types/workbook';
 import type { WorkbookCaps } from './fetchWorkbookData';
+import { logger } from "@/lib/logger";
 // V2 — abas analíticas modulares
 import { buildCapa } from './sheets/capa';
 import { buildDre } from './sheets/dre';
@@ -54,7 +55,7 @@ async function loadTemplate(): Promise<ExcelJS.Workbook> {
   }
 
   // Template missing on server — fall back to a minimal scaffold but warn loudly.
-  console.warn(
+  logger.warn(
     `[workbook] Template não encontrado em ${TEMPLATE_URL} (HTTP ${response.status}). Gerando estrutura mínima — contate o suporte.`,
   );
   wb.creator = 'ERP AviZee';

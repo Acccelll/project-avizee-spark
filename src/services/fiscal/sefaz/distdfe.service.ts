@@ -11,6 +11,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 /**
  * Código de erro estável devolvido quando o destinatário da NF-e consultada
@@ -396,7 +397,7 @@ export async function sincronizarDistDFe(
         xml.match(/Id=["']NFe(\d{44})["']/) ??
         xml.match(/infNFe[^>]*Id=["']NFe(\d{44})["']/);
       if (m?.[1]) return [{ ...d, chave: m[1] }];
-      console.warn("[distdfe] doc descartado sem chave extraível", {
+      logger.warn("[distdfe] doc descartado sem chave extraível", {
         nsu: d.nsu,
         schema: d.schema,
       });

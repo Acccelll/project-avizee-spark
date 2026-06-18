@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+import { logger } from "@/lib/logger";
   Form,
   FormField,
   FormItem,
@@ -138,7 +139,7 @@ export default function ConfiguracaoFiscal() {
       setAmbienteAtual(values.ambiente_padrao);
       toast.success("Configurações fiscais salvas");
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       notifyError(err);
     }
     setSaving(false);

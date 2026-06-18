@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
+import { logger } from "@/lib/logger";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -66,7 +67,7 @@ export function UserRow({
         toast.success('Convite processado.');
       }
     } catch (err) {
-      console.error('[usuarios] resend-invite failed', err);
+      logger.error('[usuarios] resend-invite failed', err);
       toast.error('Não foi possível reenviar o convite.');
     } finally {
       setResending(false);

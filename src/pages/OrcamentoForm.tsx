@@ -291,7 +291,7 @@ export default function OrcamentoForm() {
           }
         })
         .catch((err) => {
-          console.error("[orcamento] preços especiais:", err);
+          logger.error("[orcamento] preços especiais:", err);
           notifyError(err);
         });
     } else {

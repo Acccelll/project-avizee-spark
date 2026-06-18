@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Funções puras de cálculo financeiro.
  *
@@ -86,7 +87,7 @@ export function calcularJurosDiarios(
   // legalmente seguro (≈1% ao mês ⇒ 0,034%/dia). Mantemos o cálculo, mas
   // sinalizamos no console para que a UI/auditoria capture o caso.
   if (taxaDiaria > 0.034 && typeof console !== "undefined") {
-    console.warn(
+    logger.warn(
       `[financeiro] taxa diária de ${taxaDiaria}% excede o teto seguro de 0.034%/dia (~1%/mês).`,
     );
   }

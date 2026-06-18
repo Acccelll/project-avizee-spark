@@ -6,6 +6,7 @@ import { validateFinanceiroImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
 import {
+import { logger } from "@/lib/logger";
   listClientesLookup,
   listFornecedoresLookup,
   createImportacaoLote,
@@ -208,7 +209,7 @@ export function useImportacaoFinanceiro() {
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("Erro na importação financeira:", error);
+      logger.error("Erro na importação financeira:", error);
       toast.error(`Falha no processamento: ${msg}`);
     } finally {
       setIsProcessing(false);
@@ -237,7 +238,7 @@ export function useImportacaoFinanceiro() {
       toast.success(`${result.inseridos} lançamentos financeiros consolidados.`);
       return true;
     } catch (error: unknown) {
-      console.error("Erro na consolidação financeira:", error);
+      logger.error("Erro na consolidação financeira:", error);
       toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {

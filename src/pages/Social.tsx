@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatNumber } from '@/lib/format';
 import { getDefaultDateRange, toLocalDateInput } from '@/lib/date';
 import {
+import { logger } from "@/lib/logger";
   buildSocialConsolidadoRows,
   carregarDashboardSocial,
   criarContaSocial,
@@ -84,7 +85,7 @@ export default function Social() {
       setPosts(postsData);
       setAlertas(alertasData);
     } catch (error: unknown) {
-      console.error('[social] erro ao carregar', error);
+      logger.error('[social] erro ao carregar', error);
       notifyError(error);
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ export default function Social() {
       toast.success('Sincronização social executada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] sync', error);
+      logger.error('[social] sync', error);
       notifyError(error);
     }
   };
@@ -129,7 +130,7 @@ export default function Social() {
       toast.success('Conta social cadastrada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] criar conta', error);
+      logger.error('[social] criar conta', error);
       notifyError(error);
     }
   };
@@ -141,7 +142,7 @@ export default function Social() {
       toast.success('Conta social desativada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] desativar conta', error);
+      logger.error('[social] desativar conta', error);
       notifyError(error);
     }
   };

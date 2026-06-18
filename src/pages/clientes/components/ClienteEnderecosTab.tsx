@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+import { logger } from "@/lib/logger";
   listEnderecosEntrega,
   createEnderecoEntrega,
   updateEnderecoEntrega,
@@ -75,7 +76,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       setEnderecos(list);
       onCountChange?.(list.length);
     } catch (err) {
-      console.error("[clientes] erro ao carregar endereços:", err);
+      logger.error("[clientes] erro ao carregar endereços:", err);
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       setEditId(null);
       await load();
     } catch (err) {
-      console.error("[clientes] erro ao salvar endereço:", err);
+      logger.error("[clientes] erro ao salvar endereço:", err);
       notifyError(err);
     }
     setSaving(false);
@@ -111,7 +112,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       await load();
       toast.success("Endereço principal definido");
     } catch (err) {
-      console.error("[clientes] erro ao definir principal:", err);
+      logger.error("[clientes] erro ao definir principal:", err);
       notifyError(err);
     }
   };
@@ -129,7 +130,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       await load();
       toast.success("Endereço removido");
     } catch (err) {
-      console.error("[clientes] erro ao remover endereço:", err);
+      logger.error("[clientes] erro ao remover endereço:", err);
       notifyError(err);
     }
   };

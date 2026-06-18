@@ -10,6 +10,7 @@ import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSc
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
 import type { TableRow } from "@/types/domain";
 import {
+import { logger } from "@/lib/logger";
   type CotacaoCompra,
   type CotacaoItem,
   type Proposta,
@@ -110,7 +111,7 @@ export function useCotacoesCompra() {
     // Numeração crítica deve sempre vir do PostgreSQL SEQUENCE.
     // Se falhar, abortamos a criação para não gerar números duplicáveis.
     if (rpcErr || !rpcNumero) {
-      console.error("[cotacoes_compra] proximo_numero_cotacao_compra falhou:", rpcErr);
+      logger.error("[cotacoes_compra] proximo_numero_cotacao_compra falhou:", rpcErr);
       toast.error("Não foi possível gerar o número da cotação. Tente novamente.");
       return;
     }
@@ -321,7 +322,7 @@ export function useCotacoesCompra() {
       // emitido por `useGerarPedidoCompra` — deixa o usuário no contexto da lista.
       void result;
     } catch (err: unknown) {
-      console.error("[gerarPedido]", err);
+      logger.error("[gerarPedido]", err);
       // toast já emitido pelo hook
     }
   };

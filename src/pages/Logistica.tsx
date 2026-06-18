@@ -37,6 +37,7 @@ import { useTransicionarRemessa, type RemessaTransition } from "@/pages/logistic
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useLogisticaRealtime } from "@/hooks/useLogisticaRealtime";
 import {
+import { logger } from "@/lib/logger";
   trackAndPersistEventos,
   updateStatusTransporte,
   findRemessaByOvAndTracking,
@@ -683,7 +684,7 @@ export default function Logistica() {
                 const url = await baixarEtiquetaPdf(et.pdf_path!);
                 window.open(url, "_blank", "noopener,noreferrer");
               } catch (err) {
-                console.error("[etiqueta] baixar falhou", err);
+                logger.error("[etiqueta] baixar falhou", err);
               }
             }}>
               <FileDown className="h-3.5 w-3.5" />

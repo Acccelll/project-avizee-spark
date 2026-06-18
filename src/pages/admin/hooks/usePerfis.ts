@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
+import { logger } from "@/lib/logger";
   atribuirPerfil,
   concederPermissao,
   fetchPermissoesExtras,
@@ -43,7 +44,7 @@ export function usePerfis(userId: string) {
       toast.success("Perfil atribuído com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao atribuir perfil:", err);
+      logger.error("[admin] Erro ao atribuir perfil:", err);
       notifyError(err);
     },
   });
@@ -56,7 +57,7 @@ export function usePerfis(userId: string) {
       toast.success("Perfil removido.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao remover perfil:", err);
+      logger.error("[admin] Erro ao remover perfil:", err);
       notifyError(err);
     },
   });
@@ -69,7 +70,7 @@ export function usePerfis(userId: string) {
       toast.success("Permissão concedida.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao conceder permissão:", err);
+      logger.error("[admin] Erro ao conceder permissão:", err);
       notifyError(err);
     },
   });
@@ -82,7 +83,7 @@ export function usePerfis(userId: string) {
       toast.success("Permissão revogada.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao revogar permissão:", err);
+      logger.error("[admin] Erro ao revogar permissão:", err);
       notifyError(err);
     },
   });

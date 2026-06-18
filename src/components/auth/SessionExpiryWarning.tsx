@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPreference } from "@/hooks/useUserPreference";
 import {
+import { logger } from "@/lib/logger";
   Dialog,
   DialogContent,
   DialogDescription,
@@ -43,7 +44,7 @@ export function SessionExpiryWarning() {
     if (!keepalive || !session) return;
     const interval = window.setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
-      try { await supabase.auth.refreshSession(); } catch (e) { console.warn('[session keepalive]', e); }
+      try { await supabase.auth.refreshSession(); } catch (e) { logger.warn('[session keepalive]', e); }
     }, KEEPALIVE_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [keepalive, session]);

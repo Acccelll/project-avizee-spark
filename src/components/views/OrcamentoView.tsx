@@ -26,6 +26,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import {
+import { logger } from "@/lib/logger";
   ensurePublicToken,
   cancelarOrcamento,
   criarRevisaoOrcamento,
@@ -214,7 +215,7 @@ export function OrcamentoView({ id }: Props) {
           invalidate(["orcamentos"]);
           await reload();
         } catch (err) {
-          console.error("[OrcamentoView] erro ao cancelar:", err);
+          logger.error("[OrcamentoView] erro ao cancelar:", err);
           notifyError(err);
           throw err;
         }

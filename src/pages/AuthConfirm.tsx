@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, AlertCircle, ArrowLeft, Loader2, Mail, UserPlus, KeyRound, Settings } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 import { ADMIN_EMAIL } from "@/constants/app";
+import { logger } from "@/lib/logger";
 
 /**
  * Página intersticial de confirmação de e-mail (`/auth/confirm`).
@@ -112,7 +113,7 @@ export default function AuthConfirm() {
       // Sessão estabelecida. Agora seguimos para o destino real.
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      console.error("[auth-confirm]", err);
+      logger.error("[auth-confirm]", err);
       setError("Erro inesperado ao confirmar. Tente novamente.");
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from "@/lib/logger";
 
 /**
  * Acesso ao registro `help_progress` do usuário corrente. Mantém o estado em
@@ -54,7 +55,7 @@ export function useHelpProgress() {
         });
       if (error) {
         // silencioso: não atrapalha a UX, apenas registra para debug
-        console.warn('[help_progress] upsert falhou', error);
+        logger.warn('[help_progress] upsert falhou', error);
       }
     },
     [user?.id],

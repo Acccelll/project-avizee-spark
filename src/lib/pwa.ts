@@ -11,6 +11,7 @@
  */
 
 import type { Workbox } from "workbox-window";
+import { logger } from "@/lib/logger";
 
 let wb: Workbox | undefined;
 
@@ -43,7 +44,7 @@ export async function registerPwa(): Promise<void> {
     await wb.register();
   } catch (e) {
     // Falha de registro é não-fatal — o app segue funcionando online normal.
-    console.warn("[pwa] falha ao registrar service worker", e);
+    logger.warn("[pwa] falha ao registrar service worker", e);
   }
 }
 
