@@ -10,7 +10,6 @@ import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
@@ -21,15 +20,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
-import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { useFiscalKpis } from "@/pages/fiscal/hooks/useFiscalKpis";
 import {
   useNotasFiscaisPaged,
   useResetPageOnFiltersChange,
 } from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
-import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { FiscalChaveDialogsSlot } from "@/pages/fiscal/components/FiscalChaveDialogsSlot";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
 import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
@@ -46,22 +42,15 @@ import {
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import { useFiscalModalState } from "@/pages/fiscal/hooks/useFiscalModalState";
-import {
-  emptyFiscalForm as emptyForm,
-  type FiscalFormState as FiscalForm,
-  type NfItemFiscalData,
-} from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
-import { QuickAddProductModal } from "@/components/QuickAddProductModal";
-import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
-import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
 import { useFiscalAutoOpen } from "@/pages/fiscal/hooks/useFiscalAutoOpen";
 import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
 import { useFiscalSubmit } from "@/pages/fiscal/hooks/useFiscalSubmit";
-import { logger } from "@/lib/logger";
+import { useFiscalXmlImport } from "@/pages/fiscal/hooks/useFiscalXmlImport";
+import { FiscalXmlSlots } from "@/pages/fiscal/components/FiscalXmlSlots";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
