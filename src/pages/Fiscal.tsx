@@ -237,56 +237,6 @@ const Fiscal = () => {
   };
 
   const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
-    if (!i.produto_id) {
-      throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
-    }
-    const fiscal = itemFiscalData[idx] || {};
-    // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
-    // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
-    const traducao = traducaoLinhas.find((t) => t.index === idx);
-    const td = (form as any).tipo_documento as string | undefined;
-    const categoria = td === "nfse" ? "servico" : td === "cte" ? "frete" : "produto";
-    return {
-      nota_fiscal_id: nfId,
-      produto_id: i.produto_id,
-      categoria,
-      quantidade: i.quantidade,
-      valor_unitario: i.valor_unitario,
-      conta_contabil_id: itemContaContabil[idx] || null,
-      cfop: fiscal.cfop ?? null,
-      cst: fiscal.cst ?? null,
-      ncm: fiscal.ncm ?? null,
-      unidade: fiscal.unidade ?? null,
-      descricao: fiscal.descricao ?? i.descricao ?? null,
-      icms_valor: fiscal.icms_valor ?? null,
-      icms_aliquota: fiscal.icms_aliquota ?? null,
-      icms_base: fiscal.icms_base ?? null,
-      ipi_valor: fiscal.ipi_valor ?? null,
-      ipi_aliquota: fiscal.ipi_aliquota ?? null,
-      pis_valor: fiscal.pis_valor ?? null,
-      pis_aliquota: fiscal.pis_aliquota ?? null,
-      base_pis: fiscal.base_pis ?? null,
-      cofins_valor: fiscal.cofins_valor ?? null,
-      cofins_aliquota: fiscal.cofins_aliquota ?? null,
-      base_cofins: fiscal.base_cofins ?? null,
-      valor_st: fiscal.valor_st ?? null,
-      base_st: fiscal.base_st ?? null,
-      csosn: fiscal.csosn ?? null,
-      cst_pis: fiscal.cst_pis ?? null,
-      cst_cofins: fiscal.cst_cofins ?? null,
-      cst_ipi: fiscal.cst_ipi ?? null,
-      desconto: fiscal.desconto ?? null,
-      codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
-      // XML cru preservado quando há tradução associada.
-      codigo_produto_origem: traducao?.xmlCodigo ?? null,
-      descricao_produto_origem: traducao?.xmlDescricao ?? null,
-      unidade_origem: traducao?.xmlUnidade ?? null,
-      quantidade_origem: traducao?.xmlQuantidade ?? null,
-      valor_unitario_origem: traducao?.xmlValorUnitario ?? null,
-      valor_total_origem: traducao?.xmlValorTotal ?? null,
-      match_status: traducao ? (traducao.matchStatus || null) : null,
-    };
-  });
 
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = async (
