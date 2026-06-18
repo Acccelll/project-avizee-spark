@@ -101,6 +101,7 @@ export function useFinanceiroLancamentosPaged(
     loading: query.isLoading,
     refetching: query.isFetching && !query.isLoading,
     refetch,
+    isError: query.isError,
     error: query.error,
   };
 }
