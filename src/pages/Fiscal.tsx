@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { OriginContextBanner } from "@/components/navigation/OriginContextBanner";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -23,18 +23,9 @@ import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
   registrarEventoFiscal,
-  cancelarNotaFiscal,
-  getPedidoCompraResumo,
   listNotaFiscalItensCompletos,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
-import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
-import { gerarFinanceiroNfeSaida } from "@/services/fiscal/lifecycle.service";
-import { getEmpresaConfig } from "@/services/fiscal/empresaConfig.service";
-import {
-  useConfirmarNotaFiscal,
-  useEstornarNotaFiscal,
-} from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
@@ -50,19 +41,12 @@ import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobi
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
 import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
-import { useActionLock } from "@/hooks/useActionLock";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
-import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
-  canConfirmFiscal,
-  canEstornarFiscal,
   fiscalInternalStatusOptions,
   fiscalSefazStatusOptions,
   getFiscalInternalStatus,
   getFiscalSefazStatus,
-  isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
@@ -79,6 +63,9 @@ import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
+import { useFiscalAutoOpen } from "@/pages/fiscal/hooks/useFiscalAutoOpen";
+import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
+import { useFiscalSubmit } from "@/pages/fiscal/hooks/useFiscalSubmit";
 import { logger } from "@/lib/logger";
 
 /**
