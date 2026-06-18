@@ -1,12 +1,12 @@
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
-import type { ColumnDef } from "@/components/DataTable";
+import type { Column } from "@/components/DataTable";
 import type { NotaFiscal } from "@/types/domain";
 
 export type FiscalSortKey = "data_emissao" | "numero" | "valor_total" | "created_at";
 
 export interface FiscalNotasTableProps {
-  columns: ColumnDef<NotaFiscal>[];
+  columns: Column<NotaFiscal>[];
   data: NotaFiscal[];
   loading: boolean;
   page: number;
