@@ -22,6 +22,9 @@ import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
 import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
 import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
 import { useOrcamentoRentabilidade } from "@/pages/comercial/orcamento-form/useOrcamentoRentabilidade";
+import { usePreviewAutoScale } from "@/pages/comercial/orcamento-form/usePreviewAutoScale";
+import { useOrcamentoDraft } from "@/pages/comercial/orcamento-form/useOrcamentoDraft";
+import { LockedAlert } from "@/pages/comercial/orcamento-form/LockedAlert";
 import {
   emptyCliente,
   STATUS_LABEL,
@@ -66,13 +69,7 @@ import {
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
 import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
-import {
-  upsertOrcamentoDraft,
-  hasOrcamentoDraft,
-  criarRevisaoOrcamento,
-} from "@/services/orcamentos.service";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lock } from "lucide-react";
+import { criarRevisaoOrcamento } from "@/services/orcamentos.service";
 export default function OrcamentoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -111,34 +108,8 @@ export default function OrcamentoForm() {
   const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const previewStageRef = useRef<HTMLDivElement>(null);
-  const [autoScale, setAutoScale] = useState<number>(1);
+  const autoScale = usePreviewAutoScale(previewStageRef, previewOpen, previewFullscreen);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
-
-  // Auto-fit do preview A4 ao container do stage (largura E altura)
-  useEffect(() => {
-    if (!previewOpen) return;
-    const el = previewStageRef.current;
-    if (!el) return;
-    const A4_WIDTH_PX = 794;  // 210mm @ 96dpi
-    const A4_HEIGHT_PX = 1123; // 297mm @ 96dpi
-    const PAD = 32; // padding interno do stage
-    const compute = () => {
-      const w = Math.max(0, el.clientWidth - PAD);
-      const h = Math.max(0, el.clientHeight - PAD);
-      const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
-      if (Number.isFinite(s) && s > 0) {
-        setAutoScale(Math.min(1.5, Math.max(0.25, s)));
-      }
-    };
-    // Pequeno delay para o dialog terminar a animação de abertura/fullscreen
-    const t = window.setTimeout(compute, 50);
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => {
-      window.clearTimeout(t);
-      ro.disconnect();
-    };
-  }, [previewOpen, previewFullscreen]);
 
   // Ao alternar para fullscreen, voltar para auto-fit para enquadrar tudo
   useEffect(() => {
@@ -644,45 +615,17 @@ export default function OrcamentoForm() {
   };
 
 
-  // Restauração de rascunho: tenta servidor, faz fallback para localStorage.
-  useEffect(() => {
-    if (isEdit) return;
-    let cancelled = false;
-    (async () => {
-      if (user?.id) {
-        const has = await hasOrcamentoDraft(user.id, draftKey).catch(() => false);
-        if (cancelled) return;
-        if (has) { setRestoreDraftOpen(true); return; }
-      }
-      const saved = localStorage.getItem(draftKey);
-      if (!cancelled && saved) setRestoreDraftOpen(true);
-    })();
-    return () => { cancelled = true; };
-  }, [draftKey, isEdit, user?.id]);
-
-  // Autosave: tenta servidor (orcamento_drafts), com fallback para localStorage em caso de erro.
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      // Não autosalva drafts de orçamentos já em status terminal/aprovado.
-      if (isEdit && status && status !== 'rascunho') return;
-      const { numero: n, clienteId: cid } = getValues();
-      if (!n && !cid && items.length === 0) return;
-      const payload = buildDraftPayload();
-      const serialized = JSON.stringify(payload);
-      let serverOk = false;
-      if (user?.id) {
-        try {
-          await upsertOrcamentoDraft(user.id, draftKey, payload);
-          serverOk = true;
-        } catch {/* fallback abaixo */}
-      }
-      if (!serverOk) {
-        try { localStorage.setItem(draftKey, serialized); } catch {/* quota */}
-      }
-      setLastAutoSaveAt(new Date().toISOString());
-    }, 30000);
-    return () => clearInterval(timer);
-  }, [buildDraftPayload, draftKey, getValues, items.length, user?.id, isEdit, status]);
+  useOrcamentoDraft({
+    draftKey,
+    isEdit,
+    status,
+    userId: user?.id,
+    items,
+    getValues,
+    buildDraftPayload,
+    setRestoreDraftOpen,
+    setLastAutoSaveAt,
+  });
 
   useEffect(() => {
     getEmpresaConfig()
@@ -752,32 +695,19 @@ export default function OrcamentoForm() {
       }
     >
       {isEdit && status && isLocked && (
-        <Alert variant="default" className="mb-4 border-warning/40 bg-warning/5">
-          <Lock className="h-4 w-4" />
-          <AlertTitle>Orçamento bloqueado para edição</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
-            <span>
-              Este orçamento está no status <strong>{status}</strong> e não pode mais ser alterado.
-              Para ajustar, gere uma nova revisão.
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                if (!id) return;
-                try {
-                  const novoId = await criarRevisaoOrcamento(id);
-                  if (novoId) {
-                    toast.success("Revisão criada.");
-                    navigate(`/orcamentos/${novoId}`, { replace: true });
-                  }
-                } catch (err) { notifyError(err); }
-              }}
-            >
-              Criar revisão
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <LockedAlert
+          status={status}
+          onCriarRevisao={async () => {
+            if (!id) return;
+            try {
+              const novoId = await criarRevisaoOrcamento(id);
+              if (novoId) {
+                toast.success("Revisão criada.");
+                navigate(`/orcamentos/${novoId}`, { replace: true });
+              }
+            } catch (err) { notifyError(err); }
+          }}
+        />
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
