@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck:core": "tsc -p tsconfig.strict-core.json",
     "lint:touch-targets": "node scripts/lint-touch-targets.mjs",
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
