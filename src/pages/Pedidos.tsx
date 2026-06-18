@@ -169,6 +169,8 @@ const Pedidos = () => {
   });
   const data = pedidosQuery.data ?? [];
   const loading = pedidosQuery.isLoading;
+  const isError = pedidosQuery.isError;
+  const queryError = pedidosQuery.error;
   const fetchData = async () => {
     await pedidosQuery.refetch();
   };
