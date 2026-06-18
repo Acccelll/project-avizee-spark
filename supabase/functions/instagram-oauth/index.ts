@@ -13,6 +13,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithTimeout, isTimeoutError } from "../_shared/validate.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const META_APP_ID = Deno.env.get("META_APP_ID") ?? "";
@@ -86,6 +87,10 @@ Deno.serve(async (req) => {
 
     return jsonError(404, `Rota desconhecida: ${path}`);
   } catch (e) {
+    if (isTimeoutError(e)) {
+      console.warn("[instagram-oauth] timeout", e.url, e.ms);
+      return jsonError(504, "Meta Graph API demorou demais para responder");
+    }
     console.error("[instagram-oauth]", e);
     return jsonError(500, e instanceof Error ? e.message : "Erro interno");
   }
@@ -134,7 +139,7 @@ async function handleCallback(url: URL): Promise<Response> {
   const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth/callback`;
 
   // 1) short-lived token
-  const shortRes = await fetch(
+  const shortRes = await fetchWithTimeout(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
       new URLSearchParams({
         client_id: META_APP_ID,
@@ -142,6 +147,8 @@ async function handleCallback(url: URL): Promise<Response> {
         redirect_uri: redirectUri,
         code,
       }),
+    {},
+    10_000,
   );
   const shortData = await shortRes.json();
   if (!shortRes.ok || !shortData.access_token) {
@@ -149,7 +156,7 @@ async function handleCallback(url: URL): Promise<Response> {
   }
 
   // 2) long-lived (60d)
-  const longRes = await fetch(
+  const longRes = await fetchWithTimeout(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
       new URLSearchParams({
         grant_type: "fb_exchange_token",
@@ -157,6 +164,8 @@ async function handleCallback(url: URL): Promise<Response> {
         client_secret: META_APP_SECRET,
         fb_exchange_token: shortData.access_token,
       }),
+    {},
+    10_000,
   );
   const longData = await longRes.json();
   const longLivedToken = longData.access_token as string | undefined;
@@ -166,14 +175,18 @@ async function handleCallback(url: URL): Promise<Response> {
   }
 
   // 3) descobre /me + pages
-  const meRes = await fetch(
+  const meRes = await fetchWithTimeout(
     `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${longLivedToken}`,
+    {},
+    10_000,
   );
   const me = await meRes.json();
   if (!me.id) return jsonError(502, `Falha em /me: ${JSON.stringify(me)}`);
 
-  const pagesRes = await fetch(
+  const pagesRes = await fetchWithTimeout(
     `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,profile_picture_url}&access_token=${longLivedToken}`,
+    {},
+    10_000,
   );
   const pages = await pagesRes.json();
   if (!Array.isArray(pages.data)) {
