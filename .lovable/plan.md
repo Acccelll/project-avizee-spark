@@ -1,108 +1,92 @@
-# Etapa 1 — Higiene de código & observabilidade
+## Etapa 2 — Backend: dados, paginação & resiliência
 
-Escopo: as 4 sub-etapas descritas (1.1 a 1.4). Baixo risco, pré-requisito de 2 e 6. Sem mudanças de UX nem schema.
+Escopo confirmado na auditoria:
+- **14 `TODO(paginação)`** em 8 services (orcamentos, estoque, pedidosCompra, cotacoesCompra, recorrencias, precosEspeciais, comprasLifecycle, logistica/{remessas,entregas,prepostagem}).
+- **11 Edge Functions com `fetch` externo**; só 3 têm `AbortController` (sefaz-proxy, sefaz-distdfe, webhooks-dispatcher). 8 sem timeout: correios-api, consultadanfe-proxy, social-sync, instagram-oauth, ia-sugestao, ia-extracao-documento, process-nfe-retry-cron, process-distdfe-cron.
+- Não existe `_shared/validate.ts` — validações são ad-hoc.
+- Tetos defensivos (`limit(500)` em cadastros pequenos como sócios/plano de contas) ficam — não viram paginação server.
 
-## 1.1 — Logger central substituindo `console.*` em `src/`
+Ordem de execução (4 PRs, baixo→médio risco):
 
-Estado real auditado: **147 ocorrências** de `console.*` em ~50 arquivos de `src/` (não 143). `src/lib/logger.ts` já existe e já tem gate por `import.meta.env.DEV` + `esbuild.drop` em produção — não precisa reescrever, apenas adotar.
+### PR-2.1 — Paginação server-side dos `TODO(paginação)`
 
-Ação:
-1. Substituir em todo `src/` (exceto `src/lib/logger.ts` e `src/integrations/supabase/client.ts` — este é auto-gerado):
-   - `console.error` → `logger.error`
-   - `console.warn` → `logger.warn`
-   - `console.info`/`console.log`/`console.debug` → `logger.info` (logger não expõe `debug`/`log`; mapear para `info`, que já é silenciado em prod)
-2. Em cada arquivo alterado, adicionar `import { logger } from "@/lib/logger";`.
-3. Mascarar dados sensíveis nos call sites encontrados: senhas, tokens, `linha_digitavel`, `arquivo_base64`, conteúdo PFX, CPF/CNPJ completos (manter só 3 últimos dígitos quando útil para debug).
-4. Em `eslint.config.js`, adicionar:
-   ```js
-   "no-console": ["error", { allow: [] }]
-   ```
-   com `overrides` ignorando `supabase/functions/**` (lá vale o logger de `_shared/logger.ts`, que usa `console.*` por design) e `src/lib/logger.ts`.
+Padrão único: cada `list*` ganha overload paginado retornando `{ rows, totalCount, hasMore }` via `.select("...", { count: "exact" }).range(from, to)`. Telas consumidoras passam a usar `serverPagination={ page, setPage, totalCount, hasMore }` já suportado pelo `DataTable`/`useSupabaseCrud`. Assinatura legada mantida (chama paginada com `pageSize=2000, page=0`) para não quebrar callers, mas marcada `@deprecated`.
 
-Não tocar: `supabase/functions/**`, `scripts/**`, `src/integrations/supabase/client.ts`.
+Arquivos:
+- `src/services/orcamentos.service.ts` (2x — históricos, listagem)
+- `src/services/estoque.service.ts` (2x — movimentos, posições)
+- `src/services/pedidosCompra.service.ts` (3x)
+- `src/services/cotacoesCompra.service.ts` (1x)
+- `src/services/recorrencias.service.ts` (1x)
+- `src/services/precosEspeciais.service.ts` (2x)
+- `src/services/comercial/comprasLifecycle.service.ts` (1x)
+- `src/services/logistica/{remessas,entregas,prepostagem}.service.ts` (4x)
+- `src/pages/admin/hooks/useEventosAdminTimeline.ts` (timeline — vira infinite query com `useInfiniteQuery`).
 
-Verificação:
-- `rg -n "console\." src | grep -v "src/lib/logger.ts\|src/integrations/supabase/client.ts"` → vazio.
-- `npm run lint` falha se alguém reintroduzir `console.`.
+Telas a migrar para paginação visível (já têm `DataTable`):
+- Cotações de Compra, Pedidos de Compra, Recorrências, Preços Especiais, Remessas, Entregas, Pré-postagens, Histórico de Orçamentos.
 
-## 1.2 — Erros consistentes em services + mutations
+Telas onde scroll virtual cabe melhor (lista densa, sem paginação clássica): `useEventosAdminTimeline` com `@tanstack/react-virtual` (já no projeto).
 
-Ação:
-1. Varrer `src/services/**` por `catch` que não re-lança nem reporta: padronizar para
-   ```ts
-   } catch (err) {
-     logger.error("[<contexto>] <ação>", err);
-     throw err; // ou retornar Result tipado conforme padrão do arquivo
-   }
-   ```
-   Não criar tipo `Result` novo se já existir convenção local — preservar.
-2. Verificar que toda `useMutation` em `src/hooks/**` e `src/pages/**/hooks/**` tem `onError` com `notifyError(err)` (helper já existente em `src/utils/errorMessages.ts`) ou `toast.error`. Adotar **sonner** (já é o padrão; `useToast` legado fica como está, não migrar nesta etapa para não inflar diff).
-3. Não introduzir biblioteca nova de toast.
+Verificação: `rg "TODO\(pagina" src` → 0. Smoke test em cada tela com >2000 registros simulados (paginação avança, total bate com `count`).
 
-Verificação: `rg -n "catch\s*\{\s*\}|catch\s*\(\s*\w+\s*\)\s*\{\s*\}" src/services` → vazio. Auditoria manual em 5 mutations aleatórias mostra `onError`.
+### PR-2.2 — Auditoria de `select("*")` e N+1
 
-## 1.3 — Remover serviço fantasma `sessoes.service.ts`
+- Identificar listagens de alto volume com `select("*")` e restringir colunas (mantendo joins). Foco: `estoque.service`, `logistica/entregas`, `orcamentos.service` listagens, `pedidosCompra`.
+- Caçar loops `for/map` que chamam supabase por item nos services de logística e compras; consolidar via `.in("id", ids)` ou embedding PostgREST.
+- Não quebrar tipos: cada `select` restrito ganha tipo derivado local.
 
-Auditoria:
-- `src/services/admin/sessoes.service.ts` é wrapper redundante sobre a Edge Function `admin-sessions` (mesma função usada por `adminSessions.service.ts`, que é a versão oficial consumida por `src/hooks/useSessoes.ts`).
-- Único consumidor: `src/services/admin/__tests__/sessoes.test.ts`.
-- A tabela `user_sessions` realmente não existe; o comentário do próprio arquivo confirma.
+Verificação: payload de 3 listagens medido antes/depois (DevTools). Nenhuma tela faz >2 round-trips por render.
 
-Decisão recomendada (default): **remover**.
-- `rm src/services/admin/sessoes.service.ts`
-- `rm src/services/admin/__tests__/sessoes.test.ts`
-- Ajustar comentário em `adminSessions.service.ts` que cita `sessoes.service.ts`.
+### PR-2.3 — Resiliência das Edge Functions
 
-Dead-code adicional: rodar `bunx knip --no-progress` (ou `ts-prune`) **só para reportar** nesta etapa; remover apenas itens claramente órfãos e sem efeito colateral (não tocar edge functions, migrations, rotas, contextos, testes). Itens duvidosos viram lista para uma etapa futura.
+Criar `supabase/functions/_shared/validate.ts`:
+- `validateJson<T>(req, schema): Promise<{ data: T } | Response>` com Zod (já usado em outras funções), retornando 400 padronizado com `corsHeaders`.
+- `fetchWithTimeout(url, init, ms): Promise<Response>` envolvendo `AbortController` + 504 amigável; reuso de retry exponencial só em 5xx/timeout.
 
-Verificação: `npm run typecheck`, `npm run build` verdes; nenhuma referência a `user_sessions` ou `sessoes.service` em `src/`.
+Aplicar em todas as 8 funções sem timeout (timeouts sugeridos):
+- `correios-api` (15s), `consultadanfe-proxy` (20s), `social-sync` (20s por chamada), `instagram-oauth` (10s), `ia-sugestao`/`ia-extracao-documento` (60s — modelos longos), `process-nfe-retry-cron`/`process-distdfe-cron` (já usam sefaz wrappers, validar cadeia).
 
-## 1.4 — Wrapper `QueryState` + adoção em listagens
+CORS: confirmar que toda função browser-facing usa `buildCorsHeaders(origin)` em vez de `*`; crons internos podem manter `ALLOWED_ORIGIN ?? "*"` (aceitável).
 
-Criar `src/components/ui/QueryState.tsx`:
-```tsx
-type Props<T> = {
-  isLoading: boolean;
-  isError: boolean;
-  error?: unknown;
-  data: T | undefined;
-  isEmpty?: (data: T) => boolean; // default: array vazio
-  onRetry?: () => void;
-  skeleton: ReactNode;            // skeleton específico da tela
-  empty: ReactNode;               // <EmptyState .../> da tela
-  children: (data: T) => ReactNode;
-};
-```
-- `isLoading` → renderiza `skeleton` (com `aria-busy`).
-- `isError` → bloco de erro padronizado com `notifyError` no `useEffect` + botão "Tentar novamente" chamando `onRetry`.
-- `isEmpty(data)` → renderiza `empty`.
-- caso contrário → `children(data)`.
+cron-health: garantir `recordCronHealth` em `process-distdfe-cron`, `process-nfe-retry-cron`, `process-email-queue`, `apresentacao-cadencia-runner`, `social-sync` (modo cron).
 
-Adoção nesta etapa: **não migrar tudo**. Migrar 5 telas representativas para validar o contrato:
-- `Orcamentos`, `Pedidos`, `Clientes`, `Produtos`, `Financeiro` (lista principal).
-Demais telas entram em backlog da Etapa 5 (UX), aproveitando que ali já se mexe em estados visuais.
+Validação Zod (body) adicionada onde hoje há checagem ad-hoc: `correios-api`, `consultadanfe-proxy`, `ia-sugestao`, `ia-extracao-documento`, `send-transactional-email`, `validate-invite`, `notify-orcamento-resposta`, `instagram-oauth`, `webhooks-dispatcher`, `admin-sessions`, `admin-users`, `test-smtp`.
 
-Verificação manual nas 5 telas: rede offline → erro com retry; lista vazia → empty; carregando → skeleton; sem tela branca.
+Verificação: chamar cada função com body inválido → 400 claro. `nc`/curl bloqueando upstream → 504 sem pendurar. Logs sem PII (`logger` já mascara — auditar call sites novos).
 
-## Ordem de execução e PRs sugeridos
+### PR-2.4 — Integridade de fluxos multi-tabela
 
-1. PR-1.1 logger + ESLint rule (mecânico; diff grande mas seguro).
-2. PR-1.2 catches e onError (pequeno, alto valor).
-3. PR-1.3 remoção `sessoes.service.ts` + relatório knip.
-4. PR-1.4 `QueryState` + 5 telas piloto.
+Mapeamento (auditoria leve — sem nova RPC se já existir):
+- **Emissão NF → financeiro → estoque:** verificar se passa por RPC `confirmar_nota`/`autorizar_nfe` (memória já confirma). Se algum branch ainda escreve em múltiplas tabelas direto do client, propor RPC `SECURITY DEFINER`.
+- **Conversão orçamento → pedido:** já é RPC.
+- **Baixa em lote financeira:** já é RPC `baixar_lote`.
+- **Cancelamento NF → estorno financeiro/estoque:** revisar `DevolucaoDialog` e `FiscalChaveDialogs` para confirmar atomicidade.
 
-Cada PR roda `npm run lint && npm run typecheck && bunx vitest run` antes de fechar.
+Constraints novas (migration única):
+- `chk_orcamentos_total_nonneg`, `chk_pedidos_valor_total_nonneg`, `chk_estoque_movimentos_qtd_positiva` (onde aplicável por tipo), `chk_financeiro_lancamentos_valor_nonneg`.
+- Checagens de `status` já existem como `chk_*` (memória) — completar onde faltar.
 
-## Não-objetivos desta etapa
+Verificação: forçar falha no meio de fluxo multi-tabela em ambiente de teste → sem estado órfão (RPC reverte). `supabase--linter` limpo após migration.
 
-- Não migrar `useToast` legado para sonner.
-- Não corrigir paginação (Etapa 2).
-- Não mexer em RLS/MFA/LGPD (Etapa 3).
-- Não tocar nos monólitos (Etapa 6).
-- Não adicionar gates de cobertura no CI (Etapa 7).
+## Não-objetivos
+
+- Não tocar RLS (Etapa 3).
+- Não refatorar monólitos (Etapa 6).
+- Não migrar `useToast` para sonner (Etapa 5).
+- Tetos `limit(500)` em cadastros pequenos (sócios, plano de contas, auditDups) ficam como estão.
 
 ## Riscos & mitigações
 
-- **Substituição em massa de `console.*`**: feita por arquivo via `apply_patch` (não `sed`) para preservar mensagens e args; rodar `tsc` após cada lote de ~10 arquivos.
-- **Remoção do `sessoes.service.ts`**: confirmado que só testes consomem; se o usuário quiser manter a feature de "user_sessions" persistidas, abortar e abrir etapa própria.
-- **`no-console` como `error`**: pode quebrar PRs em andamento; comunicar no commit message.
+- **Assinatura paginada**: manter wrapper legado evita romper callers atuais; deprecation gradual.
+- **Timeouts em IA**: 60s é folgado mas evita falsos 504; quando o modelo de fato pendura, retornamos 504 limpo em vez de browser timeout opaco.
+- **Constraints novas**: rodar `SELECT` prévio (via `read_query`) garantindo que dados atuais satisfazem; caso contrário, sanear dados antes da migration.
+
+## Ordem sugerida
+
+1. PR-2.3 (Edge Functions) — independente, alto valor de resiliência.
+2. PR-2.1 (paginação) — maior diff, mas mecânico.
+3. PR-2.2 (queries) — aproveita refactor de 2.1.
+4. PR-2.4 (integridade) — finaliza com migration e auditoria.
+
+Cada PR roda `npm run lint && npm run typecheck && bunx vitest run`.

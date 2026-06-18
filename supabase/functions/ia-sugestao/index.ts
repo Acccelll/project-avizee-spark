@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sanitizeForLog } from "../_shared/sanitize.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
 
 type Acao = "categorizar" | "conciliar" | "explicar_anomalia";
 
@@ -53,7 +54,7 @@ function extractJsonFromText(raw: string): unknown {
 }
 
 async function callGateway(lovableKey: string, messages: unknown[], wantJson: boolean) {
-  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  return await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -66,7 +67,7 @@ async function callGateway(lovableKey: string, messages: unknown[], wantJson: bo
       max_tokens: wantJson ? 600 : 250,
       temperature: 0,
     }),
-  });
+  }, 60_000);
 }
 
 Deno.serve(async (req) => {
@@ -365,6 +366,10 @@ Deno.serve(async (req) => {
       headers: jsonHeaders,
     });
   } catch (e) {
+    if (isTimeoutError(e)) {
+      log.warn("gateway timeout", { url: e.url, ms: e.ms });
+      return timeoutResponse(corsHeaders, "IA demorou demais para responder");
+    }
     log.error("unexpected", e);
     return new Response(
       JSON.stringify({ erro: "Erro inesperado processando a sugestão." }),
