@@ -1,0 +1,974 @@
+-- ============================================================
+-- AviZee ERP — Schema inventory baseline
+-- Gerado em: 2026-06-18T11:39:40Z
+-- Origem: scripts/schema-inventory.sql (Fase A do squash plan)
+-- NOTA: este arquivo NÃO é um pg_dump executável; é um snapshot
+--       de metadados (sequences, tabelas, RLS, triggers, funções)
+--       para detecção de drift entre Test e Live.
+-- ============================================================
+
+-- 1. Sequences
+sequencename	last_value	increment_by	start_value
+nfe_numero_seq	48994605	1	1
+produto_migracao_log_id_seq	509	1	1
+seq_codigo_interno_insumo	21	1	1
+seq_codigo_interno_produto	244	1	1
+seq_codigo_interno_servico	2	1	1
+seq_cotacao_compra	3	1	1
+seq_nota_fiscal	1175	1	1
+seq_orcamento	100284	1	1
+seq_ordem_venda	4	1	1
+seq_pedido_compra	2	1	1
+(10 rows)
+
+-- 2. Tabelas (top 30 por tamanho)
+schemaname	tablename	pg_size_pretty
+public	financeiro_auditoria	1424 kB
+public	notas_fiscais	1144 kB
+public	financeiro_lancamentos	800 kB
+public	stg_cadastros	672 kB
+public	notas_fiscais_itens	592 kB
+public	stg_financeiro_aberto	544 kB
+public	orcamentos	464 kB
+public	nfe_distribuicao	448 kB
+public	produtos	280 kB
+public	financeiro_baixas	264 kB
+public	orcamento_drafts	264 kB
+public	produto_identificadores_legacy	248 kB
+public	estoque_movimentos	248 kB
+public	clientes	248 kB
+public	auditoria_logs	216 kB
+public	nota_fiscal_eventos	200 kB
+public	fornecedores	200 kB
+public	permission_audit	176 kB
+public	produto_migracao_backup	176 kB
+public	orcamentos_itens	152 kB
+public	stg_produtos_atualizado	144 kB
+public	contas_contabeis	144 kB
+public	apresentacao_geracoes	144 kB
+public	ordens_venda	128 kB
+public	user_preferences	128 kB
+public	cartao_faturas	128 kB
+public	remessas	128 kB
+public	email_send_log	128 kB
+public	produto_migracao_log	120 kB
+public	fiscal_telemetria	112 kB
+(30 rows)
+
+-- 3. SECURITY DEFINER functions
+proname	pg_get_function_identity_arguments
+_set_vault_secret	p_name text, p_secret text
+acao_cliente_orcamento	p_token uuid, p_acao text, p_comentario text
+ajustar_estoque_manual	p_produto_id uuid, p_tipo text, p_quantidade numeric, p_motivo text, p_categoria_ajuste text, p_motivo_estruturado text
+aplicar_matriz_fiscal	p_produto_id uuid, p_uf_destino text, p_tipo_operacao text
+aprovar_cotacao_compra	p_id uuid
+aprovar_orcamento	p_id uuid
+aprovar_pedido	p_pedido_id uuid
+aprovar_retirada_socio	p_retirada_id uuid
+atualizar_financeiro_nota	p_nota_id uuid, p_forma_pagamento text, p_condicao_pagamento text, p_parcelas jsonb
+audit_config_changes	
+backfill_nfe_distribuicao_destinatario	
+baixar_fatura_cartao	p_fatura_id uuid, p_conta_bancaria_id uuid, p_data_baixa date, p_forma_pagamento text, p_observacoes text
+buscar_municipio_ibge	p_nome text, p_uf text
+can_edit_financeiro_avancado	_user_id uuid
+cancelar_cotacao_compra	p_id uuid, p_motivo text
+cancelar_nota_fiscal	p_nf_id uuid, p_motivo text
+cancelar_nota_fiscal_sefaz	p_nf_id uuid, p_protocolo text, p_motivo text
+cancelar_orcamento	p_id uuid, p_motivo text
+cancelar_pedido_compra	p_id uuid, p_motivo text
+cancelar_pedido_venda	p_id uuid, p_motivo text
+cancelar_remessa	p_remessa_id uuid, p_motivo text
+cancelar_retirada_socio	p_retirada_id uuid, p_motivo text
+carga_inicial_conciliacao	p_lote_id uuid, p_force boolean
+carga_inicial_processar_extras	p_lote_id uuid
+cartao_fatura_para_data	p_cartao_id uuid, p_data date
+confirmar_cte	p_nota_id uuid
+confirmar_nfse	p_nota_id uuid
+confirmar_nota_fiscal	p_nf_id uuid
+consolidar_lote_cadastros	p_lote_id uuid
+consolidar_lote_enriquecimento	p_lote_id uuid
+consolidar_lote_estoque	p_lote_id uuid
+consolidar_lote_faturamento	p_lote_id uuid
+consolidar_lote_financeiro	p_lote_id uuid
+consolidar_produto	p_origem uuid, p_destino uuid
+converter_orcamento_em_ov	p_orcamento_id uuid, p_po_number text, p_data_po date, p_forcar boolean
+count_estoque_baixo	
+criar_apuracao_societaria	p_competencia text, p_lucro_base numeric
+criar_revisao_orcamento	p_orcamento_id uuid
+current_empresa_id	
+delete_email	queue_name text, message_id bigint
+detectar_divergencia_preco_compra	p_limite_desvio numeric, p_janela integer
+detectar_gasto_fora_padrao	p_dias integer, p_z numeric
+detectar_nf_duplicada	
+duplicar_orcamento	p_orcamento_id uuid
+editar_baixa_admin	p_baixa_id uuid, p_payload jsonb, p_motivo text
+editar_lancamento_financeiro_admin	p_id uuid, p_payload jsonb, p_motivo text
+editar_parcela_nf_admin	p_lancamento_id uuid, p_payload jsonb, p_motivo text
+email_queue_metrics	
+enforce_empresa_config_singleton	
+enqueue_email	queue_name text, payload jsonb
+enviar_cotacao_aprovacao	p_id uuid
+enviar_orcamento_aprovacao	p_id uuid
+estornar_baixa_financeira	p_baixa_id uuid, p_motivo text
+estornar_nota_fiscal	p_nf_id uuid, p_motivo text
+estornar_recebimento_compra	p_compra_id uuid, p_motivo text
+excluir_nfe_distribuicao_alheias	
+executar_migracao_produtos	p_fase text
+existe_secret_vault	p_name text
+expedir_remessa	p_remessa_id uuid, p_data_expedicao timestamp with time zone
+expirar_orcamentos_vencidos	
+fechar_apuracao_societaria	p_apuracao_id uuid
+financeiro_cancelar_lancamento	p_id uuid, p_motivo text
+financeiro_conciliar_baixa	p_baixa_id uuid, p_status text, p_extrato_referencia text
+financeiro_conciliar_lote	p_conta_bancaria_id uuid, p_data_conciliacao timestamp with time zone, p_pares jsonb, p_observacoes text
+financeiro_processar_baixa_lote	p_items jsonb
+financeiro_processar_estorno	p_lancamento_id uuid, p_motivo text
+fn_app_configuracoes_audit	
+fn_audit_config_changes	
+fn_audit_user_permissions	
+fn_audit_user_roles	
+fn_auditoria_orcamento_status	
+fn_empresa_config_audit	
+fn_estoque_movimentos_saldo_corrido	
+fn_remessa_protege_status_critico	
+gerar_chave_acesso_nfe	p_nf_id uuid
+gerar_devolucao_nota_fiscal	p_nf_origem_id uuid, p_itens jsonb
+gerar_fatura_cartao	p_cartao_id uuid, p_competencia text
+gerar_financeiro_folha	p_competencia text, p_data_vencimento date
+gerar_financeiro_folha	p_folha_id uuid
+gerar_financeiro_nfe_entrada	p_nota_id uuid, p_duplicatas jsonb, p_forma_pagamento text, p_cartao_id uuid
+gerar_financeiro_nfe_saida	p_nota_id uuid, p_duplicatas jsonb, p_forma_pagamento text
+gerar_financeiro_retirada	p_retirada_id uuid, p_data_vencimento date, p_conta_bancaria_id uuid
+gerar_lancamento_recorrencia_agora	p_recorrencia_id uuid
+gerar_lancamentos_recorrentes	
+gerar_nf_de_pedido	p_pedido_id uuid
+gerar_parcelas_financeiras	p_base jsonb, p_num_parcelas integer, p_intervalo_dias integer
+gerar_pedido_compra	p_cotacao_id uuid, p_observacoes text
+get_dre_periodo	p_modo text, p_data_inicio date, p_data_fim date
+get_orcamento_publico	p_token uuid
+get_secret_gateway_key	
+get_secret_sefaz_password	
+get_secret_smtp_password	
+get_secret_vault_by_name	p_name text
+handle_new_user	
+hard_delete_record	p_table text, p_id uuid
+has_fiscal_permission	_action text
+has_role	_user_id uuid, _role app_role
+importacao_garantir_pessoa	p_tipo text, p_codigo_legado text, p_nome text
+importar_nfe_distribuicao_como_entrada	p_id uuid
+importar_nfe_entrada	p_payload jsonb, p_empresa_id uuid
+inicializar_seq_sku_grupo	_grupo_id uuid
+inutilizar_nota_fiscal	p_nf_id uuid, p_protocolo text, p_motivo text
+kpi_clientes_qualidade	
+kpi_fornecedores_qualidade	
+ler_secret_vault	p_name text
+limpar_dados_migracao	p_confirmar boolean
+list_public_schema	
+log_self_update_audit	p_tipo_acao text, p_entidade text, p_entidade_id text, p_alteracao jsonb, p_motivo text
+marcar_dup_como_mantido	p_audit_id uuid, p_motivo text
+marcar_lancamentos_vencidos	
+marcar_remessa_em_transito	p_remessa_id uuid
+marcar_remessa_entregue	p_remessa_id uuid
+merge_lote_conciliacao	p_lote_id uuid
+move_to_dlq	source_queue text, dlq_name text, message_id bigint, payload jsonb
+nfe_emissao_pendente_concluir	p_id uuid, p_sucesso boolean, p_erro text, p_protocolo text
+nfe_emissao_pendente_listar_proximo_lote	p_limit integer
+peek_proximo_numero_orcamento	
+posicao_estoque_em_data	p_data timestamp with time zone
+prevent_delete_conta_bancaria_em_uso	
+prevent_delete_conta_contabil_em_uso	
+processar_nfe_distribuicao	p_nfe_id uuid, p_fornecedor_id uuid, p_data_vencimento date, p_descricao text
+produtos_estoque_summary	
+proximo_codigo_interno	_tipo text
+proximo_numero_cotacao_compra	
+proximo_numero_nf	
+proximo_numero_nfe	p_serie text
+proximo_numero_nota_fiscal	
+proximo_numero_orcamento	
+proximo_numero_ordem_venda	
+proximo_numero_pedido_compra	
+proximo_sku_grupo	_grupo_id uuid
+purge_dups_confirmado	p_audit_id uuid
+reabrir_apuracao_societaria	p_apuracao_id uuid, p_motivo text
+read_email_batch	queue_name text, batch_size integer, vt integer
+recalcular_apuracao_societaria	p_apuracao_id uuid
+receber_compra	p_pedido_id uuid, p_data_recebimento date, p_itens jsonb, p_observacoes text
+registrar_baixa_financeira	p_lancamento_id uuid, p_valor_pago numeric, p_data_baixa date, p_forma_pagamento text, p_conta_bancaria_id uuid, p_observacoes text, p_desconto numeric, p_juros numeric, p_multa numeric, p_abatimento numeric, p_grupo_baixa_id uuid, p_skip_caixa boolean
+registrar_baixa_lote_financeira	p_items jsonb, p_data_baixa date, p_forma_pagamento text, p_conta_bancaria_id uuid, p_observacoes text
+registrar_recebimento_compra	p_pedido_compra_id uuid, p_data_recebimento date, p_itens jsonb, p_observacoes text, p_nota_fiscal_id uuid, p_compra_id uuid
+registrar_retorno_sefaz	p_nf_id uuid, p_status_sefaz text, p_protocolo text, p_chave_acesso text, p_motivo text, p_ambiente text, p_xml_retorno text, p_payload_resumido jsonb
+rejeitar_cotacao_compra	p_id uuid, p_motivo text
+rejeitar_pedido	p_pedido_id uuid, p_motivo text
+relatorio_migracao_faturamento	p_lote_id uuid
+remap_produto_fk	p_origem uuid, p_destino uuid
+remover_secret_vault	p_name text
+replace_cotacao_compra_itens	p_cotacao_id uuid, p_itens jsonb
+replace_pedido_compra_itens	p_pedido_id uuid, p_itens jsonb
+restaurar_migracao_produtos	p_execucao timestamp with time zone
+rpc_sync_fatura_status	p_fatura_id uuid
+salvar_nota_fiscal	p_nf_id uuid, p_payload jsonb, p_itens jsonb
+salvar_orcamento	p_id uuid, p_payload jsonb, p_itens jsonb
+salvar_pedido_operacional	p_id uuid, p_patch jsonb
+salvar_secret_vault	p_name text, p_secret text
+save_produto_composicao	p_produto_pai_id uuid, p_itens jsonb, p_payload jsonb
+save_produto_fornecedores	p_produto_id uuid, p_itens jsonb
+save_user_profile	p_nome text, p_cargo text
+scan_dups_lancamentos	
+sefaz_consulta_pode_disparar	p_cnpj text, p_action text, p_janela_seg integer, p_max integer
+set_empresa_id_default	
+set_principal_endereco	p_cliente_id uuid, p_endereco_id uuid
+set_secret_gateway_key	p_secret text
+set_secret_sefaz_password	p_password text
+set_secret_smtp_password	p_password text
+set_socios_audit_cols	
+sidebar_alerts_kpis	
+social_alertas_periodo	_data_inicio date, _data_fim date
+social_dashboard_consolidado	_data_inicio date, _data_fim date
+social_metricas_periodo	_conta_id uuid, _data_inicio date, _data_fim date
+social_posts_filtrados	_data_inicio date, _data_fim date, _conta_id uuid
+social_sincronizar_manual	_conta_id uuid
+solicitar_aprovacao_pedido	p_pedido_id uuid
+sugerir_conciliacao_bancaria	p_conta_id uuid, p_extrato jsonb
+sync_fatura_status_from_lancamentos	p_fatura_id uuid
+sync_pedido_status_on_remessa_entregue	
+sync_profile_email_from_auth	
+tg_relatorios_favoritos_updated_at	
+tg_webhooks_endpoints_set_updated_at	
+tg_webhooks_notas_fiscais	
+tg_webhooks_orcamentos	
+tg_webhooks_ordens_venda	
+tg_webhooks_pedidos_compra	
+touch_cron_health	p_job text, p_status text, p_error text
+touch_help_progress	
+trg_block_apuracao_fechada	
+trg_block_socio_delete	
+trg_financeiro_auditoria_baixa	
+trg_financeiro_auditoria_lanc	
+trg_financeiro_protege_delete	
+trg_init_financeiro_saldo	
+trg_lancamento_status_requer_baixa	
+trg_nf_audita_status	
+trg_nf_itens_protege_edicao	
+trg_nf_protege_delete	
+trg_nf_protege_edicao	
+trg_nf_valida_transicao_status	
+trg_produtos_codigo_interno_auto	
+trg_sync_cartao_fatura_total_fn	
+trg_sync_financeiro_saldo	
+trg_sync_pct_atual	
+trg_validar_contingencia_nfe	
+vincular_nf_pedido_compra	p_nf_id uuid, p_pedido_id uuid
+vincular_orcamento_nf	p_orcamento_id uuid, p_nf_id uuid
+vincular_produto_fornecedor	p_produto_id uuid, p_fornecedor_nome text, p_fornecedor_legado text, p_referencia text, p_url text, p_preco_custo numeric
+webhooks_create_endpoint	p_nome text, p_url text, p_eventos text[], p_descricao text
+webhooks_enqueue	p_evento text, p_payload jsonb
+webhooks_increment_counter	p_endpoint_id uuid, p_field text
+webhooks_metrics	
+webhooks_queue_delete	p_msg_id bigint
+webhooks_queue_read	p_qty integer, p_vt integer
+webhooks_replay_delivery	p_delivery_id uuid
+webhooks_rotate_secret	p_endpoint_id uuid
+(211 rows)
+
+-- 4. RLS policies
+tablename	policyname	cmd	qual
+app_configuracoes	Admin can insert app_configuracoes	INSERT	
+app_configuracoes	Admin can update app_configuracoes	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+app_configuracoes	Admins can select app_configuracoes	SELECT	has_role(auth.uid(), 'admin'::app_role)
+apresentacao_cadencia	apresentacao_cadencia_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+apresentacao_cadencia	apresentacao_cadencia_insert	INSERT	
+apresentacao_cadencia	apresentacao_cadencia_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR (EXISTS ( SELECT 1
+   FROM user_permissions up
+  WHERE ((up.user_id = auth.uid()) AND (up.resource = 'apresentacao'::text) AND (up.action = ANY (ARRAY['visualizar'::text, 'gerenciar_templates'::text, 'gerar'::text, 'aprovar'::text])) AND (up.allowed = true)))))
+apresentacao_cadencia	apresentacao_cadencia_update	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR (EXISTS ( SELECT 1
+   FROM user_permissions up
+  WHERE ((up.user_id = auth.uid()) AND (up.resource = 'apresentacao'::text) AND (up.action = 'gerenciar_templates'::text) AND (up.allowed = true)))))
+apresentacao_comentarios	ac_insert	INSERT	
+apresentacao_comentarios	ac_select	SELECT	true
+apresentacao_comentarios	ac_update	UPDATE	true
+apresentacao_geracoes	ag_insert_role	INSERT	
+apresentacao_geracoes	ag_select	SELECT	true
+apresentacao_geracoes	ag_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+apresentacao_preferencias	Users manage own apresentacao prefs delete	DELETE	(auth.uid() = user_id)
+apresentacao_preferencias	Users manage own apresentacao prefs insert	INSERT	
+apresentacao_preferencias	Users manage own apresentacao prefs select	SELECT	(auth.uid() = user_id)
+apresentacao_preferencias	Users manage own apresentacao prefs update	UPDATE	(auth.uid() = user_id)
+apresentacao_slide_telemetria	Authenticated users can insert telemetry	INSERT	
+apresentacao_slide_telemetria	Authenticated users can read telemetry	SELECT	true
+apresentacao_templates	at_insert_role	INSERT	
+apresentacao_templates	at_select	SELECT	true
+apresentacao_templates	at_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+apuracoes_societarias	apuracao_admin_all	ALL	has_role(auth.uid(), 'admin'::app_role)
+apuracoes_societarias	apuracao_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+apuracoes_societarias_itens	apuracao_itens_admin_all	ALL	has_role(auth.uid(), 'admin'::app_role)
+apuracoes_societarias_itens	apuracao_itens_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+audit_dups_lancamentos	audit_dups_admin_only	ALL	has_role(auth.uid(), 'admin'::app_role)
+auditoria_logs	Admin can select auditoria_logs	SELECT	has_role(auth.uid(), 'admin'::app_role)
+auditoria_logs	Block delete auditoria_logs	DELETE	false
+auditoria_logs	audit_insert	INSERT	
+auditoria_logs	audit_select_restricted	SELECT	has_role(auth.uid(), 'admin'::app_role)
+bancos	bancos_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+bancos	bancos_insert_role	INSERT	
+bancos	bancos_select	SELECT	true
+bancos	bancos_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+budgets_mensais	bm_delete	DELETE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+budgets_mensais	bm_insert	INSERT	
+budgets_mensais	bm_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+budgets_mensais	bm_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+cadastros_pendencias_migracao	cpm_insert_admin	INSERT	
+cadastros_pendencias_migracao	cpm_select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+caixa_movimentos	cm_insert	INSERT	
+caixa_movimentos	cm_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cartao_faturas	cartao_faturas_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+cartao_faturas	cartao_faturas_write	ALL	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+cartoes_credito	cartoes_credito_delete	DELETE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+cartoes_credito	cartoes_credito_insert	INSERT	
+cartoes_credito	cartoes_credito_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+cartoes_credito	cartoes_credito_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+centros_custo	cc_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+centros_custo	cc_insert_admin_fin	INSERT	
+centros_custo	cc_select_authenticated	SELECT	true
+centros_custo	cc_update_admin_fin	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cliente_registros_comunicacao	crc_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+cliente_registros_comunicacao	crc_insert_role	INSERT	
+cliente_registros_comunicacao	crc_select	SELECT	true
+cliente_registros_comunicacao	crc_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+cliente_transportadoras	ct_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+cliente_transportadoras	ct_insert_role	INSERT	
+cliente_transportadoras	ct_select	SELECT	true
+cliente_transportadoras	ct_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+clientes	clientes_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+clientes	clientes_insert	INSERT	
+clientes	clientes_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+clientes	clientes_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+clientes_enderecos_entrega	cee_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+clientes_enderecos_entrega	cee_insert_role	INSERT	
+clientes_enderecos_entrega	cee_select	SELECT	true
+clientes_enderecos_entrega	cee_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+comentarios	comentarios_delete_owner_or_admin	DELETE	((auth.uid() = usuario_id) OR has_role(auth.uid(), 'admin'::app_role))
+comentarios	comentarios_insert_owner	INSERT	
+comentarios	comentarios_select_authenticated	SELECT	true
+comentarios	comentarios_update_owner_or_admin	UPDATE	((auth.uid() = usuario_id) OR has_role(auth.uid(), 'admin'::app_role))
+compras	compras_delete	DELETE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+compras	compras_insert	INSERT	
+compras	compras_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+compras	compras_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+compras_itens	ci_delete	DELETE	(EXISTS ( SELECT 1
+   FROM compras c
+  WHERE ((c.id = compras_itens.compra_id) AND ((c.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+compras_itens	ci_insert	INSERT	
+compras_itens	ci_select	SELECT	(EXISTS ( SELECT 1
+   FROM compras c
+  WHERE ((c.id = compras_itens.compra_id) AND ((c.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+compras_itens	ci_update	UPDATE	(EXISTS ( SELECT 1
+   FROM compras c
+  WHERE ((c.id = compras_itens.compra_id) AND ((c.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+conciliacao_bancaria	conc_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+conciliacao_bancaria	conc_insert	INSERT	
+conciliacao_bancaria	conc_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+conciliacao_bancaria	conc_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+conciliacao_pares	cp_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+conciliacao_pares	cp_insert	INSERT	
+conciliacao_pares	cp_select	SELECT	((empresa_id IS NULL) OR (empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+contas_bancarias	cb_delete	DELETE	(has_role(auth.uid(), 'admin'::app_role) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+contas_bancarias	cb_insert	INSERT	
+contas_bancarias	cb_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+contas_bancarias	cb_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+contas_contabeis	cc_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+contas_contabeis	cc_insert_role	INSERT	
+contas_contabeis	cc_select	SELECT	true
+contas_contabeis	cc_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+contas_contabeis_sinteticas	ccs_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+contas_contabeis_sinteticas	ccs_insert_admin_fin	INSERT	
+contas_contabeis_sinteticas	ccs_select_authenticated	SELECT	true
+contas_contabeis_sinteticas	ccs_update_admin_fin	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cotacoes_compra	cco_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cotacoes_compra	cco_insert_role	INSERT	
+cotacoes_compra	cco_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cotacoes_compra	cco_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cotacoes_compra_itens	cci_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cotacoes_compra_itens	cci_insert_role	INSERT	
+cotacoes_compra_itens	cci_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cotacoes_compra_itens	cci_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cotacoes_compra_propostas	ccp_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cotacoes_compra_propostas	ccp_insert_role	INSERT	
+cotacoes_compra_propostas	ccp_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+cotacoes_compra_propostas	ccp_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+cron_health	cron_health_admin_select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+email_send_log	Service role can insert send log	INSERT	
+email_send_log	Service role can read send log	SELECT	(auth.role() = 'service_role'::text)
+email_send_log	Service role can update send log	UPDATE	(auth.role() = 'service_role'::text)
+email_send_state	Service role can manage send state	ALL	(auth.role() = 'service_role'::text)
+email_unsubscribe_tokens	Service role can insert tokens	INSERT	
+email_unsubscribe_tokens	Service role can mark tokens as used	UPDATE	(auth.role() = 'service_role'::text)
+email_unsubscribe_tokens	Service role can read tokens	SELECT	(auth.role() = 'service_role'::text)
+empresa_config	Admin can insert empresa_config	INSERT	
+empresa_config	Admin can update empresa_config	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+empresa_config	empresa_config_select	SELECT	true
+empresas	empresas_admin_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+empresas	empresas_admin_insert	INSERT	
+empresas	empresas_admin_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+empresas	empresas_select_authenticated	SELECT	true
+estoque_movimentos	em_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+estoque_movimentos	em_insert	INSERT	
+estoque_movimentos	em_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+estoque_movimentos	em_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+eventos_fiscais	admin_delete_eventos_fiscais	DELETE	has_role(auth.uid(), 'admin'::app_role)
+eventos_fiscais	ef_insert_role	INSERT	
+eventos_fiscais	ef_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+eventos_fiscais	ef_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+fechamento_caixa_saldos	fcs_insert	INSERT	
+fechamento_caixa_saldos	fcs_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fechamento_estoque_saldos	fes_insert	INSERT	
+fechamento_estoque_saldos	fes_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fechamento_financeiro_saldos	ffs_insert	INSERT	
+fechamento_financeiro_saldos	ffs_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fechamento_fopag_resumo	ffr_insert	INSERT	
+fechamento_fopag_resumo	ffr_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fechamentos_mensais	fm_insert	INSERT	
+fechamentos_mensais	fm_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fechamentos_mensais	fm_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+financeiro_auditoria	Auditoria visível a admin/financeiro	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+financeiro_baixa_lotes	baixa_lotes_insert_role	INSERT	
+financeiro_baixa_lotes	baixa_lotes_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+financeiro_baixas	Admin can delete financeiro_baixas	DELETE	has_role(auth.uid(), 'admin'::app_role)
+financeiro_baixas	fb_insert	INSERT	
+financeiro_baixas	fb_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+financeiro_baixas	fb_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+financeiro_extrato_importacoes	fin_extrato_delete	DELETE	(empresa_id = current_empresa_id())
+financeiro_extrato_importacoes	fin_extrato_insert	INSERT	
+financeiro_extrato_importacoes	fin_extrato_select	SELECT	(empresa_id = current_empresa_id())
+financeiro_extrato_importacoes	fin_extrato_update	UPDATE	(empresa_id = current_empresa_id())
+financeiro_lancamentos	Admin can delete financeiro_lancamentos	DELETE	has_role(auth.uid(), 'admin'::app_role)
+financeiro_lancamentos	fl_insert	INSERT	
+financeiro_lancamentos	fl_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+financeiro_lancamentos	fl_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+financeiro_recorrencias	rec_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+financeiro_recorrencias	rec_insert	INSERT	
+financeiro_recorrencias	rec_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+financeiro_recorrencias	rec_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+fiscal_telemetria	fiscal_telemetria admin select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+folha_pagamento	folha_insert	INSERT	
+folha_pagamento	folha_update	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+folha_pagamento	fopag_select_restricted	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+formas_pagamento	fp_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+formas_pagamento	fp_insert_role	INSERT	
+formas_pagamento	fp_select	SELECT	true
+formas_pagamento	fp_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+fornecedores	fornecedores_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+fornecedores	fornecedores_insert	INSERT	
+fornecedores	fornecedores_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+fornecedores	fornecedores_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+frete_simulacoes	frete_sim_delete_role	DELETE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+frete_simulacoes	frete_sim_insert_role	INSERT	
+frete_simulacoes	frete_sim_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+frete_simulacoes	frete_sim_update_role	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+frete_simulacoes_opcoes	frete_opc_delete_role	DELETE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role)) AND (EXISTS ( SELECT 1
+   FROM frete_simulacoes s
+  WHERE ((s.id = frete_simulacoes_opcoes.simulacao_id) AND ((s.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))))))
+frete_simulacoes_opcoes	frete_opc_insert_role	INSERT	
+frete_simulacoes_opcoes	frete_opc_select	SELECT	(EXISTS ( SELECT 1
+   FROM frete_simulacoes s
+  WHERE ((s.id = frete_simulacoes_opcoes.simulacao_id) AND ((s.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+frete_simulacoes_opcoes	frete_opc_update_role	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role)) AND (EXISTS ( SELECT 1
+   FROM frete_simulacoes s
+  WHERE ((s.id = frete_simulacoes_opcoes.simulacao_id) AND ((s.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))))))
+funcionarios	func_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+funcionarios	func_insert	INSERT	
+funcionarios	func_select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+funcionarios	func_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+grupos_economicos	ge_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+grupos_economicos	ge_insert_admin	INSERT	
+grupos_economicos	ge_select	SELECT	true
+grupos_economicos	ge_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+grupos_produto	gp_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+grupos_produto	gp_insert_role	INSERT	
+grupos_produto	gp_select	SELECT	true
+grupos_produto	gp_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role))
+help_feedback	help_feedback admin read	SELECT	has_role(auth.uid(), 'admin'::app_role)
+help_feedback	help_feedback self insert	INSERT	
+help_progress	help_progress self insert	INSERT	
+help_progress	help_progress self select	SELECT	(auth.uid() = user_id)
+help_progress	help_progress self update	UPDATE	(auth.uid() = user_id)
+ibge_municipios	ibge_admin_write	ALL	has_role(auth.uid(), 'admin'::app_role)
+ibge_municipios	ibge_select	SELECT	true
+importacao_logs	Admin can select importacao_logs	SELECT	has_role(auth.uid(), 'admin'::app_role)
+importacao_logs	ilog_insert_admin	INSERT	
+importacao_logs	ilog_select	SELECT	true
+importacao_lotes	Admin can select importacao_lotes	SELECT	has_role(auth.uid(), 'admin'::app_role)
+importacao_lotes	il_insert_admin	INSERT	
+importacao_lotes	il_select	SELECT	true
+importacao_lotes	il_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+inutilizacoes_numeracao	admin_delete_inutilizacoes	DELETE	has_role(auth.uid(), 'admin'::app_role)
+inutilizacoes_numeracao	inut_insert_role	INSERT	
+inutilizacoes_numeracao	inut_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+inutilizacoes_numeracao	inut_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+invites	Admins can create invites	INSERT	
+invites	Admins can delete invites	DELETE	has_role(auth.uid(), 'admin'::app_role)
+invites	Admins can revoke invites	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+invites	Admins can view invites	SELECT	has_role(auth.uid(), 'admin'::app_role)
+matriz_fiscal	mf_admin_write	ALL	has_role(auth.uid(), 'admin'::app_role)
+matriz_fiscal	mf_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+naturezas_operacao	natop_admin_write	ALL	has_role(auth.uid(), 'admin'::app_role)
+naturezas_operacao	natop_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nfe_distdfe_sync	Distdfe sync delete admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+nfe_distdfe_sync	Distdfe sync insert admin/financeiro	INSERT	
+nfe_distdfe_sync	Distdfe sync select autenticados	SELECT	true
+nfe_distdfe_sync	Distdfe sync update admin/financeiro	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+nfe_distribuicao	admin_delete_nfe_dist	DELETE	has_role(auth.uid(), 'admin'::app_role)
+nfe_distribuicao	nfd_insert_role	INSERT	
+nfe_distribuicao	nfd_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nfe_distribuicao	nfd_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nfe_distribuicao_itens	admin_delete_nfe_dist_itens	DELETE	has_role(auth.uid(), 'admin'::app_role)
+nfe_distribuicao_itens	nfdi_insert_role	INSERT	
+nfe_distribuicao_itens	nfdi_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nota_fiscal_anexos	nfa_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nota_fiscal_anexos	nfa_insert_role	INSERT	
+nota_fiscal_anexos	nfa_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+nota_fiscal_eventos	nfev_insert_role	INSERT	
+nota_fiscal_eventos	nfev_select_role	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))
+notas_fiscais	Admin can delete notas_fiscais	DELETE	has_role(auth.uid(), 'admin'::app_role)
+notas_fiscais	nf_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+notas_fiscais	nf_insert	INSERT	
+notas_fiscais	nf_select	SELECT	(((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))) OR has_role(auth.uid(), 'admin'::app_role))
+notas_fiscais	nf_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+notas_fiscais_itens	Admin can delete notas_fiscais_itens	DELETE	has_role(auth.uid(), 'admin'::app_role)
+notas_fiscais_itens	nfi_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+notas_fiscais_itens	nfi_insert	INSERT	
+notas_fiscais_itens	nfi_select	SELECT	(EXISTS ( SELECT 1
+   FROM notas_fiscais nf
+  WHERE ((nf.id = notas_fiscais_itens.nota_fiscal_id) AND ((nf.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+notas_fiscais_itens	nfi_update	UPDATE	(EXISTS ( SELECT 1
+   FROM notas_fiscais nf
+  WHERE ((nf.id = notas_fiscais_itens.nota_fiscal_id) AND ((nf.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+orcamento_drafts	drafts_delete_owner	DELETE	(auth.uid() = usuario_id)
+orcamento_drafts	drafts_insert_owner	INSERT	
+orcamento_drafts	drafts_select_owner	SELECT	(auth.uid() = usuario_id)
+orcamento_drafts	drafts_update_owner	UPDATE	(auth.uid() = usuario_id)
+orcamentos	orcamentos_delete	DELETE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+orcamentos	orcamentos_insert	INSERT	
+orcamentos	orcamentos_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+orcamentos	orcamentos_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+orcamentos_itens	oi_delete	DELETE	(EXISTS ( SELECT 1
+   FROM orcamentos o
+  WHERE ((o.id = orcamentos_itens.orcamento_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+orcamentos_itens	oi_insert	INSERT	
+orcamentos_itens	oi_select	SELECT	(EXISTS ( SELECT 1
+   FROM orcamentos o
+  WHERE ((o.id = orcamentos_itens.orcamento_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+orcamentos_itens	oi_update	UPDATE	(EXISTS ( SELECT 1
+   FROM orcamentos o
+  WHERE ((o.id = orcamentos_itens.orcamento_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+ordens_venda	ov_delete	DELETE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+ordens_venda	ov_insert	INSERT	
+ordens_venda	ov_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+ordens_venda	ov_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+ordens_venda_itens	ovi_delete	DELETE	(EXISTS ( SELECT 1
+   FROM ordens_venda o
+  WHERE ((o.id = ordens_venda_itens.ordem_venda_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+ordens_venda_itens	ovi_insert	INSERT	
+ordens_venda_itens	ovi_select	SELECT	(EXISTS ( SELECT 1
+   FROM ordens_venda o
+  WHERE ((o.id = ordens_venda_itens.ordem_venda_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+ordens_venda_itens	ovi_update	UPDATE	(EXISTS ( SELECT 1
+   FROM ordens_venda o
+  WHERE ((o.id = ordens_venda_itens.ordem_venda_id) AND ((o.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+pedidos_compra	pco_delete	DELETE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+pedidos_compra	pco_insert	INSERT	
+pedidos_compra	pco_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+pedidos_compra	pco_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+pedidos_compra_itens	pci_delete	DELETE	(EXISTS ( SELECT 1
+   FROM pedidos_compra p
+  WHERE ((p.id = pedidos_compra_itens.pedido_compra_id) AND ((p.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+pedidos_compra_itens	pci_insert	INSERT	
+pedidos_compra_itens	pci_select	SELECT	(EXISTS ( SELECT 1
+   FROM pedidos_compra p
+  WHERE ((p.id = pedidos_compra_itens.pedido_compra_id) AND ((p.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+pedidos_compra_itens	pci_update	UPDATE	(EXISTS ( SELECT 1
+   FROM pedidos_compra p
+  WHERE ((p.id = pedidos_compra_itens.pedido_compra_id) AND ((p.empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))))
+permission_audit	permission_audit_insert	INSERT	
+permission_audit	permission_audit_select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+precos_especiais	pe_delete_role	DELETE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+precos_especiais	pe_insert_role	INSERT	
+precos_especiais	pe_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+precos_especiais	pe_update_role	UPDATE	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+produto_composicoes	pc_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role))
+produto_composicoes	pc_insert_role	INSERT	
+produto_composicoes	pc_select	SELECT	true
+produto_composicoes	pc_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role))
+produto_identificadores_legacy	pil_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+produto_identificadores_legacy	pil_insert_admin_financeiro_estoquista	INSERT	
+produto_identificadores_legacy	pil_select_authenticated	SELECT	true
+produto_identificadores_legacy	pil_update_admin_financeiro_estoquista	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role))
+produto_migracao_backup	admin only	ALL	has_role(auth.uid(), 'admin'::app_role)
+produto_migracao_log	admin only	ALL	has_role(auth.uid(), 'admin'::app_role)
+produto_migracao_mapa	admin only	ALL	has_role(auth.uid(), 'admin'::app_role)
+produtos	produtos_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+produtos	produtos_insert	INSERT	
+produtos	produtos_select	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+produtos	produtos_update	UPDATE	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+produtos_fornecedores	pf_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+produtos_fornecedores	pf_insert_role	INSERT	
+produtos_fornecedores	pf_select	SELECT	true
+produtos_fornecedores	pf_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'gestor_compras'::app_role))
+profiles	profiles_insert	INSERT	
+profiles	profiles_select	SELECT	((auth.uid() = id) OR has_role(auth.uid(), 'admin'::app_role))
+profiles	profiles_update	UPDATE	(auth.uid() = id)
+recebimentos_compra	recebimentos_compra_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR (empresa_id = current_empresa_id()))
+recebimentos_compra_itens	recebimentos_compra_itens_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR (empresa_id = current_empresa_id()))
+relatorios_favoritos	Usuário atualiza seus próprios favoritos	UPDATE	(auth.uid() = user_id)
+relatorios_favoritos	Usuário cria seus próprios favoritos	INSERT	
+relatorios_favoritos	Usuário remove seus próprios favoritos	DELETE	(auth.uid() = user_id)
+relatorios_favoritos	Usuário vê seus próprios favoritos	SELECT	(auth.uid() = user_id)
+remessa_etiquetas	re_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+remessa_etiquetas	re_insert	INSERT	
+remessa_etiquetas	re_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR ((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role))))
+remessa_etiquetas	re_update	UPDATE	((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role)))
+remessa_eventos	remessa_eventos_insert	INSERT	
+remessa_eventos	remessa_eventos_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR ((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))))
+remessa_itens	ri_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role))
+remessa_itens	ri_insert_role	INSERT	
+remessa_itens	ri_select	SELECT	true
+remessa_itens	ri_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role))
+remessas	remessas_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+remessas	remessas_insert	INSERT	
+remessas	remessas_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR ((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'vendedor'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))))
+remessas	remessas_update	UPDATE	((empresa_id = current_empresa_id()) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role)))
+social_alertas	social_alertas_select	SELECT	true
+social_alertas	social_alertas_write	ALL	has_role(auth.uid(), 'admin'::app_role)
+social_contas	social_contas_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+social_contas	social_contas_insert_admin	INSERT	
+social_contas	social_contas_select_auth	SELECT	((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role))
+social_contas	social_contas_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+social_metricas_snapshot	sm_insert_admin	INSERT	
+social_metricas_snapshot	sm_select	SELECT	true
+social_posts	sp_insert_admin	INSERT	
+social_posts	sp_select	SELECT	true
+social_sync_jobs	social_sync_jobs_select	SELECT	true
+social_sync_jobs	social_sync_jobs_write	ALL	has_role(auth.uid(), 'admin'::app_role)
+socios	socios_admin_all	ALL	(has_role(auth.uid(), 'admin'::app_role) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+socios	socios_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+socios_parametros	socios_param_admin_all	ALL	has_role(auth.uid(), 'admin'::app_role)
+socios_parametros	socios_param_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+socios_participacoes	socios_part_admin_all	ALL	(has_role(auth.uid(), 'admin'::app_role) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+socios_participacoes	socios_part_select	SELECT	((has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role)) AND ((empresa_id = current_empresa_id()) OR has_role(auth.uid(), 'admin'::app_role)))
+socios_retiradas	retiradas_admin_all	ALL	has_role(auth.uid(), 'admin'::app_role)
+socios_retiradas	retiradas_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+stg_cadastros	stg_cad_delete_admin	DELETE	has_role(auth.uid(), 'admin'::app_role)
+stg_cadastros	stg_cad_insert_admin	INSERT	
+stg_cadastros	stg_cad_select	SELECT	true
+stg_cadastros	stg_cad_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+stg_compras_xml	scx_insert_admin	INSERT	
+stg_compras_xml	scx_select	SELECT	true
+stg_compras_xml	scx_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+stg_estoque_inicial	sei_insert_admin	INSERT	
+stg_estoque_inicial	sei_select	SELECT	true
+stg_estoque_inicial	sei_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+stg_faturamento	sf_insert_admin	INSERT	
+stg_faturamento	sf_select	SELECT	true
+stg_faturamento	sf_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+stg_financeiro_aberto	sfa_insert_admin	INSERT	
+stg_financeiro_aberto	sfa_select	SELECT	true
+stg_financeiro_aberto	sfa_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+stg_produtos_atualizado	admin only	ALL	has_role(auth.uid(), 'admin'::app_role)
+suppressed_emails	Service role can insert suppressed emails	INSERT	
+suppressed_emails	Service role can read suppressed emails	SELECT	(auth.role() = 'service_role'::text)
+transportadoras	transp_delete_role	DELETE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role))
+transportadoras	transp_insert_role	INSERT	
+transportadoras	transp_update_role	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'estoquista'::app_role) OR has_role(auth.uid(), 'operador_logistico'::app_role))
+transportadoras	transportadoras_select	SELECT	true
+unidades_medida	um_insert_admin	INSERT	
+unidades_medida	um_update_admin	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+unidades_medida	unidades_medida_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+unidades_medida	unidades_medida_select	SELECT	true
+user_empresas	user_empresas_admin_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+user_empresas	user_empresas_admin_insert	INSERT	
+user_empresas	user_empresas_admin_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+user_empresas	user_empresas_self_select	SELECT	((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))
+user_permissions	user_permissions_admin_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+user_permissions	user_permissions_admin_insert	INSERT	
+user_permissions	user_permissions_admin_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+user_permissions	user_permissions_select	SELECT	((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))
+user_preferences	up_delete_own	DELETE	(auth.uid() = user_id)
+user_preferences	up_insert	INSERT	
+user_preferences	up_insert_own	INSERT	
+user_preferences	up_select	SELECT	(auth.uid() = user_id)
+user_preferences	up_select_own	SELECT	(auth.uid() = user_id)
+user_preferences	up_update	UPDATE	(auth.uid() = user_id)
+user_preferences	up_update_own	UPDATE	(auth.uid() = user_id)
+user_roles	user_roles_admin_delete	DELETE	has_role(auth.uid(), 'admin'::app_role)
+user_roles	user_roles_admin_insert	INSERT	
+user_roles	user_roles_admin_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+user_roles	user_roles_select	SELECT	((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))
+webhooks_deliveries	Webhooks deliveries admin select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+webhooks_deliveries	Webhooks deliveries admin write	ALL	has_role(auth.uid(), 'admin'::app_role)
+webhooks_endpoints	Webhooks endpoints admin select	SELECT	has_role(auth.uid(), 'admin'::app_role)
+webhooks_endpoints	Webhooks endpoints admin write	ALL	has_role(auth.uid(), 'admin'::app_role)
+workbook_geracoes	wg_insert	INSERT	
+workbook_geracoes	wg_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+workbook_geracoes	wg_update	UPDATE	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+workbook_templates	wt_insert	INSERT	
+workbook_templates	wt_select	SELECT	(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'financeiro'::app_role))
+workbook_templates	wt_update	UPDATE	has_role(auth.uid(), 'admin'::app_role)
+(401 rows)
+
+-- 5. Triggers
+event_object_table	trigger_name	event_manipulation	action_timing
+app_configuracoes	trg_app_config_updated_at	UPDATE	BEFORE
+app_configuracoes	trg_app_configuracoes_audit	UPDATE	BEFORE
+app_configuracoes	trg_app_configuracoes_audit	INSERT	BEFORE
+app_configuracoes	trg_audit_app_configuracoes	INSERT	AFTER
+app_configuracoes	trg_audit_app_configuracoes	DELETE	AFTER
+app_configuracoes	trg_audit_app_configuracoes	UPDATE	AFTER
+apresentacao_cadencia	trg_apresentacao_cadencia_updated_at	UPDATE	BEFORE
+apresentacao_comentarios	update_apresentacao_comentarios_updated_at	UPDATE	BEFORE
+apresentacao_geracoes	update_apresentacao_geracoes_updated_at	UPDATE	BEFORE
+apresentacao_preferencias	update_apresentacao_preferencias_updated_at	UPDATE	BEFORE
+apresentacao_templates	update_apresentacao_templates_updated_at	UPDATE	BEFORE
+apuracoes_societarias	trg_apuracao_audit	UPDATE	BEFORE
+apuracoes_societarias	trg_apuracao_audit	INSERT	BEFORE
+apuracoes_societarias	trg_apuracao_block	UPDATE	BEFORE
+apuracoes_societarias	trg_apuracao_block	DELETE	BEFORE
+apuracoes_societarias_itens	trg_apuracao_itens_updated	UPDATE	BEFORE
+budgets_mensais	trg_budgets_mensais_set_empresa	INSERT	BEFORE
+budgets_mensais	trg_budgets_mensais_updated_at	UPDATE	BEFORE
+budgets_mensais	trg_set_empresa_id_budgets_mensais	INSERT	BEFORE
+cartao_faturas	trg_cartao_faturas_set_empresa	INSERT	BEFORE
+cartao_faturas	trg_cartao_faturas_updated	UPDATE	BEFORE
+cartao_faturas	trg_set_empresa_id_cartao_faturas	INSERT	BEFORE
+cartoes_credito	trg_cartoes_credito_set_empresa	INSERT	BEFORE
+cartoes_credito	trg_cartoes_credito_updated	UPDATE	BEFORE
+centros_custo	update_centros_custo_updated_at	UPDATE	BEFORE
+clientes	trg_clientes_inativacao	UPDATE	BEFORE
+clientes	trg_clientes_normaliza_doc	UPDATE	BEFORE
+clientes	trg_clientes_normaliza_doc	INSERT	BEFORE
+clientes	trg_clientes_set_empresa	INSERT	BEFORE
+clientes	trg_clientes_updated_at	UPDATE	BEFORE
+comentarios	trg_comentarios_updated_at	UPDATE	BEFORE
+compras	trg_compras_set_empresa	INSERT	BEFORE
+compras	trg_compras_updated_at	UPDATE	BEFORE
+conciliacao_bancaria	trg_set_empresa_id_conciliacao_bancaria	INSERT	BEFORE
+conciliacao_pares	trg_set_empresa_id_conciliacao_pares	INSERT	BEFORE
+contas_bancarias	trg_contas_bancarias_set_empresa	INSERT	BEFORE
+contas_bancarias	trg_contas_bancarias_updated_at	UPDATE	BEFORE
+contas_bancarias	trg_prevent_delete_conta_bancaria	DELETE	BEFORE
+contas_bancarias	trg_prevent_delete_conta_bancaria	UPDATE	BEFORE
+contas_contabeis	trg_prevent_delete_conta_contabil	UPDATE	BEFORE
+contas_contabeis	trg_prevent_delete_conta_contabil	DELETE	BEFORE
+cotacoes_compra	trg_audit_cotacao_compra_status	UPDATE	AFTER
+cotacoes_compra	trg_cotacao_compra_protege_delete	DELETE	BEFORE
+cotacoes_compra	trg_cotacao_compra_transicao	UPDATE	BEFORE
+cotacoes_compra	trg_cotacoes_compra_updated_at	UPDATE	BEFORE
+empresa_config	trg_audit_empresa_config	DELETE	AFTER
+empresa_config	trg_audit_empresa_config	INSERT	AFTER
+empresa_config	trg_audit_empresa_config	UPDATE	AFTER
+empresa_config	trg_empresa_config_audit	INSERT	AFTER
+empresa_config	trg_empresa_config_audit	UPDATE	AFTER
+empresa_config	trg_empresa_config_contingencia	INSERT	BEFORE
+empresa_config	trg_empresa_config_contingencia	UPDATE	BEFORE
+empresa_config	trg_empresa_config_updated_at	UPDATE	BEFORE
+empresa_config	trg_enforce_empresa_config_singleton	INSERT	BEFORE
+empresas	trg_empresas_updated_at	UPDATE	BEFORE
+estoque_movimentos	trg_estoque_mov_validacao_manual	UPDATE	BEFORE
+estoque_movimentos	trg_estoque_mov_validacao_manual	INSERT	BEFORE
+estoque_movimentos	trg_estoque_movimentos_saldo_corrido	INSERT	BEFORE
+estoque_movimentos	trg_estoque_movimentos_sync	UPDATE	AFTER
+estoque_movimentos	trg_estoque_movimentos_sync	INSERT	AFTER
+estoque_movimentos	trg_set_empresa_id_estoque_movimentos	INSERT	BEFORE
+eventos_fiscais	trg_eventos_fiscais_updated_at	UPDATE	BEFORE
+financeiro_baixa_lotes	trg_set_empresa_id_financeiro_baixa_lotes	INSERT	BEFORE
+financeiro_baixas	trg_financeiro_auditoria_baixa	UPDATE	AFTER
+financeiro_baixas	trg_financeiro_auditoria_baixa	INSERT	AFTER
+financeiro_baixas	trg_set_empresa_id_financeiro_baixas	INSERT	BEFORE
+financeiro_baixas	trg_sync_financeiro_saldo	DELETE	AFTER
+financeiro_baixas	trg_sync_financeiro_saldo	INSERT	AFTER
+financeiro_baixas	trg_sync_financeiro_saldo	UPDATE	AFTER
+financeiro_extrato_importacoes	trg_fin_extrato_updated_at	UPDATE	BEFORE
+financeiro_extrato_importacoes	trg_set_empresa_id_fin_extrato	INSERT	BEFORE
+financeiro_lancamentos	trg_financeiro_auditoria_lanc	INSERT	AFTER
+financeiro_lancamentos	trg_financeiro_auditoria_lanc	UPDATE	AFTER
+financeiro_lancamentos	trg_financeiro_init_saldo	INSERT	BEFORE
+financeiro_lancamentos	trg_financeiro_lancamentos_updated_at	UPDATE	BEFORE
+financeiro_lancamentos	trg_financeiro_protege_delete	DELETE	BEFORE
+financeiro_lancamentos	trg_lancamento_status_requer_baixa	UPDATE	BEFORE
+financeiro_lancamentos	trg_set_empresa_id_financeiro_lancamentos	INSERT	BEFORE
+financeiro_lancamentos	trg_sync_cartao_fatura_total	DELETE	AFTER
+financeiro_lancamentos	trg_sync_cartao_fatura_total	INSERT	AFTER
+financeiro_lancamentos	trg_sync_cartao_fatura_total	UPDATE	AFTER
+financeiro_recorrencias	trg_recorrencias_updated_at	UPDATE	BEFORE
+folha_pagamento	trg_folha_pagamento_set_empresa	INSERT	BEFORE
+fornecedores	trg_fornecedores_inativacao	UPDATE	BEFORE
+fornecedores	trg_fornecedores_normaliza_doc	UPDATE	BEFORE
+fornecedores	trg_fornecedores_normaliza_doc	INSERT	BEFORE
+fornecedores	trg_fornecedores_set_empresa	INSERT	BEFORE
+fornecedores	trg_fornecedores_updated_at	UPDATE	BEFORE
+frete_simulacoes	trg_frete_simulacoes_set_empresa	INSERT	BEFORE
+funcionarios	trg_funcionarios_inativacao	UPDATE	BEFORE
+funcionarios	trg_funcionarios_normaliza_doc	UPDATE	BEFORE
+funcionarios	trg_funcionarios_normaliza_doc	INSERT	BEFORE
+funcionarios	trg_funcionarios_set_empresa	INSERT	BEFORE
+funcionarios	trg_funcionarios_updated_at	UPDATE	BEFORE
+help_progress	trg_touch_help_progress	UPDATE	BEFORE
+importacao_lotes	trg_importacao_lotes_updated_at	UPDATE	BEFORE
+inutilizacoes_numeracao	trg_inutilizacoes_updated_at	UPDATE	BEFORE
+invites	trg_validate_invite_dates	UPDATE	BEFORE
+invites	trg_validate_invite_dates	INSERT	BEFORE
+matriz_fiscal	trg_mf_updated_at	UPDATE	BEFORE
+naturezas_operacao	trg_natop_updated_at	UPDATE	BEFORE
+nfe_distdfe_sync	trg_nfe_distdfe_sync_updated_at	UPDATE	BEFORE
+nfe_distribuicao	trg_nfe_dist_updated_at	UPDATE	BEFORE
+nfe_emissao_pendente	trg_nfe_emissao_pendente_updated_at	UPDATE	BEFORE
+notas_fiscais	trg_nf_audita_status	UPDATE	AFTER
+notas_fiscais	trg_nf_protege_delete	DELETE	BEFORE
+notas_fiscais	trg_nf_protege_edicao	UPDATE	BEFORE
+notas_fiscais	trg_nf_status_transicao	UPDATE	BEFORE
+notas_fiscais	trg_notas_fiscais_updated_at	UPDATE	BEFORE
+notas_fiscais	trg_set_empresa_id_notas_fiscais	INSERT	BEFORE
+notas_fiscais	trg_webhooks_notas_fiscais	UPDATE	AFTER
+notas_fiscais	trg_webhooks_notas_fiscais	INSERT	AFTER
+notas_fiscais_itens	trg_nf_item_snapshot_imutavel	UPDATE	BEFORE
+notas_fiscais_itens	trg_nf_itens_protege_edicao	INSERT	BEFORE
+notas_fiscais_itens	trg_nf_itens_protege_edicao	DELETE	BEFORE
+notas_fiscais_itens	trg_nf_itens_protege_edicao	UPDATE	BEFORE
+orcamento_drafts	trg_orcamento_drafts_updated_at	UPDATE	BEFORE
+orcamentos	trg_auditoria_orcamento_status	UPDATE	AFTER
+orcamentos	trg_orcamento_protege_delete	DELETE	BEFORE
+orcamentos	trg_orcamento_transicao_valida	UPDATE	BEFORE
+orcamentos	trg_orcamentos_set_empresa	INSERT	BEFORE
+orcamentos	trg_orcamentos_updated_at	UPDATE	BEFORE
+orcamentos	trg_webhooks_orcamentos	UPDATE	AFTER
+ordens_venda	trg_ordens_venda_set_empresa	INSERT	BEFORE
+ordens_venda	trg_ordens_venda_updated_at	UPDATE	BEFORE
+ordens_venda	trg_webhooks_ordens_venda	INSERT	AFTER
+ordens_venda	trg_webhooks_ordens_venda	UPDATE	AFTER
+pedidos_compra	trg_audit_pedido_compra_status	UPDATE	AFTER
+pedidos_compra	trg_pedido_compra_transicao	UPDATE	BEFORE
+pedidos_compra	trg_pedidos_compra_set_empresa	INSERT	BEFORE
+pedidos_compra	trg_pedidos_compra_updated_at	UPDATE	BEFORE
+pedidos_compra	trg_webhooks_pedidos_compra	INSERT	AFTER
+pedidos_compra	trg_webhooks_pedidos_compra	UPDATE	AFTER
+precos_especiais	trg_precos_especiais_set_empresa	INSERT	BEFORE
+produto_identificadores_legacy	trg_pil_normalizar	UPDATE	BEFORE
+produto_identificadores_legacy	trg_pil_normalizar	INSERT	BEFORE
+produtos	trg_produto_descontinuado	UPDATE	BEFORE
+produtos	trg_produtos_codigo_interno_auto	INSERT	BEFORE
+produtos	trg_produtos_inativacao	UPDATE	BEFORE
+produtos	trg_produtos_set_empresa	INSERT	BEFORE
+produtos	trg_produtos_sync_variacoes_text	UPDATE	BEFORE
+produtos	trg_produtos_sync_variacoes_text	INSERT	BEFORE
+produtos	trg_produtos_updated_at	UPDATE	BEFORE
+profiles	trg_profiles_updated_at	UPDATE	BEFORE
+recebimentos_compra	trg_recebimentos_compra_updated_at	UPDATE	BEFORE
+recebimentos_compra_itens	trg_recebimento_marca_divergencia	INSERT	BEFORE
+recebimentos_compra_itens	trg_recebimento_marca_divergencia	UPDATE	BEFORE
+relatorios_favoritos	trg_relatorios_favoritos_updated_at	UPDATE	BEFORE
+remessa_etiquetas	trg_remessa_etiquetas_set_empresa	INSERT	BEFORE
+remessa_etiquetas	trg_remessa_etiquetas_updated_at	UPDATE	BEFORE
+remessas	trg_remessa_entregue_sync	UPDATE	AFTER
+remessas	trg_remessa_protege_status_critico	UPDATE	BEFORE
+remessas	trg_remessa_status_transicao	UPDATE	BEFORE
+remessas	trg_remessas_updated_at	UPDATE	BEFORE
+social_contas	trg_social_contas_set_empresa	INSERT	BEFORE
+socios	trg_socios_audit	UPDATE	BEFORE
+socios	trg_socios_audit	INSERT	BEFORE
+socios	trg_socios_block_delete	DELETE	BEFORE
+socios	trg_socios_set_empresa	INSERT	BEFORE
+socios_parametros	trg_socios_param_audit	INSERT	BEFORE
+socios_parametros	trg_socios_param_audit	UPDATE	BEFORE
+socios_participacoes	trg_part_sync_pct_atual	DELETE	AFTER
+socios_participacoes	trg_part_sync_pct_atual	INSERT	AFTER
+socios_participacoes	trg_part_sync_pct_atual	UPDATE	AFTER
+socios_participacoes	trg_socios_part_audit	UPDATE	BEFORE
+socios_participacoes	trg_socios_part_audit	INSERT	BEFORE
+socios_participacoes	trg_socios_participacoes_set_empresa	INSERT	BEFORE
+socios_retiradas	trg_retiradas_audit	INSERT	BEFORE
+socios_retiradas	trg_retiradas_audit	UPDATE	BEFORE
+transportadoras	trg_transportadoras_inativacao	UPDATE	BEFORE
+transportadoras	trg_transportadoras_normaliza_doc	INSERT	BEFORE
+transportadoras	trg_transportadoras_normaliza_doc	UPDATE	BEFORE
+transportadoras	trg_transportadoras_updated_at	UPDATE	BEFORE
+unidades_medida	trg_unidades_medida_updated_at	UPDATE	BEFORE
+user_permissions	trg_user_permissions_audit	DELETE	AFTER
+user_permissions	trg_user_permissions_audit	UPDATE	AFTER
+user_permissions	trg_user_permissions_audit	INSERT	AFTER
+user_roles	trg_audit_user_roles	DELETE	AFTER
+user_roles	trg_audit_user_roles	UPDATE	AFTER
+user_roles	trg_audit_user_roles	INSERT	AFTER
+webhooks_endpoints	trg_webhooks_endpoints_updated_at	UPDATE	BEFORE
+(181 rows)
+
+-- 6. Índices compostos
+tablename	indexname	indexdef
+apresentacao_cadencia	idx_apresentacao_cadencia_ativo	CREATE INDEX idx_apresentacao_cadencia_ativo ON public.apresentacao_cadencia USING btree (ativo, dia_do_mes)
+apresentacao_comentarios	idx_apresentacao_comentarios_geracao_ordem	CREATE INDEX idx_apresentacao_comentarios_geracao_ordem ON public.apresentacao_comentarios USING btree (geracao_id, ordem)
+apuracoes_societarias_itens	uq_apuracao_socio	CREATE UNIQUE INDEX uq_apuracao_socio ON public.apuracoes_societarias_itens USING btree (apuracao_id, socio_id)
+budgets_mensais	ux_budgets_mensais_unique	CREATE UNIQUE INDEX ux_budgets_mensais_unique ON public.budgets_mensais USING btree (competencia, categoria, COALESCE(centro_custo_id, '00000000-0000-0000-0000-000000000000'::uuid))
+cartao_faturas	idx_cartao_faturas_cartao_comp	CREATE INDEX idx_cartao_faturas_cartao_comp ON public.cartao_faturas USING btree (cartao_id, competencia)
+cartao_faturas	uniq_cartao_faturas_cartao_comp	CREATE UNIQUE INDEX uniq_cartao_faturas_cartao_comp ON public.cartao_faturas USING btree (cartao_id, competencia)
+comentarios	idx_comentarios_entidade	CREATE INDEX idx_comentarios_entidade ON public.comentarios USING btree (entidade_tipo, entidade_id, created_at DESC)
+cotacoes_compra_propostas	ux_cotacao_propostas_item_fornecedor	CREATE UNIQUE INDEX ux_cotacao_propostas_item_fornecedor ON public.cotacoes_compra_propostas USING btree (item_id, fornecedor_id) WHERE (item_id IS NOT NULL)
+cotacoes_compra_propostas	ux_cotacoes_compra_propostas_unique	CREATE UNIQUE INDEX ux_cotacoes_compra_propostas_unique ON public.cotacoes_compra_propostas USING btree (cotacao_compra_id, item_id, fornecedor_id)
+estoque_movimentos	idx_estoque_mov_documento	CREATE INDEX idx_estoque_mov_documento ON public.estoque_movimentos USING btree (documento_tipo, documento_id)
+estoque_movimentos	idx_estoque_mov_produto_created	CREATE INDEX idx_estoque_mov_produto_created ON public.estoque_movimentos USING btree (produto_id, created_at DESC)
+financeiro_auditoria	idx_fin_aud_baixa	CREATE INDEX idx_fin_aud_baixa ON public.financeiro_auditoria USING btree (baixa_id, created_at DESC)
+financeiro_auditoria	idx_fin_aud_lancamento	CREATE INDEX idx_fin_aud_lancamento ON public.financeiro_auditoria USING btree (lancamento_id, created_at DESC)
+financeiro_baixas	uq_baixa_conta_extrato_ref	CREATE UNIQUE INDEX uq_baixa_conta_extrato_ref ON public.financeiro_baixas USING btree (conta_bancaria_id, conciliacao_extrato_referencia) WHERE ((conciliacao_extrato_referencia IS NOT NULL) AND (estornada_em IS NULL))
+financeiro_extrato_importacoes	idx_fin_extrato_conta_data	CREATE INDEX idx_fin_extrato_conta_data ON public.financeiro_extrato_importacoes USING btree (conta_bancaria_id, data DESC)
+financeiro_extrato_importacoes	uq_fin_extrato_conta_fitid	CREATE UNIQUE INDEX uq_fin_extrato_conta_fitid ON public.financeiro_extrato_importacoes USING btree (conta_bancaria_id, fitid)
+financeiro_lancamentos	idx_fin_lanc_origem	CREATE INDEX idx_fin_lanc_origem ON public.financeiro_lancamentos USING btree (origem_tipo, origem_id)
+financeiro_lancamentos	idx_fin_lanc_status_venc	CREATE INDEX idx_fin_lanc_status_venc ON public.financeiro_lancamentos USING btree (status, data_vencimento) WHERE (ativo = true)
+financeiro_lancamentos	idx_fin_lanc_venc_status_tipo	CREATE INDEX idx_fin_lanc_venc_status_tipo ON public.financeiro_lancamentos USING btree (data_vencimento, status, tipo) WHERE (ativo = true)
+financeiro_lancamentos	idx_financeiro_lancamentos_pai_parcela	CREATE INDEX idx_financeiro_lancamentos_pai_parcela ON public.financeiro_lancamentos USING btree (documento_pai_id, parcela_numero) WHERE (documento_pai_id IS NOT NULL)
+financeiro_lancamentos	uniq_fin_lanc_nfe_chave_parcela	CREATE UNIQUE INDEX uniq_fin_lanc_nfe_chave_parcela ON public.financeiro_lancamentos USING btree (nota_fiscal_id, parcela_numero) WHERE ((nota_fiscal_id IS NOT NULL) AND (ativo = true))
+financeiro_lancamentos	uniq_fin_lanc_nfe_parcela	CREATE UNIQUE INDEX uniq_fin_lanc_nfe_parcela ON public.financeiro_lancamentos USING btree (nota_fiscal_id, parcela_numero) WHERE ((nota_fiscal_id IS NOT NULL) AND (ativo = true))
+financeiro_lancamentos	uq_lanc_recorrencia_ciclo	CREATE UNIQUE INDEX uq_lanc_recorrencia_ciclo ON public.financeiro_lancamentos USING btree (recorrencia_id, recorrencia_ciclo) WHERE (recorrencia_id IS NOT NULL)
+financeiro_recorrencias	idx_recorrencias_origem	CREATE INDEX idx_recorrencias_origem ON public.financeiro_recorrencias USING btree (origem, origem_id)
+financeiro_recorrencias	idx_recorrencias_status_proxima	CREATE INDEX idx_recorrencias_status_proxima ON public.financeiro_recorrencias USING btree (status, proxima_geracao) WHERE (status = 'ativa'::text)
+fiscal_telemetria	idx_fiscal_telemetria_funcao_action	CREATE INDEX idx_fiscal_telemetria_funcao_action ON public.fiscal_telemetria USING btree (funcao, action)
+fornecedores	uq_fornecedores_cpf_cnpj_norm	CREATE UNIQUE INDEX uq_fornecedores_cpf_cnpj_norm ON public.fornecedores USING btree (regexp_replace(COALESCE(cpf_cnpj, ''::text), '\D'::text, ''::text, 'g'::text)) WHERE ((cpf_cnpj IS NOT NULL) AND (cpf_cnpj <> ''::text))
+help_feedback	idx_help_feedback_route_created	CREATE INDEX idx_help_feedback_route_created ON public.help_feedback USING btree (route, created_at DESC)
+ibge_municipios	idx_ibge_uf_nome	CREATE INDEX idx_ibge_uf_nome ON public.ibge_municipios USING btree (uf, nome)
+inutilizacoes_numeracao	idx_inutilizacoes_serie_ano	CREATE INDEX idx_inutilizacoes_serie_ano ON public.inutilizacoes_numeracao USING btree (serie, ano)
+matriz_fiscal	idx_matriz_fiscal_lookup	CREATE INDEX idx_matriz_fiscal_lookup ON public.matriz_fiscal USING btree (crt, uf_origem, uf_destino, tipo_operacao, prioridade) WHERE ativo
+nfe_distdfe_sync	uq_distdfe_cnpj_amb	CREATE UNIQUE INDEX uq_distdfe_cnpj_amb ON public.nfe_distdfe_sync USING btree (cnpj, ambiente)
+nfe_distribuicao_itens	nfe_distribuicao_itens_nfe_distribuicao_id_numero_item_key	CREATE UNIQUE INDEX nfe_distribuicao_itens_nfe_distribuicao_id_numero_item_key ON public.nfe_distribuicao_itens USING btree (nfe_distribuicao_id, numero_item)
+nfe_emissao_pendente	idx_nfe_emissao_pendente_proxima	CREATE INDEX idx_nfe_emissao_pendente_proxima ON public.nfe_emissao_pendente USING btree (status, proxima_tentativa) WHERE (status = ANY (ARRAY['pendente'::text, 'processando'::text]))
+nota_fiscal_eventos	idx_nf_eventos_nf	CREATE INDEX idx_nf_eventos_nf ON public.nota_fiscal_eventos USING btree (nota_fiscal_id, data_evento DESC)
+notas_fiscais	idx_notas_fiscais_ativo_emissao	CREATE INDEX idx_notas_fiscais_ativo_emissao ON public.notas_fiscais USING btree (ativo, data_emissao DESC)
+notas_fiscais	idx_notas_fiscais_empresa_status_data	CREATE INDEX idx_notas_fiscais_empresa_status_data ON public.notas_fiscais USING btree (empresa_id, status, data_emissao DESC)
+notas_fiscais	idx_notas_fiscais_empresa_status_emissao	CREATE INDEX idx_notas_fiscais_empresa_status_emissao ON public.notas_fiscais USING btree (empresa_id, status, data_emissao DESC)
+notas_fiscais	idx_notas_fiscais_kpi_compound	CREATE INDEX idx_notas_fiscais_kpi_compound ON public.notas_fiscais USING btree (ativo, data_emissao, status) WHERE (ativo = true)
+notas_fiscais	idx_notas_fiscais_status_sefaz_data	CREATE INDEX idx_notas_fiscais_status_sefaz_data ON public.notas_fiscais USING btree (status_sefaz, data_emissao DESC)
+notas_fiscais	uq_notas_fiscais_emp_mod_ser_num	CREATE UNIQUE INDEX uq_notas_fiscais_emp_mod_ser_num ON public.notas_fiscais USING btree (empresa_id, modelo_documento, serie, numero) WHERE ((empresa_id IS NOT NULL) AND (modelo_documento IS NOT NULL) AND (serie IS NOT NULL) AND (numero IS NOT NULL) AND (status <> 'cancelada'::text))
+notas_fiscais	uq_notas_fiscais_entrada_sem_chave	CREATE UNIQUE INDEX uq_notas_fiscais_entrada_sem_chave ON public.notas_fiscais USING btree (numero, serie, fornecedor_id, modelo_documento) WHERE ((tipo_operacao = 'entrada'::text) AND (fornecedor_id IS NOT NULL) AND ((chave_acesso IS NULL) OR (chave_acesso = ''::text)))
+notas_fiscais	uq_notas_fiscais_num_serie_emit	CREATE UNIQUE INDEX uq_notas_fiscais_num_serie_emit ON public.notas_fiscais USING btree (numero, COALESCE(serie, ''::text), COALESCE((fornecedor_id)::text, (cliente_id)::text, ''::text), tipo) WHERE (status <> 'cancelada'::text)
+notas_fiscais	ux_nf_modelo_serie_numero_tipo	CREATE UNIQUE INDEX ux_nf_modelo_serie_numero_tipo ON public.notas_fiscais USING btree (modelo_documento, serie, numero, tipo) WHERE ((numero IS NOT NULL) AND (ativo = true))
+notas_fiscais_itens	uq_nfi_legacy_snapshot	CREATE UNIQUE INDEX uq_nfi_legacy_snapshot ON public.notas_fiscais_itens USING btree (nota_fiscal_id, codigo_produto_origem, valor_total_origem) WHERE (origem_migracao = 'faturamento_legacy'::text)
+orcamento_drafts	idx_orcamento_drafts_user	CREATE INDEX idx_orcamento_drafts_user ON public.orcamento_drafts USING btree (usuario_id, updated_at DESC)
+orcamento_drafts	orcamento_drafts_usuario_id_draft_key_key	CREATE UNIQUE INDEX orcamento_drafts_usuario_id_draft_key_key ON public.orcamento_drafts USING btree (usuario_id, draft_key)
+orcamentos	idx_orcamentos_cliente_status	CREATE INDEX idx_orcamentos_cliente_status ON public.orcamentos USING btree (cliente_id, status)
+pedidos_compra	idx_pedidos_compra_fornecedor_status	CREATE INDEX idx_pedidos_compra_fornecedor_status ON public.pedidos_compra USING btree (fornecedor_id, status)
+permission_audit	idx_permission_audit_entidade	CREATE INDEX idx_permission_audit_entidade ON public.permission_audit USING btree (entidade, entidade_id)
+produto_identificadores_legacy	uq_pil_origem_cod_desc	CREATE UNIQUE INDEX uq_pil_origem_cod_desc ON public.produto_identificadores_legacy USING btree (origem, COALESCE(codigo_legacy, ''::text), COALESCE(descricao_normalizada, ''::text))
+produto_identificadores_legacy	uq_pil_origem_codigo_descnorm	CREATE UNIQUE INDEX uq_pil_origem_codigo_descnorm ON public.produto_identificadores_legacy USING btree (origem, codigo_legacy, descricao_normalizada)
+produtos_fornecedores	idx_produtos_fornecedores_lookup_xml	CREATE INDEX idx_produtos_fornecedores_lookup_xml ON public.produtos_fornecedores USING btree (fornecedor_id, referencia_fornecedor)
+produtos_fornecedores	produtos_fornecedores_produto_fornecedor_uq	CREATE UNIQUE INDEX produtos_fornecedores_produto_fornecedor_uq ON public.produtos_fornecedores USING btree (produto_id, fornecedor_id)
+relatorios_favoritos	relatorios_favoritos_user_nome_uniq	CREATE UNIQUE INDEX relatorios_favoritos_user_nome_uniq ON public.relatorios_favoritos USING btree (user_id, lower(nome))
+remessa_eventos	idx_remessa_eventos_remessa_data	CREATE INDEX idx_remessa_eventos_remessa_data ON public.remessa_eventos USING btree (remessa_id, data_hora DESC)
+sefaz_consulta_log	idx_sefaz_consulta_log_cnpj_action_created	CREATE INDEX idx_sefaz_consulta_log_cnpj_action_created ON public.sefaz_consulta_log USING btree (cnpj, action, created_at DESC)
+social_contas	uq_social_contas_plat_ident	CREATE UNIQUE INDEX uq_social_contas_plat_ident ON public.social_contas USING btree (plataforma, identificador_externo)
+social_metricas_snapshot	idx_social_metricas_conta_data	CREATE INDEX idx_social_metricas_conta_data ON public.social_metricas_snapshot USING btree (conta_id, data_referencia)
+social_metricas_snapshot	uq_social_metricas_conta_data	CREATE UNIQUE INDEX uq_social_metricas_conta_data ON public.social_metricas_snapshot USING btree (conta_id, data_referencia)
+social_posts	idx_social_posts_conta_data	CREATE INDEX idx_social_posts_conta_data ON public.social_posts USING btree (conta_id, data_publicacao)
+social_posts	uq_social_posts_conta_extid	CREATE UNIQUE INDEX uq_social_posts_conta_extid ON public.social_posts USING btree (conta_id, id_externo_post)
+social_sync_jobs	idx_social_sync_jobs_status	CREATE INDEX idx_social_sync_jobs_status ON public.social_sync_jobs USING btree (status, data_cadastro DESC)
+socios_participacoes	excl_socios_part_overlap	CREATE INDEX excl_socios_part_overlap ON public.socios_participacoes USING gist (socio_id, daterange(vigencia_inicio, COALESCE(vigencia_fim, 'infinity'::date), '[]'::text))
+socios_participacoes	idx_socios_part_vigencia	CREATE INDEX idx_socios_part_vigencia ON public.socios_participacoes USING btree (vigencia_inicio, vigencia_fim)
+user_preferences	idx_user_preferences_user_module	CREATE INDEX idx_user_preferences_user_module ON public.user_preferences USING btree (user_id, module_key)
+user_preferences	user_preferences_user_id_module_key_key	CREATE UNIQUE INDEX user_preferences_user_id_module_key_key ON public.user_preferences USING btree (user_id, module_key)
+user_preferences	user_preferences_user_module_unique	CREATE UNIQUE INDEX user_preferences_user_module_unique ON public.user_preferences USING btree (user_id, module_key)
+user_roles	user_roles_user_id_role_key	CREATE UNIQUE INDEX user_roles_user_id_role_key ON public.user_roles USING btree (user_id, role)
+webhooks_deliveries	idx_webhooks_deliveries_endpoint	CREATE INDEX idx_webhooks_deliveries_endpoint ON public.webhooks_deliveries USING btree (endpoint_id, enfileirado_em DESC)
+webhooks_deliveries	idx_webhooks_deliveries_status	CREATE INDEX idx_webhooks_deliveries_status ON public.webhooks_deliveries USING btree (status, proxima_tentativa_em)
+(71 rows)
