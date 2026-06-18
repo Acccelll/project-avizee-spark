@@ -617,22 +617,12 @@ export default function OrcamentoForm() {
       return;
     }
 
-    // Verificar itens não vinculados (importados sem produto_id)
-    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
-    if (unlinkedItems.length > 0) {
-      toast.error(
-        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
-        { description: "Vincule ou remova os itens marcados em vermelho antes de salvar." },
-      );
+    const itemsCheck = validateOrcamentoItems(items, "salvar");
+    if (!itemsCheck.ok) {
+      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
       return;
     }
-
-    // Exigir pelo menos um item válido
-    const validItems = items.filter(i => i.produto_id);
-    if (validItems.length === 0) {
-      toast.error("Adicione ao menos um item ao orçamento antes de salvar.");
-      return;
-    }
+    const validItems = itemsCheck.validItems;
 
     setSaving(true);
     try {
@@ -673,19 +663,12 @@ export default function OrcamentoForm() {
 
   const handleDuplicate = async () => {
     if (!id) { toast.error("Salve o orçamento antes de duplicar"); return; }
-    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
-    if (unlinkedItems.length > 0) {
-      toast.error(
-        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
-        { description: "Vincule ou remova os itens marcados em vermelho antes de duplicar." },
-      );
+    const itemsCheck = validateOrcamentoItems(items, "duplicar");
+    if (!itemsCheck.ok) {
+      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
       return;
     }
-    const validItems = items.filter(i => i.produto_id);
-    if (validItems.length === 0) {
-      toast.error("Adicione ao menos um item ao orçamento antes de duplicar.");
-      return;
-    }
+    const validItems = itemsCheck.validItems;
     try {
       // Compartilha a forma do payload com `handleSave` via override.
       // numero vazio => `salvar_orcamento` gera atomicamente via `proximo_numero_orcamento()`.
@@ -694,30 +677,13 @@ export default function OrcamentoForm() {
         status: "rascunho",
         validade: null,
       });
-
-      const itemsPayload = validItems.map(i => ({
-        produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
-        descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
-        quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
-        valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
-      }));
-
-      const orcId = await salvarOrcamentoRpc({
+      const { orcId, numero: numeroDup } = await persistOrcamento({
         id: null,
         payload,
-        itens: itemsPayload,
+        itens: mapItemsToPayload(validItems),
+        fetchServerNumero: true,
       });
-
       await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      let numeroDup = payload.numero;
-      if (orcId) {
-        const { data: row } = await supabase
-          .from("orcamentos")
-          .select("numero")
-          .eq("id", orcId)
-          .maybeSingle();
-        if (row?.numero) numeroDup = row.numero;
-      }
       toast.success(`Duplicado: ${numeroDup}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
