@@ -306,8 +306,8 @@ export function useSaudeSistema() {
         {
           chave: "auditoria",
           nome: "Trilha de auditoria",
-          status: (aud24Res.data?.length ?? 0) > 0 ? "healthy" : "unknown",
-          detalhe: `${aud24Res.data?.length ?? 0} eventos nas últimas 24h`,
+          status: aud24.length > 0 ? "healthy" : "unknown",
+          detalhe: `${aud24.length} eventos nas últimas 24h`,
         },
         {
           chave: "permissoes",
