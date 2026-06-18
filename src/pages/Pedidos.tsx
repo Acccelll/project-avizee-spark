@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
