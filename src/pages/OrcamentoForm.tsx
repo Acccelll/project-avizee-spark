@@ -42,6 +42,7 @@ import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/co
 import { applyOrcamentoDraft } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSaveDialog";
 import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
+import { EnviarEmailDialog, type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import {
   validateOrcamentoItems,
@@ -211,7 +212,6 @@ export default function OrcamentoForm() {
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   // Stepper de envio de e-mail: idle → pdf → upload → email → done
-  type MailStep = 'idle' | 'pdf' | 'upload' | 'email' | 'done';
   const [mailStep, setMailStep] = useState<MailStep>('idle');
   const [mailError, setMailError] = useState<string | null>(null);
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
