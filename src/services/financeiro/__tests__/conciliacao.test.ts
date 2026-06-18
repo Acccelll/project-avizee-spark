@@ -1,91 +1,132 @@
 import { describe, it, expect } from "vitest";
 import {
+  calcularSimilaridade,
+  calcularScoreConciliacao,
   sugerirConciliacao,
   type TituloParaConciliacao,
-} from "@/services/financeiro/conciliacao.service";
-import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
+} from "../conciliacao.service";
+import type { TransacaoExtrato } from "../ofxParser.service";
 
-const makeTitulo = (overrides?: Partial<TituloParaConciliacao>): TituloParaConciliacao => ({
-  id: "titulo-1",
-  descricao: "Pagamento fornecedor ABC",
-  valor: 1000,
-  data_vencimento: "2026-03-10",
-  tipo: "pagar",
-  status: "pago",
-  data_baixa: "2026-03-10",
-  ...overrides,
+function titulo(over: Partial<TituloParaConciliacao> = {}): TituloParaConciliacao {
+  return {
+    id: "t-1",
+    descricao: "PIX RECEB CLIENTE ACME",
+    valor: 1000,
+    data_vencimento: "2026-01-10",
+    data_baixa: "2026-01-10",
+    tipo: "receber",
+    status: "baixado",
+    ...over,
+  };
+}
+
+function transacao(over: Partial<TransacaoExtrato> = {}): TransacaoExtrato {
+  return {
+    id: "x-1",
+    data: "2026-01-10",
+    valor: 1000,
+    descricao: "PIX RECEBIDO CLIENTE ACME",
+    tipo: "credito",
+    ...(over as TransacaoExtrato),
+  } as TransacaoExtrato;
+}
+
+describe("calcularSimilaridade", () => {
+  it("retorna 1 para strings idênticas após normalização", () => {
+    expect(calcularSimilaridade("PIX RECEB", "pix receb")).toBe(1);
+  });
+
+  it("ignora referências numéricas longas e acentos", () => {
+    const score = calcularSimilaridade(
+      "TED CRÉDITO 1234567890 CLIENTE",
+      "ted credito cliente",
+    );
+    expect(score).toBeGreaterThan(0.8);
+  });
+
+  it("retorna 0 para strings vazias", () => {
+    expect(calcularSimilaridade("", "qualquer")).toBe(0);
+    expect(calcularSimilaridade("abc", "")).toBe(0);
+  });
+
+  it("retorna valor baixo para strings completamente distintas", () => {
+    expect(calcularSimilaridade("alpha bravo", "xyz delta")).toBeLessThan(0.2);
+  });
 });
 
-const makeExtrato = (overrides?: Partial<TransacaoExtrato>): TransacaoExtrato => ({
-  id: "extrato-1",
-  data: "2026-03-10",
-  descricao: "PAG FORNEC ABC",
-  valor: 1000,
-  tipo: "D",
-  ...overrides,
+describe("calcularScoreConciliacao", () => {
+  it("retorna 0 quando o valor diverge mais que 1 centavo", () => {
+    expect(calcularScoreConciliacao(transacao(), titulo({ valor: 1001 }))).toBe(0);
+  });
+
+  it("aceita diferenças menores que 1 centavo", () => {
+    const s = calcularScoreConciliacao(
+      transacao({ valor: 1000 }),
+      titulo({ valor: 1000.005 }),
+    );
+    expect(s).toBeGreaterThan(0);
+  });
+
+  it("ignora títulos em aberto sem data_baixa", () => {
+    expect(
+      calcularScoreConciliacao(
+        transacao(),
+        titulo({ status: "aberto", data_baixa: null }),
+      ),
+    ).toBe(0);
+  });
+
+  it("considera valor absoluto do título (despesa cadastrada como negativa)", () => {
+    const s = calcularScoreConciliacao(transacao(), titulo({ valor: -1000 }));
+    expect(s).toBeGreaterThan(0);
+  });
+
+  it("retorna 0 quando datas estão a mais de 3 dias", () => {
+    expect(
+      calcularScoreConciliacao(
+        transacao({ data: "2026-01-20" }),
+        titulo({ data_baixa: "2026-01-10" }),
+      ),
+    ).toBe(0);
+  });
+
+  it("decresce o score conforme a diferença de dias aumenta", () => {
+    const s0 = calcularScoreConciliacao(transacao(), titulo());
+    const s3 = calcularScoreConciliacao(
+      transacao({ data: "2026-01-13" }),
+      titulo({ data_baixa: "2026-01-10" }),
+    );
+    expect(s0).toBeGreaterThan(s3);
+  });
+
+  it("usa data_vencimento como fallback quando não há data_baixa", () => {
+    const s = calcularScoreConciliacao(
+      transacao({ data: "2026-01-10" }),
+      titulo({
+        status: "baixado",
+        data_baixa: null,
+        data_vencimento: "2026-01-10",
+      }),
+    );
+    expect(s).toBeGreaterThan(0);
+  });
 });
 
 describe("sugerirConciliacao", () => {
-  it("retorna null quando a lista de títulos está vazia", () => {
-    const extrato = makeExtrato();
-    expect(sugerirConciliacao(extrato, [])).toBeNull();
+  it("escolhe o título com maior score entre candidatos", () => {
+    const t1 = titulo({ id: "ruim", descricao: "outra coisa qualquer" });
+    const t2 = titulo({ id: "bom" });
+    const sug = sugerirConciliacao(transacao(), [t1, t2]);
+    expect(sug?.titulo.id).toBe("bom");
   });
 
-  it("realiza matching exato por valor e data (mesmo dia)", () => {
-    const extrato = makeExtrato();
-    const titulo = makeTitulo();
-    const resultado = sugerirConciliacao(extrato, [titulo]);
-    expect(resultado).not.toBeNull();
-    expect(resultado?.titulo.id).toBe("titulo-1");
+  it("retorna null quando nenhum candidato atinge o threshold mínimo", () => {
+    const t = titulo({ valor: 9999 });
+    expect(sugerirConciliacao(transacao(), [t])).toBeNull();
   });
 
-  it("realiza matching com data até 3 dias de diferença", () => {
-    const extrato = makeExtrato({ data: "2026-03-12" }); // 2 dias depois
-    const titulo = makeTitulo({ data_vencimento: "2026-03-10" });
-    expect(sugerirConciliacao(extrato, [titulo])?.titulo.id).toBe("titulo-1");
-  });
-
-  it("não faz matching quando a diferença de datas é maior que 3 dias", () => {
-    const extrato = makeExtrato({ data: "2026-03-15" }); // 5 dias depois
-    const titulo = makeTitulo({ data_vencimento: "2026-03-10" });
-    expect(sugerirConciliacao(extrato, [titulo])).toBeNull();
-  });
-
-  it("não faz matching quando o valor é diferente (diferença ≥ R$0,02)", () => {
-    const extrato = makeExtrato({ valor: 999.98 });
-    const titulo = makeTitulo({ valor: 1000 });
-    expect(sugerirConciliacao(extrato, [titulo])).toBeNull();
-  });
-
-  it("aceita diferença de até R$0,01 no valor (tolerância de centavo)", () => {
-    const extrato = makeExtrato({ valor: 1000.00 });
-    const titulo = makeTitulo({ valor: 1000.005 });
-    // diff < 0.01 → deve fazer match
-    const resultado = sugerirConciliacao(extrato, [titulo]);
-    expect(resultado?.titulo.id).toBe("titulo-1");
-  });
-
-  it("desempata entre candidatos usando similaridade de descrição", () => {
-    const extrato = makeExtrato({ descricao: "PAG FORNEC ABC" });
-    const titulo1 = makeTitulo({ id: "titulo-1", descricao: "Pagamento fornecedor ABC" });
-    const titulo2 = makeTitulo({ id: "titulo-2", descricao: "Pagamento empresa XYZ" });
-    const resultado = sugerirConciliacao(extrato, [titulo1, titulo2]);
-    // titulo1 tem maior similaridade com a descrição do extrato
-    expect(resultado?.titulo.id).toBe("titulo-1");
-  });
-
-  it("retorna o único candidato mesmo com descrição sem correspondência", () => {
-    const extrato = makeExtrato({ descricao: "TRANSF 12345" });
-    const titulo = makeTitulo({ descricao: "Aluguel escritório" });
-    expect(sugerirConciliacao(extrato, [titulo])?.titulo.id).toBe("titulo-1");
-  });
-
-  it("não faz matching quando nenhum título bate em valor e data", () => {
-    const extrato = makeExtrato({ valor: 500, data: "2026-06-01" });
-    const titulos: TituloParaConciliacao[] = [
-      makeTitulo({ id: "t1", valor: 1000, data_vencimento: "2026-03-10" }),
-      makeTitulo({ id: "t2", valor: 500, data_vencimento: "2026-05-01" }),
-    ];
-    expect(sugerirConciliacao(extrato, titulos)).toBeNull();
+  it("classifica confiança como 'alta' quando score >= 0.7", () => {
+    const sug = sugerirConciliacao(transacao(), [titulo()]);
+    expect(sug?.confidence).toBe("alta");
   });
 });

@@ -126,13 +126,25 @@ follow-up trivial sem impacto no LOC da página.
 ## Pendente
 
 ### 7.1 (continuação)
-- Logística: testes para `entregas`, `prepostagem`, `recebimentos`,
-  `remessas`, `etiquetasSimples` (priorizar funções puras já existentes;
-  para queries Supabase, mockar `supabase.from`).
-- Compras: cobrir cálculos de `cotacoesCompra.service.ts` e
-  `pedidosCompra.service.ts` que não dependem de I/O.
-- Conciliação: reforço de casos extremos de `calcularScoreConciliacao`
-  (datas extremas, valores próximos, descrições parciais).
+
+#### Pass 2 (concluído nesta sessão)
+- ✅ Conciliação: `src/services/financeiro/__tests__/conciliacao.test.ts`
+  (14 testes) cobre `calcularSimilaridade` (idênticas, refs numéricas longas,
+  vazias, distintas), `calcularScoreConciliacao` (tolerância de 1¢, valor
+  absoluto, fallback `data_vencimento`, janela de 3 dias, decaimento por
+  dias) e `sugerirConciliacao` (melhor candidato, threshold, confiança alta).
+- ✅ Logística: `src/services/logistica/__tests__/etiquetasSimples.test.ts`
+  (5 testes) cobre `validarEtiquetas` — campos obrigatórios, CEP/UF
+  inválidos, separação de lote misto.
+
+#### Restante
+- Logística: `entregas`, `prepostagem`, `recebimentos`, `remessas` — exports
+  atuais são wrappers de I/O (`useXxx` + chamadas `supabase.from`). Demandam
+  ou extração de helpers puros (cálculo de SLA/prazos, agrupamento de itens
+  recebidos vs pendentes) ou mocks pesados de Supabase. Decisão pragmática:
+  adiar até Pass 3, atacando primeiro a refatoração de helpers puros.
+- Compras: idem — `cotacoesCompra.service.ts` e `pedidosCompra.service.ts`
+  só expõem CRUD assíncrono. Sem código puro hoje para testar.
 
 ### 7.2 — Gate de cobertura
 - Adicionar `--coverage` ao `npm test` + provider `v8`.
