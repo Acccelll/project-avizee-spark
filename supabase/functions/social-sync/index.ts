@@ -231,7 +231,7 @@ async function syncLinkedIn(
 
   try {
     // Fetch LinkedIn Organization data
-    const orgRes = await fetch(
+    const orgRes = await sFetch(
       `https://api.linkedin.com/v2/organizations/${accountId}?projection=(id,localizedName,vanityName,logoV2)`,
       {
         headers: {
@@ -248,7 +248,7 @@ async function syncLinkedIn(
     }
 
     // Fetch follower statistics
-    const statsRes = await fetch(
+    const statsRes = await sFetch(
       `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=urn:li:organization:${accountId}`,
       {
         headers: {
