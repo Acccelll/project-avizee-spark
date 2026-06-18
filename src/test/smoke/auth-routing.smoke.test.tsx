@@ -14,6 +14,11 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/hooks/useIsAdmin", () => ({
   useIsAdmin: () => mockUseIsAdmin(),
+  // AdminRoute consome `useCanViewAdmin` desde a divisão admin/visualização.
+  useCanViewAdmin: () => {
+    const { isAdmin, loading } = mockUseIsAdmin();
+    return { canView: isAdmin, loading };
+  },
 }));
 
 describe("smoke: autenticação, proteção de rota e acesso admin", () => {
