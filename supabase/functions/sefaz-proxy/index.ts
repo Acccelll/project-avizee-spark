@@ -124,15 +124,15 @@ import { canonicalizeExclusive } from "../_shared/xml-c14n.ts";
 /**
  * Canonicalização XML.
  *
- * Default: implementação naïve legada (apenas remove declaração XML e
- * normaliza CRLF). Mantida como fallback enquanto o C14N real não é
- * validado em homologação SEFAZ.
+ * Default (Fase 1.2): exclusive C14N real (parsing DOM, ordenação de
+ * atributos, escapes corretos). Veja supabase/functions/_shared/xml-c14n.ts.
  *
- * Quando `SEFAZ_C14N_REAL=true` no env, usa exclusive C14N real
- * (parsing DOM, ordenação de atributos, escapes corretos).
- * Veja supabase/functions/_shared/xml-c14n.ts.
+ * Opt-in inverso temporário: defina `SEFAZ_C14N_LEGACY=true` para forçar
+ * a implementação naïve legada (apenas remove declaração XML e normaliza
+ * CRLF). Esse fallback será removido após validação em produção.
  */
-const USE_C14N_REAL = Deno.env.get("SEFAZ_C14N_REAL") === "true";
+const USE_C14N_LEGACY = Deno.env.get("SEFAZ_C14N_LEGACY") === "true";
+const USE_C14N_REAL = !USE_C14N_LEGACY;
 
 function canonicalize(xml: string): string {
   if (USE_C14N_REAL) {
