@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { receberCompra as rpcReceberCompra } from "@/types/rpc";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export interface ReceberCompraItem {
   produto_id: string | null;
@@ -57,15 +58,15 @@ export interface CompraRecebimentoRow {
 export async function listRecebimentosDoPedido(
   pedidoCompraId: string,
 ): Promise<CompraRecebimentoRow[]> {
-  const { data, error } = await supabase
-    .from("compras")
-    .select("id, numero, data_compra, status, valor_total, ativo")
-    .eq("pedido_compra_id", pedidoCompraId)
-    .eq("ativo", true)
-    .order("data_compra", { ascending: false })
-    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data ?? []) as CompraRecebimentoRow[];
+  const data = await fetchAllPages<CompraRecebimentoRow>(() =>
+    supabase
+      .from("compras")
+      .select("id, numero, data_compra, status, valor_total, ativo")
+      .eq("pedido_compra_id", pedidoCompraId)
+      .eq("ativo", true)
+      .order("data_compra", { ascending: false }) as never,
+  );
+  return data;
 }
 
 /* -------- Pedido de Compra -------- */
