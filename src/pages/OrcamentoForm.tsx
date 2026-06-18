@@ -39,6 +39,7 @@ import {
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
+import { applyOrcamentoDraft, applyOrcamentoTemplate } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
