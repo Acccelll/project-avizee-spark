@@ -306,23 +306,7 @@ const Fiscal = () => {
     [kpisRpc],
   );
 
-  const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
-  const modeloOptions: MultiSelectOption[] = Object.entries(modeloLabels).map(([v, l]) => ({ label: l, value: v }));
-  const statusOptions: MultiSelectOption[] = fiscalInternalStatusOptions.map((value) => ({
-    value,
-    label: getFiscalInternalStatus(value).label,
-  }));
-  const origemOptions: MultiSelectOption[] = Object.entries(origemLabels).map(([v, l]) => ({ label: l, value: v }));
-  const statusSefazOptions: MultiSelectOption[] = fiscalSefazStatusOptions.map((value) => ({
-    value,
-    label: getFiscalSefazStatus(value).label,
-  }));
-
-  const tipoConfig = tipoParam === "entrada"
-    ? { title: "Notas de Entrada", subtitle: "Central de conferência e recebimento fiscal", addLabel: "Nova NF de Entrada", moduleKey: "notas-entrada", parceiroLabel: "Fornecedor" }
-    : tipoParam === "saida"
-    ? { title: "Notas de Saída", subtitle: "Notas fiscais de saída e faturamento", addLabel: "Nova NF de Saída", moduleKey: "notas-saida", parceiroLabel: "Cliente" }
-    : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
+  const tipoConfig = getFiscalTipoConfig(tipoParam);
 
   // Frente 1 — colunas e renderizadores extraídos para `buildFiscalColumns`.
   const columns = useMemo(
@@ -378,25 +362,28 @@ const Fiscal = () => {
         {tipoParam === "entrada" || tipoParam === "saida" ? (
           <FiscalTipoSwitchMobile current={tipoParam} />
         ) : null}
-        <div data-help-id="fiscal.filtros">
-        <AdvancedFilterBar
-          searchValue={consultaSearch}
-          onSearchChange={setConsultaSearch}
-          searchPlaceholder="Número, chave de acesso…"
+        <FiscalFiltersBar
+          tipoParam={tipoParam}
+          consultaSearch={consultaSearch}
+          setConsultaSearch={setConsultaSearch}
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
-          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
-          count={totalCount}
-        >
-          {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
-          <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
-          <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
-          <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
-          <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
-          <MonthPicker label="Emissão" value={emissaoMes} onChange={setEmissaoMes} />
-          <MonthPicker label="Vencimento" value={vencimentoMes} onChange={setVencimentoMes} />
-        </AdvancedFilterBar>
-        </div>
+          totalCount={totalCount}
+          tipoFilters={tipoFilters}
+          setTipoFilters={setTipoFilters}
+          modeloFilters={modeloFilters}
+          setModeloFilters={setModeloFilters}
+          statusFilters={statusFilters}
+          setStatusFilters={setStatusFilters}
+          origemFilters={origemFilters}
+          setOrigemFilters={setOrigemFilters}
+          statusSefazFilters={statusSefazFilters}
+          setStatusSefazFilters={setStatusSefazFilters}
+          emissaoMes={emissaoMes}
+          setEmissaoMes={setEmissaoMes}
+          vencimentoMes={vencimentoMes}
+          setVencimentoMes={setVencimentoMes}
+        />
 
         <FiscalKpisStrip
           kpis={kpis}
@@ -407,17 +394,16 @@ const Fiscal = () => {
           }
         />
 
-        <div data-help-id="fiscal.tabela">
-        <DataTable
+        <FiscalNotasTable
           columns={columns}
           data={data}
           loading={loading}
+          page={page}
+          setPage={setPage}
           pageSize={PAGE_SIZE}
-          serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
-          defaultSortKey={sortKey}
-          defaultSortDir={sortAsc ? "asc" : "desc"}
-          serverSortKey={sortKey}
-          serverSortDir={sortAsc ? "asc" : "desc"}
+          totalCount={totalCount}
+          sortKey={sortKey}
+          sortAsc={sortAsc}
           onServerSort={(key, dir) => {
             if (!key || !dir) {
               setSortKey("data_emissao");
@@ -429,105 +415,31 @@ const Fiscal = () => {
             setPage(0);
           }}
           moduleKey={tipoConfig.moduleKey}
-          showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
-          emptyTitle={fiscalActiveFilters.length > 0 || consultaSearch ? "Nenhuma nota corresponde aos filtros" : "Nenhuma nota fiscal encontrada"}
-          emptyDescription={fiscalActiveFilters.length > 0 || consultaSearch ? "Ajuste ou limpe os filtros para ver mais resultados." : "Importe um XML, busque por chave ou emita uma nova nota."}
-          emptyAction={
-            (fiscalActiveFilters.length > 0 || consultaSearch) ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setConsultaSearch("");
-                  setTipoFilters([]);
-                  setModeloFilters([]);
-                  setStatusFilters([]);
-                  setOrigemFilters([]);
-                  setStatusSefazFilters([]);
-                  setEmissaoMes("");
-                  setVencimentoMes("");
-                }}
-              >
-                Limpar filtros
-              </Button>
-            ) : undefined
-          }
-          mobileStatusKey="status"
-          mobileIdentifierKey="parceiro"
+          hasFilters={fiscalActiveFilters.length > 0 || !!consultaSearch}
+          onClearFilters={() => {
+            setConsultaSearch("");
+            setTipoFilters([]);
+            setModeloFilters([]);
+            setStatusFilters([]);
+            setOrigemFilters([]);
+            setStatusSefazFilters([]);
+            setEmissaoMes("");
+            setVencimentoMes("");
+          }}
           mobilePrimaryAction={mobilePrimaryAction}
           mobileInlineActions={mobileInlineActions}
         />
-        </div>
       </ModulePage>
 
-      {/* Form Modal - Create */}
-      <NfeCreateFormModal
-        open={modalOpen && mode === "create"}
-        onClose={() => { setModalOpen(false); xml.resetXmlOriginState(); }}
-        form={form as unknown as Record<string, string | number | boolean>}
-        setForm={(next) => setForm(next as unknown as typeof form)}
-        items={items}
-        setItems={setItems}
-        itemContaContabil={itemContaContabil}
-        setItemContaContabil={setItemContaContabil}
-        parcelas={parcelas}
-        setParcelas={setParcelas}
-        primeiroVencimento={primeiroVencimento}
-        setPrimeiroVencimento={setPrimeiroVencimento}
-        intervaloDias={intervaloDias}
-        setIntervaloDias={setIntervaloDias}
-        parcelasPlano={parcelasPlano}
-        setParcelasPlano={setParcelasPlano}
-        saving={saving}
+      <FiscalNotaModalsSlot
+        modal={modalState}
+        xml={xml}
+        selected={selected}
         onSubmit={handleSubmit}
-        fornecedores={fornecedores}
-        clientes={clientes}
-        produtos={produtos}
-        ordensVenda={ordensVenda}
-        contasContabeis={contasContabeis}
-        cartoes={cartoes}
-        valorProdutos={valorProdutos}
-        totalImpostos={totalImpostos}
-        totalNF={totalNF}
-        xmlOriginInfo={xml.xmlOriginInfo}
-        traducaoLinhasCount={xml.traducaoLinhas.length}
-        onAbrirTraducao={xml.openTraducaoEdit}
-        onCriarProdutoQuick={xml.openQuickProdutoFromForm}
-        onCriarFornecedorQuick={xml.openQuickFornecedorFromForm}
+        onCancelarRascunho={handleCancelarRascunho}
       />
-
-      {/* Edit Modal */}
-      {selected && (
-        <NotaFiscalEditModal
-          open={modalOpen && mode === "edit"}
-          onClose={() => setModalOpen(false)}
-          selected={selected}
-          form={form}
-          setForm={setForm}
-          items={items}
-          setItems={setItems}
-          itemContaContabil={itemContaContabil}
-          setItemContaContabil={setItemContaContabil}
-          parcelas={parcelas}
-          setParcelas={setParcelas}
-          parcelasPlano={parcelasPlano}
-          setParcelasPlano={setParcelasPlano}
-          saving={saving}
-          onSubmit={handleSubmit}
-          onCancelarRascunho={selected.status === "pendente" ? handleCancelarRascunho : undefined}
-          fornecedores={fornecedores}
-          clientes={clientes}
-          ordensVenda={ordensVenda}
-          contasContabeis={contasContabeis}
-          produtosCrud={produtos}
-          valorProdutos={valorProdutos}
-          totalImpostos={totalImpostos}
-          totalNF={totalNF}
-          cartoes={cartoes}
-        />
-      )}
 
       {/* View Drawer */}
       <NotaFiscalDrawer
