@@ -1,86 +1,33 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import type { Column } from "@/components/DataTable";
 import { SummaryCard } from "@/components/SummaryCard";
-import { StatusBadge } from "@/components/StatusBadge";
-import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import type { FilterChip } from "@/components/AdvancedFilterBar";
+import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
-import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
-import type { Period } from "@/components/filters/periodTypes";
-import { supabase } from "@/integrations/supabase/client";
-import { parseOFX, type OFXTransaction } from "@/lib/parseOFX";
-import { formatCurrency, formatDate } from "@/lib/format";
-import { toast } from "sonner";
-import {
-  Upload, CheckCircle, XCircle, Shuffle, AlertTriangle,
-  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown, Loader2,
-} from "lucide-react";
-import {
-  calcularScoreConciliacao,
-  conciliarTransacao,
-  confirmarConciliacao,
-  type TituloParaConciliacao,
-} from "@/services/financeiro/conciliacao.service";
-import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
-import { exportarParaExcel } from "@/services/export.service";
-import type { Lancamento } from "@/types/domain";
-import { notifyError } from "@/utils/errorMessages";
-import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Info, CalendarPlus, FileUp } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
-import { logger } from "@/lib/logger";
-
-interface LancamentoComStatus extends Lancamento {
-  statusConciliacao: string;
-  extratoId: string | null;
-  divergencia: number | null;
-}
-
-interface Match {
-  extratoId: string;
-  lancamentoId: string;
-  origem?: "heuristica" | "ia";
-  justificativa?: string;
-}
-
-/** Lightweight shape for the contas bancárias dropdown. */
-interface ContaBancariaDropdown {
-  id: string;
-  nome: string;
-  banco?: string | null;
-}
+  CheckCheck, XCircle, GitMerge, Landmark, Info, CalendarPlus, FileUp,
+} from "lucide-react";
+import { useMemo } from "react";
+import { exportarParaExcel } from "@/services/export.service";
+import { useConciliacao } from "@/pages/financeiro/conciliacao/useConciliacao";
+import { conciliacaoColumns } from "@/pages/financeiro/conciliacao/conciliacaoColumns";
+import { ConciliacaoTopControls } from "@/pages/financeiro/conciliacao/ConciliacaoTopControls";
+import { OFXMatchingPane } from "@/pages/financeiro/conciliacao/OFXMatchingPane";
+import { VincularBottomSheet } from "@/pages/financeiro/conciliacao/VincularBottomSheet";
+import { ConfirmFloatingBar } from "@/pages/financeiro/conciliacao/ConfirmFloatingBar";
 
 const statusConciliacaoOptions: MultiSelectOption[] = [
   { value: "pendente", label: "Pendente" },
   { value: "conciliado", label: "Conciliado" },
   { value: "divergente", label: "Divergente" },
 ];
-
 const tipoOptions: MultiSelectOption[] = [
   { value: "receber", label: "A Receber" },
   { value: "pagar", label: "A Pagar" },
 ];
-
 const origemOptions: MultiSelectOption[] = [
   { value: "manual", label: "Manual" },
   { value: "nf", label: "NF Fiscal" },
@@ -88,750 +35,66 @@ const origemOptions: MultiSelectOption[] = [
 ];
 
 export default function Conciliacao() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isMobile = useIsMobile();
+  const v = useConciliacao();
 
-  const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
-  const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
-
-  const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
-  const [selectedConta, setSelectedConta] = useState<string>("");
-  const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [loadingLanc, setLoadingLanc] = useState(false);
-  const [showOFXPane, setShowOFXPane] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Mobile vincular bottom-sheet
-  const [vincularOpen, setVincularOpen] = useState(false);
-  const [vincularExtratoId, setVincularExtratoId] = useState<string | null>(null);
-  const [vincularSearch, setVincularSearch] = useState("");
-
-  // Period filter state (independent of OFX)
-  const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
-  const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
-
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
-  const [statusConcFilters, setStatusConcFilters] = useState<string[]>(
-    searchParams.get("status") ? searchParams.get("status")!.split(",") : [],
-  );
-  const [tipoFilters, setTipoFilters] = useState<string[]>(
-    searchParams.get("tipo") ? searchParams.get("tipo")!.split(",") : [],
-  );
-  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
-
-  // Sync filters → URL
-  useEffect(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("data_inicio", dataInicio);
-      next.set("data_fim", dataFim);
-      if (searchTerm) next.set("search", searchTerm); else next.delete("search");
-      if (statusConcFilters.length) next.set("status", statusConcFilters.join(",")); else next.delete("status");
-      if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
-      return next;
-    }, { replace: true });
-  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
-
-  // ─── Load contas bancárias (React Query, raramente muda) ──────────────────
-  const { data: contasQuery } = useQuery({
-    queryKey: ["contas_bancarias", "ativas"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("contas_bancarias")
-        .select("id, descricao, bancos(nome)")
-        .eq("ativo", true);
-      return (data ?? []).map((d) => ({
-        id: d.id,
-        nome: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).descricao,
-        banco: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).bancos?.nome,
-      })) as ContaBancariaDropdown[];
-    },
-    staleTime: Infinity,
-  });
-  useEffect(() => {
-    if (contasQuery) setContasBancarias(contasQuery);
-  }, [contasQuery]);
-
-  // ─── Load lancamentos based on account + period ───────────────────────────
-  const loadLancamentosFromPeriod = useCallback(async (from: string, to: string, contaId: string) => {
-    if (!contaId) return;
-    setLoadingLanc(true);
-    try {
-      // Eixo canônico de conciliação: data_baixa (liquidação real).
-      // Carrega em duas frentes e une por id:
-      //   1) Títulos com baixa ativa no período (eixo data_baixa)
-      //   2) Títulos em aberto/parcial pelo vencimento no período (candidatos a nova baixa)
-      const lancSelect =
-        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
-
-      const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([
-        supabase
-          .from("financeiro_baixas")
-          .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${lancSelect})`)
-          .eq("conta_bancaria_id", contaId)
-          .is("estornada_em", null)
-          .gte("data_baixa", from)
-          .lte("data_baixa", to),
-        supabase
-          .from("financeiro_lancamentos")
-          .select(lancSelect)
-          .eq("ativo", true)
-          .eq("conta_bancaria_id", contaId)
-          .in("status", ["aberto", "parcial"])
-          .gte("data_vencimento", from)
-          .lte("data_vencimento", to)
-          .order("data_vencimento", { ascending: true }),
-      ]);
-
-      const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
-      // Liquidados (anexa data_baixa para uso no score)
-      ((porBaixa as Array<{
-        lancamento_id: string;
-        data_baixa: string;
-        financeiro_lancamentos: Lancamento;
-      }>) || []).forEach((row) => {
-        if (!row.financeiro_lancamentos) return;
-        merged.set(row.lancamento_id, { ...row.financeiro_lancamentos, data_baixa: row.data_baixa });
-      });
-      // Em aberto (preserva data_baixa se já existir vindo do outro ramo)
-      ((porVencimento as Lancamento[]) || []).forEach((l) => {
-        if (!merged.has(l.id)) merged.set(l.id, l);
-      });
-
-      setLancamentos(Array.from(merged.values()));
-    } finally {
-      setLoadingLanc(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedConta) {
-      loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
-      setMatches([]);
-    } else {
-      setLancamentos([]);
-    }
-  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
-
-  // ─── OFX file handling ───────────────────────────────────────────────────
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const text = await file.text();
-      const items = parseOFX(text);
-      if (items.length === 0) {
-        toast.error("Nenhuma transação encontrada no arquivo OFX.");
-        return;
-      }
-      setExtratoItems(items);
-      setMatches([]);
-      setShowOFXPane(true);
-      toast.success(`${items.length} transações importadas do extrato.`);
-
-      // If no account selected, just show OFX items
-      // If account selected, also refresh lancamentos for the OFX period
-      if (selectedConta) {
-        const dates = items.map((i) => i.data).sort();
-        await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
-      }
-    } catch (err: unknown) {
-      logger.error("[conciliacao] erro ao processar OFX:", err);
-      notifyError(err);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+  const handleExportar = async () => {
+    const rows = v.filteredData.map((l) => ({
+      Descrição: l.descricao,
+      Tipo: l.tipo,
+      Vencimento: l.data_vencimento,
+      "Valor (R$)": Number(l.valor),
+      Status: l.status ?? "",
+      Conciliação: l.statusConciliacao,
+    }));
+    await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
   };
 
-  const handleContaChange = async (contaId: string) => {
-    setSelectedConta(contaId);
-    setMatches([]);
-  };
-
-  // ─── Auto-match ──────────────────────────────────────────────────────────
-  const handleAutoMatch = async () => {
-    const newMatches: Match[] = [];
-    const usedLancamentos = new Set<string>();
-    const semMatch: typeof extratoItems = [];
-
-    for (const extrato of extratoItems) {
-      const candidate = lancamentos.find((l) => {
-        if (usedLancamentos.has(l.id)) return false;
-        const valorMatch = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
-        if (!valorMatch) return false;
-        const extratoDate = new Date(extrato.data);
-        const lancDate = new Date(l.data_vencimento);
-        const diffDays = Math.abs((extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays <= 3;
-      });
-
-      if (candidate) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
-        usedLancamentos.add(candidate.id);
-      } else {
-        semMatch.push(extrato);
-      }
-    }
-
-    // Fallback IA: para extratos ambíguos, pedimos ao modelo escolher entre os
-    // lançamentos ainda disponíveis. Custo controlado: máx. 5 chamadas.
-    let iaCount = 0;
-    if (semMatch.length > 0) {
-      const disponiveis = lancamentos
-        .filter((l) => !usedLancamentos.has(l.id))
-        .map((l) => ({
-          id: l.id,
-          descricao: l.descricao ?? null,
-          valor: Math.abs(Number(l.valor)),
-          data_vencimento: l.data_vencimento,
-          data_baixa: (l as unknown as { data_baixa?: string | null }).data_baixa ?? null,
-        }));
-      if (disponiveis.length > 0) {
-        const { sugerirConciliacaoIaRemota } = await import("@/services/ia/sugestao.service");
-        const alvos = semMatch.slice(0, 5);
-        const resultados = await Promise.allSettled(
-          alvos.map((e) =>
-            sugerirConciliacaoIaRemota({
-              transacao: { id: e.id, descricao: e.descricao, valor: e.valor, data: e.data },
-              candidatos: disponiveis,
-            }),
-          ),
-        );
-        for (let i = 0; i < resultados.length; i++) {
-          const r = resultados[i];
-          if (r.status !== "fulfilled" || !r.value.lancamento_id) continue;
-          if (usedLancamentos.has(r.value.lancamento_id)) continue;
-          newMatches.push({
-            extratoId: alvos[i].id,
-            lancamentoId: r.value.lancamento_id,
-            origem: "ia",
-            justificativa: r.value.justificativa,
-          });
-          usedLancamentos.add(r.value.lancamento_id);
-          iaCount++;
-        }
-      }
-    }
-
-    setMatches(newMatches);
-    toast.success(
-      iaCount > 0
-        ? `${newMatches.length} pares encontrados — ${iaCount} sugerido(s) por IA.`
-        : `${newMatches.length} pares encontrados automaticamente.`,
-    );
-  };
-
-  const handleManualMatch = (extratoId: string, lancamentoId: string) => {
-    setMatches((prev) => {
-      const filtered = prev.filter((m) => m.extratoId !== extratoId);
-      if (lancamentoId === "") return filtered;
-      return [...filtered, { extratoId, lancamentoId }];
-    });
-  };
-
-  /** Threshold de score para conciliação automática em lote (configurável). */
-  const AUTO_SCORE_THRESHOLD = 0.9;
-
-  // ─── Batch auto-reconciliation ────────────────────────────────────────────
-  const handleConciliacaoAutomatica = useCallback(() => {
-    const newMatches: Match[] = [];
-    const usedLancamentos = new Set<string>();
-
-    for (const extrato of extratoItems) {
-      // Map OFXTransaction to TransacaoExtrato shape expected by the service
-      const transacao: TransacaoExtrato = {
-        id: extrato.id,
-        data: extrato.data,
-        descricao: extrato.descricao ?? "",
-        valor: Math.abs(extrato.valor),
-        tipo: extrato.valor >= 0 ? "C" : "D",
-      };
-
-      let melhorScore = -1;
-      let melhorTitulo: Lancamento | null = null;
-
-      for (const l of lancamentos) {
-        if (usedLancamentos.has(l.id)) continue;
-        const titulo: TituloParaConciliacao = {
-          id: l.id,
-          descricao: l.descricao,
-          valor: l.valor,
-          data_vencimento: l.data_vencimento,
-          tipo: l.tipo,
-          status: l.status,
-          data_baixa: (l as Lancamento & { data_baixa?: string | null }).data_baixa ?? null,
-        };
-        const score = calcularScoreConciliacao(transacao, titulo);
-        if (score > melhorScore) {
-          melhorScore = score;
-          melhorTitulo = l;
-        }
-      }
-
-      if (melhorScore >= AUTO_SCORE_THRESHOLD && melhorTitulo) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: melhorTitulo.id });
-        usedLancamentos.add(melhorTitulo.id);
-      }
-    }
-
-    setMatches((prev) => {
-      // Merge new high-confidence matches while keeping any existing manual matches
-      const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
-      return [...manual, ...newMatches];
-    });
-
-    toast.success(
-      `${newMatches.length} transação(ões) conciliada(s) automaticamente (score ≥ ${AUTO_SCORE_THRESHOLD}).`,
-    );
-  }, [extratoItems, lancamentos]);
-
-  // ─── Confirm reconciliation ──────────────────────────────────────────────
-  const handleConfirmarConciliacao = async () => {
-    if (matches.length === 0) {
-      toast.error("Nenhum par confirmado para conciliar.");
-      return;
-    }
-
-    // Structured payload — ready to be persisted when a service is plugged in.
-    const payload = {
-      conta_bancaria_id: selectedConta,
-      data_conciliacao: new Date().toISOString(),
-      pares: matches.map((m) => {
-        const extrato = extratoItems.find((e) => e.id === m.extratoId);
-        const lancamento = lancamentos.find((l) => l.id === m.lancamentoId);
-        return {
-          extrato_id: m.extratoId,
-          lancamento_id: m.lancamentoId,
-          valor_extrato: extrato?.valor ?? null,
-          valor_lancamento: lancamento?.valor ?? null,
-        };
-      }),
-    };
-
-    setConfirming(true);
-    try {
-      // Persist each matched pair via conciliacao.service
-      await Promise.all(
-        payload.pares.map((par) => {
-          const extrato = extratoItems.find((e) => e.id === par.extrato_id);
-          if (!extrato) return Promise.resolve();
-          const transacao: TransacaoExtrato = {
-            id: extrato.id,
-            data: extrato.data,
-            descricao: extrato.descricao,
-            valor: extrato.valor,
-            tipo: extrato.valor >= 0 ? "C" : "D",
-          };
-          return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
-        }),
-      );
-
-      // Persist batch record
-      try {
-        await confirmarConciliacao({
-          conta_bancaria_id: selectedConta,
-          data_conciliacao: new Date().toISOString(),
-          pares: payload.pares,
-          usuario_id: undefined,
-        });
-      } catch {
-        // Silently fail if tables don't exist yet
-      }
-
-      const pareados = matches.length;
-      const semPar = extratoItems.length - pareados;
-      toast.success(
-        `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
-      );
-      setMatches([]);
-    } catch (err) {
-      notifyError(err);
-    } finally {
-      setConfirming(false);
-    }
-  };
-
-  // ─── Derived data ─────────────────────────────────────────────────────────
-  const getMatch = (extratoId: string) => matches.find((m) => m.extratoId === extratoId);
-  const usedLancamentoIds = new Set(matches.map((m) => m.lancamentoId));
-
-  const pareados = matches.length;
-  const semParOFX = extratoItems.length - pareados;
-  const pendentesERP = lancamentos.length - pareados;
-
-  const lancamentosComStatus = useMemo((): LancamentoComStatus[] => {
-    return lancamentos.map((l) => {
-      const match = matches.find((m) => m.lancamentoId === l.id);
-      const extratoItem = match ? extratoItems.find((e) => e.id === match.extratoId) : null;
-
-      let statusConciliacao = "pendente";
-      let divergencia: number | null = null;
-
-      if (match && extratoItem) {
-        const diff = Math.abs(Math.abs(l.valor) - Math.abs(extratoItem.valor));
-        if (diff < 0.01) {
-          statusConciliacao = "conciliado";
-        } else {
-          statusConciliacao = "divergente";
-          divergencia = diff;
-        }
-      }
-
-      return {
-        ...l,
-        statusConciliacao,
-        extratoId: match?.extratoId ?? null,
-        divergencia,
-      };
-    });
-  }, [lancamentos, matches, extratoItems]);
-
-  // ─── Filtered data for DataTable ─────────────────────────────────────────
-  const filteredData = useMemo(() => {
-    return lancamentosComStatus.filter((l) => {
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        if (
-          !l.descricao?.toLowerCase().includes(term) &&
-          !l.tipo?.toLowerCase().includes(term) &&
-          !l.status?.toLowerCase().includes(term) &&
-          !l.forma_pagamento?.toLowerCase().includes(term)
-        ) return false;
-      }
-      if (statusConcFilters.length > 0 && !statusConcFilters.includes(l.statusConciliacao)) return false;
-      if (tipoFilters.length > 0 && !tipoFilters.includes(l.tipo)) return false;
-      if (origemFilters.length > 0) {
-        const key = getOrigemKey(l);
-        if (!origemFilters.includes(key)) return false;
-      }
-      return true;
-    });
-  }, [lancamentosComStatus, searchTerm, statusConcFilters, tipoFilters, origemFilters]);
-
-  // ─── DataTable columns ────────────────────────────────────────────────────
-  const columns: Column<LancamentoComStatus>[] = [
-    {
-      key: "data_vencimento",
-      label: "Data",
-      sortable: true,
-      render: (l) => <span className="text-sm whitespace-nowrap">{formatDate(l.data_vencimento)}</span>,
-    },
-    {
-      key: "descricao",
-      mobilePrimary: true,
-      label: "Descrição",
-      sortable: true,
-      render: (l) => <span className="text-sm">{l.descricao}</span>,
-    },
-    {
-      key: "valor",
-      label: "Valor",
-      sortable: true,
-      render: (l) => (
-        <span className={`font-mono font-semibold text-sm ${l.tipo === "receber" ? "text-success" : "text-destructive"}`}>
-          {l.tipo === "receber" ? "+" : "-"}{formatCurrency(Math.abs(l.valor))}
-        </span>
-      ),
-    },
-    {
-      key: "tipo",
-      label: "Tipo",
-      sortable: true,
-      render: (l) => (
-        <Badge
-          variant={l.tipo === "receber" ? "default" : "secondary"}
-          className="text-[10px] whitespace-nowrap"
-        >
-          {l.tipo === "receber" ? "A Receber" : "A Pagar"}
-        </Badge>
-      ),
-    },
-    {
-      key: "statusConciliacao",
-      label: "Conciliação",
-      sortable: true,
-      render: (l) => (
-        <div className="flex flex-col gap-0.5">
-          <StatusBadge status={l.statusConciliacao} />
-          {l.divergencia !== null && (
-            <span className="text-[10px] text-warning font-mono">
-              Δ {formatCurrency(l.divergencia)}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      label: "Status Financeiro",
-      sortable: true,
-      render: (l) => <StatusBadge status={l.status} />,
-    },
-    {
-      key: "origem",
-      label: "Origem",
-      hidden: true,
-      render: (l) => {
-        const key = getOrigemKey(l);
-        const label = getOrigemLabel(l);
-        const className =
-          key === "nf"
-            ? "text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap"
-            : key === "manual"
-            ? "text-xs text-muted-foreground whitespace-nowrap"
-            : "text-xs whitespace-nowrap";
-        return <Badge variant="outline" className={className}>{label}</Badge>;
-      },
-    },
-    {
-      key: "forma_pagamento",
-      label: "Forma Pgto",
-      hidden: true,
-      render: (l) =>
-        l.forma_pagamento ? (
-          <span className="text-xs">{l.forma_pagamento}</span>
-        ) : (
-          <span className="text-muted-foreground text-xs">—</span>
-        ),
-    },
-    {
-      key: "conta_bancaria",
-      label: "Banco/Conta",
-      hidden: true,
-      render: (l) => {
-        if (!l.contas_bancarias) return <span className="text-muted-foreground text-xs">—</span>;
-        return (
-          <span className="text-xs">
-            {l.contas_bancarias.bancos?.nome} — {l.contas_bancarias.descricao}
-          </span>
-        );
-      },
-    },
-  ];
-
-  // ─── Active filter chips ──────────────────────────────────────────────────
   const activeFilterChips = useMemo((): FilterChip[] => {
     const chips: FilterChip[] = [];
-    if (statusConcFilters.length > 0)
-      chips.push({ key: "statusConc", label: "Conciliação", value: statusConcFilters, displayValue: statusConcFilters.join(", ") });
-    if (tipoFilters.length > 0)
-      chips.push({ key: "tipo", label: "Tipo", value: tipoFilters, displayValue: tipoFilters.join(", ") });
-    if (origemFilters.length > 0)
-      chips.push({ key: "origem", label: "Origem", value: origemFilters, displayValue: origemFilters.join(", ") });
+    if (v.statusConcFilters.length > 0)
+      chips.push({ key: "statusConc", label: "Conciliação", value: v.statusConcFilters, displayValue: v.statusConcFilters.join(", ") });
+    if (v.tipoFilters.length > 0)
+      chips.push({ key: "tipo", label: "Tipo", value: v.tipoFilters, displayValue: v.tipoFilters.join(", ") });
+    if (v.origemFilters.length > 0)
+      chips.push({ key: "origem", label: "Origem", value: v.origemFilters, displayValue: v.origemFilters.join(", ") });
     return chips;
-  }, [statusConcFilters, tipoFilters, origemFilters]);
-
-  const handleRemoveFilter = (key: string) => {
-    if (key === "statusConc") setStatusConcFilters([]);
-    if (key === "tipo") setTipoFilters([]);
-    if (key === "origem") setOrigemFilters([]);
-  };
-
-  const handleClearAll = () => {
-    setStatusConcFilters([]);
-    setTipoFilters([]);
-    setOrigemFilters([]);
-  };
+  }, [v.statusConcFilters, v.tipoFilters, v.origemFilters]);
 
   return (
-    <><ModulePage
-        title="Conciliação Bancária"
-        subtitle="Central de conferência financeira entre ERP e movimentação real"
-      >
-        {/* ── TOP CONTROLS: conta + period + import ─────────────────────────── */}
-        <div className="flex flex-wrap gap-3 mb-5 items-end">
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <Landmark className="w-3 h-3" />Conta Bancária
-            </label>
-            <Select value={selectedConta} onValueChange={handleContaChange}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="Selecionar conta..." />
-              </SelectTrigger>
-              <SelectContent>
-                {contasBancarias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}{c.banco ? ` — ${c.banco}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <>
+      <ModulePage title="Conciliação Bancária" subtitle="Central de conferência financeira entre ERP e movimentação real">
+        <ConciliacaoTopControls
+          isMobile={v.isMobile}
+          contasBancarias={v.contasBancarias}
+          selectedConta={v.selectedConta}
+          onContaChange={v.handleContaChange}
+          dataInicio={v.dataInicio}
+          dataFim={v.dataFim}
+          setDataInicio={v.setDataInicio}
+          setDataFim={v.setDataFim}
+          fileInputRef={v.fileInputRef}
+          onFileSelect={v.handleFileSelect}
+          uploading={v.uploading}
+          hasExtrato={v.extratoItems.length > 0}
+          hasLancamentos={v.lancamentos.length > 0}
+          onConciliacaoAutomatica={v.handleConciliacaoAutomatica}
+          onMatchPorValor={v.handleAutoMatch}
+          onExportar={handleExportar}
+        />
+
+        {v.selectedConta ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <SummaryCard title="Conciliados" value={v.pareados}
+              subtitle={v.extratoItems.length > 0 ? `de ${v.extratoItems.length} do extrato` : "pares confirmados"}
+              variant="success" icon={CheckCheck} />
+            <SummaryCard title="Pendentes ERP" value={v.pendentesERP} subtitle="lançamentos sem par" variant="warning" icon={GitMerge} />
+            <SummaryCard title="Sem Correspondência" value={v.semParOFX}
+              subtitle={v.extratoItems.length > 0 ? "itens do extrato OFX" : "importe um extrato OFX"}
+              variant={v.semParOFX > 0 ? "danger" : "default"} icon={XCircle} />
+            <SummaryCard title="Total no Período" value={v.lancamentos.length}
+              subtitle={`${v.selectedConta ? "lançamentos da conta" : "selecione uma conta"}`}
+              variant="info" icon={Landmark} />
           </div>
-
-          <div className="flex items-end">
-            <PeriodFilter
-              mode="both"
-              value={{ preset: null, from: dataInicio || null, to: dataFim || null }}
-              onChange={(next: PeriodValue) => {
-                if (next.preset) {
-                  const from = periodToDateFrom(next.preset as Period);
-                  const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
-                  setDataInicio(from);
-                  setDataFim(to);
-                  return;
-                }
-                setDataInicio(next.from || "");
-                setDataFim(next.to || "");
-              }}
-              direction="past"
-            />
-          </div>
-
-          <div className="flex gap-2 ml-auto items-center">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".ofx,.qfx,.xml"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              variant="outline"
-              size="sm"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? "Importando..." : "Importar OFX"}
-            </Button>
-
-            {!isMobile && extratoItems.length > 0 && lancamentos.length > 0 && (
-              <>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
-                        <CheckCheck className="w-4 h-4 mr-2" />
-                        Conciliar Automaticamente
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs leading-relaxed">
-                        Usa score de similaridade (valor, data, descrição) para parear lançamentos
-                        com alta confiança ≥ 90%. Recomendado para a maioria dos casos.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={handleAutoMatch} variant="secondary" size="sm">
-                        <Shuffle className="w-4 h-4 mr-2" />
-                        Match por Valor
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs leading-relaxed">
-                        Pareamento simples por valor exato (±R$0,01) e data próxima (±3 dias).
-                        Use se a conciliação automática não encontrar todos os pares.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </>
-            )}
-            {!isMobile && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const rows = filteredData.map((l) => ({
-                    Descrição: l.descricao,
-                    Tipo: l.tipo,
-                    "Vencimento": l.data_vencimento,
-                    "Valor (R$)": Number(l.valor),
-                    Status: l.status ?? "",
-                    Conciliação: l.statusConciliacao,
-                  }));
-                  await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
-                }}
-              >
-                <FileDown className="w-4 h-4 mr-2" />
-                Exportar
-              </Button>
-            )}
-            {isMobile && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Mais ações">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {extratoItems.length > 0 && lancamentos.length > 0 && (
-                    <>
-                      <DropdownMenuItem onSelect={() => handleConciliacaoAutomatica()}>
-                        <CheckCheck className="w-4 h-4 mr-2" />
-                        Conciliar Automaticamente
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleAutoMatch()}>
-                        <Shuffle className="w-4 h-4 mr-2" />
-                        Match por Valor
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuItem
-                    onSelect={async () => {
-                      const rows = filteredData.map((l) => ({
-                        Descrição: l.descricao,
-                        Tipo: l.tipo,
-                        Vencimento: l.data_vencimento,
-                        "Valor (R$)": Number(l.valor),
-                        Status: l.status ?? "",
-                        Conciliação: l.statusConciliacao,
-                      }));
-                      await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
-                    }}
-                  >
-                    <FileDown className="w-4 h-4 mr-2" />
-                    Exportar Excel
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-
-        {/* ── SUMMARY CARDS ────────────────────────────────────────────────── */}
-        {selectedConta ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard
-            title="Conciliados"
-            value={pareados}
-            subtitle={extratoItems.length > 0 ? `de ${extratoItems.length} do extrato` : "pares confirmados"}
-            variant="success"
-            icon={CheckCheck}
-          />
-          <SummaryCard
-            title="Pendentes ERP"
-            value={pendentesERP}
-            subtitle="lançamentos sem par"
-            variant="warning"
-            icon={GitMerge}
-          />
-          <SummaryCard
-            title="Sem Correspondência"
-            value={semParOFX}
-            subtitle={extratoItems.length > 0 ? "itens do extrato OFX" : "importe um extrato OFX"}
-            variant={semParOFX > 0 ? "danger" : "default"}
-            icon={XCircle}
-          />
-          <SummaryCard
-            title="Total no Período"
-            value={lancamentos.length}
-            subtitle={`${selectedConta ? "lançamentos da conta" : "selecione uma conta"}`}
-            variant="info"
-            icon={Landmark}
-          />
-        </div>
         ) : (
           <div className="rounded-xl border bg-muted/10 p-8 mb-6 text-center">
             <Landmark className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
@@ -847,9 +110,7 @@ export default function Conciliacao() {
                 ["4", "Concilie"],
               ].map(([n, label]) => (
                 <div key={n} className="rounded-lg border bg-card p-3 flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                    {n}
-                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">{n}</span>
                   <span className="text-xs font-medium">{label}</span>
                 </div>
               ))}
@@ -857,25 +118,19 @@ export default function Conciliacao() {
           </div>
         )}
 
-        {/* ── FILTER BAR + DATATABLE ───────────────────────────────────────── */}
-        {/* Eixo de filtragem (Fase 3 — query híbrida baixa + vencimento) */}
-        {selectedConta && (
+        {v.selectedConta && (
           <div className="flex items-center justify-between mb-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] gap-1 border-info/40 text-info bg-info/5 cursor-help"
-                  >
-                    <Info className="w-3 h-3" />
-                    Eixo: baixa + vencimento
+                  <Badge variant="outline" className="text-[10px] gap-1 border-info/40 text-info bg-info/5 cursor-help">
+                    <Info className="w-3 h-3" /> Eixo: baixa + vencimento
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-xs">
                   <p className="text-xs leading-relaxed">
-                    A grade considera dois eixos: títulos com <strong>baixa não estornada</strong>{" "}
-                    no período (eixo da liquidação) e títulos em <strong>aberto/parcial</strong> com
+                    A grade considera dois eixos: títulos com <strong>baixa não estornada</strong> no
+                    período (eixo da liquidação) e títulos em <strong>aberto/parcial</strong> com
                     vencimento no período (candidatos a nova baixa).
                   </p>
                 </TooltipContent>
@@ -883,376 +138,94 @@ export default function Conciliacao() {
             </TooltipProvider>
           </div>
         )}
+
         <AdvancedFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
+          searchValue={v.searchTerm}
+          onSearchChange={v.setSearchTerm}
           searchPlaceholder="Buscar por descrição, tipo, status ou forma de pagamento..."
           activeFilters={activeFilterChips}
-          onRemoveFilter={handleRemoveFilter}
-          onClearAll={handleClearAll}
-          count={filteredData.length}
+          onRemoveFilter={v.handleRemoveFilter}
+          onClearAll={v.handleClearAll}
+          count={v.filteredData.length}
         >
-          <MultiSelect
-            options={statusConciliacaoOptions}
-            selected={statusConcFilters}
-            onChange={setStatusConcFilters}
-            placeholder="Conciliação"
-            className="w-[140px]"
-          />
-          <MultiSelect
-            options={tipoOptions}
-            selected={tipoFilters}
-            onChange={setTipoFilters}
-            placeholder="Tipo"
-            className="w-[120px]"
-          />
-          <MultiSelect
-            options={origemOptions}
-            selected={origemFilters}
-            onChange={setOrigemFilters}
-            placeholder="Origem"
-            className="w-[120px]"
-          />
+          <MultiSelect options={statusConciliacaoOptions} selected={v.statusConcFilters}
+            onChange={v.setStatusConcFilters} placeholder="Conciliação" className="w-[140px]" />
+          <MultiSelect options={tipoOptions} selected={v.tipoFilters}
+            onChange={v.setTipoFilters} placeholder="Tipo" className="w-[120px]" />
+          <MultiSelect options={origemOptions} selected={v.origemFilters}
+            onChange={v.setOrigemFilters} placeholder="Origem" className="w-[120px]" />
         </AdvancedFilterBar>
 
-        {selectedConta && !loadingLanc && lancamentos.length === 0 ? (
+        {v.selectedConta && !v.loadingLanc && v.lancamentos.length === 0 ? (
           <div className="bg-card rounded-xl border">
             <EmptyState
-              variant="noResults"
-              icon={CalendarPlus}
+              variant="noResults" icon={CalendarPlus}
               title="Nenhum lançamento no período"
               description="Tente ampliar o intervalo de datas ou importar um extrato OFX para começar a conciliar."
               action={
                 <div className="flex flex-wrap gap-2 justify-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const [y, m, d] = dataFim.split("-").map(Number);
-                      const next = new Date(y, m - 1, d);
-                      next.setDate(next.getDate() + 30);
-                      setDataFim(next.toISOString().slice(0, 10));
-                    }}
-                  >
-                    <CalendarPlus className="w-4 h-4 mr-1.5" />
-                    Ampliar período (+30 dias)
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const [y, m, d] = v.dataFim.split("-").map(Number);
+                    const next = new Date(y, m - 1, d);
+                    next.setDate(next.getDate() + 30);
+                    v.setDataFim(next.toISOString().slice(0, 10));
+                  }}>
+                    <CalendarPlus className="w-4 h-4 mr-1.5" /> Ampliar período (+30 dias)
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    <FileUp className="w-4 h-4 mr-1.5" />
-                    Importar OFX
+                  <Button size="sm" onClick={() => v.fileInputRef.current?.click()} disabled={v.uploading}>
+                    <FileUp className="w-4 h-4 mr-1.5" /> Importar OFX
                   </Button>
                 </div>
               }
             />
           </div>
-        ) : selectedConta && extratoItems.length === 0 && lancamentos.length > 0 ? (
+        ) : v.selectedConta && v.extratoItems.length === 0 && v.lancamentos.length > 0 ? (
           <>
             <div className="bg-card rounded-xl border mb-4">
               <EmptyState
-                variant="firstUse"
-                icon={FileUp}
+                variant="firstUse" icon={FileUp}
                 title="Importe um extrato OFX para conciliar"
                 description="Há lançamentos no período aguardando confronto. Carregue o arquivo OFX do banco para iniciar o pareamento automático."
                 action={
-                  <Button
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
+                  <Button size="sm" onClick={() => v.fileInputRef.current?.click()} disabled={v.uploading}>
                     <FileUp className="w-4 h-4 mr-1.5" />
-                    {uploading ? "Importando..." : "Importar extrato OFX"}
+                    {v.uploading ? "Importando..." : "Importar extrato OFX"}
                   </Button>
                 }
               />
             </div>
-            <DataTable
-              columns={columns}
-              data={filteredData}
-              loading={loadingLanc}
-              moduleKey="conciliacao"
-              showColumnToggle={true}
-              mobileStatusKey="statusConciliacao"
-              mobileIdentifierKey="data_vencimento"
-            />
+            <DataTable columns={conciliacaoColumns} data={v.filteredData} loading={v.loadingLanc}
+              moduleKey="conciliacao" showColumnToggle
+              mobileStatusKey="statusConciliacao" mobileIdentifierKey="data_vencimento" />
           </>
         ) : (
-          <DataTable
-            columns={columns}
-            data={filteredData}
-            loading={loadingLanc}
-            moduleKey="conciliacao"
-            showColumnToggle={true}
-            emptyTitle={
-              !selectedConta
-                ? "Selecione uma conta bancária"
-                : "Nenhum lançamento encontrado"
-            }
-            emptyDescription={
-              !selectedConta
-                ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
-                : "Tente ajustar o período ou os filtros de busca."
-            }
-            mobileStatusKey="statusConciliacao"
-            mobileIdentifierKey="descricao"
+          <DataTable columns={conciliacaoColumns} data={v.filteredData} loading={v.loadingLanc}
+            moduleKey="conciliacao" showColumnToggle
+            emptyTitle={!v.selectedConta ? "Selecione uma conta bancária" : "Nenhum lançamento encontrado"}
+            emptyDescription={!v.selectedConta
+              ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
+              : "Tente ajustar o período ou os filtros de busca."}
+            mobileStatusKey="statusConciliacao" mobileIdentifierKey="descricao" />
+        )}
+
+        {v.extratoItems.length > 0 && (
+          <OFXMatchingPane
+            extratoItems={v.extratoItems} lancamentos={v.lancamentos} matches={v.matches}
+            showOFXPane={v.showOFXPane} setShowOFXPane={v.setShowOFXPane}
+            getMatch={v.getMatch} usedLancamentoIds={v.usedLancamentoIds}
+            pareados={v.pareados} semParOFX={v.semParOFX}
+            confirming={v.confirming} selectedConta={v.selectedConta}
+            onManualMatch={v.handleManualMatch}
+            onAbrirVincular={(id) => {
+              v.setVincularExtratoId(id);
+              v.setVincularSearch("");
+              v.setVincularOpen(true);
+            }}
+            onConfirmar={v.handleConfirmarConciliacao}
           />
         )}
 
-        {/* ── OFX MATCHING SECTION (secondary, only when OFX loaded) ────────── */}
-        {extratoItems.length > 0 && (
-          <div className="mt-6 rounded-lg border border-border/60">
-            {/* Section header */}
-            <button
-              type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/30 transition-colors rounded-t-lg"
-              onClick={() => setShowOFXPane((v) => !v)}
-            >
-              <span className="flex items-center gap-2">
-                <Upload className="w-4 h-4 text-muted-foreground" />
-                Correspondência OFX — {extratoItems.length} transações importadas
-                <Badge variant="outline" className="text-xs font-normal">
-                  {pareados} pareados · {semParOFX} sem par
-                </Badge>
-              </span>
-              {showOFXPane ? (
-                <ChevronUp className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
-
-            {showOFXPane && (
-              <div className="p-4 border-t border-border/60">
-                {/* MOBILE: lista única vertical de transações OFX com ação "Vincular" → bottom-sheet */}
-                <div className="md:hidden space-y-2 mb-4">
-                  {extratoItems.map((item) => {
-                    const match = getMatch(item.id);
-                    const isPareado = !!match;
-                    const linked = match
-                      ? lancamentos.find((l) => l.id === match.lancamentoId)
-                      : null;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`rounded-lg border p-3 space-y-2 ${
-                          isPareado
-                            ? "border-success/40 bg-success/5"
-                            : "border-destructive/30 bg-card"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">
-                              {item.descricao || "Sem descrição"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(item.data)}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span
-                              className={`text-sm font-mono font-semibold ${
-                                item.valor >= 0 ? "text-success" : "text-destructive"
-                              }`}
-                            >
-                              {formatCurrency(item.valor)}
-                            </span>
-                            {isPareado ? (
-                              <CheckCircle className="w-4 h-4 text-success" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-destructive/70" />
-                            )}
-                          </div>
-                        </div>
-                        {linked && (
-                          <p className="text-xs text-success bg-success/10 rounded px-2 py-1 truncate">
-                            ↔ {linked.descricao} · {formatCurrency(linked.valor)}
-                          </p>
-                        )}
-                        <div className="flex gap-2">
-                          {isPareado ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 h-11"
-                              onClick={() => handleManualMatch(item.id, "")}
-                            >
-                              Desvincular
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              className="flex-1 h-11 gap-2"
-                              onClick={() => {
-                                setVincularExtratoId(item.id);
-                                setVincularSearch("");
-                                setVincularOpen(true);
-                              }}
-                            >
-                              <Search className="w-4 h-4" /> Vincular
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* DESKTOP: split OFX↔ERP original */}
-                <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                  {/* Left: extrato OFX */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                      Extrato OFX ({extratoItems.length} transações)
-                    </h3>
-                    <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                      {extratoItems.map((item) => {
-                        const match = getMatch(item.id);
-                        const isPareado = !!match;
-                        return (
-                          <div
-                            key={item.id}
-                            className={`rounded-lg border p-3 transition-colors ${
-                              isPareado
-                                ? "border-success/40 bg-success/5"
-                                : "border-destructive/40 bg-destructive/5"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{item.descricao || "Sem descrição"}</p>
-                                <p className="text-xs text-muted-foreground">{formatDate(item.data)}</p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span
-                                  className={`text-sm font-mono font-semibold ${
-                                    item.valor >= 0 ? "text-success" : "text-destructive"
-                                  }`}
-                                >
-                                  {formatCurrency(item.valor)}
-                                </span>
-                                {isPareado ? (
-                                  <CheckCircle className="w-4 h-4 text-success" />
-                                ) : (
-                                  <XCircle className="w-4 h-4 text-destructive" />
-                                )}
-                              </div>
-                            </div>
-                            <div className="mt-2">
-                              <Select
-                                value={match?.lancamentoId || ""}
-                                onValueChange={(val) => handleManualMatch(item.id, val)}
-                              >
-                                <SelectTrigger className="h-9 text-xs">
-                                  <SelectValue placeholder="Vincular lançamento..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="">Nenhum</SelectItem>
-                                  {lancamentos
-                                    .filter((l) => !usedLancamentoIds.has(l.id) || l.id === match?.lancamentoId)
-                                    .map((l) => (
-                                      <SelectItem key={l.id} value={l.id}>
-                                        {formatDate(l.data_vencimento)} · {l.descricao} · {formatCurrency(l.valor)}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Right: lançamentos ERP */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                      Lançamentos ERP ({lancamentos.length} no período)
-                    </h3>
-                    <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                      {lancamentos.length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic">
-                          {selectedConta
-                            ? "Nenhum lançamento encontrado no período."
-                            : "Selecione uma conta bancária para carregar lançamentos."}
-                        </p>
-                      ) : (
-                        lancamentos.map((l) => {
-                          const isPareado = usedLancamentoIds.has(l.id);
-                          return (
-                            <div
-                              key={l.id}
-                              className={`rounded-lg border p-3 transition-colors ${
-                                isPareado
-                                  ? "border-success/40 bg-success/5"
-                                  : "border-border bg-card"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium truncate">{l.descricao}</p>
-                                  <p className="text-xs text-muted-foreground">{formatDate(l.data_vencimento)}</p>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-sm font-mono font-semibold">{formatCurrency(l.valor)}</span>
-                                  <Badge variant={l.tipo === "receber" ? "default" : "secondary"} className="text-[10px]">
-                                    {l.tipo}
-                                  </Badge>
-                                  {isPareado && <CheckCircle className="w-4 h-4 text-success" />}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* OFX footer with warning + confirm action */}
-                <div className="rounded-lg border border-border/60 bg-muted/10 p-4 flex flex-col gap-3">
-                  <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
-                    <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Atenção:</strong> a confirmação abaixo ainda não persiste os pares no banco de dados.
-                      Os lançamentos conciliados precisam ser revisados manualmente por enquanto.
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex gap-6 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Pareados: </span>
-                        <span className="font-semibold text-success">{pareados}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Sem correspondência: </span>
-                        <span className="font-semibold text-destructive">{semParOFX}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Total OFX: </span>
-                        <span className="font-semibold">{extratoItems.length}</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleConfirmarConciliacao}
-                      disabled={matches.length === 0 || confirming}
-                      variant="outline"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {confirming ? "Processando..." : "Confirmar Revisão"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── EMPTY STATE (no account selected, no OFX) ────────────────────── */}
-        {!selectedConta && extratoItems.length === 0 && (
+        {!v.selectedConta && v.extratoItems.length === 0 && (
           <div className="py-12 text-center border rounded-xl bg-muted/10 mt-4">
             <Landmark className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
             <p className="text-muted-foreground font-medium">Selecione uma conta bancária para começar</p>
@@ -1263,194 +236,26 @@ export default function Conciliacao() {
         )}
       </ModulePage>
 
-      {matches.length > 0 && (
-        <div className="fixed bottom-4 inset-x-4 md:inset-x-auto md:right-6 md:left-[18rem] z-40">
-          <div className="rounded-xl border bg-card/95 backdrop-blur shadow-lg p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-3">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <CheckCheck className="w-5 h-5 text-success shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">
-                  {matches.length} {matches.length === 1 ? "par pronto" : "pares prontos"} para confirmar
-                </p>
-                {(() => {
-                  const divergentes = lancamentosComStatus.filter(
-                    (l) => l.statusConciliacao === "divergente",
-                  ).length;
-                  if (divergentes > 0 || semParOFX > 0) {
-                    return (
-                      <p className="text-xs text-muted-foreground">
-                        {divergentes > 0 && `${divergentes} divergente${divergentes > 1 ? "s" : ""}`}
-                        {divergentes > 0 && semParOFX > 0 && " · "}
-                        {semParOFX > 0 && `${semParOFX} do OFX sem correspondência`}
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setMatches([])}
-                disabled={confirming}
-              >
-                Descartar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirmarConciliacao}
-                disabled={confirming}
-                className="gap-1.5"
-              >
-                {confirming ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4" />
-                )}
-                Confirmar {matches.length} {matches.length === 1 ? "par" : "pares"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmFloatingBar
+        matches={v.matches}
+        lancamentosComStatus={v.lancamentosComStatus}
+        semParOFX={v.semParOFX}
+        confirming={v.confirming}
+        onDescartar={() => v.setMatches([])}
+        onConfirmar={v.handleConfirmarConciliacao}
+      />
 
-      {/* Bottom-sheet mobile: vincular lançamento ao extrato OFX (filtrado por valor±data) */}
-      <Sheet open={vincularOpen} onOpenChange={setVincularOpen}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[88svh] overflow-y-auto rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
-        >
-          <SheetHeader>
-            <SheetTitle className="text-left">Vincular lançamento</SheetTitle>
-          </SheetHeader>
-          {(() => {
-            const extrato = extratoItems.find((e) => e.id === vincularExtratoId);
-            if (!extrato) return null;
-            // Sugestões pré-filtradas por valor (±0.05) e data (±3 dias).
-            const valorAbs = Math.abs(extrato.valor);
-            const extratoDate = new Date(extrato.data);
-            const candidatos = lancamentos.filter((l) => {
-              if (usedLancamentoIds.has(l.id)) return false;
-              const valorMatch = Math.abs(Math.abs(l.valor) - valorAbs) < 0.05;
-              const lancDate = new Date(l.data_vencimento);
-              const diffDays = Math.abs(
-                (extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24),
-              );
-              return valorMatch || diffDays <= 3;
-            });
-            const term = vincularSearch.trim().toLowerCase();
-            const filtrados = term
-              ? candidatos.filter((l) =>
-                  (l.descricao ?? "").toLowerCase().includes(term),
-                )
-              : candidatos;
-            const todos = lancamentos.filter(
-              (l) => !usedLancamentoIds.has(l.id),
-            );
-            return (
-              <div className="mt-3 space-y-3">
-                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                  <p className="font-medium truncate">{extrato.descricao || "Sem descrição"}</p>
-                  <div className="flex items-center justify-between mt-1 text-xs">
-                    <span className="text-muted-foreground">{formatDate(extrato.data)}</span>
-                    <span
-                      className={`font-mono font-semibold ${
-                        extrato.valor >= 0 ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {formatCurrency(extrato.valor)}
-                    </span>
-                  </div>
-                </div>
-                <Input
-                  placeholder="Buscar por descrição..."
-                  value={vincularSearch}
-                  onChange={(e) => setVincularSearch(e.target.value)}
-                  className="h-11"
-                />
-                <div className="space-y-2 max-h-[55svh] overflow-y-auto">
-                  {filtrados.length > 0 ? (
-                    <>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                        Sugestões ({filtrados.length})
-                      </p>
-                      {filtrados.map((l) => (
-                        <button
-                          key={l.id}
-                          type="button"
-                          className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
-                          onClick={() => {
-                            handleManualMatch(extrato.id, l.id);
-                            setVincularOpen(false);
-                          }}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{l.descricao}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(l.data_vencimento)} ·{" "}
-                                {l.tipo === "receber" ? "A Receber" : "A Pagar"}
-                              </p>
-                            </div>
-                            <span className="text-sm font-mono font-semibold shrink-0">
-                              {formatCurrency(l.valor)}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhuma sugestão por valor/data. Veja todos abaixo.
-                    </p>
-                  )}
-                  {todos.length > filtrados.length && (
-                    <>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider pt-2">
-                        Todos os disponíveis ({todos.length})
-                      </p>
-                      {todos
-                        .filter((l) => !filtrados.find((f) => f.id === l.id))
-                        .filter(
-                          (l) =>
-                            !term ||
-                            (l.descricao ?? "").toLowerCase().includes(term),
-                        )
-                        .slice(0, 50)
-                        .map((l) => (
-                          <button
-                            key={l.id}
-                            type="button"
-                            className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
-                            onClick={() => {
-                              handleManualMatch(extrato.id, l.id);
-                              setVincularOpen(false);
-                            }}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">{l.descricao}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatDate(l.data_vencimento)} ·{" "}
-                                  {l.tipo === "receber" ? "A Receber" : "A Pagar"}
-                                </p>
-                              </div>
-                              <span className="text-sm font-mono font-semibold shrink-0">
-                                {formatCurrency(l.valor)}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </SheetContent>
-      </Sheet>
+      <VincularBottomSheet
+        open={v.vincularOpen}
+        onOpenChange={v.setVincularOpen}
+        vincularExtratoId={v.vincularExtratoId}
+        vincularSearch={v.vincularSearch}
+        setVincularSearch={v.setVincularSearch}
+        extratoItems={v.extratoItems}
+        lancamentos={v.lancamentos}
+        usedLancamentoIds={v.usedLancamentoIds}
+        onManualMatch={v.handleManualMatch}
+      />
     </>
   );
 }
