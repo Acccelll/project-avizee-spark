@@ -41,6 +41,11 @@ import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/o
 import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
 import { applyOrcamentoDraft, applyOrcamentoTemplate } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
+import {
+  validateOrcamentoItems,
+  mapItemsToPayload,
+  persistOrcamento,
+} from "@/pages/comercial/orcamento-form/saveHelpers";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -62,16 +67,12 @@ import {
   listOrcamentoItens,
   getFormaPagamentoDescricao,
   listPrecosEspeciaisAtuais,
-  salvarOrcamentoRpc,
   deleteOrcamentoDraft,
   getOrcamentoDraftPayload,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
-import {
-  aplicarPrecosEspeciaisEmLote,
-  type RegraPrecoEspecial,
-} from "@/lib/precos-especiais";
+import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import {
   upsertOrcamentoDraft,
   hasOrcamentoDraft,
@@ -612,38 +613,21 @@ export default function OrcamentoForm() {
       return;
     }
 
-    // Verificar itens não vinculados (importados sem produto_id)
-    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
-    if (unlinkedItems.length > 0) {
-      toast.error(
-        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
-        { description: "Vincule ou remova os itens marcados em vermelho antes de salvar." },
-      );
+    const itemsCheck = validateOrcamentoItems(items, "salvar");
+    if (!itemsCheck.ok) {
+      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
       return;
     }
-
-    // Exigir pelo menos um item válido
-    const validItems = items.filter(i => i.produto_id);
-    if (validItems.length === 0) {
-      toast.error("Adicione ao menos um item ao orçamento antes de salvar.");
-      return;
-    }
+    const validItems = itemsCheck.validItems;
 
     setSaving(true);
     try {
       const payload = buildOrcamentoPayload();
-
-      const itemsPayload = validItems.map(i => ({
-        produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
-        descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
-        quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
-        valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
-      }));
-
-      const orcId = await salvarOrcamentoRpc({
+      const { orcId, numero: numeroSalvo } = await persistOrcamento({
         id: isEdit ? id! : null,
         payload,
-        itens: itemsPayload,
+        itens: mapItemsToPayload(validItems),
+        fetchServerNumero: !isEdit,
       });
 
       localStorage.removeItem(draftKey);
@@ -652,30 +636,9 @@ export default function OrcamentoForm() {
           await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
-      // Após criar, busca o número definitivo (gerado server-side pelo RPC) para
-      // refletir no campo do form e no toast — pode diferir do peek se outro
-      // usuário criou um orçamento em paralelo entre o open e o save.
-      let numeroSalvo = payload.numero;
-      if (!isEdit && orcId) {
-        // Retenta até 2x se o número ainda não estiver disponível na leitura
-        // imediatamente após o RPC (replicação/cache PostgREST).
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const { data: row } = await supabase
-            .from("orcamentos")
-            .select("numero")
-            .eq("id", orcId)
-            .maybeSingle();
-          if (row?.numero) {
-            numeroSalvo = row.numero;
-            setValue("numero", row.numero);
-            break;
-          }
-          if (attempt === 0) await new Promise((r) => setTimeout(r, 150));
-        }
-        if (!numeroSalvo) {
-          logger.warn("[OrcamentoForm] numero não retornou após salvar_orcamento", { orcId });
-        }
-      }
+      // Reflete o número definitivo (gerado server-side via proximo_numero_orcamento())
+      // no campo do form — pode diferir do peek se houve criação concorrente.
+      if (!isEdit && numeroSalvo) setValue("numero", numeroSalvo);
       // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
       // a inclusão/edição sem F5. Inclui também filtros server-side.
       await Promise.all([
@@ -696,19 +659,12 @@ export default function OrcamentoForm() {
 
   const handleDuplicate = async () => {
     if (!id) { toast.error("Salve o orçamento antes de duplicar"); return; }
-    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
-    if (unlinkedItems.length > 0) {
-      toast.error(
-        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
-        { description: "Vincule ou remova os itens marcados em vermelho antes de duplicar." },
-      );
+    const itemsCheck = validateOrcamentoItems(items, "duplicar");
+    if (!itemsCheck.ok) {
+      toast.error(itemsCheck.error!.title, itemsCheck.error!.description ? { description: itemsCheck.error!.description } : undefined);
       return;
     }
-    const validItems = items.filter(i => i.produto_id);
-    if (validItems.length === 0) {
-      toast.error("Adicione ao menos um item ao orçamento antes de duplicar.");
-      return;
-    }
+    const validItems = itemsCheck.validItems;
     try {
       // Compartilha a forma do payload com `handleSave` via override.
       // numero vazio => `salvar_orcamento` gera atomicamente via `proximo_numero_orcamento()`.
@@ -717,30 +673,13 @@ export default function OrcamentoForm() {
         status: "rascunho",
         validade: null,
       });
-
-      const itemsPayload = validItems.map(i => ({
-        produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
-        descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
-        quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
-        valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
-      }));
-
-      const orcId = await salvarOrcamentoRpc({
+      const { orcId, numero: numeroDup } = await persistOrcamento({
         id: null,
         payload,
-        itens: itemsPayload,
+        itens: mapItemsToPayload(validItems),
+        fetchServerNumero: true,
       });
-
       await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      let numeroDup = payload.numero;
-      if (orcId) {
-        const { data: row } = await supabase
-          .from("orcamentos")
-          .select("numero")
-          .eq("id", orcId)
-          .maybeSingle();
-        if (row?.numero) numeroDup = row.numero;
-      }
       toast.success(`Duplicado: ${numeroDup}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
