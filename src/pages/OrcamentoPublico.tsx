@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { acaoClienteOrcamento, notifyOrcamentoResposta } from "@/services/orcamentos.service";
+import {
+  acaoClienteOrcamento,
+  notifyOrcamentoResposta,
+  getOrcamentoPublico,
+} from "@/services/orcamentos.service";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CheckCircle, XCircle, Loader2, Mail, Phone, Globe, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -113,14 +116,13 @@ export default function OrcamentoPublico() {
 
       // RPC única: acesso público a orçamento + itens + empresa SOMENTE via token exato.
       // Substitui o acesso direto às views públicas (anon foi revogado para evitar enumeração).
-      const { data: payload, error: rpcError } = await (
-        supabase.rpc as unknown as (
-          name: string,
-          args: Record<string, unknown>,
-        ) => Promise<{ data: unknown; error: unknown }>
-      )("get_orcamento_publico", { p_token: token });
-
-      if (rpcError || !payload) {
+      let payload: unknown | null = null;
+      try {
+        payload = await getOrcamentoPublico(token);
+      } catch {
+        payload = null;
+      }
+      if (!payload) {
         setError("Orçamento não encontrado ou link expirado.");
         setLoading(false);
         return;

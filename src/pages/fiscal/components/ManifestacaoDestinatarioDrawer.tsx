@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { importarNfeDistribuicaoComoEntrada } from "@/services/fiscal/manifestacao.repository";
 import {
   enviarManifestacao,
   statusManifestacaoFromEvento,
@@ -326,11 +327,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     }
     setImportandoEntrada(nf.id);
     try {
-      const { error } = await supabase.rpc(
-        "importar_nfe_distribuicao_como_entrada",
-        { p_id: nf.id },
-      );
-      if (error) throw error;
+      await importarNfeDistribuicaoComoEntrada(nf.id);
       toast.success("NF-e importada como entrada com sucesso.");
       qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
