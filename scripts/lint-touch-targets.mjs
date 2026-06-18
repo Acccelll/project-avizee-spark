@@ -24,6 +24,9 @@ const SMALL_HEIGHT_RE = /\bh-(?:[1-9]|10)\b/;
 const CLICKABLE_RE = /(<Button\b|<button\b|onClick=|role=["']button["']|<IconButton\b|<a\s|<Link\b)/;
 // Excluir badges/chips/icons decorativos comuns.
 const SAFE_CONTEXT_RE = /(Badge|badge|<Avatar|<Icon|<Loader|Skeleton|h-[0-9]+\s+w-[0-9]+["'\s]*\/?>$|aria-hidden)/;
+// Padrões mobile-safe: alvo já garante 44px no mobile via min-h-11/min-w-11
+// ou o elemento está oculto no mobile (`hidden sm:...`).
+const MOBILE_SAFE_RE = /(min-h-1[1-9]|min-w-1[1-9]|min-h-\[44px\]|min-w-\[44px\]|\bhidden\s+sm:|\bhidden\s+md:)/;
 
 const files = [];
 function walk(dir) {
@@ -45,6 +48,7 @@ for (const file of files) {
     if (!SMALL_HEIGHT_RE.test(line)) return;
     if (!CLICKABLE_RE.test(line)) return;
     if (SAFE_CONTEXT_RE.test(line)) return;
+    if (MOBILE_SAFE_RE.test(line)) return;
     violations.push({
       file: relative(ROOT, file),
       line: i + 1,
