@@ -34,7 +34,14 @@ export async function fetchEntregasConsolidadas(): Promise<Entrega[]> {
 
   const [viewRows, remessasRows] = await Promise.all([
     fetchAllPages<ViewRow>(() =>
-      supabase.from("vw_entregas_consolidadas").select("*") as never,
+      supabase
+        .from("vw_entregas_consolidadas")
+        .select(
+          "ordem_venda_id,numero_pedido,cliente,cidade,uf,transportadora," +
+            "total_volumes,peso_total,previsao_envio,previsao_entrega," +
+            "data_expedicao,data_entrega,status_consolidado,total_remessas," +
+            "responsavel_nome",
+        ) as never,
     ),
     fetchAllPages<RemessaLite>(() =>
       supabase
