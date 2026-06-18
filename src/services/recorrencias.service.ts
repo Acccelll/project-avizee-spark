@@ -7,6 +7,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export type Recorrencia = Tables<"financeiro_recorrencias"> & {
   clientes?: { nome_razao_social: string } | null;
@@ -22,13 +23,13 @@ const SELECT_FULL =
   "*, clientes(nome_razao_social), fornecedores(nome_razao_social), cartoes_credito:cartao_id(nome, ultimos4), contas_bancarias(descricao)";
 
 export async function listRecorrencias(): Promise<Recorrencia[]> {
-  const { data, error } = await supabase
-    .from("financeiro_recorrencias")
-    .select(SELECT_FULL)
-    .order("proxima_geracao", { ascending: true })
-    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data || []) as Recorrencia[];
+  const data = await fetchAllPages<Recorrencia>(() =>
+    supabase
+      .from("financeiro_recorrencias")
+      .select(SELECT_FULL)
+      .order("proxima_geracao", { ascending: true }) as never,
+  );
+  return data;
 }
 
 export async function getRecorrencia(id: string): Promise<Recorrencia | null> {
