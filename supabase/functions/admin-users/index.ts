@@ -3,7 +3,7 @@
 // The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
-import { buildCorsHeaders } from "../_shared/cors.ts";
+import { buildCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 
 const INACTIVE_BAN_DURATION = "876000h";
 
