@@ -9,6 +9,7 @@ import {
   type CorreiosEventoNormalizado,
 } from "@/services/correios.service";
 import type { Database } from "@/integrations/supabase/types";
+import { isTransicaoComRpc, filtrarEventosNovos } from "./_helpers";
 
 export type Remessa = Database["public"]["Tables"]["remessas"]["Row"];
 export type RemessaInsert = Database["public"]["Tables"]["remessas"]["Insert"];
@@ -253,8 +254,8 @@ export async function transicionarRemessa(input: {
   motivo?: string;
 }): Promise<void> {
   const { remessaId, novoStatus, motivo } = input;
-  const rpcName = RPC_BY_TRANSITION[novoStatus];
-  if (rpcName) {
+  if (isTransicaoComRpc(novoStatus)) {
+    const rpcName = RPC_BY_TRANSITION[novoStatus]!;
     const params: Record<string, unknown> = { p_remessa_id: remessaId };
     if (rpcName === "cancelar_remessa") params.p_motivo = motivo ?? null;
     const { error } = await (supabase.rpc as unknown as (
@@ -290,10 +291,7 @@ export async function persistirEventosNormalizados(input: {
     .eq("remessa_id", remessaId);
   if (selErr) throw new Error(selErr.message);
 
-  const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
-    `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
-  const existentesSet = new Set((existentes ?? []).map(eventKey));
-  const novos = eventos.filter((e) => !existentesSet.has(eventKey(e)));
+  const novos = filtrarEventosNovos(eventos, existentes ?? []);
 
   if (novos.length > 0) {
     const { error: insErr } = await supabase
