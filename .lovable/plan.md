@@ -96,7 +96,7 @@ Regras:
 
 ## Fase 3 — Validação e fecho
 
-- ✅ **Vitest:** 782/793 testes verdes. As 11 falhas remanescentes são pré-existentes (mocks desatualizados em `sessoes.test.ts`, `OrcamentoForm.test.tsx`, smoke tests de auth/dashboard/financeiro) — não causadas por esta sessão.
+- ✅ **Vitest:** 792/792 testes verdes. As 11 falhas pré-existentes foram corrigidas em sessão de hygiene (mocks de `sessoes.test.ts` migrados para `functions.invoke`; `OrcamentoForm.test.tsx` ganhou `QueryClientProvider`; smoke `auth-routing` agora mocka `useCanViewAdmin`; smoke `dashboard` envelopa em `DashboardPeriodProvider`; smoke `financeiro` ganhou builder Supabase encadeável com `.limit()`).
 - ✅ **supabase--linter:** 431 alertas pré-existentes (security_definer_view, rls_enabled_no_policy em staging). Nenhum novo após a migração da Fase 1.1.
 - ⏳ **Smoke manual (estoquista):** pendente de execução pelo usuário.
 - ✅ **mem/index.md:** adicionada referência `usesupabasecrud-default-paged`.
@@ -105,7 +105,7 @@ Regras:
 
 - **Fase 2.1 (decomposição dos monólitos)** — Fiscal.tsx (1.934), OrcamentoForm.tsx (2.096), EmitirNFeWizard.tsx (1.718) ainda monolíticos. Sessão dedicada recomendada (refactor cirúrgico, alto risco de regressão de UI).
 - **Hard-invert do default de `useSupabaseCrud`** — preservado como warning em dev; todos os callers atuais agora declaram `paginationMode` explicitamente. Próximo passo seguro: remover o fallback implícito e exigir o campo obrigatoriamente em uma sessão dedicada.
-- **Testes pré-existentes quebrados** — 11 falhas em mocks desatualizados; corrigir em sessão de hygiene de testes.
+- ~~**Testes pré-existentes quebrados**~~ — resolvido (792/792).
 
 ---
 
