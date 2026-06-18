@@ -15,6 +15,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export interface RemessaEtiqueta {
   id: string;
@@ -45,14 +46,14 @@ function base64ToBlob(b64: string, mime = "application/pdf"): Blob {
 
 /** Lista as etiquetas conhecidas para uma remessa, mais recente primeiro. */
 export async function listEtiquetasByRemessa(remessaId: string): Promise<RemessaEtiqueta[]> {
-  const { data, error } = await supabase
-    .from("remessa_etiquetas")
-    .select("*")
-    .eq("remessa_id", remessaId)
-    .order("created_at", { ascending: false })
-    .limit(500); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw new Error(error.message);
-  return (data ?? []) as RemessaEtiqueta[];
+  const data = await fetchAllPages<RemessaEtiqueta>(() =>
+    supabase
+      .from("remessa_etiquetas")
+      .select("*")
+      .eq("remessa_id", remessaId)
+      .order("created_at", { ascending: false }) as never,
+  );
+  return data;
 }
 
 /**
@@ -63,15 +64,15 @@ export async function listLatestEtiquetasByRemessas(
   remessaIds: string[],
 ): Promise<Record<string, RemessaEtiqueta>> {
   if (remessaIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from("remessa_etiquetas")
-    .select("*")
-    .in("remessa_id", remessaIds)
-    .order("created_at", { ascending: false })
-    .limit(500); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw new Error(error.message);
+  const data = await fetchAllPages<RemessaEtiqueta>(() =>
+    supabase
+      .from("remessa_etiquetas")
+      .select("*")
+      .in("remessa_id", remessaIds)
+      .order("created_at", { ascending: false }) as never,
+  );
   const map: Record<string, RemessaEtiqueta> = {};
-  for (const row of (data ?? []) as RemessaEtiqueta[]) {
+  for (const row of data) {
     if (!map[row.remessa_id]) map[row.remessa_id] = row;
   }
   return map;
