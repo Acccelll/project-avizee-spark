@@ -39,8 +39,9 @@ import {
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
-import { applyOrcamentoDraft, applyOrcamentoTemplate } from "@/pages/comercial/orcamento-form/draftTemplate";
+import { applyOrcamentoDraft } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSaveDialog";
+import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import {
   validateOrcamentoItems,
@@ -59,7 +60,6 @@ import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamen
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { logger } from "@/lib/logger";
 import {
   listClientesAtivosOrcamento,
@@ -116,8 +116,6 @@ export default function OrcamentoForm() {
   const [items, setItems] = useState<OrcamentoItem[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'classico' | 'marca'>('marca');
   const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
@@ -525,11 +523,19 @@ export default function OrcamentoForm() {
   const applyDraft = (draft: Record<string, unknown>) =>
     applyOrcamentoDraft(draft, { reset, setClienteSnapshot, setItems });
 
-  // Templates: estado e persistência isolados em hook (Fase 5 — comercial-modelo).
-  const { templates, saveTemplate: persistTemplate } = useOrcamentoTemplates(user?.id);
-
-  const saveTemplate = async (escopo: "usuario" | "equipe") => {
-    const payload: TemplateConfig = {
+  // Templates: estado, persistência e handlers consolidados no hook do form.
+  const {
+    templates,
+    templateName,
+    setTemplateName,
+    templateDialogOpen,
+    setTemplateDialogOpen,
+    openTemplateDialog,
+    saveTemplate,
+    applyTemplate,
+  } = useOrcamentoFormTemplates({
+    userId: user?.id,
+    getTemplatePayload: (): TemplateConfig => ({
       items,
       pagamento,
       prazoPagamento,
@@ -538,26 +544,11 @@ export default function OrcamentoForm() {
       freteTipo: servicoFrete || freteTipo,
       observacoes,
       observacoes_internas: observacoesInternas,
-    };
-    const ok = await persistTemplate({
-      nome: templateName,
-      escopo,
-      payload,
-      onConfirmOverwrite: () =>
-        confirmAction({
-          title: "Sobrescrever template?",
-          description: "Template com este nome já existe. Deseja sobrescrever?",
-          confirmLabel: "Sobrescrever",
-          confirmVariant: "destructive",
-        }),
-    });
-    if (ok) setTemplateName("");
-  };
-
-  const applyTemplate = (tpl: OrcamentoTemplate) => {
-    applyOrcamentoTemplate(tpl, { setValue, setItems });
-    toast.success(`Template '${tpl.nome}' aplicado`);
-  };
+    }),
+    setValue,
+    setItems,
+    confirmAction,
+  });
 
   const buildOrcamentoPayload = (
     override?: Partial<{ numero: string; status: string; validade: string | null }>,
@@ -826,7 +817,7 @@ export default function OrcamentoForm() {
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Edição</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('usuario')}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
@@ -883,10 +874,10 @@ export default function OrcamentoForm() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('usuario')}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu…
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('equipe'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('equipe')}>
                 <Wand2 className="w-4 h-4 mr-2" />Compartilhar com equipe…
               </DropdownMenuItem>
             </DropdownMenuContent>
