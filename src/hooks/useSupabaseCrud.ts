@@ -468,6 +468,8 @@ export function useSupabaseCrud<R = any>({
   return {
     data: queryResult.data?.rows ?? ([] as R[]),
     loading: queryResult.isLoading,
+    isError: queryResult.isError,
+    error: queryResult.error,
     fetchData: async () => {
       await queryResult.refetch();
     },
