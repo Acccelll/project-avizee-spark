@@ -870,32 +870,27 @@ export default function OrcamentoForm() {
             onQuickAdd={() => setQuickAddOpen(true)}
           />
 
-          <OrcamentoItemsGrid
+          <ItensSection
             items={items}
-            onChange={setItems}
+            onItemsChange={setItems}
             produtos={produtos}
             precosEspeciais={precosEspeciais}
-          />
-
-          <MobileSection title="Análise Interna" icon={BarChart3} summary="Margem · Cenário" defaultOpen={false}>
-            <OrcamentoInternalAnalysisPanel
-              baseAnalysis={baseAnalysis}
-              scenarioAnalysis={scenarioAnalysis}
-              items={items}
-              onItemsChange={setItems}
-              scenarioConfig={scenarioConfig}
-              onScenarioConfigChange={setScenarioConfig}
-              access={internalAccess}
-            />
-          </MobileSection>
-
-          <OrcamentoTotaisCard
+            baseAnalysis={baseAnalysis}
+            scenarioAnalysis={scenarioAnalysis}
+            scenarioConfig={scenarioConfig}
+            onScenarioConfigChange={setScenarioConfig}
+            internalAccess={internalAccess}
             totalProdutos={totalProdutos}
-            pesoTotal={pesoTotalCalculado}
-            pesoOverride={pesoTotalOverride}
+            pesoTotalCalculado={pesoTotalCalculado}
+            pesoTotalOverride={pesoTotalOverride}
             onPesoOverrideChange={setPesoTotalOverride}
-            form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
-            onChange={handleTotalChange}
+            valorTotal={valorTotal}
+            desconto={desconto}
+            impostoSt={impostoSt}
+            impostoIpi={impostoIpi}
+            freteValor={freteValor}
+            outrasDespesas={outrasDespesas}
+            onTotalChange={handleTotalChange}
             freteSimulacaoId={freteSimulacaoId}
             freteServico={freteServico || servicoFrete || null}
             onClearFrete={() => {
