@@ -1,6 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { requireAnyPermission } from "../_shared/permissions.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
+
+/** Timeout para chamadas externas Graph/LinkedIn (20s por chamada). */
+const SOCIAL_TIMEOUT_MS = 20_000;
+const sFetch = (url: string, init: RequestInit = {}) =>
+  fetchWithTimeout(url, init, SOCIAL_TIMEOUT_MS);
 
 /**
  * Social Media Sync Edge Function
@@ -109,6 +115,9 @@ Deno.serve(async (req) => {
     );
   } catch (e: any) {
     console.error("[social-sync]", e);
+    if (isTimeoutError(e)) {
+      return timeoutResponse(corsHeaders, "Provedor social não respondeu a tempo.");
+    }
     return new Response(
       JSON.stringify({ error: e.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
