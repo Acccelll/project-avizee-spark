@@ -47,6 +47,7 @@ import {
   mapItemsToPayload,
   persistOrcamento,
 } from "@/pages/comercial/orcamento-form/saveHelpers";
+import { useOrcamentoSave } from "@/pages/comercial/orcamento-form/useOrcamentoSave";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,7 +64,6 @@ import {
   listProdutosAtivosComFornecedores,
   getFormaPagamentoDescricao,
   listPrecosEspeciaisAtuais,
-  deleteOrcamentoDraft,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
@@ -81,7 +81,6 @@ export default function OrcamentoForm() {
   const isAdmin = roles.includes("admin");
   const canApprove = isAdmin || can("orcamentos:aprovar");
 
-  const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
   const queryClient = useQueryClient();
   // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
