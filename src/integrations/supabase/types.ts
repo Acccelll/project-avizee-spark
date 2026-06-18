@@ -1031,6 +1031,7 @@ export type Database = {
           codigo_ibge_municipio: string | null
           codigo_legado: string | null
           complemento: string | null
+          consentimento_lgpd_em: string | null
           contato: string | null
           cpf_cnpj: string | null
           created_at: string
@@ -1070,6 +1071,7 @@ export type Database = {
           codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
+          consentimento_lgpd_em?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -1109,6 +1111,7 @@ export type Database = {
           codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
+          consentimento_lgpd_em?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -3451,6 +3454,7 @@ export type Database = {
           codigo_ibge_municipio: string | null
           codigo_legado: string | null
           complemento: string | null
+          consentimento_lgpd_em: string | null
           contato: string | null
           cpf_cnpj: string | null
           created_at: string
@@ -3485,6 +3489,7 @@ export type Database = {
           codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
+          consentimento_lgpd_em?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -3519,6 +3524,7 @@ export type Database = {
           codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
+          consentimento_lgpd_em?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -3694,6 +3700,7 @@ export type Database = {
         Row: {
           ativo: boolean
           cargo: string | null
+          consentimento_lgpd_em: string | null
           cpf: string | null
           created_at: string
           data_admissao: string | null
@@ -3713,6 +3720,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           cargo?: string | null
+          consentimento_lgpd_em?: string | null
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
@@ -3732,6 +3740,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           cargo?: string | null
+          consentimento_lgpd_em?: string | null
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
@@ -4105,6 +4114,51 @@ export type Database = {
           token?: string
           used_at?: string | null
           used_by?: string | null
+        }
+        Relationships: []
+      }
+      lgpd_solicitacoes: {
+        Row: {
+          concluido_em: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          payload: Json | null
+          solicitado_por: string | null
+          status: string
+          tipo: string
+          titular_descricao: string | null
+          titular_id: string
+          titular_tipo: string
+          updated_at: string
+        }
+        Insert: {
+          concluido_em?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          payload?: Json | null
+          solicitado_por?: string | null
+          status?: string
+          tipo: string
+          titular_descricao?: string | null
+          titular_id: string
+          titular_tipo: string
+          updated_at?: string
+        }
+        Update: {
+          concluido_em?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          payload?: Json | null
+          solicitado_por?: string | null
+          status?: string
+          tipo?: string
+          titular_descricao?: string | null
+          titular_id?: string
+          titular_tipo?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -9815,6 +9869,10 @@ export type Database = {
         }
         Returns: string
       }
+      anonimizar_titular: {
+        Args: { _id: string; _motivo?: string; _tipo: string }
+        Returns: Json
+      }
       aplicar_matriz_fiscal: {
         Args: {
           p_produto_id: string
@@ -10044,6 +10102,10 @@ export type Database = {
         Returns: undefined
       }
       expirar_orcamentos_vencidos: { Args: never; Returns: number }
+      exportar_dados_titular: {
+        Args: { _id: string; _tipo: string }
+        Returns: Json
+      }
       fechar_apuracao_societaria: {
         Args: { p_apuracao_id: string }
         Returns: undefined

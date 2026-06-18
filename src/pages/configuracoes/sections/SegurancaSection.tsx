@@ -19,7 +19,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
 import { getPasswordCriteriaWithMatch, getPasswordStrength } from '@/lib/passwordPolicy';
-import { EmBreve } from '@/components/EmBreve';
+import { useMfa } from '../hooks/useMfa';
+import { MfaEnrollDialog } from '@/components/security/MfaEnrollDialog';
 
 export function SegurancaSection() {
   const { user } = useAuth();
@@ -29,6 +30,9 @@ export function SegurancaSection() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [praticasOpen, setPraticasOpen] = useState<boolean>(!cp.changedAt);
+  const mfa = useMfa();
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [removeFactor, setRemoveFactor] = useState<{ id: string; name: string } | null>(null);
 
   const pwdStrength = getPasswordStrength(cp.newPassword);
   const pwdCriteria = getPasswordCriteriaWithMatch(cp.newPassword, cp.confirmPassword);
@@ -314,24 +318,61 @@ export function SegurancaSection() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* 2FA — placeholder até a implementação real (Supabase MFA). Oculto no mobile. */}
-      <Card className="hidden md:block">
+      {/* 2FA — TOTP via Supabase MFA */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-            Autenticação em dois fatores
-            <EmBreve />
+            Autenticação em dois fatores (TOTP)
           </CardTitle>
           <CardDescription>
-            Camada extra de segurança usando aplicativo autenticador. Será habilitada em uma próxima atualização.
+            Adicione um aplicativo autenticador (Google Authenticator, 1Password, Authy) para exigir um código de 6 dígitos no login.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button size="sm" variant="outline" disabled>
-            Configurar autenticador
+        <CardContent className="space-y-3">
+          {mfa.loading ? (
+            <p className="text-xs text-muted-foreground">Carregando fatores…</p>
+          ) : mfa.factors.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum autenticador configurado.</p>
+          ) : (
+            <ul className="space-y-2">
+              {mfa.factors.map((f) => (
+                <li key={f.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{f.friendlyName}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {f.status === 'verified' ? 'Ativo' : 'Pendente verificação'} ·{' '}
+                      Criado em {new Date(f.createdAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setRemoveFactor({ id: f.id, name: f.friendlyName })}>
+                    Remover
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setEnrollOpen(true)} disabled={mfa.enrolling}>
+            {mfa.enrolling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Adicionar autenticador
           </Button>
         </CardContent>
       </Card>
+
+      <MfaEnrollDialog open={enrollOpen} onOpenChange={(o) => { setEnrollOpen(o); if (!o) void mfa.refresh(); }} />
+      <ConfirmDialog
+        open={!!removeFactor}
+        onClose={() => setRemoveFactor(null)}
+        title="Remover autenticador?"
+        description={`O fator "${removeFactor?.name ?? ''}" será descadastrado. Você poderá adicionar outro depois.`}
+        confirmLabel="Remover"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!removeFactor) return;
+          await mfa.unenroll(removeFactor.id);
+          setRemoveFactor(null);
+        }}
+      />
 
       {/* Sticky save bar mobile — aparece quando qualquer campo de senha foi preenchido */}
       {isMobile && (cp.currentPassword || cp.newPassword || cp.confirmPassword) && (

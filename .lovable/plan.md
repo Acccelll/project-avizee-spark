@@ -1,155 +1,69 @@
-## Etapa 2 — Backend: dados, paginação & resiliência
+## Etapa 3 — Segurança & LGPD (escopo aprovado)
 
-Escopo confirmado na auditoria:
-- **14 `TODO(paginação)`** em 8 services (orcamentos, estoque, pedidosCompra, cotacoesCompra, recorrencias, precosEspeciais, comprasLifecycle, logistica/{remessas,entregas,prepostagem}).
-- **11 Edge Functions com `fetch` externo**; só 3 têm `AbortController` (sefaz-proxy, sefaz-distdfe, webhooks-dispatcher). 8 sem timeout: correios-api, consultadanfe-proxy, social-sync, instagram-oauth, ia-sugestao, ia-extracao-documento, process-nfe-retry-cron, process-distdfe-cron.
-- Não existe `_shared/validate.ts` — validações são ad-hoc.
-- Tetos defensivos (`limit(500)` em cadastros pequenos como sócios/plano de contas) ficam — não viram paginação server.
+### 3.1/3.2 — Fechar gaps remanescentes de RLS / SECURITY DEFINER
 
-Ordem de execução (4 PRs, baixo→médio risco):
+Lookup tables (`bancos`, `formas_pagamento`, `centros_custo`, `contas_contabeis*`, `empresas`, `empresa_config`, `grupos_*`, `ibge_municipios`, `unidades_medida`, `transportadoras`, `produto_composicoes`, `produtos_fornecedores`, `produto_identificadores_legacy`, `remessa_itens`, `social_*`, `bancos`, `comentarios`) **permanecem `USING(true)` para `authenticated`** — alinhado com a memória `rls-single-tenant.md` (não há grant para `anon`).
 
-### PR-2.1 — Paginação server-side dos `TODO(paginação)`
+Migração endurece o resto:
 
-Concluído (abordagem revisada): substituídos os `.limit(N) // TODO(paginação)` por
-`fetchAllPages` (chunks de 1000, hard cap de 50k) via novo helper
-`src/services/_lib/fetchAllPages.ts` (re-export do canônico em
-`services/relatorios/lib/`). Isso elimina o teto silencioso (1k/2k) sem alterar
-assinaturas públicas nem UIs. Lista paginada server-side com `count: exact` fica
-reservada para casos em que volume real comprovar necessidade (Financeiro/Notas
-Fiscais já adotam o padrão via `useFinanceiroLancamentosPaged` /
-`fetchNotasFiscaisPaged`).
+| Tabela | SELECT hoje | SELECT depois |
+|---|---|---|
+| `stg_cadastros`, `stg_compras_xml`, `stg_estoque_inicial`, `stg_faturamento`, `stg_financeiro_aberto` | `true` | `has_role(auth.uid(),'admin')` |
+| `apresentacao_comentarios`, `apresentacao_geracoes`, `apresentacao_templates`, `apresentacao_slide_telemetria` | `true` | `admin OR financeiro` |
+| `cliente_registros_comunicacao`, `clientes_enderecos_entrega` | `true` | `admin OR vendedor OR financeiro` |
+| `nfe_distdfe_sync` | `true` | `admin OR financeiro` |
+| `importacao_logs`, `importacao_lotes` | duplicado (`true` + admin) | drop policy `true`, mantém admin |
 
-Services atualizados:
-- `orcamentos.service.ts` (2x lookups)
-- `estoque.service.ts` (3x: produtos, vw_estoque_posicao, movimentos)
-- `cotacoesCompra.service.ts` (1x produtos)
-- `pedidosCompra.service.ts` (3x: produtos, pedidos, produtos para form)
-- `recorrencias.service.ts` (1x)
-- `precosEspeciais.service.ts` (2x)
-- `comercial/comprasLifecycle.service.ts` (1x)
-- `logistica/{remessas,prepostagem,entregas}.service.ts` (4x)
+Mantém `empresa_id` previsto (não introduz filtro multi-tenant agora; só comenta).
 
-Verificação: `rg "TODO\(pagina" src` → 0.
+`SECURITY DEFINER` views: já catalogadas em `security-definer-views.md` (4 exceções com `COMMENT`). Sweep adicional: confirmar nenhuma view nova DEFINER, garantir `SET search_path = public` em todas as `SECURITY DEFINER` functions (memória `seguranca-funcoes-sql.md`).
 
-Arquivos:
-- `src/services/orcamentos.service.ts` (2x — históricos, listagem)
-- `src/services/estoque.service.ts` (2x — movimentos, posições)
-- `src/services/pedidosCompra.service.ts` (3x)
-- `src/services/cotacoesCompra.service.ts` (1x)
-- `src/services/recorrencias.service.ts` (1x)
-- `src/services/precosEspeciais.service.ts` (2x)
-- `src/services/comercial/comprasLifecycle.service.ts` (1x)
-- `src/services/logistica/{remessas,entregas,prepostagem}.service.ts` (4x)
-- `src/pages/admin/hooks/useEventosAdminTimeline.ts` (timeline — vira infinite query com `useInfiniteQuery`).
+### 3.3 — MFA TOTP (opcional para todos)
 
-Telas a migrar para paginação visível (já têm `DataTable`):
-- Cotações de Compra, Pedidos de Compra, Recorrências, Preços Especiais, Remessas, Entregas, Pré-postagens, Histórico de Orçamentos.
+Novo hook `useMfa()` (`enroll`, `verify`, `unenroll`, `listFactors`). Substitui o card "Em breve" em `SegurancaSection.tsx` por bloco real:
+- Lista fatores ativos (com `created_at`, opção remover).
+- Botão "Adicionar autenticador" → drawer/modal com QR code + campo de 6 dígitos.
+- Toast de sucesso e atualização do estado.
 
-Telas onde scroll virtual cabe melhor (lista densa, sem paginação clássica): `useEventosAdminTimeline` com `@tanstack/react-virtual` (já no projeto).
+Login: o cliente Supabase já dispara `aal2` automaticamente quando há fator. Adicionar tela `MfaChallenge` (rota `/mfa`) chamada de `Login` quando `currentLevel='aal1' && nextLevel='aal2'`. Sem enforcement por papel (escolha do usuário).
 
-Verificação: `rg "TODO\(pagina" src` → 0. Smoke test em cada tela com >2000 registros simulados (paginação avança, total bate com `count`).
+### 3.4 — Rate limit em edge functions expostas
 
-### PR-2.2 — Auditoria de `select("*")` e N+1
+Novo helper `supabase/functions/_shared/rate-limit.ts` em memória (Map por instância, janela deslizante) — suficiente para o caso comum sem persistir tabela. Assinatura: `await checkRateLimit(key, {limit, windowSec})` → lança 429.
 
-Concluído. Auditoria executada nas 27 chamadas `select("*")` dos services e nos
-services de logística/compras/orçamentos/estoque.
+Aplicado a: `ia-extracao-documento`, `ia-sugestao`, `consultadanfe-proxy`, `social-sync` (já validados em PRs anteriores; só plugar o limit). Chave = `userId || ip`.
 
-Ajustes aplicados (alto volume, payload mensurável):
-- `logistica/entregas.service.ts` — `vw_entregas_consolidadas` agora seleciona
-  explicitamente as 15 colunas do `ViewRow` (antes puxava todas as colunas da
-  view consolidada, inclusive joins internos).
-- `estoque.service.ts` — `vw_estoque_posicao` agora seleciona explicitamente as
-  12 colunas do `EstoquePosicaoRow`.
+### 3.5 — Base LGPD
 
-Mantidos como `*` (decisão registrada):
-- Lookups de form (`listClientesAtivosOrcamento`, `listProdutosAtivosComFornecedores`,
-  `fetchProdutosEstoque`) — consumidores tipados pelo `Tables<...>` gerado dependem
-  da row completa; restringir quebraria contratos espalhados em ~12 componentes.
-- CRUDs single-row (`getOrcamentoById`, `getPedidoCompra`, etc.) — payload já é 1
-  registro; ganho nulo.
-- Joins embedados específicos (`*, produtos(nome,sku)`) — `produtos` já é restrito;
-  o `*` é da tabela principal (poucos itens por página).
+**Migração:**
+- `lgpd_solicitacoes` (`titular_tipo` ∈ cliente|fornecedor|funcionario, `titular_id`, `tipo` ∈ exportar|anonimizar, `status`, `solicitado_por`, `concluido_em`, `payload` jsonb p/ exportação, `motivo`).
+- RPC `exportar_dados_titular(_tipo, _id)` → jsonb consolidando cadastro + comunicações + orçamentos/pedidos/NFs/lançamentos relacionados.
+- RPC `anonimizar_titular(_tipo, _id)` — preserva NFs autorizadas (substitui nome/email/telefone/endereço no cadastro mestre por `[ANONIMIZADO #id]`; CPF/CNPJ vira hash; **não** toca snapshots de NF emitida nem `financeiro_lancamentos` históricos). Registra em `lgpd_solicitacoes` e `auditoria_logs`.
+- Ambas `SECURITY DEFINER`, `SET search_path = public`, guard `has_role admin`.
+- Novo recurso `lgpd` em `permissions.ts`/`RESOURCE_ACTIONS` (apenas para admin).
+- Coluna `consentimento_lgpd_em timestamptz` em `clientes`/`fornecedores`/`funcionarios` (nullable).
 
-N+1: varredura de loops `for/map` em logística, compras, orçamentos e estoque não
-revelou chamada Supabase por item — todos os fan-outs já usam `.in(...)` ou
-`Promise.all` controlado (`fetchRemessasRastreioPorDocumento`, geração de PDF de
-pré-postagem, hidratação de remessas por OV).
+**UI:**
+- Nova seção em `/administracao` (`LgpdSection`) listando solicitações + form "Nova solicitação" (busca titular por tipo, escolhe ação, mostra preview).
+- Botão "Registrar consentimento LGPD" nos formulários de cliente/fornecedor/funcionário (toggle simples gravando `consentimento_lgpd_em = now()`).
 
-Verificação: `bunx vitest run` → 785/785 verdes. Payload do consolidado de
-entregas cai conforme número de colunas extras retiradas pelo PostgREST.
+### Verificação
 
-### PR-2.3 — Resiliência das Edge Functions
+- `psql` confirma novas policies.
+- Linter sem novos avisos relevantes.
+- Tests `vitest run` continuam verdes (785).
+- Smoke manual: vendedor não vê `stg_*`; admin enrola MFA, desloga, loga com challenge; admin exporta titular e anonimiza um cliente de teste — NF preservada.
 
-Criar `supabase/functions/_shared/validate.ts`:
-- `validateJson<T>(req, schema): Promise<{ data: T } | Response>` com Zod (já usado em outras funções), retornando 400 padronizado com `corsHeaders`.
-- `fetchWithTimeout(url, init, ms): Promise<Response>` envolvendo `AbortController` + 504 amigável; reuso de retry exponencial só em 5xx/timeout.
+### Arquivos previstos
 
-Aplicar em todas as 8 funções sem timeout (timeouts sugeridos):
-- `correios-api` (15s), `consultadanfe-proxy` (20s), `social-sync` (20s por chamada), `instagram-oauth` (10s), `ia-sugestao`/`ia-extracao-documento` (60s — modelos longos), `process-nfe-retry-cron`/`process-distdfe-cron` (já usam sefaz wrappers, validar cadeia).
+- `supabase/migrations/<ts>_etapa3_rls_lgpd_mfa.sql`
+- `supabase/functions/_shared/rate-limit.ts` (+ aplicação nas 4 funções)
+- `src/pages/configuracoes/hooks/useMfa.ts`
+- `src/pages/configuracoes/sections/SegurancaSection.tsx` (substitui placeholder)
+- `src/pages/MfaChallenge.tsx` + rota
+- `src/pages/admin/sections/LgpdSection.tsx`
+- `src/services/lgpd.service.ts`
+- `src/lib/permissions.ts` (+ `lgpd`)
+- `.lovable/memory/features/lgpd.md` + atualização de `rls-single-tenant.md`
 
-CORS: confirmar que toda função browser-facing usa `buildCorsHeaders(origin)` em vez de `*`; crons internos podem manter `ALLOWED_ORIGIN ?? "*"` (aceitável).
-
-cron-health: garantir `recordCronHealth` em `process-distdfe-cron`, `process-nfe-retry-cron`, `process-email-queue`, `apresentacao-cadencia-runner`, `social-sync` (modo cron).
-
-Validação Zod (body) adicionada onde hoje há checagem ad-hoc: `correios-api`, `consultadanfe-proxy`, `ia-sugestao`, `ia-extracao-documento`, `send-transactional-email`, `validate-invite`, `notify-orcamento-resposta`, `instagram-oauth`, `webhooks-dispatcher`, `admin-sessions`, `admin-users`, `test-smtp`.
-
-Verificação: chamar cada função com body inválido → 400 claro. `nc`/curl bloqueando upstream → 504 sem pendurar. Logs sem PII (`logger` já mascara — auditar call sites novos).
-
-### PR-2.4 — Integridade de fluxos multi-tabela
-
-Concluído.
-
-Atomicidade — auditoria confirmou que todos os fluxos multi-tabela já passam
-por RPC `SECURITY DEFINER`:
-- Emissão NF: `confirmar_nota` / `autorizar_nfe` (registra eventos, financeiro
-  e movimentos de estoque na mesma transação).
-- Conversão orçamento → pedido: `converter_orcamento_*` RPC.
-- Baixa em lote: `baixar_lote` RPC.
-- Cancelamento/devolução de NF: `cancelar_nota` + `registrar_devolucao` RPC
-  (`DevolucaoDialog` e `FiscalChaveDialogs` apenas invocam).
-- Ajuste de estoque: `ajustar_estoque_manual` RPC (cobre INSERT em
-  `estoque_movimentos` + UPDATE em `produtos.estoque_atual`).
-
-Constraints novas (migration aplicada — todos os check `VALID`, zero linhas
-pré-existentes violavam):
-- `chk_orcamentos_valor_total_nonneg`
-- `chk_ordens_venda_valor_total_nonneg`
-- `chk_pedidos_compra_valor_total_nonneg`
-- `chk_compras_valor_total_nonneg`
-- `chk_notas_fiscais_valor_total_nonneg`
-- `chk_financeiro_lancamentos_valor_nonneg`
-- `chk_financeiro_baixas_valor_pago_nonneg`
-
-Não tocados (decisão registrada):
-- `chk_estoque_movimentos_quantidade_positiva` já existe em produção como
-  `NOT VALID` (19 linhas legadas com `quantidade < 0` em `saida`/`inventario`).
-  Promover para `VALID` exige saneamento prévio e fica fora do escopo
-  defensivo desta etapa.
-- Constraints em itens (`*_itens.preco_unitario`, `quantidade`): nomenclatura
-  heterogênea entre tabelas; adiar até harmonização de schema.
-
-Linter: warnings/errors retornados são pré-existentes (SECURITY DEFINER views,
-RLS-no-policy em tabelas de staging) e já estão cobertos pela memória de
-segurança. Migration desta etapa não introduziu nenhum item novo.
-
-## Não-objetivos
-
-- Não tocar RLS (Etapa 3).
-- Não refatorar monólitos (Etapa 6).
-- Não migrar `useToast` para sonner (Etapa 5).
-- Tetos `limit(500)` em cadastros pequenos (sócios, plano de contas, auditDups) ficam como estão.
-
-## Riscos & mitigações
-
-- **Assinatura paginada**: manter wrapper legado evita romper callers atuais; deprecation gradual.
-- **Timeouts em IA**: 60s é folgado mas evita falsos 504; quando o modelo de fato pendura, retornamos 504 limpo em vez de browser timeout opaco.
-- **Constraints novas**: rodar `SELECT` prévio (via `read_query`) garantindo que dados atuais satisfazem; caso contrário, sanear dados antes da migration.
-
-## Ordem sugerida
-
-1. PR-2.3 (Edge Functions) — independente, alto valor de resiliência.
-2. PR-2.1 (paginação) — maior diff, mas mecânico.
-3. PR-2.2 (queries) — aproveita refactor de 2.1.
-4. PR-2.4 (integridade) — finaliza com migration e auditoria.
-
-Cada PR roda `npm run lint && npm run typecheck && bunx vitest run`.
+Estimativa: 1 migração grande + ~10 arquivos novos/editados. Sem refactor de monólitos.

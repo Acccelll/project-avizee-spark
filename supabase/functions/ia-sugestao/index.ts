@@ -10,6 +10,7 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sanitizeForLog } from "../_shared/sanitize.ts";
 import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type Acao = "categorizar" | "conciliar" | "explicar_anomalia";
 
@@ -108,6 +109,13 @@ Deno.serve(async (req) => {
       headers: jsonHeaders,
     });
   }
+
+  const rl = checkRateLimit(rateLimitKey(req, userData.user.id), {
+    scope: "ia-sugestao",
+    limit: 60,
+    windowSec: 60,
+  });
+  if (!rl.ok) return rateLimitResponse(rl, jsonHeaders);
 
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   if (!lovableKey) {

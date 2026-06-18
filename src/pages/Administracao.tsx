@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Activity, Building, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook } from "lucide-react";
+import { Activity, Building, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook, FileLock2 } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSect
 import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
 import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
 import { EmpresasSection } from "@/pages/admin/sections/EmpresasSection";
+import { LgpdSection } from "@/pages/admin/sections/LgpdSection";
 import { RequireStrictAdmin } from "@/components/admin/RequireStrictAdmin";
 import { AdminDirtyProvider, useAdminDirty } from "@/contexts/AdminDirtyContext";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -55,6 +56,7 @@ const VALID_SECTION_KEYS = new Set([
   "fiscal",
   "financeiro",
   "saude",
+  "lgpd",
 ]);
 
 const sideNavGroups: SideNavGroup[] = [
@@ -93,6 +95,7 @@ const sideNavGroups: SideNavGroup[] = [
     label: "Dados & Auditoria",
     items: [
       { key: "saude", label: "Saúde do sistema", icon: Activity },
+      { key: "lgpd", label: "LGPD", icon: FileLock2 },
       { key: "migracao", label: "Migração de Dados", icon: Database, behavior: "external" },
       { key: "auditoria", label: "Auditoria", icon: Shield, behavior: "external" },
     ],
@@ -249,6 +252,7 @@ function SectionContent({ section }: { section: string }) {
     fiscal: { node: <FiscalSection />, label: "Parâmetros Fiscais" },
     financeiro: { node: <FinanceiroSection />, label: "Parâmetros Financeiros" },
     saude: { node: <SaudeSistemaSection />, label: "Saúde do Sistema" },
+    lgpd: { node: <LgpdSection />, label: "LGPD" },
   };
   const entry = guarded[section] ?? { node: <EmpresaSection />, label: "Dados da Empresa" };
   return <RequireStrictAdmin resourceLabel={entry.label}>{entry.node}</RequireStrictAdmin>;

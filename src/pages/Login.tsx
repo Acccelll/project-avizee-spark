@@ -84,7 +84,16 @@ export default function Login() {
         }
         setServerError(msg);
       } else {
-        // Sem toast: o redirecionamento já é a confirmação visual.
+        // Checa MFA: se houver fator verificado, exige challenge antes do destino.
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+            navigate("/mfa", { replace: true, state: { redirectTo } });
+            return;
+          }
+        } catch {
+          // Falha ao consultar AAL não deve bloquear login (Supabase pode estar sem MFA habilitado).
+        }
         navigate(redirectTo, { replace: true });
       }
     } catch {
