@@ -666,6 +666,56 @@ const Fiscal = () => {
   const data = pagedData;
   const fetchData = refetchPaged;
 
+  // Etapa 6.3 — handlers de ciclo de vida + hidratação do form de edição.
+  const {
+    baixarXmlArquivado,
+    handleConfirmar,
+    handleEstornar,
+    handleCancelarRascunho,
+    handleInativar,
+    openEdit,
+    confirmDialog,
+    invalidate,
+    confirmarMutation,
+  } = useFiscalLifecycleActions({
+    fetchData,
+    setMode,
+    setSelected,
+    setForm,
+    setItems,
+    setItemContaContabil,
+    setItemFiscalData,
+    setParcelas,
+    setParcelasPlano,
+    setModalOpen,
+    data,
+    selected,
+  });
+
+  const openDevolucao = (nf: NotaFiscal) => devolucaoFlowRef.current?.open(nf);
+
+  // Etapa 6.3 — fluxo de salvar a NF (validações, financeiro, auto-confirm).
+  const { handleSubmit } = useFiscalSubmit({
+    form,
+    items,
+    mode,
+    selected,
+    parcelas,
+    parcelasPlano,
+    totalNF,
+    valorProdutos,
+    itemContaContabil,
+    itemFiscalData,
+    traducaoLinhas,
+    xmlOriginInfo,
+    canEditAvancado,
+    confirmarMutation,
+    invalidate,
+    setSaving,
+    setModalOpen,
+    fetchData,
+  });
+
   // Frente 1 — extraído para `useFiscalVencimentosLoader`.
   useFiscalVencimentosLoader(vencimentoMes, setVencimentoNotaIds);
 
