@@ -135,5 +135,6 @@
 - [Código Interno ERP](mem://tech/codigo-interno-erp) — SKU comercial vs Código Interno sequencial PRD/INS gerado por trigger; default sort SKU em Produtos e nome nos demais grids
 
 - [Paginação Server-side](mem://tech/usesupabasecrud-pagination-server) — useSupabaseCrud com pageSize + DataTable serverPagination; useServerSort/useTableCount; serverSortable só em colunas nativas
+- [useSupabaseCrud default paged](mem://tech/usesupabasecrud-default-paged) — paginationMode explícito obrigatório; warning em dev quando omitido
 
 - [Preços Especiais](mem://features/precos-especiais) — Tabela precos_especiais usa data_inicio/data_fim; só preço fixo; helper canônico em src/lib/precos-especiais.ts
