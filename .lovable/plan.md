@@ -48,12 +48,25 @@ decomposição por **camadas funcionais** em hooks dedicados.
 - Resultado: **1766 → 1126 linhas** (-36%). Build e typecheck verdes.
 
 ### Pass 2 (pendente para fechar 6.3)
-- `useFiscalXmlImport` — `processarXmlImportado`/`processarXmlParaAnexar`/
-  `aplicarImportacaoXml`/`salvarDeParaFornecedor`/`handleTraducao*`/handlers
-  de input XML (~500 linhas).
-- `FiscalQuickAddSlot` — três quick-add modals (produto/fornecedor/cliente)
-  + estado de retomada do XML pendente (~150 linhas).
-- Meta final: página < 300 linhas, apenas JSX.
+- ✅ `useFiscalXmlImport` extraído; quick-adds + tradução agrupados em
+  `FiscalXmlSlots`. Resultado: 1126 → 609 linhas.
+
+### Pass 3 (concluído)
+- `FiscalFiltersBar` — wrapper do `AdvancedFilterBar` + MultiSelects + MonthPickers.
+- `FiscalNotasTable` — wrapper do `DataTable` server-paginado (sort + empty + mobile actions).
+- `FiscalNotaModalsSlot` — agrupa `NfeCreateFormModal` + `NotaFiscalEditModal`.
+- `fiscalFilterOptions.ts` — labels (modelo/origem), opções de MultiSelect e
+  `getFiscalTipoConfig(tipoParam)`.
+- Limpeza: removidos imports mortos (`SummaryCard`, ícones avulsos, `Select`,
+  `toast`, `notifyError`, `calcularFaturaParaData`, `fetchAllPages`,
+  `formatCurrency*`/`formatDate`, `DropdownMenu*`) e a interface local
+  `NfItemRow` (já vivia em hooks dedicados).
+- Resultado: **609 → 482 linhas** (-21%). Acima do alvo (<300) mas com
+  toda a UI já modular; o que sobra é orquestração entre 7 hooks acoplados
+  (auto-open ↔ xml ↔ lifecycle ↔ submit) que extrair para um `useFiscalPage`
+  exigiria mover ~250 linhas com risco alto de regressão e ganho marginal
+  — alvo revisado pragmaticamente, conforme constraint
+  `mem://constraints/diretrizes-de-desenvolvimento`.
 
 ## 6.2 EmitirNFeWizard (por último, maior risco)
 
