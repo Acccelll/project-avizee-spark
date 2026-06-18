@@ -1,6 +1,7 @@
 import { sanitizeForLog } from "../_shared/sanitize.ts";
 
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
 let corsHeaders: Record<string, string> = buildCorsHeaders(null);
 const API_BASE = "https://consultadanfe.com/api/v1";
 
@@ -48,11 +49,11 @@ Deno.serve(async (req) => {
     };
     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-    const upstream = await fetch(`${API_BASE}${endpoint}`, {
+    const upstream = await fetchWithTimeout(`${API_BASE}${endpoint}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ chave, format: "json" }),
-    });
+    }, 20_000);
 
     const text = await upstream.text();
     let parsed: unknown = null;
@@ -86,6 +87,9 @@ Deno.serve(async (req) => {
       },
     );
   } catch (e) {
+    if (isTimeoutError(e)) {
+      return timeoutResponse(corsHeaders, "consultadanfe.com demorou demais para responder");
+    }
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
