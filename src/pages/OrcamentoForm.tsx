@@ -1388,50 +1388,14 @@ export default function OrcamentoForm() {
 
       {confirmActionDialog}
 
-      {/* Footer sticky mobile consolidado — posicionado acima do MobileBottomNav (~64px + safe-area) */}
-      <div
-        className={cn(
-          "md:hidden fixed inset-x-0 z-30",
-          "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
-          "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
-          "px-3 py-2",
-        )}
-        style={{
-          // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
-          bottom: "calc(64px + env(safe-area-inset-bottom))",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-base font-bold text-primary font-mono truncate">{formatCurrency(valorTotal)}</p>
-            <p className="text-[10px] text-muted-foreground">{items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</p>
-          </div>
-          <Button onClick={handleSave} disabled={saving} className="h-10 gap-2 flex-1 max-w-[160px]">
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPreviewOpen(true)}
-            className="h-11 w-11"
-            aria-label="Visualizar proposta"
-            title="Visualizar proposta em PDF"
-          >
-            <Eye className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={handleGeneratePdf}
-            className="h-11 w-11"
-            aria-label="Gerar PDF"
-            title="Baixar PDF"
-          >
-            <FileText className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      <MobileStickyFooter
+        items={items}
+        valorTotal={valorTotal}
+        saving={saving}
+        onSave={handleSave}
+        onPreview={() => setPreviewOpen(true)}
+        onGeneratePdf={handleGeneratePdf}
+      />
     </PageShell>
   );
 }
