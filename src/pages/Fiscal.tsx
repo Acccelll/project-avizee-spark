@@ -200,28 +200,30 @@ const Fiscal = () => {
     cidade?: string;
     uf?: string;
   }>({});
-  // CNPJ da empresa (carregado uma vez) — usado para detectar NF de saída no XML.
-  const [cnpjEmpresa, setCnpjEmpresa] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const cfg = await getEmpresaConfig();
-        if (!cancelled) setCnpjEmpresa((cfg as { cnpj?: string | null } | null)?.cnpj ?? null);
-      } catch {
-        // empresa_config ausente: import seguirá como entrada por default.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const confirmarLock = useActionLock();
-  const estornarLock = useActionLock();
-  const { confirm, dialog: confirmDialog } = useConfirmDialog();
-  const invalidate = useInvalidateAfterMutation();
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
-  const confirmarMutation = useConfirmarNotaFiscal();
-  const estornarMutation = useEstornarNotaFiscal();
+
+  // Auto-open / deep-link / origem PC + carregamento de cnpjEmpresa.
+  // Etapa 6.3 — extraído para `useFiscalAutoOpen`.
+  const {
+    cnpjEmpresa,
+    openCreate,
+    pedidoCompraOriginId,
+    originPedidoNumero,
+  } = useFiscalAutoOpen({
+    setMode,
+    setForm,
+    setItems,
+    setSelected,
+    setParcelas,
+    setItemContaContabil,
+    setItemFiscalData,
+    setModalOpen,
+    setXmlOriginInfo: (v) => setXmlOriginInfo(v as never),
+    setTraducaoLinhas: (v) => setTraducaoLinhas(v as never),
+    setDrawerOpen,
+    applyDeepLinkSelected: setSelected,
+  });
+
   const { importXml } = useNFeXmlImport({
     fornecedores: fornecedores,
     produtos: produtos,
@@ -229,236 +231,12 @@ const Fiscal = () => {
     cnpjEmpresa,
   });
 
-  // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
-  const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
-  const fornecedorOriginId = searchParams.get("fornecedor_id");
-  const tipoOriginParam = searchParams.get("tipo");
-  const [originPedidoNumero, setOriginPedidoNumero] = useState<string | null>(null);
-  const [autoOpened, setAutoOpened] = useState(false);
-
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setXmlOriginInfo(null); setTraducaoLinhas([]); setModalOpen(true); };
-
-  // Atalho rápido: ?new=1 abre o formulário de emissão.
-  useEffect(() => {
-    if (autoOpened) return;
-    if (searchParams.get("new") !== "1") return;
-    setAutoOpened(true);
-    openCreate();
-    const next = new URLSearchParams(searchParams);
-    next.delete("new");
-    setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/setSearchParams capturados via closure
-  }, [searchParams, autoOpened]);
-
-  // Deep-link `/fiscal?nf=:id` — abre o NotaFiscalDrawer da nota indicada.
-  // Substitui a antiga rota /fiscal/:id (FiscalDetail), agora deprecada (D-2).
-  useEffect(() => {
-    const nfId = searchParams.get("nf");
-    if (!nfId) return;
-    let cancelled = false;
-    (async () => {
-      const { data: row, error } = await supabase
-        .from("notas_fiscais")
-        .select(
-          "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
-        )
-        .eq("id", nfId)
-        .maybeSingle();
-      if (cancelled || error || !row) return;
-      setSelected(row as unknown as NotaFiscal);
-      setDrawerOpen(true);
-      const next = new URLSearchParams(searchParams);
-      next.delete("nf");
-      setSearchParams(next, { replace: true });
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot via querystring
-  }, [searchParams]);
-
-  // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
-  useEffect(() => {
-    if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;
-    let cancelled = false;
-    (async () => {
-      const pc = await getPedidoCompraResumo(pedidoCompraOriginId).catch(() => null);
-      if (cancelled) return;
-      setOriginPedidoNumero(pc?.numero ?? null);
-      setMode("create");
-      setForm({
-        ...emptyForm,
-        tipo: "entrada",
-        fornecedor_id: fornecedorOriginId || pc?.fornecedor_id || "",
-        observacoes: pc?.numero ? `Recebimento do Pedido de Compra ${pc.numero}` : "",
-      });
-      setItems([]);
-      setSelected(null);
-      setParcelas(1);
-      setItemContaContabil({});
-      setItemFiscalData({});
-      setModalOpen(true);
-      setAutoOpened(true);
-    })();
-    return () => { cancelled = true; };
-  }, [pedidoCompraOriginId, fornecedorOriginId, tipoOriginParam, autoOpened]);
-
-  const openEdit = async (n: NotaFiscal) => {
-    // Mobile: form com itens dinâmicos não cabe em modal — navegar para página dedicada.
-    // Alinha com mem://produto/quando-drawer-quando-pagina.
-    if (isMobile) {
-      navigate(`/fiscal/${n.id}/editar`);
-      return;
-    }
-    setMode("edit"); setSelected(n);
-    setForm({
-      tipo: n.tipo, numero: n.numero, serie: n.serie || "1", chave_acesso: n.chave_acesso || "",
-      data_emissao: n.data_emissao, fornecedor_id: n.fornecedor_id || "", cliente_id: n.cliente_id || "",
-      valor_total: n.valor_total, status: n.status, observacoes: n.observacoes || "",
-      movimenta_estoque: n.movimenta_estoque !== false, gera_financeiro: n.gera_financeiro !== false,
-      forma_pagamento: n.forma_pagamento || "", condicao_pagamento: n.condicao_pagamento || "a_vista",
-      ordem_venda_id: n.ordem_venda_id || "", conta_contabil_id: n.conta_contabil_id || "",
-      modelo_documento: n.modelo_documento || "55",
-      cartao_id: (n as { cartao_id?: string | null }).cartao_id || "",
-      frete_valor: n.frete_valor || 0, icms_valor: n.icms_valor || 0, ipi_valor: n.ipi_valor || 0,
-      pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
-      desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
-      origem: n.origem || "manual",
-      data_vencimento: (n as { data_vencimento?: string | null }).data_vencimento || "",
-      intervalo_parcelas_dias: (n as { intervalo_parcelas_dias?: number | null }).intervalo_parcelas_dias || 30,
-    });
-    // Seed parcelas + plano a partir da NF (necessário p/ editar pagamento de NF confirmada)
-    const numParc = Math.max(1, Number((n as { numero_parcelas?: number | null }).numero_parcelas) || 1);
-    setParcelas(numParc);
-    const planoExistente = (n as { parcelas?: unknown }).parcelas;
-    if (Array.isArray(planoExistente) && planoExistente.length > 0) {
-      setParcelasPlano(planoExistente as import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]);
-    } else {
-      setParcelasPlano([]);
-    }
-    const itens = await listNotaFiscalItensCompletos(n.id).catch(() => []);
-    const itensTyped = itens as unknown as NfItemRow[];
-    const loadedItems = itensTyped.map((i) => ({
-      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
-      descricao: i.produtos?.nome || "", quantidade: i.quantidade,
-      valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
-    }));
-    setItems(loadedItems);
-    const contaMap: Record<number, string> = {};
-    const fiscalMap: Record<number, NfItemFiscalData> = {};
-    itensTyped.forEach((i, idx) => {
-      if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
-      fiscalMap[idx] = {
-        cfop: i.cfop, cst: i.cst, ncm: i.ncm, unidade: i.unidade,
-        descricao: i.descricao, icms_valor: i.icms_valor, icms_aliquota: i.icms_aliquota,
-        icms_base: i.icms_base, ipi_valor: i.ipi_valor, ipi_aliquota: i.ipi_aliquota,
-        pis_valor: i.pis_valor, pis_aliquota: i.pis_aliquota, base_pis: i.base_pis,
-        cofins_valor: i.cofins_valor, cofins_aliquota: i.cofins_aliquota, base_cofins: i.base_cofins,
-        valor_st: i.valor_st, base_st: i.base_st,
-        csosn: i.csosn, cst_pis: i.cst_pis, cst_cofins: i.cst_cofins, cst_ipi: i.cst_ipi,
-        desconto: i.desconto, codigo_produto: i.codigo_produto,
-      };
-    });
-    setItemContaContabil(contaMap);
-    setItemFiscalData(fiscalMap);
-    setModalOpen(true);
-  };
-
   const openView = (n: NotaFiscal) => {
     setSelected(n);
     setDrawerOpen(true);
   };
 
   const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
-
-  const baixarXmlArquivado = async (n: NotaFiscal) => {
-    const path = (n as { caminho_xml?: string | null }).caminho_xml;
-    if (!path) {
-      toast.error("XML não arquivado para esta NF.");
-      return;
-    }
-    try {
-      const { triggerDownloadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
-      await triggerDownloadNfeXml({ path, filename: `${n.chave_acesso || n.numero}.xml` });
-    } catch (err) {
-      logger.error("[fiscal] baixar XML:", err);
-      toast.error(`Não foi possível baixar o XML: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleConfirmar = async (nf: NotaFiscal) => {
-    if (!canConfirmFiscal(nf.status)) {
-      toast.error(`NF ${nf.numero} não está em estado confirmável.`);
-      return;
-    }
-    const ok = await confirm({
-      title: "Concluir lançamento da NF",
-      description: `Concluir o lançamento da NF ${nf.numero}? O ERP movimentará estoque e gerará o financeiro conforme a configuração da nota. (Notas com condição financeira completa são concluídas automaticamente no salvar — esta ação é o fallback para pendências.)`,
-      confirmLabel: "Concluir lançamento",
-      confirmVariant: "default",
-    });
-    if (!ok) return;
-    await confirmarLock.run(async () => {
-      try {
-        await confirmarMutation.mutateAsync({ nfId: nf.id, tipoDocumento: (nf as any).tipo_documento ?? "nfe" });
-        toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
-        fetchData();
-        // Invalidação cross-módulo: outros módulos abertos em background
-        // (Estoque, Financeiro, Pedidos) refletem a mudança imediatamente.
-        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-      } catch (err: unknown) {
-        logger.error('[fiscal] confirmar NF:', err);
-        notifyError(err);
-      }
-    });
-  };
-
-  const handleEstornar = async (nf: NotaFiscal) => {
-    if (!canEstornarFiscal(nf.status)) {
-      toast.error(`NF ${nf.numero} não está em estado estornável.`);
-      return;
-    }
-    const ok = await confirm({
-      title: "Estornar nota fiscal",
-      description: `Estorno da NF ${nf.numero}: o sistema reverterá os movimentos de estoque, cancelará lançamentos financeiros e recalculará faturamento vinculado.`,
-      confirmLabel: "Estornar",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
-    await estornarLock.run(async () => {
-      try {
-        await estornarMutation.mutateAsync({ nfId: nf.id });
-        toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
-        fetchData();
-        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-      } catch (err: unknown) {
-        logger.error('[fiscal] estornar NF:', err);
-        notifyError(err);
-      }
-    });
-  };
-
-  const handleCancelarRascunho = async () => {
-    if (!selected) return;
-    const ok = await confirm({
-      title: "Cancelar rascunho",
-      description: `Cancelar o rascunho da NF ${selected.numero}? Esta ação não pode ser desfeita.`,
-      confirmLabel: "Cancelar rascunho",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
-    try {
-      // Usa RPC canônica `cancelar_nota_fiscal`: respeita máquina de estados,
-      // estorna efeitos quando necessário e registra evento dentro da transação.
-      await cancelarNotaFiscal(selected.id, `Rascunho da NF ${selected.numero} cancelado pelo usuário.`);
-      toast.success("Rascunho inativado com sucesso.");
-      setModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      logger.error('[fiscal] cancelar rascunho:', err);
-      notifyError(err);
-    }
-  };
-
-  const buildNfItemsPayload = (nfId: string) => items.map((i, idx) => {
     if (!i.produto_id) {
       throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
     }
