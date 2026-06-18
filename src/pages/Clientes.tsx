@@ -4,6 +4,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
@@ -247,6 +248,8 @@ const Clientes = () => {
   const {
     data,
     loading,
+    isError,
+    error: queryError,
     create,
     update,
     remove,
@@ -687,6 +690,9 @@ const Clientes = () => {
 
         <PullToRefresh onRefresh={fetchData}>
           <div data-help-id="clientes.tabela" className="pb-32 md:pb-0">
+          {isError ? (
+            <QueryErrorFallback error={queryError} onRetry={fetchData} />
+          ) : (
           <DataTable
             columns={columns}
             data={filteredData}
@@ -714,6 +720,7 @@ const Clientes = () => {
               />
             )}
           />
+          )}
           </div>
         </PullToRefresh>
       </ModulePage>

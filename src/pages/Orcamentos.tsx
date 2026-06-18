@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -134,7 +135,7 @@ const Orcamentos = () => {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
   const isMobile = useIsMobile();
-  const { data: rawData, loading, fetchData } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
+  const { data: rawData, loading, fetchData, isError, error: queryError } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
   const data = rawData as unknown as Orcamento[];
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
@@ -518,6 +519,9 @@ const Orcamentos = () => {
 
         <PullToRefresh onRefresh={fetchData}>
           <div data-help-id="orcamentos.tabela">
+          {isError ? (
+            <QueryErrorFallback error={queryError} onRetry={fetchData} />
+          ) : (
           <DataTable
             columns={columns}
             data={filteredData}
@@ -686,6 +690,7 @@ const Orcamentos = () => {
             emptyTitle="Nenhum orçamento encontrado"
             emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
           />
+          )}
           </div>
         </PullToRefresh>
       </ModulePage>

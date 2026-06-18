@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -169,6 +170,8 @@ const Pedidos = () => {
   });
   const data = pedidosQuery.data ?? [];
   const loading = pedidosQuery.isLoading;
+  const isError = pedidosQuery.isError;
+  const queryError = pedidosQuery.error;
   const fetchData = async () => {
     await pedidosQuery.refetch();
   };
@@ -608,6 +611,9 @@ const Pedidos = () => {
 
         <PullToRefresh onRefresh={fetchData}>
         <div data-help-id="pedidos.tabela">
+        {isError ? (
+          <QueryErrorFallback error={queryError} onRetry={fetchData} />
+        ) : (
         <DataTable
           columns={columns}
           data={filteredData}
@@ -695,6 +701,7 @@ const Pedidos = () => {
           emptyTitle="Nenhum pedido encontrado"
           emptyDescription="Converta um orçamento aprovado em pedido ou ajuste os filtros aplicados."
         />
+        )}
         </div>
         </PullToRefresh>
       </ModulePage>

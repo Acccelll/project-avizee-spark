@@ -1,7 +1,5 @@
-import { ReactNode, useEffect } from "react";
-import { AlertCircle, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { notifyError } from "@/utils/errorMessages";
+import { ReactNode } from "react";
+import { QueryErrorFallback } from "./QueryErrorFallback";
 
 interface QueryStateProps<T> {
   isLoading: boolean;
@@ -58,37 +56,12 @@ export function QueryState<T>({
   empty,
   children,
 }: QueryStateProps<T>) {
-  useEffect(() => {
-    if (isError && error) notifyError(error);
-  }, [isError, error]);
-
   if (isLoading) {
     return <div aria-busy="true">{skeleton}</div>;
   }
 
   if (isError) {
-    return (
-      <div
-        role="alert"
-        className="flex flex-col items-center justify-center py-16 px-4 text-center"
-      >
-        <div className="rounded-full p-4 mb-4 bg-destructive/10">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-        </div>
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          Não foi possível carregar
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-sm mb-4">
-          Verifique sua conexão e tente novamente.
-        </p>
-        {onRetry && (
-          <Button variant="outline" onClick={onRetry}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Tentar novamente
-          </Button>
-        )}
-      </div>
-    );
+    return <QueryErrorFallback error={error} onRetry={onRetry} />;
   }
 
   if (data === undefined || isEmpty(data)) {
