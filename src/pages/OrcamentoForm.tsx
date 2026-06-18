@@ -817,7 +817,7 @@ export default function OrcamentoForm() {
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Edição</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('usuario')}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
@@ -874,10 +874,10 @@ export default function OrcamentoForm() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('usuario')}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu…
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('equipe'); }}>
+              <DropdownMenuItem onSelect={() => openTemplateDialog('equipe')}>
                 <Wand2 className="w-4 h-4 mr-2" />Compartilhar com equipe…
               </DropdownMenuItem>
             </DropdownMenuContent>
