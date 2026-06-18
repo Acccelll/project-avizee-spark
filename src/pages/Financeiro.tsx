@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { FormModal } from "@/components/FormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -220,7 +221,7 @@ const Financeiro = () => {
   const [page, setPage] = useState(0);
   useResetPageOnFiltersChange(serverFilters, setPage);
 
-  const { data, totalCount, loading, refetch: refetchPaged } = useFinanceiroLancamentosPaged(
+  const { data, totalCount, loading, refetch: refetchPaged, isError, error: queryError } = useFinanceiroLancamentosPaged(
     serverFilters,
     page,
     PAGE_SIZE,
@@ -605,6 +606,9 @@ const Financeiro = () => {
         ) : (
           <PullToRefresh onRefresh={fetchData}>
             <div data-help-id="financeiro.tabela">
+            {isError ? (
+              <QueryErrorFallback error={queryError} onRetry={fetchData} />
+            ) : (
             <DataTable
               columns={columns}
               data={data}
