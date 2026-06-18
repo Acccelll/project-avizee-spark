@@ -1,146 +1,108 @@
+# Etapa 1 — Higiene de código & observabilidade
 
-# Plano de execução — §6 completo (Lovable + Copilot)
+Escopo: as 4 sub-etapas descritas (1.1 a 1.4). Baixo risco, pré-requisito de 2 e 6. Sem mudanças de UX nem schema.
 
-> **Status 18/jun/2026 — execução parcial concluída.**
->
-> **Concluído nesta rodada:**
-> - Fase 1.1 (ajustada): SELECT por papel em tabelas que de fato tinham `USING(true)` —
->   fiscais (`eventos_fiscais`, `nfe_distribuicao*`, `nota_fiscal_anexos`,
->   `nota_fiscal_eventos`, `inutilizacoes_numeracao`, `matriz_fiscal`,
->   `naturezas_operacao`), cotações (`cotacoes_compra*`) e `financeiro_baixa_lotes`.
->   As tabelas listadas na review original já estavam multi-tenant via
->   `current_empresa_id()` (Ondas 1–4).
-> - Fase 1.2: `SEFAZ_C14N_REAL` virou default em `sefaz-proxy`; opt-in inverso via
->   `SEFAZ_C14N_LEGACY=true`. Edge function redeployada.
-> - Fase 1.3: baseline reference de schema em
->   `supabase/migrations/_baseline_20260618.sql.reference`.
-> - Fase 2.2 (parcial): `useSupabaseCrud` emite warning em dev quando cai em modo
->   `'all'` implicitamente. Inversão hard do default adiada (risco em ~31 callers).
-> - Fase 2.3: README sincronizado.
-> - Memórias atualizadas: `rls-single-tenant.md`, `c14n-sefaz.md`.
->
-> **Pendente (próxima rodada):**
-> - Fase 2.1: refactor dos monólitos restantes (`OrcamentoForm.tsx` 2.096,
->   `EmitirNFeWizard.tsx` 1.718, `Conciliacao.tsx` 1.455, `ProdutoForm.tsx`).
->   `Fiscal.tsx` reduzido de 1.934 → 1.766 linhas nesta rodada via extração de
->   `FiscalKpisStrip`, `FiscalMobileRowActions` e `FiscalChaveDialogsSlot`.
->   Bloco de QuickAdd (produto/fornecedor/cliente) permanece inline por estar
->   acoplado a tipos privados de `pendingXmlImport` e `aplicarImportacaoXml`;
->   extração exigiria promover esses tipos para módulo compartilhado primeiro.
-> - Fase 2.2 hard: auditoria caller-a-caller + inversão do default.
-> - Fase 1.2 cleanup: remover fallback C14N legado após 1 emissão real validada.
+## 1.1 — Logger central substituindo `console.*` em `src/`
 
-Objetivo: fechar os pontos residuais da review mantendo o sistema **single-tenant** e sem regressões de fluxo. Execução em 3 fases, cada uma entregável e validável de forma independente.
+Estado real auditado: **147 ocorrências** de `console.*` em ~50 arquivos de `src/` (não 143). `src/lib/logger.ts` já existe e já tem gate por `import.meta.env.DEV` + `esbuild.drop` em produção — não precisa reescrever, apenas adotar.
 
----
+Ação:
+1. Substituir em todo `src/` (exceto `src/lib/logger.ts` e `src/integrations/supabase/client.ts` — este é auto-gerado):
+   - `console.error` → `logger.error`
+   - `console.warn` → `logger.warn`
+   - `console.info`/`console.log`/`console.debug` → `logger.info` (logger não expõe `debug`/`log`; mapear para `info`, que já é silenciado em prod)
+2. Em cada arquivo alterado, adicionar `import { logger } from "@/lib/logger";`.
+3. Mascarar dados sensíveis nos call sites encontrados: senhas, tokens, `linha_digitavel`, `arquivo_base64`, conteúdo PFX, CPF/CNPJ completos (manter só 3 últimos dígitos quando útil para debug).
+4. Em `eslint.config.js`, adicionar:
+   ```js
+   "no-console": ["error", { allow: [] }]
+   ```
+   com `overrides` ignorando `supabase/functions/**` (lá vale o logger de `_shared/logger.ts`, que usa `console.*` por design) e `src/lib/logger.ts`.
 
-## Fase 1 — Endurecimento de backend (Lovable / DB / Edge)
+Não tocar: `supabase/functions/**`, `scripts/**`, `src/integrations/supabase/client.ts`.
 
-### 1.1 RLS por role nas tabelas sensíveis (§4.1)
-Substituir `USING (true)` por policies baseadas em `public.has_role()`, mantendo single-tenant (sem `empresa_id` ainda).
+Verificação:
+- `rg -n "console\." src | grep -v "src/lib/logger.ts\|src/integrations/supabase/client.ts"` → vazio.
+- `npm run lint` falha se alguém reintroduzir `console.`.
 
-Tabelas e regras-alvo:
+## 1.2 — Erros consistentes em services + mutations
 
-| Tabela | SELECT | INSERT/UPDATE/DELETE |
-|---|---|---|
-| `financeiro_lancamentos` | `admin` ∨ `financeiro` | `admin` ∨ `financeiro` |
-| `financeiro_baixas` | `admin` ∨ `financeiro` | `admin` ∨ `financeiro` |
-| `financeiro_recorrencias` | `admin` ∨ `financeiro` | `admin` ∨ `financeiro` |
-| `notas_fiscais`, `notas_fiscais_itens` | `authenticated` (consulta operacional) | `admin` ∨ `financeiro` (preservar regra de status já existente) |
-| `compras`, `compras_itens` | `authenticated` | `admin` ∨ `financeiro` ∨ `estoquista` |
-| `estoque_movimentos` | `authenticated` | `admin` ∨ `estoquista` |
-| `conciliacao_bancaria`, `conciliacao_pares` | `admin` ∨ `financeiro` | `admin` ∨ `financeiro` |
+Ação:
+1. Varrer `src/services/**` por `catch` que não re-lança nem reporta: padronizar para
+   ```ts
+   } catch (err) {
+     logger.error("[<contexto>] <ação>", err);
+     throw err; // ou retornar Result tipado conforme padrão do arquivo
+   }
+   ```
+   Não criar tipo `Result` novo se já existir convenção local — preservar.
+2. Verificar que toda `useMutation` em `src/hooks/**` e `src/pages/**/hooks/**` tem `onError` com `notifyError(err)` (helper já existente em `src/utils/errorMessages.ts`) ou `toast.error`. Adotar **sonner** (já é o padrão; `useToast` legado fica como está, não migrar nesta etapa para não inflar diff).
+3. Não introduzir biblioteca nova de toast.
 
-Entregáveis:
-- 1 migration por área (financeiro / fiscal / compras+estoque / conciliação) para revisão isolada.
-- Atualizar `COMMENT ON TABLE` documentando a nova regra.
-- Atualizar `.lovable/memory/security/rls-single-tenant.md` removendo a frase "RLS permissiva para authenticated".
-- Smoke pgTAP: 1 teste por área garantindo que role `estoquista` **não** lê `financeiro_lancamentos` e que `vendedor` **não** escreve em `estoque_movimentos`.
+Verificação: `rg -n "catch\s*\{\s*\}|catch\s*\(\s*\w+\s*\)\s*\{\s*\}" src/services` → vazio. Auditoria manual em 5 mutations aleatórias mostra `onError`.
 
-Risco controlado: edge functions de cron/admin já usam `service_role` (bypassa RLS), então não regridem.
+## 1.3 — Remover serviço fantasma `sessoes.service.ts`
 
-### 1.2 SEFAZ_C14N_REAL como default (§4.6)
-- Inverter o default em `supabase/functions/_shared/xml-c14n.ts`: usar C14N real salvo `SEFAZ_C14N_LEGACY=true` (opt-in inverso e temporário).
-- Janela de validação: 1 emissão real de homologação documentada no `mem/features/c14n-sefaz.md`.
-- Após validação, remover o fallback legado em PR separado (não nesta fase).
+Auditoria:
+- `src/services/admin/sessoes.service.ts` é wrapper redundante sobre a Edge Function `admin-sessions` (mesma função usada por `adminSessions.service.ts`, que é a versão oficial consumida por `src/hooks/useSessoes.ts`).
+- Único consumidor: `src/services/admin/__tests__/sessoes.test.ts`.
+- A tabela `user_sessions` realmente não existe; o comentário do próprio arquivo confirma.
 
-### 1.3 Squash de migrations — Fase A apenas (§4.5)
-- Gerar `supabase/migrations/_baseline_<data>.sql.reference` via `pg_dump --schema-only --no-owner --no-privileges` (script já previsto em `docs/migrations-squash-plan.md`).
-- Rodar `scripts/check-schema-drift.mjs` e versionar o resultado.
-- **Não** executar Fase B/C. Apenas atualizar o plano com a data do baseline.
+Decisão recomendada (default): **remover**.
+- `rm src/services/admin/sessoes.service.ts`
+- `rm src/services/admin/__tests__/sessoes.test.ts`
+- Ajustar comentário em `adminSessions.service.ts` que cita `sessoes.service.ts`.
 
----
+Dead-code adicional: rodar `bunx knip --no-progress` (ou `ts-prune`) **só para reportar** nesta etapa; remover apenas itens claramente órfãos e sem efeito colateral (não tocar edge functions, migrations, rotas, contextos, testes). Itens duvidosos viram lista para uma etapa futura.
 
-## Fase 2 — Refactors React/TS (Copilot/Codex)
+Verificação: `npm run typecheck`, `npm run build` verdes; nenhuma referência a `user_sessions` ou `sessoes.service` em `src/`.
 
-### 2.1 Extrair queries diretas dos monólitos (§4.2)
-Ordem de ataque (maior risco primeiro):
+## 1.4 — Wrapper `QueryState` + adoção em listagens
 
-1. `Fiscal.tsx` (1.934 linhas) → mover queries para `services/fiscal/*.service.ts` já existentes; quebrar em `FiscalTabsContainer` + `FiscalListPanel` + `FiscalKpis`.
-2. `OrcamentoForm.tsx` (2.096) → `services/orcamento.service.ts` (extensão); extrair `OrcamentoItensSection`, `OrcamentoTotaisSection`, `OrcamentoClienteSection`.
-3. `EmitirNFeWizard.tsx` (1.718) → consolidar em `services/fiscal/emissao.service.ts`; etapas viram steps isolados.
-4. `Conciliacao.tsx` (1.455) → `services/conciliacao.service.ts`.
-5. `ProdutoForm.tsx`, `Clientes.tsx`, `Financeiro.tsx`, `Pedidos.tsx` → mesmo padrão.
-
-Regras:
-- Zero `supabase.from/rpc/storage` novos fora de `src/services/` (já é regra do `mem/`).
-- Cada arquivo refatorado deve perder linhas líquidas; meta: nenhum > 800 linhas ao final.
-- Sem mudança de comportamento de UI — refactor puro, validado por smoke tests existentes + screenshot manual.
-
-### 2.2 `useSupabaseCrud`: default `paged` (§4.3)
-- Inverter default: se `pageSize` não for passado, log de warning em dev e usar `pageSize=50` automático.
-- Auditar usos atuais (rg `useSupabaseCrud(`) e marcar explicitamente `paginationMode: 'all'` onde o chamador realmente quer (cadastros pequenos: `unidades_medida`, `bancos`, `centros_custo`, `formas_pagamento`).
-- Proibir `paginationMode: 'all'` em tabelas transacionais via comentário + entrada em `mem/`.
-
-### 2.3 Sincronizar README (§4.4)
-- Remover seção "Dívida Técnica → @ts-nocheck remanescentes" (zero hoje).
-- Atualizar "Próximos passos" para refletir Fase 1/2 deste plano.
-- Atualizar a seção "Segurança / RLS" com as policies por role da Fase 1.1.
-
----
-
-## Fase 3 — Validação e fecho
-
-- ✅ **Vitest:** 792/792 testes verdes. As 11 falhas pré-existentes foram corrigidas em sessão de hygiene (mocks de `sessoes.test.ts` migrados para `functions.invoke`; `OrcamentoForm.test.tsx` ganhou `QueryClientProvider`; smoke `auth-routing` agora mocka `useCanViewAdmin`; smoke `dashboard` envelopa em `DashboardPeriodProvider`; smoke `financeiro` ganhou builder Supabase encadeável com `.limit()`).
-- ✅ **supabase--linter:** 431 alertas pré-existentes (security_definer_view, rls_enabled_no_policy em staging). Nenhum novo após a migração da Fase 1.1.
-- ⏳ **Smoke manual (estoquista):** pendente de execução pelo usuário.
-- ✅ **mem/index.md:** adicionada referência `usesupabasecrud-default-paged`.
-
-## Pendências conscientes
-
-- **Fase 2.1 (decomposição dos monólitos)** — Fiscal.tsx (1.934), OrcamentoForm.tsx (2.096), EmitirNFeWizard.tsx (1.718) ainda monolíticos. Sessão dedicada recomendada (refactor cirúrgico, alto risco de regressão de UI).
-- **Hard-invert do default de `useSupabaseCrud`** — preservado como warning em dev; todos os callers atuais agora declaram `paginationMode` explicitamente. Próximo passo seguro: remover o fallback implícito e exigir o campo obrigatoriamente em uma sessão dedicada.
-- ~~**Testes pré-existentes quebrados**~~ — resolvido (792/792).
-
----
-
-## Detalhes técnicos relevantes
-
-```text
-Ordem das migrations da Fase 1.1 (cada uma é um arquivo):
-  1) rls-financeiro-por-role.sql
-  2) rls-fiscal-por-role.sql      (preserva regra de status já existente)
-  3) rls-compras-estoque-por-role.sql
-  4) rls-conciliacao-por-role.sql
+Criar `src/components/ui/QueryState.tsx`:
+```tsx
+type Props<T> = {
+  isLoading: boolean;
+  isError: boolean;
+  error?: unknown;
+  data: T | undefined;
+  isEmpty?: (data: T) => boolean; // default: array vazio
+  onRetry?: () => void;
+  skeleton: ReactNode;            // skeleton específico da tela
+  empty: ReactNode;               // <EmptyState .../> da tela
+  children: (data: T) => ReactNode;
+};
 ```
+- `isLoading` → renderiza `skeleton` (com `aria-busy`).
+- `isError` → bloco de erro padronizado com `notifyError` no `useEffect` + botão "Tentar novamente" chamando `onRetry`.
+- `isEmpty(data)` → renderiza `empty`.
+- caso contrário → `children(data)`.
 
-Para cada policy substituída:
-```sql
-DROP POLICY <nome_antigo> ON public.<tabela>;
-CREATE POLICY <nome_novo> ON public.<tabela>
-  FOR <op> TO authenticated
-  USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'<role>'))
-  WITH CHECK (...);
-COMMENT ON TABLE public.<tabela> IS '... single-tenant; acesso restrito a role X+admin';
-```
+Adoção nesta etapa: **não migrar tudo**. Migrar 5 telas representativas para validar o contrato:
+- `Orcamentos`, `Pedidos`, `Clientes`, `Produtos`, `Financeiro` (lista principal).
+Demais telas entram em backlog da Etapa 5 (UX), aproveitando que ali já se mexe em estados visuais.
 
-Edge functions (`service_role`) continuam funcionando — RLS é bypassada por design.
+Verificação manual nas 5 telas: rede offline → erro com retry; lista vazia → empty; carregando → skeleton; sem tela branca.
 
----
+## Ordem de execução e PRs sugeridos
 
-## O que **não** está neste plano (por decisão)
+1. PR-1.1 logger + ESLint rule (mecânico; diff grande mas seguro).
+2. PR-1.2 catches e onError (pequeno, alto valor).
+3. PR-1.3 remoção `sessoes.service.ts` + relatório knip.
+4. PR-1.4 `QueryState` + 5 telas piloto.
 
-- Multi-tenant (`empresa_id`) — fica para quando houver 2ª empresa real.
-- Fase B/C do squash — gatilho é cair para ≤2 migrations/dia.
-- Remoção definitiva do C14N legado — PR separado após validação em produção.
-- Aumento de cobertura de testes além dos smokes da Fase 1.1.
+Cada PR roda `npm run lint && npm run typecheck && bunx vitest run` antes de fechar.
+
+## Não-objetivos desta etapa
+
+- Não migrar `useToast` legado para sonner.
+- Não corrigir paginação (Etapa 2).
+- Não mexer em RLS/MFA/LGPD (Etapa 3).
+- Não tocar nos monólitos (Etapa 6).
+- Não adicionar gates de cobertura no CI (Etapa 7).
+
+## Riscos & mitigações
+
+- **Substituição em massa de `console.*`**: feita por arquivo via `apply_patch` (não `sed`) para preservar mensagens e args; rodar `tsc` após cada lote de ~10 arquivos.
+- **Remoção do `sessoes.service.ts`**: confirmado que só testes consomem; se o usuário quiser manter a feature de "user_sessions" persistidas, abortar e abrir etapa própria.
+- **`no-console` como `error`**: pode quebrar PRs em andamento; comunicar no commit message.
