@@ -4,6 +4,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable";
+import { QueryErrorFallback } from "@/components/ui/QueryErrorFallback";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
@@ -156,6 +157,8 @@ const Produtos = () => {
   const {
     data,
     loading,
+    isError,
+    error: queryError,
     remove,
     fetchData,
     page,
@@ -570,6 +573,9 @@ const Produtos = () => {
 
       <PullToRefresh onRefresh={fetchData}>
         <div data-help-id="produtos.tabela">
+          {isError ? (
+            <QueryErrorFallback error={queryError} onRetry={fetchData} />
+          ) : (
           <DataTable
             columns={columns}
             data={filteredData}
@@ -599,6 +605,7 @@ const Produtos = () => {
               />
             )}
           />
+          )}
         </div>
       </PullToRefresh>
 
