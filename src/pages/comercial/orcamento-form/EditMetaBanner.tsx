@@ -1,6 +1,6 @@
 import { CalendarDays, Clock } from "lucide-react";
-import { JustCreatedBanner } from "@/components/ui/JustCreatedBanner";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { JustCreatedBanner } from "@/components/JustCreatedBanner";
+import { StatusBadge } from "@/components/StatusBadge";
 import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 
 interface ClienteSnap {
