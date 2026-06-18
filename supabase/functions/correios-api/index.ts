@@ -1,7 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
 let corsHeaders: Record<string, string> = buildCorsHeaders(null);
+
+/** Timeout padrão para chamadas externas Correios (auth/preço/prazo/prepostagem). */
+const CORREIOS_TIMEOUT_MS = 15_000;
+const cFetch = (url: string, init: RequestInit = {}) =>
+  fetchWithTimeout(url, init, CORREIOS_TIMEOUT_MS);
 interface CotacaoRequest {
   cepOrigem: string;
   cepDestino: string;
