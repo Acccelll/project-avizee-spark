@@ -6,18 +6,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import { type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
 import { type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
-import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoesCard";
-import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
-import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
-import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { FileText, CheckCircle2, CalendarDays, Clock, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
-import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
 import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import { ActionsToolbar } from "@/pages/comercial/orcamento-form/ActionsToolbar";
@@ -26,6 +19,8 @@ import { ShareCard } from "@/pages/comercial/orcamento-form/ShareCard";
 import { ItensSection } from "@/pages/comercial/orcamento-form/ItensSection";
 import { ObservacoesSection } from "@/pages/comercial/orcamento-form/ObservacoesSection";
 import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
+import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
+import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
 import {
   emptyCliente,
   STATUS_LABEL,
@@ -53,7 +48,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCan } from "@/hooks/useCan";
 import { Tables } from "@/integrations/supabase/types";
-import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
@@ -902,23 +896,17 @@ export default function OrcamentoForm() {
             }}
           />
 
-          <MobileSection
-            title="Frete"
-            icon={Truck}
-            summary={freteValor > 0 ? formatCurrency(freteValor) : "Sem frete definido"}
-            defaultOpen={false}
-          >
-          <FreteSimuladorCard
+          <FreteSection
             orcamentoId={id || null}
             clienteId={clienteId}
             cepDestino={clienteSnapshot.cep}
             pesoTotal={pesoTotal}
             valorMercadoria={totalProdutos}
+            freteValor={freteValor}
             simulacaoId={freteSimulacaoId}
             onEmbalagemPesoChange={setPesoEmbalagemTotal}
-            onSelect={(payload: FreteSelecaoPayload) => {
+            onSelect={(payload) => {
               setValue('freteValor', payload.freteValor);
-              // freteTipo guarda apenas modalidade (CIF/FOB/sem_frete); descrição vai para servicoFrete.
               setValue('servicoFrete', payload.servicoFrete || payload.freteTipo);
               if (payload.modalidade && ['CIF','FOB','sem_frete'].includes(payload.modalidade)) {
                 setValue('freteTipo', payload.modalidade);
@@ -936,14 +924,17 @@ export default function OrcamentoForm() {
               setFreteComprimentoCm(payload.comprimentoCm);
             }}
           />
-          </MobileSection>
 
-          <MobileSection title="Condições Comerciais" icon={CreditCard} defaultOpen>
-            <OrcamentoCondicoesCard
-              form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
-              onChange={handleCondicaoChange}
-            />
-          </MobileSection>
+          <CondicoesSection
+            quantidadeTotal={quantidadeTotal}
+            pesoTotal={pesoTotal}
+            pagamento={pagamento}
+            prazoPagamento={prazoPagamento}
+            prazoEntrega={prazoEntrega}
+            servicoFrete={servicoFrete || ''}
+            modalidade={modalidade}
+            onChange={handleCondicaoChange}
+          />
 
           <ObservacoesSection register={register} isLocked={isLocked} />
         </fieldset>
