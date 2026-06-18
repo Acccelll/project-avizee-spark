@@ -26,6 +26,8 @@ import { ShareCard } from "@/pages/comercial/orcamento-form/ShareCard";
 import { ItensSection } from "@/pages/comercial/orcamento-form/ItensSection";
 import { ObservacoesSection } from "@/pages/comercial/orcamento-form/ObservacoesSection";
 import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
+import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
+import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
 import {
   emptyCliente,
   STATUS_LABEL,
@@ -902,23 +904,17 @@ export default function OrcamentoForm() {
             }}
           />
 
-          <MobileSection
-            title="Frete"
-            icon={Truck}
-            summary={freteValor > 0 ? formatCurrency(freteValor) : "Sem frete definido"}
-            defaultOpen={false}
-          >
-          <FreteSimuladorCard
+          <FreteSection
             orcamentoId={id || null}
             clienteId={clienteId}
             cepDestino={clienteSnapshot.cep}
             pesoTotal={pesoTotal}
             valorMercadoria={totalProdutos}
+            freteValor={freteValor}
             simulacaoId={freteSimulacaoId}
             onEmbalagemPesoChange={setPesoEmbalagemTotal}
-            onSelect={(payload: FreteSelecaoPayload) => {
+            onSelect={(payload) => {
               setValue('freteValor', payload.freteValor);
-              // freteTipo guarda apenas modalidade (CIF/FOB/sem_frete); descrição vai para servicoFrete.
               setValue('servicoFrete', payload.servicoFrete || payload.freteTipo);
               if (payload.modalidade && ['CIF','FOB','sem_frete'].includes(payload.modalidade)) {
                 setValue('freteTipo', payload.modalidade);
@@ -936,14 +932,17 @@ export default function OrcamentoForm() {
               setFreteComprimentoCm(payload.comprimentoCm);
             }}
           />
-          </MobileSection>
 
-          <MobileSection title="Condições Comerciais" icon={CreditCard} defaultOpen>
-            <OrcamentoCondicoesCard
-              form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, servico_frete: servicoFrete || '', modalidade }}
-              onChange={handleCondicaoChange}
-            />
-          </MobileSection>
+          <CondicoesSection
+            quantidadeTotal={quantidadeTotal}
+            pesoTotal={pesoTotal}
+            pagamento={pagamento}
+            prazoPagamento={prazoPagamento}
+            prazoEntrega={prazoEntrega}
+            servicoFrete={servicoFrete || ''}
+            modalidade={modalidade}
+            onChange={handleCondicaoChange}
+          />
 
           <ObservacoesSection register={register} isLocked={isLocked} />
         </fieldset>
