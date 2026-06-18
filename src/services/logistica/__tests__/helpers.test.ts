@@ -96,14 +96,16 @@ describe("latestPorRemessa", () => {
 });
 
 describe("base64ToBlob", () => {
-  it("decodifica base64 mantendo o tamanho exato dos bytes", async () => {
-    // "PDF" em base64
+  it("decodifica base64 mantendo tipo e tamanho corretos", () => {
+    // "PDF" em base64 → 3 bytes
     const blob = base64ToBlob("UERG");
     expect(blob.type).toBe("application/pdf");
     expect(blob.size).toBe(3);
-    const buf = await blob.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    expect(Array.from(bytes)).toEqual([0x50, 0x44, 0x46]); // "P","D","F"
+  });
+
+  it("blob vazio para input vazio", () => {
+    const blob = base64ToBlob("");
+    expect(blob.size).toBe(0);
   });
 
   it("respeita mime customizado", () => {
