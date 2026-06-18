@@ -1,6 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { requireAnyPermission } from "../_shared/permissions.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
+
+/** Timeout para chamadas externas Graph/LinkedIn (20s por chamada). */
+const SOCIAL_TIMEOUT_MS = 20_000;
+const sFetch = (url: string, init: RequestInit = {}) =>
+  fetchWithTimeout(url, init, SOCIAL_TIMEOUT_MS);
 
 /**
  * Social Media Sync Edge Function
@@ -109,6 +115,9 @@ Deno.serve(async (req) => {
     );
   } catch (e: any) {
     console.error("[social-sync]", e);
+    if (isTimeoutError(e)) {
+      return timeoutResponse(corsHeaders, "Provedor social não respondeu a tempo.");
+    }
     return new Response(
       JSON.stringify({ error: e.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -162,9 +171,9 @@ async function syncInstagram(
   try {
     // Fetch Instagram Business Account insights
     const [profileRes, mediaRes, insightsRes] = await Promise.all([
-      fetch(`https://graph.facebook.com/v19.0/${accountId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${accountId}/media?fields=id,caption,media_type,timestamp,like_count,comments_count,permalink&limit=25&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${accountId}/insights?metric=impressions,reach,profile_views&period=day&since=${getDateNDaysAgo(30)}&until=${getTodayISO()}&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}/media?fields=id,caption,media_type,timestamp,like_count,comments_count,permalink&limit=25&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}/insights?metric=impressions,reach,profile_views&period=day&since=${getDateNDaysAgo(30)}&until=${getTodayISO()}&access_token=${token}`),
     ]);
 
     const profile = await profileRes.json();
@@ -189,6 +198,7 @@ async function syncInstagram(
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (isTimeoutError(err)) throw err;
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -222,7 +232,7 @@ async function syncLinkedIn(
 
   try {
     // Fetch LinkedIn Organization data
-    const orgRes = await fetch(
+    const orgRes = await sFetch(
       `https://api.linkedin.com/v2/organizations/${accountId}?projection=(id,localizedName,vanityName,logoV2)`,
       {
         headers: {
@@ -239,7 +249,7 @@ async function syncLinkedIn(
     }
 
     // Fetch follower statistics
-    const statsRes = await fetch(
+    const statsRes = await sFetch(
       `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=urn:li:organization:${accountId}`,
       {
         headers: {
@@ -263,6 +273,7 @@ async function syncLinkedIn(
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (isTimeoutError(err)) throw err;
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }

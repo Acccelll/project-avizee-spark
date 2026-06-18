@@ -1,7 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
 let corsHeaders: Record<string, string> = buildCorsHeaders(null);
+
+/** Timeout padrão para chamadas externas Correios (auth/preço/prazo/prepostagem). */
+const CORREIOS_TIMEOUT_MS = 15_000;
+const cFetch = (url: string, init: RequestInit = {}) =>
+  fetchWithTimeout(url, init, CORREIOS_TIMEOUT_MS);
 interface CotacaoRequest {
   cepOrigem: string;
   cepDestino: string;
@@ -81,7 +87,7 @@ async function autenticarCorreios(opts: {
 
     for (const ep of attempts) {
       try {
-        const res = await fetch(ep.url, {
+        const res = await cFetch(ep.url, {
           method: "POST",
           headers: {
             Authorization: `Basic ${basicKey}`,
@@ -120,7 +126,7 @@ async function autenticarCorreios(opts: {
     ];
     for (const ep of legacyEndpoints) {
       try {
-        const res = await fetch(ep.url, {
+        const res = await cFetch(ep.url, {
           method: "POST",
           headers: {
             Authorization: `Basic ${basic}`,
@@ -236,7 +242,7 @@ Deno.serve(async (req) => {
               ...(nuContratoFinal ? { nuContrato: nuContratoFinal, nuDR, nuRequisicao: "1" } : {}),
             });
             const precoUrl = `https://api.correios.com.br/preco/v1/nacional/${svc.codigo}?${precoQS}`;
-            const precoRes = await fetch(precoUrl, {
+            const precoRes = await cFetch(precoUrl, {
               method: "GET",
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -258,7 +264,7 @@ Deno.serve(async (req) => {
             // Prazo — também GET v1 por código
             const prazoQS = new URLSearchParams({ cepDestino, cepOrigem });
             const prazoUrl = `https://api.correios.com.br/prazo/v1/nacional/${svc.codigo}?${prazoQS}`;
-            const prazoRes = await fetch(prazoUrl, {
+            const prazoRes = await cFetch(prazoUrl, {
               method: "GET",
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -341,7 +347,7 @@ Deno.serve(async (req) => {
         const sroUrl = `https://proxyapp.correios.com.br/v1/sro-rastro/${codigo}`;
         
         // Get auth token
-        const authRes = await fetch("https://proxyapp.correios.com.br/v1/autentica/cartaopostagem", {
+        const authRes = await cFetch("https://proxyapp.correios.com.br/v1/autentica/cartaopostagem", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ numero: correiosUser, senha: correiosPass }),
@@ -351,14 +357,14 @@ Deno.serve(async (req) => {
         if (authRes.ok) {
           const authData = await authRes.json();
           const tokenCorreios = authData.token;
-          const trackRes = await fetch(sroUrl, {
+          const trackRes = await cFetch(sroUrl, {
             headers: { Authorization: `Bearer ${tokenCorreios}` },
           });
           trackingResult = await trackRes.json();
         } else {
           // Fallback: try legacy XML endpoint
           const legacyUrl = `http://webservice.correios.com.br/service/rest/rastro/rastroMobile?usuario=${encodeURIComponent(correiosUser)}&senha=${encodeURIComponent(correiosPass)}&tipo=L&resultado=T&objetos=${codigo}&lingua=101&token=`;
-          const legacyRes = await fetch(legacyUrl);
+          const legacyRes = await cFetch(legacyUrl);
           const legacyText = await legacyRes.text();
           // Parse minimal XML
           const objetoMatch = legacyText.match(/<objeto>([\s\S]*?)<\/objeto>/);
@@ -419,6 +425,9 @@ Deno.serve(async (req) => {
     );
   } catch (e: any) {
     console.error("[correios-api]", e);
+    if (isTimeoutError(e)) {
+      return timeoutResponse(corsHeaders, "Correios não respondeu a tempo.");
+    }
     return new Response(
       JSON.stringify({ error: e.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -633,7 +642,7 @@ async function handlePrepostagem(req: Request, action: string, url: URL): Promis
     const auth = await autenticarParaPrepostagem();
     const body = await buildPrepostagemBody(admin, remessa_id, auth.nuContrato, auth.nuDR);
 
-    const res = await fetch("https://api.correios.com.br/prepostagem/v1/prepostagens", {
+    const res = await cFetch("https://api.correios.com.br/prepostagem/v1/prepostagens", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${auth.token}`,
@@ -664,7 +673,7 @@ async function handlePrepostagem(req: Request, action: string, url: URL): Promis
       return jsonRes({ error: "idsPrePostagem (array) é obrigatório" }, 400);
     }
     const auth = await autenticarParaPrepostagem();
-    const res = await fetch("https://api.correios.com.br/prepostagem/v1/prepostagens/rotulo/assincrono/pdf", {
+    const res = await cFetch("https://api.correios.com.br/prepostagem/v1/prepostagens/rotulo/assincrono/pdf", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${auth.token}`,
@@ -688,7 +697,7 @@ async function handlePrepostagem(req: Request, action: string, url: URL): Promis
     const idRecibo = url.searchParams.get("idRecibo") || "";
     if (!idRecibo) return jsonRes({ error: "idRecibo é obrigatório" }, 400);
     const auth = await autenticarParaPrepostagem();
-    const res = await fetch(
+    const res = await cFetch(
       `https://api.correios.com.br/prepostagem/v1/prepostagens/rotulo/download/assincrono/${encodeURIComponent(idRecibo)}`,
       { headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" } },
     );
@@ -709,7 +718,7 @@ async function handlePrepostagem(req: Request, action: string, url: URL): Promis
     const { idCorreios } = await req.json();
     if (!idCorreios) return jsonRes({ error: "idCorreios é obrigatório" }, 400);
     const auth = await autenticarParaPrepostagem();
-    const res = await fetch(
+    const res = await cFetch(
       `https://api.correios.com.br/prepostagem/v1/prepostagens/${encodeURIComponent(idCorreios)}`,
       { method: "DELETE", headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" } },
     );
