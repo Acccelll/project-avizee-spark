@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OriginContextBanner } from "@/components/navigation/OriginContextBanner";
 import { ModulePage } from "@/components/ModulePage";
@@ -21,20 +21,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import {
-  registrarEventoFiscal,
-  cancelarNotaFiscal,
-  getPedidoCompraResumo,
-  listNotaFiscalItensCompletos,
-  upsertNotaFiscalComItens,
-} from "@/services/fiscal.service";
-import { gerarFinanceiroNfeEntrada, atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
-import { gerarFinanceiroNfeSaida } from "@/services/fiscal/lifecycle.service";
-import { getEmpresaConfig } from "@/services/fiscal/empresaConfig.service";
-import {
-  useConfirmarNotaFiscal,
-  useEstornarNotaFiscal,
-} from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
@@ -50,19 +36,12 @@ import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobi
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
 import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
-import { useActionLock } from "@/hooks/useActionLock";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
-import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
-  canConfirmFiscal,
-  canEstornarFiscal,
   fiscalInternalStatusOptions,
   fiscalSefazStatusOptions,
   getFiscalInternalStatus,
   getFiscalSefazStatus,
-  isFiscalStructurallyLocked,
 } from "@/lib/fiscalStatus";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
 import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
@@ -79,6 +58,9 @@ import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
+import { useFiscalAutoOpen } from "@/pages/fiscal/hooks/useFiscalAutoOpen";
+import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
+import { useFiscalSubmit } from "@/pages/fiscal/hooks/useFiscalSubmit";
 import { logger } from "@/lib/logger";
 
 /**
@@ -213,28 +195,30 @@ const Fiscal = () => {
     cidade?: string;
     uf?: string;
   }>({});
-  // CNPJ da empresa (carregado uma vez) — usado para detectar NF de saída no XML.
-  const [cnpjEmpresa, setCnpjEmpresa] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const cfg = await getEmpresaConfig();
-        if (!cancelled) setCnpjEmpresa((cfg as { cnpj?: string | null } | null)?.cnpj ?? null);
-      } catch {
-        // empresa_config ausente: import seguirá como entrada por default.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const confirmarLock = useActionLock();
-  const estornarLock = useActionLock();
-  const { confirm, dialog: confirmDialog } = useConfirmDialog();
-  const invalidate = useInvalidateAfterMutation();
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
-  const confirmarMutation = useConfirmarNotaFiscal();
-  const estornarMutation = useEstornarNotaFiscal();
+
+  // Auto-open / deep-link / origem PC + carregamento de cnpjEmpresa.
+  // Etapa 6.3 — extraído para `useFiscalAutoOpen`.
+  const {
+    cnpjEmpresa,
+    openCreate,
+    pedidoCompraOriginId,
+    originPedidoNumero,
+  } = useFiscalAutoOpen({
+    setMode,
+    setForm,
+    setItems,
+    setSelected,
+    setParcelas,
+    setItemContaContabil,
+    setItemFiscalData,
+    setModalOpen,
+    setXmlOriginInfo: (v) => setXmlOriginInfo(v as never),
+    setTraducaoLinhas: (v) => setTraducaoLinhas(v as never),
+    setDrawerOpen,
+    applyDeepLinkSelected: setSelected,
+  });
+
   const { importXml } = useNFeXmlImport({
     fornecedores: fornecedores,
     produtos: produtos,
@@ -242,286 +226,12 @@ const Fiscal = () => {
     cnpjEmpresa,
   });
 
-  // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
-  const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
-  const fornecedorOriginId = searchParams.get("fornecedor_id");
-  const tipoOriginParam = searchParams.get("tipo");
-  const [originPedidoNumero, setOriginPedidoNumero] = useState<string | null>(null);
-  const [autoOpened, setAutoOpened] = useState(false);
-
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setXmlOriginInfo(null); setTraducaoLinhas([]); setModalOpen(true); };
-
-  // Atalho rápido: ?new=1 abre o formulário de emissão.
-  useEffect(() => {
-    if (autoOpened) return;
-    if (searchParams.get("new") !== "1") return;
-    setAutoOpened(true);
-    openCreate();
-    const next = new URLSearchParams(searchParams);
-    next.delete("new");
-    setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/setSearchParams capturados via closure
-  }, [searchParams, autoOpened]);
-
-  // Deep-link `/fiscal?nf=:id` — abre o NotaFiscalDrawer da nota indicada.
-  // Substitui a antiga rota /fiscal/:id (FiscalDetail), agora deprecada (D-2).
-  useEffect(() => {
-    const nfId = searchParams.get("nf");
-    if (!nfId) return;
-    let cancelled = false;
-    (async () => {
-      const { data: row, error } = await supabase
-        .from("notas_fiscais")
-        .select(
-          "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
-        )
-        .eq("id", nfId)
-        .maybeSingle();
-      if (cancelled || error || !row) return;
-      setSelected(row as unknown as NotaFiscal);
-      setDrawerOpen(true);
-      const next = new URLSearchParams(searchParams);
-      next.delete("nf");
-      setSearchParams(next, { replace: true });
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot via querystring
-  }, [searchParams]);
-
-  // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
-  useEffect(() => {
-    if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;
-    let cancelled = false;
-    (async () => {
-      const pc = await getPedidoCompraResumo(pedidoCompraOriginId).catch(() => null);
-      if (cancelled) return;
-      setOriginPedidoNumero(pc?.numero ?? null);
-      setMode("create");
-      setForm({
-        ...emptyForm,
-        tipo: "entrada",
-        fornecedor_id: fornecedorOriginId || pc?.fornecedor_id || "",
-        observacoes: pc?.numero ? `Recebimento do Pedido de Compra ${pc.numero}` : "",
-      });
-      setItems([]);
-      setSelected(null);
-      setParcelas(1);
-      setItemContaContabil({});
-      setItemFiscalData({});
-      setModalOpen(true);
-      setAutoOpened(true);
-    })();
-    return () => { cancelled = true; };
-  }, [pedidoCompraOriginId, fornecedorOriginId, tipoOriginParam, autoOpened]);
-
-  const openEdit = async (n: NotaFiscal) => {
-    // Mobile: form com itens dinâmicos não cabe em modal — navegar para página dedicada.
-    // Alinha com mem://produto/quando-drawer-quando-pagina.
-    if (isMobile) {
-      navigate(`/fiscal/${n.id}/editar`);
-      return;
-    }
-    setMode("edit"); setSelected(n);
-    setForm({
-      tipo: n.tipo, numero: n.numero, serie: n.serie || "1", chave_acesso: n.chave_acesso || "",
-      data_emissao: n.data_emissao, fornecedor_id: n.fornecedor_id || "", cliente_id: n.cliente_id || "",
-      valor_total: n.valor_total, status: n.status, observacoes: n.observacoes || "",
-      movimenta_estoque: n.movimenta_estoque !== false, gera_financeiro: n.gera_financeiro !== false,
-      forma_pagamento: n.forma_pagamento || "", condicao_pagamento: n.condicao_pagamento || "a_vista",
-      ordem_venda_id: n.ordem_venda_id || "", conta_contabil_id: n.conta_contabil_id || "",
-      modelo_documento: n.modelo_documento || "55",
-      cartao_id: (n as { cartao_id?: string | null }).cartao_id || "",
-      frete_valor: n.frete_valor || 0, icms_valor: n.icms_valor || 0, ipi_valor: n.ipi_valor || 0,
-      pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
-      desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
-      origem: n.origem || "manual",
-      data_vencimento: (n as { data_vencimento?: string | null }).data_vencimento || "",
-      intervalo_parcelas_dias: (n as { intervalo_parcelas_dias?: number | null }).intervalo_parcelas_dias || 30,
-    });
-    // Seed parcelas + plano a partir da NF (necessário p/ editar pagamento de NF confirmada)
-    const numParc = Math.max(1, Number((n as { numero_parcelas?: number | null }).numero_parcelas) || 1);
-    setParcelas(numParc);
-    const planoExistente = (n as { parcelas?: unknown }).parcelas;
-    if (Array.isArray(planoExistente) && planoExistente.length > 0) {
-      setParcelasPlano(planoExistente as import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]);
-    } else {
-      setParcelasPlano([]);
-    }
-    const itens = await listNotaFiscalItensCompletos(n.id).catch(() => []);
-    const itensTyped = itens as unknown as NfItemRow[];
-    const loadedItems = itensTyped.map((i) => ({
-      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
-      descricao: i.produtos?.nome || "", quantidade: i.quantidade,
-      valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
-    }));
-    setItems(loadedItems);
-    const contaMap: Record<number, string> = {};
-    const fiscalMap: Record<number, NfItemFiscalData> = {};
-    itensTyped.forEach((i, idx) => {
-      if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
-      fiscalMap[idx] = {
-        cfop: i.cfop, cst: i.cst, ncm: i.ncm, unidade: i.unidade,
-        descricao: i.descricao, icms_valor: i.icms_valor, icms_aliquota: i.icms_aliquota,
-        icms_base: i.icms_base, ipi_valor: i.ipi_valor, ipi_aliquota: i.ipi_aliquota,
-        pis_valor: i.pis_valor, pis_aliquota: i.pis_aliquota, base_pis: i.base_pis,
-        cofins_valor: i.cofins_valor, cofins_aliquota: i.cofins_aliquota, base_cofins: i.base_cofins,
-        valor_st: i.valor_st, base_st: i.base_st,
-        csosn: i.csosn, cst_pis: i.cst_pis, cst_cofins: i.cst_cofins, cst_ipi: i.cst_ipi,
-        desconto: i.desconto, codigo_produto: i.codigo_produto,
-      };
-    });
-    setItemContaContabil(contaMap);
-    setItemFiscalData(fiscalMap);
-    setModalOpen(true);
-  };
-
   const openView = (n: NotaFiscal) => {
     setSelected(n);
     setDrawerOpen(true);
   };
 
   const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
-
-  const baixarXmlArquivado = async (n: NotaFiscal) => {
-    const path = (n as { caminho_xml?: string | null }).caminho_xml;
-    if (!path) {
-      toast.error("XML não arquivado para esta NF.");
-      return;
-    }
-    try {
-      const { triggerDownloadNfeXml } = await import("@/services/fiscal/xmlStorage.service");
-      await triggerDownloadNfeXml({ path, filename: `${n.chave_acesso || n.numero}.xml` });
-    } catch (err) {
-      logger.error("[fiscal] baixar XML:", err);
-      toast.error(`Não foi possível baixar o XML: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleConfirmar = async (nf: NotaFiscal) => {
-    if (!canConfirmFiscal(nf.status)) {
-      toast.error(`NF ${nf.numero} não está em estado confirmável.`);
-      return;
-    }
-    const ok = await confirm({
-      title: "Concluir lançamento da NF",
-      description: `Concluir o lançamento da NF ${nf.numero}? O ERP movimentará estoque e gerará o financeiro conforme a configuração da nota. (Notas com condição financeira completa são concluídas automaticamente no salvar — esta ação é o fallback para pendências.)`,
-      confirmLabel: "Concluir lançamento",
-      confirmVariant: "default",
-    });
-    if (!ok) return;
-    await confirmarLock.run(async () => {
-      try {
-        await confirmarMutation.mutateAsync({ nfId: nf.id, tipoDocumento: (nf as any).tipo_documento ?? "nfe" });
-        toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
-        fetchData();
-        // Invalidação cross-módulo: outros módulos abertos em background
-        // (Estoque, Financeiro, Pedidos) refletem a mudança imediatamente.
-        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-      } catch (err: unknown) {
-        logger.error('[fiscal] confirmar NF:', err);
-        notifyError(err);
-      }
-    });
-  };
-
-  const handleEstornar = async (nf: NotaFiscal) => {
-    if (!canEstornarFiscal(nf.status)) {
-      toast.error(`NF ${nf.numero} não está em estado estornável.`);
-      return;
-    }
-    const ok = await confirm({
-      title: "Estornar nota fiscal",
-      description: `Estorno da NF ${nf.numero}: o sistema reverterá os movimentos de estoque, cancelará lançamentos financeiros e recalculará faturamento vinculado.`,
-      confirmLabel: "Estornar",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
-    await estornarLock.run(async () => {
-      try {
-        await estornarMutation.mutateAsync({ nfId: nf.id });
-        toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
-        fetchData();
-        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-      } catch (err: unknown) {
-        logger.error('[fiscal] estornar NF:', err);
-        notifyError(err);
-      }
-    });
-  };
-
-  const handleCancelarRascunho = async () => {
-    if (!selected) return;
-    const ok = await confirm({
-      title: "Cancelar rascunho",
-      description: `Cancelar o rascunho da NF ${selected.numero}? Esta ação não pode ser desfeita.`,
-      confirmLabel: "Cancelar rascunho",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
-    try {
-      // Usa RPC canônica `cancelar_nota_fiscal`: respeita máquina de estados,
-      // estorna efeitos quando necessário e registra evento dentro da transação.
-      await cancelarNotaFiscal(selected.id, `Rascunho da NF ${selected.numero} cancelado pelo usuário.`);
-      toast.success("Rascunho inativado com sucesso.");
-      setModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      logger.error('[fiscal] cancelar rascunho:', err);
-      notifyError(err);
-    }
-  };
-
-  const buildNfItemsPayload = (nfId: string) => items.map((i, idx) => {
-    if (!i.produto_id) {
-      throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
-    }
-    const fiscal = itemFiscalData[idx] || {};
-    // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
-    // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
-    const traducao = traducaoLinhas.find((t) => t.index === idx);
-    const td = (form as any).tipo_documento as string | undefined;
-    const categoria = td === "nfse" ? "servico" : td === "cte" ? "frete" : "produto";
-    return {
-      nota_fiscal_id: nfId,
-      produto_id: i.produto_id,
-      categoria,
-      quantidade: i.quantidade,
-      valor_unitario: i.valor_unitario,
-      conta_contabil_id: itemContaContabil[idx] || null,
-      cfop: fiscal.cfop ?? null,
-      cst: fiscal.cst ?? null,
-      ncm: fiscal.ncm ?? null,
-      unidade: fiscal.unidade ?? null,
-      descricao: fiscal.descricao ?? i.descricao ?? null,
-      icms_valor: fiscal.icms_valor ?? null,
-      icms_aliquota: fiscal.icms_aliquota ?? null,
-      icms_base: fiscal.icms_base ?? null,
-      ipi_valor: fiscal.ipi_valor ?? null,
-      ipi_aliquota: fiscal.ipi_aliquota ?? null,
-      pis_valor: fiscal.pis_valor ?? null,
-      pis_aliquota: fiscal.pis_aliquota ?? null,
-      base_pis: fiscal.base_pis ?? null,
-      cofins_valor: fiscal.cofins_valor ?? null,
-      cofins_aliquota: fiscal.cofins_aliquota ?? null,
-      base_cofins: fiscal.base_cofins ?? null,
-      valor_st: fiscal.valor_st ?? null,
-      base_st: fiscal.base_st ?? null,
-      csosn: fiscal.csosn ?? null,
-      cst_pis: fiscal.cst_pis ?? null,
-      cst_cofins: fiscal.cst_cofins ?? null,
-      cst_ipi: fiscal.cst_ipi ?? null,
-      desconto: fiscal.desconto ?? null,
-      codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
-      // XML cru preservado quando há tradução associada.
-      codigo_produto_origem: traducao?.xmlCodigo ?? null,
-      descricao_produto_origem: traducao?.xmlDescricao ?? null,
-      unidade_origem: traducao?.xmlUnidade ?? null,
-      quantidade_origem: traducao?.xmlQuantidade ?? null,
-      valor_unitario_origem: traducao?.xmlValorUnitario ?? null,
-      valor_total_origem: traducao?.xmlValorTotal ?? null,
-      match_status: traducao ? (traducao.matchStatus || null) : null,
-    };
-  });
 
   /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
   const aplicarImportacaoXml = async (
@@ -882,406 +592,6 @@ const Fiscal = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.numero) { toast.error("Número é obrigatório"); return; }
-    if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
-    if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
-    if (form.forma_pagamento === "cartao_credito" && !form.cartao_id) {
-      toast.error("Selecione o cartão de crédito.");
-      return;
-    }
-    // NF estruturalmente travada (confirmada/importada): só pagamento é editável.
-    // Regenera lançamentos via RPC dedicada e encerra.
-    // Exceção: Admin/Financeiro com edição privilegiada pulam este atalho e
-    // seguem para o upsert completo (itens, valores, chave, número, etc.).
-    if (
-      mode === "edit" &&
-      selected &&
-      !canEditAvancado &&
-      isFiscalStructurallyLocked(selected.status, (selected as { status_sefaz?: string }).status_sefaz)
-    ) {
-      setSaving(true);
-      try {
-        const total = totalNF || form.valor_total || Number(selected.valor_total || 0);
-        const planoFinal =
-          form.condicao_pagamento === "a_prazo" && parcelas > 1
-            ? (parcelasPlano.length === parcelas ? parcelasPlano : [])
-            : [{
-                numero: 1,
-                vencimento: form.condicao_pagamento === "a_prazo"
-                  ? (form.data_vencimento || selected.data_emissao || new Date().toISOString().split("T")[0])
-                  : (selected.data_emissao || new Date().toISOString().split("T")[0]),
-                valor: total,
-              }];
-        if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
-          toast.error("Defina o plano de parcelas antes de salvar.");
-          setSaving(false);
-          return;
-        }
-        await atualizarFinanceiroNota({
-          notaId: selected.id,
-          formaPagamento: form.forma_pagamento,
-          condicaoPagamento: form.condicao_pagamento,
-          parcelas: planoFinal as never,
-        });
-        toast.success("Pagamento atualizado e lançamentos regenerados.");
-        setModalOpen(false);
-        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-      } catch (err) {
-        notifyError(err);
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-    const unlinkedCount = items.filter(i => !i.produto_id).length;
-    if (unlinkedCount > 0) {
-      toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens ou remova-os antes de salvar.`);
-      return;
-    }
-    setSaving(true);
-    try {
-      const savedTotal = totalNF || form.valor_total;
-      const recorrente = Boolean((form as Record<string, unknown>).recorrente);
-      if (recorrente) {
-        if (form.tipo !== "entrada") {
-          toast.error("Cobrança recorrente disponível apenas para NF de entrada.");
-          setSaving(false);
-          return;
-        }
-        if (!(form as Record<string, unknown>).recorrencia_data_inicio) {
-          toast.error("Informe a data de início da recorrência.");
-          setSaving(false);
-          return;
-        }
-      }
-      const planoParcelas =
-        !recorrente && form.condicao_pagamento === "a_prazo" && parcelas > 1
-          ? parcelasPlano
-          : null;
-      const chaveLimpa = (form.chave_acesso || "").replace(/\D/g, "");
-      // Strip campos client-only de recorrência (não existem em notas_fiscais).
-      const formAny = form as Record<string, unknown>;
-      const {
-        recorrente: _r1,
-        recorrencia_periodicidade: _r2,
-        recorrencia_dia_vencimento: _r3,
-        recorrencia_data_inicio: _r4,
-        recorrencia_data_fim: _r5,
-        recorrencia_qtd_ciclos: _r6,
-        recorrencia_encerramento: _r7,
-        ...formForPayload
-      } = formAny;
-      void _r1; void _r2; void _r3; void _r4; void _r5; void _r6; void _r7;
-      const payload = { ...(formForPayload as typeof form), fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, chave_acesso: chaveLimpa.length === 44 ? chaveLimpa : null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
-      const nfId = await upsertNotaFiscalComItens({
-        mode: mode === "create" ? "create" : "edit",
-        nfId: selected?.id,
-        payload: payload as never,
-        itemsBuilder: (id) => buildNfItemsPayload(id) as never,
-      });
-      if (mode === "create") {
-        await registrarEventoFiscal({
-          nota_fiscal_id: nfId,
-          tipo_evento: form.origem === "xml_importado" ? "importacao_xml" : "criacao",
-          status_novo: "pendente",
-          descricao: form.origem === "xml_importado"
-            ? `NF ${form.numero} criada via importação de XML.`
-            : `NF ${form.numero} criada manualmente.`,
-          payload_resumido: { valor_total: savedTotal, itens: items.length },
-        });
-        // ── Cobrança recorrente: cria template e materializa o 1º ciclo.
-        // Cancela toda a geração tradicional de financeiro/parcelas/cartão.
-        if (recorrente) {
-          try {
-            const { criarRecorrenciaParaNfe } = await import("@/services/recorrencias.service");
-            const encerramento = String(formAny.recorrencia_encerramento || "indeterminado");
-            await criarRecorrenciaParaNfe({
-              nfeId: nfId,
-              payload: {
-                tipo: "pagar",
-                descricao: `NF ${form.numero} — recorrência`,
-                valor: savedTotal,
-                periodicidade: String(formAny.recorrencia_periodicidade || "mensal") as "mensal" | "bimestral" | "trimestral" | "semestral" | "anual",
-                dia_vencimento:
-                  form.forma_pagamento === "cartao_credito"
-                    ? null
-                    : (Number(formAny.recorrencia_dia_vencimento) || null),
-                data_inicio: String(formAny.recorrencia_data_inicio),
-                proxima_geracao: String(formAny.recorrencia_data_inicio),
-                data_fim: encerramento === "data" ? String(formAny.recorrencia_data_fim) : null,
-                qtd_ciclos_max: encerramento === "qtd" ? Number(formAny.recorrencia_qtd_ciclos) : null,
-                status: "ativa",
-                forma_pagamento: String(form.forma_pagamento || "") || null,
-                cartao_id: form.cartao_id || null,
-                fornecedor_id: form.fornecedor_id || null,
-                conta_contabil_id: form.conta_contabil_id || null,
-                observacoes: `Gerado a partir da NF ${form.numero}`,
-              },
-            });
-            toast.success("Recorrência criada — 1º ciclo lançado no financeiro.");
-            try {
-              await confirmarMutation.mutateAsync({
-                nfId,
-                tipoDocumento:
-                  ((form as unknown as { tipo_documento?: "nfe" | "nfse" | "cte" })
-                    .tipo_documento) ?? "nfe",
-              });
-              await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-            } catch (confErr) {
-              logger.error("[fiscal] auto-confirmar NF recorrente:", confErr);
-            }
-          } catch (recErr) {
-            logger.error("[fiscal] criar recorrência da NF:", recErr);
-            toast.warning("NF salva, mas houve falha ao criar a recorrência. Verifique manualmente.");
-          }
-          setModalOpen(false); fetchData(); setSaving(false); return;
-        }
-        // Pista para decisão de auto-confirmação ao final do bloco `create`.
-        // `null` = ainda não avaliado; true = financeiro gerado/dispensado e
-        // podemos confirmar; false = ficou pendência (manter status `pendente`).
-        let financeiroOk: boolean | null = null;
-        let financeiroMotivo = "";
-        // Geração de financeiro a partir das duplicatas do XML (NF-e de entrada).
-        if (
-          form.tipo === "entrada" &&
-          form.origem === "xml_importado" &&
-          xmlOriginInfo?.cobranca?.duplicatas?.length
-        ) {
-          try {
-            const { mapTPagSefaz } = await import("@/lib/financeiro");
-            const formaPag = xmlOriginInfo.cobranca.tPag
-              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
-              : "boleto_dda";
-            await gerarFinanceiroNfeEntrada(
-              nfId,
-              xmlOriginInfo.cobranca.duplicatas.map((d) => ({
-                numero: d.numero,
-                vencimento: d.vencimento,
-                valor: d.valor,
-              })),
-              formaPag,
-              form.cartao_id || null,
-            );
-            toast.success(
-              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Pagar.`,
-            );
-            financeiroOk = true;
-          } catch (rpcErr) {
-            logger.error("[fiscal] gerar financeiro NFe:", rpcErr);
-            toast.warning(
-              "NF salva, mas houve falha ao gerar parcelas no financeiro. Lance manualmente.",
-            );
-            financeiroOk = false;
-            financeiroMotivo = "falha ao gerar parcelas do XML";
-          }
-        } else if (
-          form.tipo === "entrada" &&
-          form.origem === "xml_importado" &&
-          !xmlOriginInfo?.cobranca?.duplicatas?.length
-        ) {
-          toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
-          financeiroOk = false;
-          financeiroMotivo = "XML sem duplicatas — informe forma/condição";
-        } else if (
-          form.tipo === "saida" &&
-          form.origem === "xml_importado" &&
-          xmlOriginInfo?.cobranca?.duplicatas?.length
-        ) {
-          // NF de saída importada via XML → gera Contas a Receber.
-          try {
-            const { mapTPagSefaz } = await import("@/lib/financeiro");
-            const formaPag = xmlOriginInfo.cobranca.tPag
-              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
-              : "boleto";
-            await gerarFinanceiroNfeSaida(
-              nfId,
-              xmlOriginInfo.cobranca.duplicatas.map((d) => ({
-                numero: d.numero,
-                vencimento: d.vencimento,
-                valor: d.valor,
-              })),
-              formaPag,
-            );
-            toast.success(
-              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Receber.`,
-            );
-            financeiroOk = true;
-          } catch (rpcErr) {
-            logger.error("[fiscal] gerar financeiro NFe saida:", rpcErr);
-            toast.warning(
-              "NF salva, mas houve falha ao gerar parcelas a receber. Lance manualmente.",
-            );
-            financeiroOk = false;
-            financeiroMotivo = "falha ao gerar parcelas a receber";
-          }
-        } else if (
-          form.tipo === "saida" &&
-          form.origem === "xml_importado" &&
-          !xmlOriginInfo?.cobranca?.duplicatas?.length
-        ) {
-          toast.info("XML sem duplicatas — informe a condição financeira manualmente.");
-          financeiroOk = false;
-          financeiroMotivo = "XML sem duplicatas — informe forma/condição";
-        } else if (
-          form.tipo === "entrada" &&
-          form.gera_financeiro &&
-          form.forma_pagamento === "cartao_credito" &&
-          form.cartao_id
-        ) {
-          // NF de entrada manual (sem XML) com cartão de crédito → gerar parcelas
-          // a partir do plano do editor (ou parcela única se à vista).
-          const duplicatas =
-            form.condicao_pagamento === "a_prazo" && parcelasPlano.length > 0
-              ? parcelasPlano.map((p, i) => ({
-                  numero: String(i + 1),
-                  vencimento: p.vencimento,
-                  valor: p.valor,
-                }))
-              : [{ numero: "1", vencimento: form.data_emissao, valor: savedTotal }];
-          try {
-            await gerarFinanceiroNfeEntrada(
-              nfId,
-              duplicatas,
-              "cartao_credito",
-              form.cartao_id,
-            );
-            toast.success(`${duplicatas.length} parcela(s) lançada(s) na fatura do cartão.`);
-            financeiroOk = true;
-          } catch (rpcErr) {
-            logger.error("[fiscal] gerar financeiro cartao:", rpcErr);
-            toast.warning("NF salva, mas houve falha ao gerar parcelas no cartão.");
-            financeiroOk = false;
-            financeiroMotivo = "falha ao gerar parcelas do cartão";
-          }
-        }
-
-        // Avaliação dos casos que não caíram em nenhum branch acima:
-        // NF manual (sem XML, sem cartão) — a RPC `confirmar_nota_fiscal`
-        // gera o financeiro a partir de `condicao_pagamento`/`parcelas` do
-        // payload já gravado. Auto-confirmamos quando há condição clara.
-        if (financeiroOk === null) {
-          if (!form.gera_financeiro) {
-            financeiroOk = true; // NF dispensa financeiro
-          } else if (!form.forma_pagamento) {
-            financeiroOk = false;
-            financeiroMotivo = "forma de pagamento não informada";
-          } else if (form.condicao_pagamento === "a_vista") {
-            financeiroOk = true;
-          } else if (form.condicao_pagamento === "a_prazo") {
-            if (parcelas > 1 && parcelasPlano.length !== parcelas) {
-              financeiroOk = false;
-              financeiroMotivo = "plano de parcelas incompleto";
-            } else {
-              financeiroOk = true;
-            }
-          } else {
-            financeiroOk = false;
-            financeiroMotivo = "condição de pagamento não informada";
-          }
-        }
-
-        // Auto-confirmação: substitui o antigo botão "Confirmar NF".
-        if (financeiroOk) {
-          try {
-            await confirmarMutation.mutateAsync({
-              nfId,
-              tipoDocumento:
-                ((form as unknown as { tipo_documento?: "nfe" | "nfse" | "cte" })
-                  .tipo_documento) ?? "nfe",
-            });
-            toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
-            await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
-          } catch (confirmErr) {
-            logger.error("[fiscal] auto-confirmar NF:", confirmErr);
-            toast.warning(
-              "NF salva, mas a confirmação automática falhou. Use 'Concluir lançamento' para finalizar.",
-            );
-          }
-        } else {
-          toast.warning(
-            `NF salva como pendente — ${financeiroMotivo || "complete a condição financeira"} e use 'Concluir lançamento'.`,
-          );
-        }
-      } else if (selected) {
-        await registrarEventoFiscal({
-          nota_fiscal_id: selected.id,
-          tipo_evento: "edicao",
-          descricao: `NF ${form.numero} editada. Novo total: R$ ${savedTotal.toFixed(2)}.`,
-          payload_resumido: { valor_total: savedTotal, itens: items.length },
-        });
-        // Edição privilegiada (Admin/Financeiro) em NF estruturalmente travada:
-        // após gravar os dados da NF, regenera os lançamentos financeiros para
-        // refletir a nova forma de pagamento / vencimento / parcelas.
-        const wasLocked = isFiscalStructurallyLocked(
-          selected.status,
-          (selected as { status_sefaz?: string }).status_sefaz,
-        );
-        if (canEditAvancado && wasLocked && form.gera_financeiro) {
-          try {
-            const totalRegen = savedTotal;
-            const planoFinal =
-              form.condicao_pagamento === "a_prazo" && parcelas > 1
-                ? (parcelasPlano.length === parcelas ? parcelasPlano : [])
-                : [{
-                    numero: 1,
-                    vencimento: form.condicao_pagamento === "a_prazo"
-                      ? (form.data_vencimento || form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0])
-                      : (form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0]),
-                    valor: totalRegen,
-                  }];
-            if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
-              toast.warning("NF salva, mas o plano de parcelas está incompleto — financeiro não foi regenerado.");
-            } else {
-              await atualizarFinanceiroNota({
-                notaId: selected.id,
-                formaPagamento: form.forma_pagamento,
-                condicaoPagamento: form.condicao_pagamento,
-                parcelas: planoFinal as never,
-              });
-              toast.success("Nota fiscal salva e lançamentos financeiros regenerados.");
-            }
-          } catch (regenErr) {
-            logger.error("[fiscal] regenerar financeiro pós-edição admin:", regenErr);
-            toast.warning("NF salva, mas houve falha ao regenerar os lançamentos. Revise o financeiro vinculado.");
-          }
-        } else {
-          toast.success("Nota fiscal salva!");
-        }
-      }
-      setModalOpen(false); fetchData();
-    } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); notifyError(err); }
-    setSaving(false);
-  };
-
-  const openDevolucao = (nf: NotaFiscal) => devolucaoFlowRef.current?.open(nf);
-
-  const handleInativar = async (nfId: string) => {
-    const nf = data.find((item) => item.id === nfId);
-    if (!nf) return;
-    if (!canConfirmFiscal(nf.status)) {
-      toast.error("Inativação permitida apenas para notas em preparação (rascunho/pendente).");
-      return;
-    }
-    const ok = await confirm({
-      title: "Inativar rascunho fiscal",
-      description: `A NF ${nf.numero} será inativada no ERP. Esta ação não cancela eventos na SEFAZ.`,
-      confirmLabel: "Inativar",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
-    try {
-      // Unifica com FiscalDetail: usa RPC canônica em vez de DELETE físico.
-      await cancelarNotaFiscal(nfId, `NF ${nf.numero} inativada via grid.`);
-      toast.success(`NF ${nf.numero} inativada.`);
-      fetchData();
-    } catch (err: unknown) {
-      logger.error('[fiscal] inativar NF:', err);
-      notifyError(err);
-    }
-  };
-
   const tipoParam = searchParams.get("tipo");
   // Drill-down from Dashboard: ?status=rascunho or ?status=pendente,rascunho.
   const statusUrlParam = searchParams.get("status");
@@ -1350,6 +660,56 @@ const Fiscal = () => {
   // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
   const data = pagedData;
   const fetchData = refetchPaged;
+
+  // Etapa 6.3 — handlers de ciclo de vida + hidratação do form de edição.
+  const {
+    baixarXmlArquivado,
+    handleConfirmar,
+    handleEstornar,
+    handleCancelarRascunho,
+    handleInativar,
+    openEdit,
+    confirmDialog,
+    invalidate,
+    confirmarMutation,
+  } = useFiscalLifecycleActions({
+    fetchData,
+    setMode,
+    setSelected,
+    setForm,
+    setItems,
+    setItemContaContabil,
+    setItemFiscalData,
+    setParcelas,
+    setParcelasPlano,
+    setModalOpen,
+    data,
+    selected,
+  });
+
+  const openDevolucao = (nf: NotaFiscal) => devolucaoFlowRef.current?.open(nf);
+
+  // Etapa 6.3 — fluxo de salvar a NF (validações, financeiro, auto-confirm).
+  const { handleSubmit } = useFiscalSubmit({
+    form,
+    items,
+    mode,
+    selected,
+    parcelas,
+    parcelasPlano,
+    totalNF,
+    valorProdutos,
+    itemContaContabil,
+    itemFiscalData,
+    traducaoLinhas,
+    xmlOriginInfo,
+    canEditAvancado,
+    confirmarMutation,
+    invalidate,
+    setSaving,
+    setModalOpen,
+    fetchData,
+  });
 
   // Frente 1 — extraído para `useFiscalVencimentosLoader`.
   useFiscalVencimentosLoader(vencimentoMes, setVencimentoNotaIds);
