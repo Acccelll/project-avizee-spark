@@ -394,9 +394,9 @@ const Fiscal = () => {
         addButtonHelpId="fiscal.novoBtn"
         headerActions={
           <FiscalToolbarActions
-            ref={xmlInputRef}
-            onXmlChange={handleXmlImport}
-            onImportClick={() => xmlInputRef.current?.click()}
+            ref={xml.xmlInputRef}
+            onXmlChange={xml.handleXmlImport}
+            onImportClick={() => xml.xmlInputRef.current?.click()}
             onBuscarChaveClick={() => setBuscarChaveOpen(true)}
             onScannerClick={() => setScannerOpen(true)}
             compact={isMobile}
@@ -504,7 +504,7 @@ const Fiscal = () => {
       {/* Form Modal - Create */}
       <NfeCreateFormModal
         open={modalOpen && mode === "create"}
-        onClose={() => { setModalOpen(false); setXmlOriginInfo(null); setTraducaoLinhas([]); }}
+        onClose={() => { setModalOpen(false); xml.resetXmlOriginState(); }}
         form={form as unknown as Record<string, string | number | boolean>}
         setForm={(next) => setForm(next as unknown as typeof form)}
         items={items}
@@ -530,14 +530,11 @@ const Fiscal = () => {
         valorProdutos={valorProdutos}
         totalImpostos={totalImpostos}
         totalNF={totalNF}
-        xmlOriginInfo={xmlOriginInfo}
-        traducaoLinhasCount={traducaoLinhas.length}
-        onAbrirTraducao={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}
-        onCriarProdutoQuick={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
-        onCriarFornecedorQuick={() => {
-          setQuickFornecedorDefaults({});
-          setQuickFornecedorOpen(true);
-        }}
+        xmlOriginInfo={xml.xmlOriginInfo}
+        traducaoLinhasCount={xml.traducaoLinhas.length}
+        onAbrirTraducao={xml.openTraducaoEdit}
+        onCriarProdutoQuick={xml.openQuickProdutoFromForm}
+        onCriarFornecedorQuick={xml.openQuickFornecedorFromForm}
       />
 
       {/* Edit Modal */}
@@ -583,22 +580,9 @@ const Fiscal = () => {
         onEstornar={handleEstornar}
         onDevolucao={openDevolucao}
         onDanfe={(nf) => { setDrawerOpen(false); openDanfe(nf); }}
-        onAnexarXml={(nf) => {
-          setAnexarTargetNf(nf);
-          // Pequeno delay para garantir que o ref já está montado antes do click.
-          setTimeout(() => anexarXmlInputRef.current?.click(), 0);
-        }}
+        onAnexarXml={xml.triggerAnexarXml}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
         onRefresh={fetchData}
-      />
-
-      {/* Input dedicado para "Anexar XML" no drawer de uma NF existente. */}
-      <input
-        ref={anexarXmlInputRef}
-        type="file"
-        accept=".xml,text/xml,application/xml"
-        className="hidden"
-        onChange={handleAnexarXmlChange}
       />
 
       <FiscalDevolucaoFlow ref={devolucaoFlowRef} onSuccess={fetchData} />
@@ -612,112 +596,10 @@ const Fiscal = () => {
         setBuscarChaveInicial={setBuscarChaveInicial}
         scannerOpen={scannerOpen}
         setScannerOpen={setScannerOpen}
-        processarXmlImportado={processarXmlImportado}
+        processarXmlImportado={xml.processarXmlImportado}
       />
 
-      {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
-      <TraducaoXmlDrawer
-        open={traducaoOpen}
-        readOnly={traducaoReadOnly}
-        fornecedorNome={pendingXmlImport?.fornecedorNome ?? xmlOriginInfo?.fornecedorNome ?? ""}
-        fornecedorId={pendingXmlImport?.fornecedorId ?? xmlOriginInfo?.fornecedorId ?? ""}
-        produtos={produtos}
-        linhas={traducaoLinhas}
-        onCancel={handleTraducaoCancel}
-        onConfirm={handleTraducaoConfirm}
-        onCreateProduto={(idx, nome) => {
-          setQuickProdutoLinhaIdx(idx);
-          setQuickProdutoNome(nome);
-        }}
-      />
-
-      {/* Cadastro rápido de produto a partir do XML */}
-      <QuickAddProductModal
-        open={quickProdutoLinhaIdx !== null}
-        defaultNome={quickProdutoNome}
-        onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
-        onCreated={async (produtoId) => {
-          const idx = quickProdutoLinhaIdx;
-          await refetchProdutos();
-          if (idx !== null && idx >= 0) {
-            setTraducaoLinhas((prev) => prev.map((l) =>
-              l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
-            ));
-          } else if (idx === -1) {
-            // Entrada manual via ItemsGrid: anexa o novo produto à última linha do grid (ou cria uma).
-            setItems((prev) => {
-              const next = [...prev];
-              const target = next.findIndex((i) => !i.produto_id);
-              const matched = produtos.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
-              const row = {
-                produto_id: produtoId,
-                codigo: String(matched?.codigo_interno || ""),
-                descricao: String(matched?.nome || ""),
-                quantidade: 0,
-                valor_unitario: Number(matched?.preco_custo || 0),
-                valor_total: 0,
-              };
-              if (target >= 0) next[target] = row; else next.push(row);
-              return next;
-            });
-          }
-          setQuickProdutoLinhaIdx(null);
-          setQuickProdutoNome("");
-        }}
-      />
-
-      {/* Cadastro rápido de fornecedor a partir do XML */}
-      <QuickAddSupplierModal
-        open={quickFornecedorOpen}
-        defaults={quickFornecedorDefaults}
-        onClose={() => { setQuickFornecedorOpen(false); }}
-        onCreated={async (fornecedorId) => {
-          await refetchFornecedores();
-          setQuickFornecedorOpen(false);
-          // Retoma o fluxo de importação XML pendente
-          if (pendingXmlImport) {
-            const fornecedorNome = quickFornecedorDefaults.nome_razao_social || "";
-            const newPending = { ...pendingXmlImport, fornecedorId, fornecedorNome };
-            setPendingXmlImport(newPending);
-            setTraducaoReadOnly(false);
-            setTraducaoOpen(true);
-          } else {
-            // Cadastro inline a partir do form de NF: seleciona o novo fornecedor.
-            setForm((prev) => ({ ...prev, fornecedor_id: fornecedorId }));
-            toast.success("Fornecedor cadastrado e selecionado.");
-          }
-        }}
-      />
-
-      {/* Cadastro rápido de cliente a partir do XML (NF de saída) */}
-      <QuickAddClientModal
-        open={quickClienteOpen}
-        defaults={quickClienteDefaults}
-        onClose={() => setQuickClienteOpen(false)}
-        onCreated={async (clienteId) => {
-          await refetchClientes();
-          setQuickClienteOpen(false);
-          if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
-            const clienteNome = quickClienteDefaults.nome_razao_social || "";
-            // Reaplica a importação agora com o cliente recém-criado.
-            aplicarImportacaoXml(
-              pendingXmlImport.nfe,
-              "saida",
-              "",
-              "",
-              clienteId,
-              clienteNome,
-              traducaoLinhas,
-              pendingXmlImport.fiscalMap,
-            );
-            setPendingXmlImport(null);
-            toast.success("Cliente cadastrado. NF de saída pronta para revisão.");
-          } else {
-            setForm((prev) => ({ ...prev, cliente_id: clienteId }));
-            toast.success("Cliente cadastrado e selecionado.");
-          }
-        }}
-      />
+      <FiscalXmlSlots xml={xml} produtos={produtos} />
 
       {confirmDialog}
     </>
