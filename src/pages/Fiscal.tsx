@@ -79,6 +79,7 @@ import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
+import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -1460,65 +1461,14 @@ const Fiscal = () => {
         </AdvancedFilterBar>
         </div>
 
-        {/* Banner mobile tappable: filtra para Pendentes em 1 toque */}
-        {isMobile && kpis.pendentes > 0 && (
-          <button
-            type="button"
-            onClick={() =>
-              setStatusFilters(
-                statusFilters.includes("pendente") ? [] : ["pendente"],
-              )
-            }
-            aria-pressed={statusFilters.includes("pendente")}
-            className="md:hidden w-full mb-3 min-h-11 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3 active:bg-warning/20 transition-colors"
-            aria-label={
-              statusFilters.includes("pendente")
-                ? "Limpar filtro de notas pendentes"
-                : `Filtrar ${kpis.pendentes} notas pendentes`
-            }
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Clock className="h-4 w-4 shrink-0 text-warning" />
-              <span className="text-sm font-medium text-warning-foreground truncate">
-                {kpis.pendentes} {kpis.pendentes === 1 ? "nota pendente" : "notas pendentes"}
-              </span>
-            </div>
-            <span className="text-xs text-warning shrink-0">
-              {statusFilters.includes("pendente") ? "Limpar ×" : "Filtrar →"}
-            </span>
-          </button>
-        )}
-        <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
-          {/* Total de NFs oculto em mobile (redundante com count da lista) */}
-          <SummaryCard className="hidden md:block" title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
-          <SummaryCard
-            title="Valor Total"
-            shortTitle="Valor"
-            value={isMobile ? formatCurrencyCompact(kpis.valorTotal) : formatCurrency(kpis.valorTotal)}
-            icon={DollarSign}
-            variationType="neutral"
-            variation="acumulado"
-            density={isMobile ? 'compact' : 'default'}
-          />
-          <SummaryCard
-            title="Pendentes"
-            value={String(kpis.pendentes)}
-            icon={Clock}
-            variant={kpis.pendentes > 0 ? 'warning' : 'default'}
-            variationType={kpis.pendentes > 0 ? 'negative' : 'neutral'}
-            variation="aguardando"
-            density={isMobile ? 'compact' : 'default'}
-          />
-          <SummaryCard
-            title="Confirmadas"
-            value={String(kpis.confirmadas)}
-            icon={CheckCircle}
-            variant="success"
-            variationType="positive"
-            variation="processadas"
-            density={isMobile ? 'compact' : 'default'}
-          />
-        </div>
+        <FiscalKpisStrip
+          kpis={kpis}
+          isMobile={isMobile}
+          pendenteFiltroAtivo={statusFilters.includes("pendente")}
+          onTogglePendenteFilter={() =>
+            setStatusFilters(statusFilters.includes("pendente") ? [] : ["pendente"])
+          }
+        />
 
         <div data-help-id="fiscal.tabela">
         <DataTable
