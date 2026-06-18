@@ -141,6 +141,24 @@ export function useSupabaseCrud<R = any>({
   const orFiltersKey = orFilters && orFilters.length > 0 ? orFilters.join("|") : "";
   const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
+  // Footgun guard (Fase 2.3): em desenvolvimento, alerta quando o caller
+  // cai no modo 'all' implicitamente. 'all' busca a tabela inteira em
+  // chunks de 1000 — seguro em cadastros pequenos, perigoso em tabelas
+  // transacionais (financeiro_lancamentos, notas_fiscais, etc.).
+  // Para silenciar, passe `pageSize` ou `paginationMode` explicitamente.
+  if (
+    import.meta.env.DEV &&
+    paginationMode === undefined &&
+    pageSize === undefined
+  ) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[useSupabaseCrud] table="${table}" sem pageSize/paginationMode: ` +
+        `usando modo 'all' (fetch completo). Defina pageSize para listas ` +
+        `grandes ou paginationMode: 'all' explicitamente para silenciar.`,
+    );
+  }
+
   // Reset síncrono: quando filtros/busca/ordem mudam em modo paged, força
   // `page=0` no MESMO render — evita pedir um range inexistente (HTTP 416
   // "Requested range not satisfiable") na primeira query disparada com o
