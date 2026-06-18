@@ -1,7 +1,7 @@
 import { toast } from "sonner";
-import { logger } from "@/lib/logger";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
+import { logger } from "@/lib/logger";
 
 export interface FiscalChaveDialogsSlotProps {
   buscarChaveOpen: boolean;

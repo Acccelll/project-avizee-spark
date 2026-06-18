@@ -26,6 +26,7 @@ import {
 } from "@/services/fiscal/numeracao.service";
 import { validarPreEmissao } from "@/services/fiscal/validadores/preEmissao.validator";
 import type { NotaFiscal } from "@/types/domain";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook orquestrador das ações SEFAZ usadas na UI Fiscal.
@@ -207,7 +208,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
             });
           } catch (e) {
             // Falha ao registrar caminho não invalida a autorização SEFAZ.
-            console.warn("Falha ao persistir caminho_xml da NF-e:", e);
+            logger.warn("Falha ao persistir caminho_xml da NF-e:", e);
           }
         }
         setUltimoRetorno({

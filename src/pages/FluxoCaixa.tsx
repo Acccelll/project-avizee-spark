@@ -42,6 +42,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
+import { logger } from "@/lib/logger";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -397,7 +398,7 @@ const FluxoCaixa = () => {
       await reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[fluxo_caixa]", msg);
+      logger.error("[fluxo_caixa]", msg);
       notifyError(err);
     }
     setSaving(false);

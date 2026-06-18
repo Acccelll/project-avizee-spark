@@ -13,6 +13,7 @@ import { Truck, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { logger } from "@/lib/logger";
 
 interface TransportadoraBasic { id: string; nome_razao_social: string; }
 
@@ -36,7 +37,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
     try {
       setVinculos(await listTransportadorasVinculadas(clienteId));
     } catch (err) {
-      console.error("[clientes] erro ao carregar transportadoras:", err);
+      logger.error("[clientes] erro ao carregar transportadoras:", err);
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
   useEffect(() => {
     listTransportadorasAtivas()
       .then((data) => setTransportadoras(data as TransportadoraBasic[]))
-      .catch((err) => console.error("[clientes] erro ao carregar transportadoras:", err));
+      .catch((err) => logger.error("[clientes] erro ao carregar transportadoras:", err));
   }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- loadVinculos depende só de clienteId via closure; recriar a função a cada render dispararia refetch
@@ -64,7 +65,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
       await loadVinculos();
       toast.success("Transportadora vinculada");
     } catch (err) {
-      console.error("[clientes] erro ao vincular transportadora:", err);
+      logger.error("[clientes] erro ao vincular transportadora:", err);
       notifyError(err);
     }
     setSavingVinculo(false);
@@ -83,7 +84,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
       await loadVinculos();
       toast.success("Vínculo removido");
     } catch (err) {
-      console.error("[clientes] erro ao remover vínculo:", err);
+      logger.error("[clientes] erro ao remover vínculo:", err);
       notifyError(err);
     }
   };

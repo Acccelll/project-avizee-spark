@@ -16,6 +16,7 @@ import {
   type EmpresaConfigUpdate,
 } from "@/services/admin/empresa.service";
 import { BRANDING_QUERY_KEY } from "@/hooks/useBrandingPreview";
+import { logger } from "@/lib/logger";
 
 const EMPRESA_KEY = ["admin", "empresa-config"] as const;
 const appConfigKey = (chave: AppConfigChave) =>
@@ -41,7 +42,7 @@ export function useEmpresaConfig() {
       toast.success("Configurações da empresa salvas com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao salvar empresa_config:", err);
+      logger.error("[admin] Erro ao salvar empresa_config:", err);
       notifyError(err);
     },
   });
@@ -72,7 +73,7 @@ export function useAppConfig(chave: AppConfigChave) {
       toast.success("Configurações salvas com sucesso.");
     },
     onError: (err: Error) => {
-      console.error(`[admin] Erro ao salvar config '${chave}':`, err);
+      logger.error(`[admin] Erro ao salvar config '${chave}':`, err);
       notifyError(err);
     },
   });

@@ -20,6 +20,7 @@ import {
 import { ShieldAlert } from 'lucide-react';
 import { invokeAdminUsers, type UserWithRoles } from './_shared';
 import { RoleBadge, StatusBadgeUser } from './UserBadges';
+import { logger } from "@/lib/logger";
 
 interface UserRowProps {
   user: UserWithRoles;
@@ -66,7 +67,7 @@ export function UserRow({
         toast.success('Convite processado.');
       }
     } catch (err) {
-      console.error('[usuarios] resend-invite failed', err);
+      logger.error('[usuarios] resend-invite failed', err);
       toast.error('Não foi possível reenviar o convite.');
     } finally {
       setResending(false);

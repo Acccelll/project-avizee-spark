@@ -9,6 +9,7 @@ import {
   cargaInicialProcessarExtras,
   mergeLoteConciliacao,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook orquestrador da CARGA INICIAL DE PRODUÇÃO (insert-only).
@@ -154,7 +155,7 @@ export function useCargaInicial() {
         const extras = await cargaInicialProcessarExtras(loteId);
         if (extras) Object.assign(r as object, { extras });
       } catch (e) {
-        console.warn("Falha ao processar extras (centro_custo/sinteticas):", e);
+        logger.warn("Falha ao processar extras (centro_custo/sinteticas):", e);
       }
       setResultado(r);
       toast.success(`Carga inicial concluída: ${r.fornecedores} forn, ${r.clientes} cli, ${r.produtos} prod, ${r.insumos} insumos, ${r.cr} CR, ${r.cp} CP.`);

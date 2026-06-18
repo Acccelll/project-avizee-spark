@@ -7,6 +7,7 @@ import {
   cancelarPedidoCompra as rpcCancelarPedidoCompra,
 } from "@/types/rpc";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
+import { logger } from "@/lib/logger";
 
 /**
  * Ações de ciclo de vida de Pedido de Compra:
@@ -36,7 +37,7 @@ export function useCompraLifecycle(opts: {
       }
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[solicitarAprovacao]", err);
+      logger.error("[solicitarAprovacao]", err);
       notifyError(err);
     }
   };
@@ -48,7 +49,7 @@ export function useCompraLifecycle(opts: {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[aprovarPedido]", err);
+      logger.error("[aprovarPedido]", err);
       notifyError(err);
     }
   };
@@ -64,7 +65,7 @@ export function useCompraLifecycle(opts: {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[rejeitarPedido]", err);
+      logger.error("[rejeitarPedido]", err);
       notifyError(err);
     }
   };
@@ -75,7 +76,7 @@ export function useCompraLifecycle(opts: {
       toast.success("Pedido marcado como enviado ao fornecedor.");
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[marcarEnviado]", err);
+      logger.error("[marcarEnviado]", err);
       notifyError(err);
     }
   };
@@ -92,7 +93,7 @@ export function useCompraLifecycle(opts: {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[cancelarPedido]", err);
+      logger.error("[cancelarPedido]", err);
       notifyError(err);
     }
   };

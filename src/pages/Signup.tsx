@@ -13,6 +13,7 @@ import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import { validatePassword } from "@/lib/passwordPolicy";
 import { AuthBrandingPanel } from "./auth/AuthBrandingPanel";
+import { logger } from "@/lib/logger";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -94,7 +95,7 @@ export default function Signup() {
           return;
         }
       } catch (err) {
-        console.error("[signup] invite validation failed", err);
+        logger.error("[signup] invite validation failed", err);
         setServerError({ message: "Não foi possível validar o convite. Tente novamente." });
         setLoading(false);
         return;
@@ -116,7 +117,7 @@ export default function Signup() {
       },
     });
     if (error) {
-      console.error('[signup]', error);
+      logger.error('[signup]', error);
       const raw = (error.message || "").toLowerCase();
       if (raw.includes("already registered") || raw.includes("user already") || raw.includes("already exists")) {
         setServerError({
@@ -138,7 +139,7 @@ export default function Signup() {
       // Falha aqui não deve bloquear o fluxo do usuário.
       void supabase.functions
         .invoke("notify-admin-new-signup", { body: { email: email.trim(), nome: nome.trim() } })
-        .catch((err) => console.warn("[signup] admin notification failed", err));
+        .catch((err) => logger.warn("[signup] admin notification failed", err));
     }
     setLoading(false);
   };
@@ -148,7 +149,7 @@ export default function Signup() {
     setResending(true);
     const { error } = await supabase.auth.resend({ type: "signup", email: email.trim() });
     if (error) {
-      console.error('[signup-resend]', error);
+      logger.error('[signup-resend]', error);
       toast.error("Não foi possível reenviar. Tente novamente em instantes.");
     } else {
       toast.success("E-mail de confirmação reenviado.");

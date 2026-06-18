@@ -25,6 +25,7 @@ import type {
 } from '@/services/relatorios.service';
 import { exportarXmlsZip } from '@/services/fiscal/xmlBatchExport';
 import type { XmlArquivadoRow } from '@/types/relatorios-xml';
+import { logger } from "@/lib/logger";
 
 const PDF_ROW_LIMIT = 200;
 const XLSX_ROW_LIMIT = 10000;
@@ -143,7 +144,7 @@ export function useRelatorioExport({
       });
     } catch (e) {
       toast.error('Falha ao gerar PDF.', { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }
@@ -184,7 +185,7 @@ export function useRelatorioExport({
       });
     } catch (e) {
       toast.error('Falha ao gerar Excel.', { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }
@@ -238,7 +239,7 @@ export function useRelatorioExport({
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Falha ao gerar .zip';
       toast.error(msg, { id: tid });
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsExporting(false);
     }

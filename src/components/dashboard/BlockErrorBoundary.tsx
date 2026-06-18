@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 interface Props {
   /** Human-readable block label shown in the error fallback (e.g. "Financeiro"). */
@@ -28,7 +29,7 @@ export class BlockErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[BlockErrorBoundary:${this.props.label ?? "block"}]`, error, info);
+    logger.error(`[BlockErrorBoundary:${this.props.label ?? "block"}]`, error, info);
   }
 
   render() {

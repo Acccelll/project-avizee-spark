@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fromUntyped } from "@/lib/supabase/fromUntyped";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
 
 type Primitive = string | number | boolean;
 
@@ -152,7 +153,7 @@ export function useSupabaseCrud<R = any>({
     pageSize === undefined
   ) {
     // eslint-disable-next-line no-console
-    console.warn(
+    logger.warn(
       `[useSupabaseCrud] table="${table}" sem pageSize/paginationMode: ` +
         `usando modo 'all' (fetch completo). Defina pageSize para listas ` +
         `grandes ou paginationMode: 'all' explicitamente para silenciar.`,

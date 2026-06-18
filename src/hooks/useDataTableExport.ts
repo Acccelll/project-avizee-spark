@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { useCan } from '@/hooks/useCan';
 import type { PermissionKey } from '@/lib/permissions';
+import { logger } from "@/lib/logger";
 
 /**
  * Hook que encapsula a exportação CSV/XLSX/PDF do DataTable, incluindo
@@ -77,7 +78,7 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         await exportarParaPdf({ titulo, rows: built, columns: columnsDef });
         toast.success('Exportação PDF concluída', { id: toastId });
       } catch (error) {
-        console.error('Erro ao exportar dados', error);
+        logger.error('Erro ao exportar dados', error);
         toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
           id: toastId,
           action: { label: 'Tentar novamente', onClick: () => { void exportData(format); } },

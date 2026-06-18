@@ -61,6 +61,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Info } from 'lucide-react';
+import { logger } from "@/lib/logger";
 
 export interface Column<T> {
   key: string;
@@ -424,7 +425,7 @@ export function DataTable<T extends Record<string, any>>({
     const candidate = columns.find((c) => STATUS_HINTS.test(c.key));
     if (candidate && columns.length >= 4) {
       // eslint-disable-next-line no-console
-      console.warn(
+      logger.warn(
         `[DataTable:${moduleKey ?? "?"}] Coluna "${candidate.key}" parece status mas mobileStatusKey não foi definido — em mobile o badge não vai destacar.`,
       );
     }

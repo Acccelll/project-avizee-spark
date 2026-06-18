@@ -53,6 +53,7 @@ import { useCan } from "@/hooks/useCan";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { logger } from "@/lib/logger";
 
 interface Transportadora {
   id: string;
@@ -201,7 +202,7 @@ export default function Transportadoras() {
       setModalCliCount(ctx.clientes);
       setModalRemCount(ctx.remessas);
     } catch (err) {
-      console.error("[transportadoras] erro ao carregar contexto do modal:", err);
+      logger.error("[transportadoras] erro ao carregar contexto do modal:", err);
     } finally {
       setLoadingModalCtx(false);
     }
@@ -210,7 +211,7 @@ export default function Transportadoras() {
   useEffect(() => {
     listClientesAtivos()
       .then((d) => setClientesList(d))
-      .catch((err) => console.error("[transportadoras] erro ao carregar clientes:", err));
+      .catch((err) => logger.error("[transportadoras] erro ao carregar clientes:", err));
   }, []);
 
   const loadEditClientes = async (transportadoraId: string) => {
@@ -219,7 +220,7 @@ export default function Transportadoras() {
       const data = await listClientesVinculados(transportadoraId);
       setEditClientesVinculados(data);
     } catch (err) {
-      console.error("[transportadoras] erro ao carregar clientes vinculados:", err);
+      logger.error("[transportadoras] erro ao carregar clientes vinculados:", err);
     } finally {
       setLoadingEditClientes(false);
     }
@@ -240,7 +241,7 @@ export default function Transportadoras() {
       await loadEditClientes(transportadoraId);
       toast.success("Cliente vinculado");
     } catch (err) {
-      console.error("[transportadoras] erro ao vincular cliente:", err);
+      logger.error("[transportadoras] erro ao vincular cliente:", err);
       notifyError(err);
     }
     setSavingVinculoCliente(false);
@@ -252,7 +253,7 @@ export default function Transportadoras() {
       await loadEditClientes(transportadoraId);
       toast.success("Vínculo removido");
     } catch (err) {
-      console.error("[transportadoras] erro ao remover vínculo:", err);
+      logger.error("[transportadoras] erro ao remover vínculo:", err);
       notifyError(err);
     }
   };
@@ -271,7 +272,7 @@ export default function Transportadoras() {
         novaPrioridade === 1 ? "Marcado como preferencial" : "Preferência removida",
       );
     } catch (err) {
-      console.error("[transportadoras] erro ao alterar prioridade:", err);
+      logger.error("[transportadoras] erro ao alterar prioridade:", err);
       notifyError(err);
     }
   };

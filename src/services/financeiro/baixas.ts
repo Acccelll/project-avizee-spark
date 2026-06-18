@@ -10,12 +10,12 @@
 import { toast } from "sonner";
 import { calcularPagamentoParcialLote } from "@/lib/financeiro";
 import { notifyError } from "@/utils/errorMessages";
-import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import {
   registrarBaixaLoteFinanceira,
   type BaixaLoteItemRpc,
 } from "@/services/financeiro/baixaRpc";
+import { logger } from "@/lib/logger";
 
 export interface BaixaItemOverride {
   data_baixa?: string;

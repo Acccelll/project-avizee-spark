@@ -24,6 +24,7 @@ import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaCo
 import { useReportDirty } from "@/contexts/AdminDirtyContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { uploadDbavizeeImage } from "@/services/storage.service";
+import { logger } from "@/lib/logger";
 
 const DEFAULT_FORM = {
   empresa: "AviZee Equipamentos LTDA",
@@ -144,7 +145,7 @@ export function EmpresaSection() {
       update(field, publicUrl);
       toast.success("Imagem enviada com sucesso.");
     } catch (err) {
-      console.error("[admin] Erro ao enviar imagem:", err);
+      logger.error("[admin] Erro ao enviar imagem:", err);
       notifyError(err);
     } finally {
       setUploading(false);

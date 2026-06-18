@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -241,7 +242,7 @@ export default function Conciliacao() {
         await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
       }
     } catch (err: unknown) {
-      console.error("[conciliacao] erro ao processar OFX:", err);
+      logger.error("[conciliacao] erro ao processar OFX:", err);
       notifyError(err);
     } finally {
       setUploading(false);

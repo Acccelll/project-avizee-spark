@@ -35,6 +35,7 @@ import { SocialAlertasTab } from '@/components/social/SocialAlertasTab';
 import { SocialContaModal } from '@/components/social/SocialContaModal';
 import { calculateContentDistribution, calculatePercentGrowth, calculatePostingFrequency, calculateTrend } from '@/components/social/socialAnalytics';
 import type { SocialAlerta, SocialConta, SocialDashboardConsolidado, SocialPost, SocialPostType } from '@/types/social';
+import { logger } from "@/lib/logger";
 
 const defaultRange = getDefaultDateRange(30);
 
@@ -84,7 +85,7 @@ export default function Social() {
       setPosts(postsData);
       setAlertas(alertasData);
     } catch (error: unknown) {
-      console.error('[social] erro ao carregar', error);
+      logger.error('[social] erro ao carregar', error);
       notifyError(error);
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ export default function Social() {
       toast.success('Sincronização social executada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] sync', error);
+      logger.error('[social] sync', error);
       notifyError(error);
     }
   };
@@ -129,7 +130,7 @@ export default function Social() {
       toast.success('Conta social cadastrada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] criar conta', error);
+      logger.error('[social] criar conta', error);
       notifyError(error);
     }
   };
@@ -141,7 +142,7 @@ export default function Social() {
       toast.success('Conta social desativada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      console.error('[social] desativar conta', error);
+      logger.error('[social] desativar conta', error);
       notifyError(error);
     }
   };

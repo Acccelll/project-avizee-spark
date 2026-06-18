@@ -12,6 +12,7 @@ import {
   findNotasFiscaisPorChaves,
   inserirCompraXml,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 export interface XmlImportItem {
   fileName: string;
@@ -234,7 +235,7 @@ export function useImportacaoXml() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação XML:", error);
+      logger.error("Erro na importação XML:", error);
       toast.error(`Falha na importação: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }

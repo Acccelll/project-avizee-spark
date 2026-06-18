@@ -7,6 +7,7 @@ import {
   OPEN_ORCAMENTO_STATUSES,
 } from "@/lib/comercialStatuses";
 import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
+import { logger } from "@/lib/logger";
 
 interface ComercialData {
   /** Cotações abertas (non-terminal) in the selected period. */
@@ -117,9 +118,9 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         })(),
       ]);
 
-      if (orcamentosResult.error) console.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
-      if (backlogResult.error) console.error("[dashboard:comercial] backlog:", backlogResult.error.message);
-      if (nfAtualResult.error) console.error("[dashboard:comercial] nfAtual:", nfAtualResult.error.message);
+      if (orcamentosResult.error) logger.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
+      if (backlogResult.error) logger.error("[dashboard:comercial] backlog:", backlogResult.error.message);
+      if (nfAtualResult.error) logger.error("[dashboard:comercial] nfAtual:", nfAtualResult.error.message);
 
       const nfAtual = (nfAtualResult.data ?? []) as NfRow[];
 
@@ -137,7 +138,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         topProdutos: aggregateTopProdutos((itensResult.data ?? []) as NfItemRow[]),
       };
     } catch (error) {
-      console.error("[dashboard:comercial] erro inesperado:", error);
+      logger.error("[dashboard:comercial] erro inesperado:", error);
       return {
         orcamentos: 0,
         recentOrcamentos: [],

@@ -73,6 +73,7 @@ import {
   type RemessaEtiqueta,
 } from "@/services/logistica/prepostagem.service";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { logger } from "@/lib/logger";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
@@ -683,7 +684,7 @@ export default function Logistica() {
                 const url = await baixarEtiquetaPdf(et.pdf_path!);
                 window.open(url, "_blank", "noopener,noreferrer");
               } catch (err) {
-                console.error("[etiqueta] baixar falhou", err);
+                logger.error("[etiqueta] baixar falhou", err);
               }
             }}>
               <FileDown className="h-3.5 w-3.5" />

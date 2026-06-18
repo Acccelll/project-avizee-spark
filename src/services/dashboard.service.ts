@@ -8,6 +8,7 @@ import type {
   DashboardDateRange,
   ProdRow,
 } from "@/pages/dashboard/hooks/types";
+import { logger } from "@/lib/logger";
 
 /* -------- Estoque (KPIs do dashboard) -------- */
 
@@ -30,9 +31,9 @@ export async function fetchDashboardEstoqueData(): Promise<DashboardEstoqueData>
       supabase.from("produtos").select("estoque_atual, preco_custo").eq("ativo", true),
     ]);
 
-    if (produtosResult.error) console.error("[dashboard:estoque] produtos:", produtosResult.error.message);
-    if (estMinResult.error) console.error("[dashboard:estoque] estMinimo:", estMinResult.error.message);
-    if (valorResult.error) console.error("[dashboard:estoque] valor:", valorResult.error.message);
+    if (produtosResult.error) logger.error("[dashboard:estoque] produtos:", produtosResult.error.message);
+    if (estMinResult.error) logger.error("[dashboard:estoque] estMinimo:", estMinResult.error.message);
+    if (valorResult.error) logger.error("[dashboard:estoque] valor:", valorResult.error.message);
 
     return {
       produtos: produtosResult.count ?? 0,
@@ -42,7 +43,7 @@ export async function fetchDashboardEstoqueData(): Promise<DashboardEstoqueData>
       ),
     };
   } catch (error) {
-    console.error("[dashboard:estoque] erro inesperado:", error);
+    logger.error("[dashboard:estoque] erro inesperado:", error);
     return { produtos: 0, estoqueBaixo: [], valorEstoque: 0 };
   }
 }
@@ -109,8 +110,8 @@ export async function fetchDashboardAuxData(range: DashboardDateRange): Promise<
         .not("status_transporte", "in", '("entregue","cancelado","devolvido")'),
     ]);
 
-    if (clientesResult.error) console.error("[dashboard:aux] clientes:", clientesResult.error.message);
-    if (remessasAtrasadasResult.error) console.error("[dashboard:aux] remessas:", remessasAtrasadasResult.error.message);
+    if (clientesResult.error) logger.error("[dashboard:aux] clientes:", clientesResult.error.message);
+    if (remessasAtrasadasResult.error) logger.error("[dashboard:aux] remessas:", remessasAtrasadasResult.error.message);
 
     return {
       clientes: clientesResult.count ?? 0,
@@ -121,7 +122,7 @@ export async function fetchDashboardAuxData(range: DashboardDateRange): Promise<
       remessasAtrasadas: remessasAtrasadasResult.count ?? 0,
     };
   } catch (error) {
-    console.error("[dashboard:aux] erro inesperado:", error);
+    logger.error("[dashboard:aux] erro inesperado:", error);
     return {
       clientes: 0,
       fornecedores: 0,

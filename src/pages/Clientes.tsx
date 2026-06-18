@@ -59,6 +59,7 @@ import { QuickAddFormaPagamentoModal } from "@/components/QuickAddFormaPagamento
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { logger } from "@/lib/logger";
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
@@ -336,7 +337,7 @@ const Clientes = () => {
         setGrupos(g as GrupoEconomico[]);
         setFormasPagamento(fp as FormaPagamentoBasic[]);
       })
-      .catch((err) => console.error("[clientes] erro ao carregar lookups:", err));
+      .catch((err) => logger.error("[clientes] erro ao carregar lookups:", err));
   }, []);
 
   useEditDeepLink<Cliente>({
@@ -431,7 +432,7 @@ const Clientes = () => {
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
-      console.error('[clientes] erro ao salvar:', err);
+      logger.error('[clientes] erro ao salvar:', err);
       notifyError(err);
     }
     setSaving(false);

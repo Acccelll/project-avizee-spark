@@ -24,6 +24,7 @@ import {
   consolidarFaturamento,
   cancelarLote,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 export interface GroupedNF {
   numero: string;
@@ -396,7 +397,7 @@ export function useImportacaoFaturamento() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação de faturamento:", error);
+      logger.error("Erro na importação de faturamento:", error);
       toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);

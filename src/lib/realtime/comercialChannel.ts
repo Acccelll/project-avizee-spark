@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 
 /**
  * Singleton realtime channel para o módulo Comercial.
@@ -36,7 +37,7 @@ function broadcast(change: ComercialChange) {
     try {
       cb(change);
     } catch (err) {
-      console.error("[comercial-channel] listener threw:", err);
+      logger.error("[comercial-channel] listener threw:", err);
     }
   }
 }

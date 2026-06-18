@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { calcularTotalNF } from "@/lib/fiscal";
-import { logger } from "@/lib/logger";
 import {
   listOrdensVendaParaFiscal,
   listContasContabeisLancaveis,
@@ -23,6 +22,7 @@ import type {
   OrdemVendaRefMin,
   ContaContabilRefMin,
 } from "@/pages/fiscal/components/NfeCreateFormModal";
+import { logger } from "@/lib/logger";
 
 /**
  * Estado canônico do formulário de NF-e — alinhado a `Fiscal.tsx::FiscalForm`

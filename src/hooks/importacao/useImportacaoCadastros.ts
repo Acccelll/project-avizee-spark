@@ -18,6 +18,7 @@ import {
   consolidarCadastros,
   cancelarLote,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook de importação de cadastros (produtos, clientes, fornecedores).
@@ -226,7 +227,7 @@ export function useImportacaoCadastros() {
       return currentLoteId;
 
     } catch (error: unknown) {
-      console.error("Erro na importação:", error);
+      logger.error("Erro na importação:", error);
       toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
@@ -259,7 +260,7 @@ export function useImportacaoCadastros() {
       );
       return true;
     } catch (error: unknown) {
-      console.error("Erro na consolidação:", error);
+      logger.error("Erro na consolidação:", error);
       toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {

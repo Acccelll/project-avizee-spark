@@ -7,6 +7,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { Plus, Loader2 } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface AddProdutoFornecedorProps {
   fornecedorId: string;
@@ -42,7 +43,7 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
       onAdded();
     } catch (err: unknown) {
       notifyError(err);
-      console.error(err);
+      logger.error(err);
     } finally {
       setSaving(false);
     }

@@ -23,6 +23,7 @@ import {
   buildComprasFornecedor, buildEstoqueGiro, buildEstoqueCritico,
   buildLogistica, buildFiscal, buildCaixaEvolutivo,
 } from './sheets/operacional';
+import { logger } from "@/lib/logger";
 
 export interface GenerateWorkbookOptions {
   parametros: WorkbookParametros;
@@ -54,7 +55,7 @@ async function loadTemplate(): Promise<ExcelJS.Workbook> {
   }
 
   // Template missing on server — fall back to a minimal scaffold but warn loudly.
-  console.warn(
+  logger.warn(
     `[workbook] Template não encontrado em ${TEMPLATE_URL} (HTTP ${response.status}). Gerando estrutura mínima — contate o suporte.`,
   );
   wb.creator = 'ERP AviZee';

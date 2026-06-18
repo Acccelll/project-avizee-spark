@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { aggregateDailyFinanceiro, aggregateTopClientes, buildIsoDayRange, sumOpenFinanceiro } from "@/lib/dashboard/aggregations";
 import type { DailyFinRow, DashboardDateRange, FinRow, RecDataRow } from "./types";
+import { logger } from "@/lib/logger";
 
 interface FinanceiroData {
   contasReceber: number;
@@ -100,35 +101,35 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
     const erros: string[] = [];
 
     if (receberResult.error) {
-      console.error("[dashboard] erro ao carregar receber:", receberResult.error.message);
+      logger.error("[dashboard] erro ao carregar receber:", receberResult.error.message);
       erros.push("receber");
     }
     if (pagarResult.error) {
-      console.error("[dashboard] erro ao carregar pagar:", pagarResult.error.message);
+      logger.error("[dashboard] erro ao carregar pagar:", pagarResult.error.message);
       erros.push("pagar");
     }
     if (vencidasResult.error) {
-      console.error("[dashboard] erro ao carregar vencidas:", vencidasResult.error.message);
+      logger.error("[dashboard] erro ao carregar vencidas:", vencidasResult.error.message);
       erros.push("vencidas");
     }
     if (receberHojeResult.error) {
-      console.error("[dashboard] erro ao carregar receberHoje:", receberHojeResult.error.message);
+      logger.error("[dashboard] erro ao carregar receberHoje:", receberHojeResult.error.message);
       erros.push("receberHoje");
     }
     if (pagarHojeResult.error) {
-      console.error("[dashboard] erro ao carregar pagarHoje:", pagarHojeResult.error.message);
+      logger.error("[dashboard] erro ao carregar pagarHoje:", pagarHojeResult.error.message);
       erros.push("pagarHoje");
     }
     if (recDataResult.error) {
-      console.error("[dashboard] erro ao carregar topClientes:", recDataResult.error.message);
+      logger.error("[dashboard] erro ao carregar topClientes:", recDataResult.error.message);
       erros.push("topClientes");
     }
     if (dailyReceberResult.error) {
-      console.error("[dashboard] erro ao carregar dailyReceber:", dailyReceberResult.error.message);
+      logger.error("[dashboard] erro ao carregar dailyReceber:", dailyReceberResult.error.message);
       erros.push("dailyReceber");
     }
     if (dailyPagarResult.error) {
-      console.error("[dashboard] erro ao carregar dailyPagar:", dailyPagarResult.error.message);
+      logger.error("[dashboard] erro ao carregar dailyPagar:", dailyPagarResult.error.message);
       erros.push("dailyPagar");
     }
 

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 
 /**
  * Singleton realtime channel for sidebar/notifications alerts.
@@ -23,7 +24,7 @@ function broadcast() {
     try {
       cb();
     } catch (err) {
-      console.error("[alerts-channel] listener threw:", err);
+      logger.error("[alerts-channel] listener threw:", err);
     }
   }
 }

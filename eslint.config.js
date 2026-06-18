@@ -29,6 +29,13 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       // catches sem corpo escondem falhas silenciosas.
       "no-empty": ["error", { allowEmptyCatch: false }],
+      // Frontend deve usar `logger` (src/lib/logger.ts). Edge functions e
+      // o próprio logger ficam isentas via override abaixo.
+      "no-console": ["error", { allow: [] }],
     },
+  },
+  {
+    files: ["src/lib/logger.ts", "supabase/functions/**", "scripts/**"],
+    rules: { "no-console": "off" },
   },
 );

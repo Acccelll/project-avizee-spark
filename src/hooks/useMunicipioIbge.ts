@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { logger } from "@/lib/logger";
 import { buscarMunicipioIbgeDb, type MunicipioIbge } from "@/services/municipio.service";
+import { logger } from "@/lib/logger";
 
 export type { MunicipioIbge };
 

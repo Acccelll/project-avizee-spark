@@ -23,6 +23,7 @@ import {
 } from "@/types/rpc";
 import * as pcs from "@/services/pedidosCompra.service";
 import { useCompraLifecycle } from "@/hooks/compras/useCompraLifecycle";
+import { logger } from "@/lib/logger";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {
@@ -345,7 +346,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     try {
       itens = await pcs.listPedidoItensParaRecebimento(p.id);
     } catch (err) {
-      console.error("[darEntrada] fetch itens", err);
+      logger.error("[darEntrada] fetch itens", err);
       notifyError(err);
       return;
     }
@@ -398,7 +399,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       );
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[darEntrada]", err);
+      logger.error("[darEntrada]", err);
       notifyError(err);
     }
 

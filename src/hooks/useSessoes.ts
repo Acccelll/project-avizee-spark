@@ -16,6 +16,7 @@ import {
   revogarSessaoAtiva,
   type SessaoAtiva,
 } from "@/services/admin/adminSessions.service";
+import { logger } from "@/lib/logger";
 
 export type { SessaoAtiva };
 
@@ -38,7 +39,7 @@ export function useSessoes() {
       toast.success("Sessão encerrada com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao revogar sessão:", err);
+      logger.error("[admin] Erro ao revogar sessão:", err);
       notifyError(err);
     },
   });

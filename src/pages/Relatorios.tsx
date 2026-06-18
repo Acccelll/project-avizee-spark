@@ -41,6 +41,7 @@ import { formatReportCell } from '@/services/relatorios/lib/formatCell';
 import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
+import { logger } from "@/lib/logger";
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -178,7 +179,7 @@ export default function Relatorios() {
           // source instead of being papered over by a text heuristic.
           if (!kind && import.meta.env.DEV) {
             // eslint-disable-next-line no-console
-            console.warn(`[Relatorios] Row missing "${kindKey}" for column "${colDef.key}" in report "${tipo}". Loader must populate the *Kind field via statusMap.`);
+            logger.warn(`[Relatorios] Row missing "${kindKey}" for column "${colDef.key}" in report "${tipo}". Loader must populate the *Kind field via statusMap.`);
           }
           const variant = kind
             ? badgeVariantFromKind(kind as Parameters<typeof badgeVariantFromKind>[0])

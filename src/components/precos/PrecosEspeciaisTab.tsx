@@ -19,6 +19,7 @@ import {
   softDeletePrecoEspecial,
   type PrecoEspecialRow,
 } from "@/services/precosEspeciais.service";
+import { logger } from "@/lib/logger";
 
 interface Props {
   clienteId?: string;
@@ -53,7 +54,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
       const data = await listPrecosEspeciais({ clienteId, produtoId });
       setItems(data);
     } catch (err) {
-      console.error("[precos-especiais] fetch:", err);
+      logger.error("[precos-especiais] fetch:", err);
       setItems([]);
     }
     setLoading(false);
@@ -100,7 +101,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
       });
       fetchData();
     } catch (err) {
-      console.error('[precos-especiais] erro ao salvar:', err);
+      logger.error('[precos-especiais] erro ao salvar:', err);
       notifyError(err);
     }
   };

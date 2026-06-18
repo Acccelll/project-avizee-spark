@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import { notifyError } from '@/utils/errorMessages';
 
 export interface MetaConfig {
   receber?: number;
@@ -50,6 +51,7 @@ export function useMetas() {
     onSuccess: (_data, variables) => {
       queryClient.setQueryData(QUERY_KEY, variables);
     },
+    onError: (err) => notifyError(err),
   });
 
   const updateMeta = useCallback(

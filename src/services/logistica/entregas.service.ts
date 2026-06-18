@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Entrega } from "@/types/logistica";
+import { logger } from "@/lib/logger";
 
 /**
  * Carrega a visão consolidada de entregas a partir de
@@ -24,7 +25,7 @@ export async function fetchEntregasConsolidadas(): Promise<Entrega[]> {
   if (remessasRes.error) {
     // Não quebra a query principal — a view consolidada já traz status/total_remessas.
     // Apenas registra para visibilidade em DevTools/Sentry.
-    console.warn("[fetchEntregasConsolidadas] falha ao carregar remessas:", remessasRes.error.message);
+    logger.warn("[fetchEntregasConsolidadas] falha ao carregar remessas:", remessasRes.error.message);
   }
 
   const remessasByOv = new Map<string, { id: string; codigo_rastreio: string | null }[]>();

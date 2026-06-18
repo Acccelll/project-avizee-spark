@@ -44,6 +44,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PedidoEditModal } from "@/components/views/PedidoEditModal";
+import { logger } from "@/lib/logger";
 
 interface Pedido {
   id: string;
@@ -292,7 +293,7 @@ const Pedidos = () => {
       // Não precisa refetch manual: o hook invalida ["ordens_venda"] em
       // INVALIDATION_KEYS.faturamentoPedido e o useQuery acima reage.
     } catch (err: unknown) {
-      console.error('[pedidos] gerar NF:', err);
+      logger.error('[pedidos] gerar NF:', err);
       // toast já emitido pelo hook
     } finally {
       setGeneratingNfId(null);

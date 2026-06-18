@@ -5,6 +5,7 @@ import { Loader2, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchEmpresaConfig } from '@/services/admin/empresa.service';
 import { toast } from 'sonner';
+import { logger } from "@/lib/logger";
 
 interface FreteOption {
   servico: string;
@@ -82,7 +83,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
 
       setOpcoes(validas);
     } catch (err: unknown) {
-      console.error('[frete-correios]', err);
+      logger.error('[frete-correios]', err);
       toast.error('Erro ao consultar frete: ' + (err instanceof Error ? err.message : 'Tente novamente'));
     }
     setLoading(false);

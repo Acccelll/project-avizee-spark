@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquare, MessageSquarePlus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
 
 interface ComunicacaoCliente {
   id: string;
@@ -70,7 +71,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
       setComunicacoes(list);
       onCountChange?.(list.length);
     } catch (err) {
-      console.error("[clientes] erro ao carregar comunicações:", err);
+      logger.error("[clientes] erro ao carregar comunicações:", err);
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
       await load();
       toast.success("Comunicação registrada");
     } catch (err) {
-      console.error("[clientes] erro ao salvar comunicação:", err);
+      logger.error("[clientes] erro ao salvar comunicação:", err);
       notifyError(err);
     }
     setSaving(false);

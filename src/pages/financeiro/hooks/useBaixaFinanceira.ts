@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
-import { logger } from "@/lib/logger";
 import {
   registrarBaixaFinanceira,
   estornarBaixaFinanceira,
@@ -11,6 +10,7 @@ import {
   type RegistrarBaixaParams,
   type GerarParcelasBase,
 } from "@/services/financeiro/baixaRpc";
+import { logger } from "@/lib/logger";
 
 export type { RegistrarBaixaParams };
 

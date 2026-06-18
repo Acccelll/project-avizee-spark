@@ -27,6 +27,7 @@ import {
   deleteRelatorioFavorito,
   renameRelatorioFavorito,
 } from "@/services/relatoriosFavoritos.service";
+import { logger } from "@/lib/logger";
 
 const STORAGE_KEY = "relatorios_favoritos_v1";
 const MAX_FAVORITOS = 20;
@@ -93,7 +94,7 @@ export function useRelatoriosFavoritos() {
 
       if (cancelled) return;
       if (error) {
-        console.error("[useRelatoriosFavoritos] load error", error);
+        logger.error("[useRelatoriosFavoritos] load error", error);
         return;
       }
 
@@ -123,7 +124,7 @@ export function useRelatoriosFavoritos() {
                 : `${n} favoritos de Relatórios migrados da máquina para a sua conta.`,
             );
           } else if (insertErr) {
-            console.error('[useRelatoriosFavoritos] migration insert error', insertErr);
+            logger.error('[useRelatoriosFavoritos] migration insert error', insertErr);
             toast.warning('Não foi possível migrar todos os favoritos locais. Eles continuam disponíveis nesta máquina.');
           }
         }
@@ -183,7 +184,7 @@ export function useRelatoriosFavoritos() {
       const { data, error } = await insertRelatorioFavorito({ user_id: userId, nome: nomeClean, params });
 
       if (error || !data) {
-        console.error("[useRelatoriosFavoritos] insert error", error);
+        logger.error("[useRelatoriosFavoritos] insert error", error);
         toast.error("Não foi possível salvar o favorito.");
         return null;
       }
@@ -207,7 +208,7 @@ export function useRelatoriosFavoritos() {
       }
       const { error } = await deleteRelatorioFavorito(id);
       if (error) {
-        console.error("[useRelatoriosFavoritos] delete error", error);
+        logger.error("[useRelatoriosFavoritos] delete error", error);
         toast.error("Não foi possível remover o favorito.");
         return;
       }
@@ -230,7 +231,7 @@ export function useRelatoriosFavoritos() {
       }
       const { error } = await renameRelatorioFavorito(id, nomeClean);
       if (error) {
-        console.error("[useRelatoriosFavoritos] rename error", error);
+        logger.error("[useRelatoriosFavoritos] rename error", error);
         toast.error("Não foi possível renomear o favorito.");
         return;
       }

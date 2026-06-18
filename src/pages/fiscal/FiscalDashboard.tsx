@@ -43,6 +43,7 @@ import {
   Bar,
   CartesianGrid,
 } from "recharts";
+import { logger } from "@/lib/logger";
 
 /**
  * Dashboard Fiscal (Onda 18) — visão consolidada de emissão (saída) e
@@ -106,7 +107,7 @@ export default function FiscalDashboard() {
       await exportarDashboardFiscalPdf({ data, periodo });
       toast.success("PDF gerado com sucesso");
     } catch (err) {
-      console.error("[FiscalDashboard] export PDF", err);
+      logger.error("[FiscalDashboard] export PDF", err);
       toast.error("Falha ao gerar PDF");
     } finally {
       setExporting(false);

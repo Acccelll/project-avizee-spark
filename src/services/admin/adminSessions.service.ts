@@ -1,6 +1,5 @@
 /**
  * Sessões ativas via Edge Function `admin-sessions` (service_role).
- * Distinto de `sessoes.service.ts`, que opera na tabela `user_sessions`.
  */
 import { supabase } from "@/integrations/supabase/client";
 

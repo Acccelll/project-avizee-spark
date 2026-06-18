@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { logger } from "@/lib/logger";
 
 const rpcMock = vi.fn();
 const fromMock = vi.fn();

@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getEmpresaConfig, upsertEmpresaConfig } from "@/services/fiscal.service";
+import { logger } from "@/lib/logger";
 
 const configuracaoSchema = z.object({
   crt: z.string().min(1, "CRT obrigatório"),
@@ -138,7 +139,7 @@ export default function ConfiguracaoFiscal() {
       setAmbienteAtual(values.ambiente_padrao);
       toast.success("Configurações fiscais salvas");
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       notifyError(err);
     }
     setSaving(false);

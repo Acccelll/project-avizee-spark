@@ -62,6 +62,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { logger } from "@/lib/logger";
 
 interface Props {
   id: string;
@@ -214,7 +215,7 @@ export function OrcamentoView({ id }: Props) {
           invalidate(["orcamentos"]);
           await reload();
         } catch (err) {
-          console.error("[OrcamentoView] erro ao cancelar:", err);
+          logger.error("[OrcamentoView] erro ao cancelar:", err);
           notifyError(err);
           throw err;
         }

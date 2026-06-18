@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { summarizeFiscalStats } from "@/lib/dashboard/aggregations";
 import type { DashboardDateRange, NfRow } from "./types";
 import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
+import { logger } from "@/lib/logger";
 
 interface FiscalData {
   fiscalStats: {
@@ -37,7 +38,7 @@ export function useDashboardFiscalData(range?: DashboardDateRange) {
       const { data: nfStatsRows, error } = await q;
 
       if (error) {
-        console.error("[dashboard:fiscal] erro ao carregar NFs:", error.message);
+        logger.error("[dashboard:fiscal] erro ao carregar NFs:", error.message);
         return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 }, _scope: scope };
       }
 
@@ -46,7 +47,7 @@ export function useDashboardFiscalData(range?: DashboardDateRange) {
         _scope: scope,
       };
     } catch (error) {
-      console.error("[dashboard:fiscal] erro inesperado:", error);
+      logger.error("[dashboard:fiscal] erro inesperado:", error);
       return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 }, _scope: scope };
     }
   }, [range]);

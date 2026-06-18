@@ -10,6 +10,7 @@ import { notifyError } from "@/utils/errorMessages";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
 import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
 import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
+import { logger } from "@/lib/logger";
 
 interface DashboardDataState {
   stats: DashboardStats;
@@ -151,7 +152,7 @@ export function useDashboardData() {
           },
         };
       } catch (error) {
-        console.error("[dashboard] erro ao carregar dados:", error);
+        logger.error("[dashboard] erro ao carregar dados:", error);
         notifyError(error);
         throw error;
       }

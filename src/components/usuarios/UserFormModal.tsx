@@ -50,6 +50,7 @@ import {
 } from './_shared';
 import { PermissionMatrix } from './PermissionMatrix';
 import { Checkbox } from '@/components/ui/checkbox';
+import { logger } from "@/lib/logger";
 
 interface UserFormModalProps {
   open: boolean;
@@ -276,7 +277,7 @@ export function UserFormModal({
       // — vive em portal e segue visível mesmo após o fechamento.
       onClose();
     } catch (err) {
-      console.error('[usuarios] Erro ao salvar usuário:', err);
+      logger.error('[usuarios] Erro ao salvar usuário:', err);
       notifyError(err);
     } finally {
       setSaving(false);
