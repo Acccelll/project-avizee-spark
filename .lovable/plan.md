@@ -20,8 +20,13 @@
 > - Memórias atualizadas: `rls-single-tenant.md`, `c14n-sefaz.md`.
 >
 > **Pendente (próxima rodada):**
-> - Fase 2.1: refactor dos monólitos (`Fiscal.tsx`, `OrcamentoForm.tsx`,
->   `EmitirNFeWizard.tsx`, `Conciliacao.tsx`, `ProdutoForm.tsx`).
+> - Fase 2.1: refactor dos monólitos restantes (`OrcamentoForm.tsx` 2.096,
+>   `EmitirNFeWizard.tsx` 1.718, `Conciliacao.tsx` 1.455, `ProdutoForm.tsx`).
+>   `Fiscal.tsx` reduzido de 1.934 → 1.766 linhas nesta rodada via extração de
+>   `FiscalKpisStrip`, `FiscalMobileRowActions` e `FiscalChaveDialogsSlot`.
+>   Bloco de QuickAdd (produto/fornecedor/cliente) permanece inline por estar
+>   acoplado a tipos privados de `pendingXmlImport` e `aplicarImportacaoXml`;
+>   extração exigiria promover esses tipos para módulo compartilhado primeiro.
 > - Fase 2.2 hard: auditoria caller-a-caller + inversão do default.
 > - Fase 1.2 cleanup: remover fallback C14N legado após 1 emissão real validada.
 
