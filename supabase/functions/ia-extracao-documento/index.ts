@@ -14,6 +14,7 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sanitizeForLog } from "../_shared/sanitize.ts";
 import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type TipoExtracao = "boleto" | "nota" | "extrato";
 
@@ -109,6 +110,15 @@ Deno.serve(async (req) => {
       headers: jsonHeaders,
     });
   }
+
+  // Rate limit: 20 extrações/min por usuário — protege contra loop de UI
+  // e custo descontrolado no Lovable AI Gateway.
+  const rl = checkRateLimit(rateLimitKey(req, userData.user.id), {
+    scope: "ia-extracao",
+    limit: 20,
+    windowSec: 60,
+  });
+  if (!rl.ok) return rateLimitResponse(rl, jsonHeaders);
 
   // ── Secret do Gateway ───────────────────────────────────────────────────
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");

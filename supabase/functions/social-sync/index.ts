@@ -66,6 +66,13 @@ Deno.serve(async (req) => {
       );
     }
 
+    const rl = checkRateLimit(rateLimitKey(req, authData.user.id), {
+      scope: "social-sync",
+      limit: 10,
+      windowSec: 60,
+    });
+    if (!rl.ok) return rateLimitResponse(rl, corsHeaders);
+
     const body = await req.json();
     const accountId = body.account_id;
 
