@@ -619,45 +619,17 @@ export default function OrcamentoForm() {
   };
 
 
-  // Restauração de rascunho: tenta servidor, faz fallback para localStorage.
-  useEffect(() => {
-    if (isEdit) return;
-    let cancelled = false;
-    (async () => {
-      if (user?.id) {
-        const has = await hasOrcamentoDraft(user.id, draftKey).catch(() => false);
-        if (cancelled) return;
-        if (has) { setRestoreDraftOpen(true); return; }
-      }
-      const saved = localStorage.getItem(draftKey);
-      if (!cancelled && saved) setRestoreDraftOpen(true);
-    })();
-    return () => { cancelled = true; };
-  }, [draftKey, isEdit, user?.id]);
-
-  // Autosave: tenta servidor (orcamento_drafts), com fallback para localStorage em caso de erro.
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      // Não autosalva drafts de orçamentos já em status terminal/aprovado.
-      if (isEdit && status && status !== 'rascunho') return;
-      const { numero: n, clienteId: cid } = getValues();
-      if (!n && !cid && items.length === 0) return;
-      const payload = buildDraftPayload();
-      const serialized = JSON.stringify(payload);
-      let serverOk = false;
-      if (user?.id) {
-        try {
-          await upsertOrcamentoDraft(user.id, draftKey, payload);
-          serverOk = true;
-        } catch {/* fallback abaixo */}
-      }
-      if (!serverOk) {
-        try { localStorage.setItem(draftKey, serialized); } catch {/* quota */}
-      }
-      setLastAutoSaveAt(new Date().toISOString());
-    }, 30000);
-    return () => clearInterval(timer);
-  }, [buildDraftPayload, draftKey, getValues, items.length, user?.id, isEdit, status]);
+  useOrcamentoDraft({
+    draftKey,
+    isEdit,
+    status,
+    userId: user?.id,
+    items,
+    getValues,
+    buildDraftPayload,
+    setRestoreDraftOpen,
+    setLastAutoSaveAt,
+  });
 
   useEffect(() => {
     getEmpresaConfig()
