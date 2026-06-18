@@ -198,6 +198,7 @@ async function syncInstagram(
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (isTimeoutError(err)) throw err;
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -272,6 +273,7 @@ async function syncLinkedIn(
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (isTimeoutError(err)) throw err;
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
