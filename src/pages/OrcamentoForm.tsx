@@ -38,6 +38,7 @@ import {
 } from "@/pages/comercial/orcamento-form/types";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
+import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -621,46 +622,27 @@ export default function OrcamentoForm() {
     toast.success(`Template '${tpl.nome}' aplicado`);
   };
 
-  const buildOrcamentoPayload = (override?: Partial<{ numero: string; status: string; validade: string | null }>) => {
-    const formValues = getValues();
-    // Em "novo" (não isEdit) deixamos `numero` em branco para que `salvar_orcamento`
-    // gere o número definitivo de forma atômica via `proximo_numero_orcamento()`.
-    // Isso evita gaps quando o usuário fecha o form sem salvar (o peek apenas prevê).
-    const numeroFinal = override?.numero ?? (isEdit ? formValues.numero : "");
-    return {
-      numero: numeroFinal,
-      data_orcamento: formValues.dataOrcamento,
-      status: override?.status ?? formValues.status,
-      cliente_id: formValues.clienteId || null,
-      validade: override?.validade !== undefined ? override.validade : (formValues.validade || null),
-      observacoes: formValues.observacoes,
-      observacoes_internas: formValues.observacoesInternas || null,
-      desconto: formValues.desconto,
-      imposto_st: formValues.impostoSt,
-      imposto_ipi: formValues.impostoIpi,
-      frete_valor: formValues.freteValor,
-      outras_despesas: formValues.outrasDespesas,
-      valor_total: valorTotal,
-      quantidade_total: quantidadeTotal,
-      peso_total: pesoTotal,
-      pagamento: formValues.pagamento,
-      prazo_pagamento: formValues.prazoPagamento,
-      prazo_entrega: formValues.prazoEntrega,
-      // frete_tipo aceita só CIF/FOB/sem_frete; texto livre vai para servico_frete.
-      frete_tipo: ['CIF','FOB','sem_frete'].includes(formValues.freteTipo || '') ? formValues.freteTipo : (formValues.modalidade || ''),
-      modalidade: formValues.modalidade,
-      cliente_snapshot: clienteSnapshot,
-      transportadora_id: freteTransportadoraId || null,
-      frete_simulacao_id: freteSimulacaoId || null,
-      origem_frete: freteOrigemFrete || null,
-      servico_frete: formValues.servicoFrete || freteServico || null,
-      prazo_entrega_dias: fretePrazoEntregaDias || null,
-      volumes: freteVolumes || null,
-      altura_cm: freteAlturaCm || null,
-      largura_cm: freteLarguraCm || null,
-      comprimento_cm: freteComprimentoCm || null,
-    };
-  };
+  const buildOrcamentoPayload = (
+    override?: Partial<{ numero: string; status: string; validade: string | null }>,
+  ) =>
+    buildOrcamentoPayloadHelper({
+      formValues: getValues(),
+      isEdit,
+      totals: { valorTotal, quantidadeTotal, pesoTotal },
+      clienteSnapshot,
+      frete: {
+        transportadoraId: freteTransportadoraId,
+        simulacaoId: freteSimulacaoId,
+        origem: freteOrigemFrete,
+        servico: freteServico,
+        prazoDias: fretePrazoEntregaDias,
+        volumes: freteVolumes,
+        alturaCm: freteAlturaCm,
+        larguraCm: freteLarguraCm,
+        comprimentoCm: freteComprimentoCm,
+      },
+      override,
+    });
 
   const handleSave = async () => {
     // Guard de status: apenas status finais (LOCKED_STATUSES) são imutáveis.
