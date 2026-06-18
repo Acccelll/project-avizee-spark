@@ -7,7 +7,14 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  buscarNfePortal,
+  excluirNfeDistribuicaoAlheias,
+  getEmpresaIdent,
+  carregarStatusDistDFe,
+  getXmlNfeDistribuicao,
+  type PortalRpcFiltros,
+} from "@/services/fiscal/portal.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -184,23 +191,14 @@ export default function PortalFiscal() {
   } | null>(null);
 
   useEffect(() => {
-    void supabase
-      .from("empresa_config")
-      .select("cnpj, razao_social")
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        const c = data as { cnpj?: string | null; razao_social?: string | null } | null;
-        const digits = c?.cnpj ? c.cnpj.replace(/\D/g, "") : null;
-        setEmpresaInfo({ cnpj: digits, razao: c?.razao_social ?? null });
-      });
+    void getEmpresaIdent().then(setEmpresaInfo);
   }, []);
 
   const buscar = useCallback(
     async (f: Filtros, p: number, incluirOutrosDest: boolean) => {
       setLoading(true);
       try {
-        const payload: Record<string, string> = {};
+        const payload: PortalRpcFiltros = {};
         if (f.data_inicio) payload.data_inicio = `${f.data_inicio}T00:00:00`;
         if (f.data_fim) payload.data_fim = `${f.data_fim}T23:59:59`;
         if (f.chave) payload.chave = f.chave.replace(/\D/g, "");
@@ -216,19 +214,9 @@ export default function PortalFiscal() {
           payload.tipo_documento = f.tipo_documento;
         if (incluirOutrosDest) payload.incluir_outros_destinatarios = "true";
 
-        const { data, error } = await supabase.rpc("buscar_nfe_portal", {
-          p_filtros: payload,
-          p_limit: PAGE_SIZE,
-          p_offset: p * PAGE_SIZE,
-        });
-        if (error) throw error;
-        const r =
-          (data as unknown as { rows: PortalRow[]; total: number } | null) ?? {
-            rows: [],
-            total: 0,
-          };
-        setRows(r.rows ?? []);
-        setTotal(Number(r.total ?? 0));
+        const r = await buscarNfePortal(payload, p, PAGE_SIZE);
+        setRows(r.rows as unknown as PortalRow[]);
+        setTotal(r.total);
       } catch (e) {
         toast.error("Erro ao consultar NF-e", {
           description: e instanceof Error ? e.message : String(e),
@@ -249,31 +237,7 @@ export default function PortalFiscal() {
   const carregarStatus = useCallback(async () => {
     setLoadingStatus(true);
     try {
-      const [{ data: sync }, { data: tipos }] = await Promise.all([
-        supabase
-          .from("nfe_distdfe_sync")
-          .select("ultimo_nsu, max_nsu, ultima_sync_at, ultima_resposta_cstat, ultima_resposta_xmotivo")
-          .order("ultima_sync_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("nfe_distribuicao")
-          .select("tipo_documento"),
-      ]);
-
-      const porTipo: Record<string, number> = {};
-      for (const row of tipos ?? []) {
-        const t = (row as { tipo_documento?: string }).tipo_documento ?? "outros";
-        porTipo[t] = (porTipo[t] ?? 0) + 1;
-      }
-
-      const s = sync as {
-        ultimo_nsu?: string | null;
-        max_nsu?: string | null;
-        ultima_sync_at?: string | null;
-        ultima_resposta_cstat?: string | null;
-        ultima_resposta_xmotivo?: string | null;
-      } | null;
+      const { sync: s, porTipo } = await carregarStatusDistDFe();
 
       setSyncStatus({
         ultimoNsu: s?.ultimo_nsu ?? null,
@@ -394,9 +358,7 @@ export default function PortalFiscal() {
     if (!ok) return;
     setLimpando(true);
     try {
-      const { data, error } = await supabase.rpc("excluir_nfe_distribuicao_alheias");
-      if (error) throw error;
-      const n = Number(data ?? 0);
+      const n = await excluirNfeDistribuicaoAlheias();
       toast.success(n > 0 ? `${n} NF-e(s) removida(s).` : "Nada a remover.");
       void buscar(aplicados, page, incluirOutros);
     } catch (e) {
@@ -450,13 +412,13 @@ export default function PortalFiscal() {
   };
 
   const baixarXml = async (row: PortalRow) => {
-    const { data, error } = await supabase
-      .from("nfe_distribuicao")
-      .select("xml_nfe")
-      .eq("id", row.id)
-      .maybeSingle();
-    const xml = (data as { xml_nfe?: string | null } | null)?.xml_nfe;
-    if (error || !xml) {
+    let xml: string | null = null;
+    try {
+      xml = await getXmlNfeDistribuicao(row.id);
+    } catch {
+      xml = null;
+    }
+    if (!xml) {
       toast.error("XML não disponível", {
         description:
           "Esta nota ainda está apenas como resumo (resNFe). Aplique Ciência da operação para receber o XML completo.",
@@ -473,12 +435,7 @@ export default function PortalFiscal() {
   };
 
   const carregarXmlDaLinha = async (row: PortalRow): Promise<string | null> => {
-    const { data } = await supabase
-      .from("nfe_distribuicao")
-      .select("xml_nfe")
-      .eq("id", row.id)
-      .maybeSingle();
-    return (data as { xml_nfe?: string | null } | null)?.xml_nfe ?? null;
+    return getXmlNfeDistribuicao(row.id);
   };
 
   const sanitizeFilename = (s: string): string =>
@@ -552,12 +509,7 @@ export default function PortalFiscal() {
     setXmlOpen(row);
     setCarregandoXml(true);
     setXmlConteudo("");
-    const { data } = await supabase
-      .from("nfe_distribuicao")
-      .select("xml_nfe")
-      .eq("id", row.id)
-      .maybeSingle();
-    const xml = (data as { xml_nfe?: string | null } | null)?.xml_nfe;
+    const xml = await getXmlNfeDistribuicao(row.id);
     setXmlConteudo(xml ?? "");
     setCarregandoXml(false);
   };

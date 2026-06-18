@@ -15,6 +15,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { HealthStatus } from "@/components/HealthBadge";
+import {
+  fetchAuditEntidades,
+  fetchEmailStats,
+  fetchWebhookMetrics,
+  fetchEmailQueueMetrics,
+} from "@/services/admin/saudeSistema.service";
 
 export interface ModuloEvento {
   entidade: string;
@@ -196,23 +202,9 @@ async function pingSefaz(): Promise<IntegracaoSaude> {
   }
 }
 
-interface WebhookMetricsRaw {
-  endpoints_ativos: number;
-  deliveries_pendentes: number;
-  falhas_24h: number;
-  fila_total: number;
-  fila_oldest_age_seconds: number;
-}
-
 async function classificarWebhooks(): Promise<IntegracaoSaude> {
   try {
-    const { data, error } = await (
-      supabase.rpc as unknown as (
-        name: string,
-      ) => Promise<{ data: WebhookMetricsRaw | null; error: { message: string } | null }>
-    )("webhooks_metrics");
-    if (error) throw new Error(error.message);
-    const m = data ?? { endpoints_ativos: 0, deliveries_pendentes: 0, falhas_24h: 0, fila_total: 0, fila_oldest_age_seconds: 0 };
+    const m = await fetchWebhookMetrics();
 
     if (m.endpoints_ativos === 0) {
       return {
@@ -263,18 +255,10 @@ export function useSaudeSistema() {
       const desde7d = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       // 1. Eventos administrativos por entidade (24h e 7d)
-      const [aud24Res, aud7Res] = await Promise.all([
-        supabase
-          .from("v_admin_audit_unified")
-          .select("entidade")
-          .gte("created_at", desde24h),
-        supabase
-          .from("v_admin_audit_unified")
-          .select("entidade")
-          .gte("created_at", desde7d),
+      const [aud24, aud7] = await Promise.all([
+        fetchAuditEntidades(desde24h),
+        fetchAuditEntidades(desde7d),
       ]);
-      if (aud24Res.error) throw aud24Res.error;
-      if (aud7Res.error) throw aud7Res.error;
 
       const contar = (rows: { entidade: string | null }[]) => {
         const map = new Map<string, number>();
@@ -284,8 +268,8 @@ export function useSaudeSistema() {
         }
         return map;
       };
-      const map24 = contar(aud24Res.data ?? []);
-      const map7 = contar(aud7Res.data ?? []);
+      const map24 = contar(aud24);
+      const map7 = contar(aud7);
       const todasEntidades = new Set<string>([...map24.keys(), ...map7.keys()]);
       const modulos: ModuloEvento[] = Array.from(todasEntidades)
         .map((entidade) => ({
@@ -296,41 +280,12 @@ export function useSaudeSistema() {
         .sort((a, b) => b.eventos7d - a.eventos7d);
 
       // 2. E-mail: contagem total + falhas em 24h + estado de backoff
-      const [emailTotalRes, emailErrosRes, stateRes] = await Promise.all([
-        supabase
-          .from("email_send_log")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", desde24h),
-        supabase
-          .from("email_send_log")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", desde24h)
-          .neq("status", "sent"),
-        supabase
-          .from("email_send_state")
-          .select("retry_after_until")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      const enviados24h = emailTotalRes.count ?? 0;
-      const erros24h = emailErrosRes.count ?? 0;
-      const backoffAte = stateRes.data?.retry_after_until ?? null;
+      const { enviados24h, erros24h, backoffAte } = await fetchEmailStats(desde24h);
 
       // 3. Profundidade das filas pgmq (RPC SECURITY DEFINER admin-only)
       let filas: FilaEmailMetric[] = [];
       try {
-        // RPC `email_queue_metrics` ainda pode não estar tipada no client gerado.
-        // Acesso via cast — substitui `invokeRpc` quando types regenerarem.
-        const { data: rows, error } = await (
-          supabase.rpc as unknown as (
-            name: string,
-            args?: Record<string, unknown>,
-          ) => Promise<{ data: FilaEmailMetric[] | null; error: { message: string } | null }>
-        )("email_queue_metrics", {});
-        if (error) throw new Error(error.message);
-        filas = rows ?? [];
+        filas = (await fetchEmailQueueMetrics()) as unknown as FilaEmailMetric[];
       } catch {
         // RPC pode falhar em ambientes sem pgmq; mantém lista vazia.
         filas = [];
@@ -350,8 +305,8 @@ export function useSaudeSistema() {
         {
           chave: "auditoria",
           nome: "Trilha de auditoria",
-          status: (aud24Res.data?.length ?? 0) > 0 ? "healthy" : "unknown",
-          detalhe: `${aud24Res.data?.length ?? 0} eventos nas últimas 24h`,
+          status: aud24.length > 0 ? "healthy" : "unknown",
+          detalhe: `${aud24.length} eventos nas últimas 24h`,
         },
         {
           chave: "permissoes",

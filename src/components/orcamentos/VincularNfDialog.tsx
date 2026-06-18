@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,18 +7,13 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 import { Link2 } from "lucide-react";
+import {
+  listNotasFiscaisVinculaveis,
+  vincularOrcamentoNf,
+  type NfVinculavelRow,
+} from "@/services/orcamentos.service";
 
-interface NfRow {
-  id: string;
-  numero: string | null;
-  serie: string | null;
-  chave_acesso: string | null;
-  data_emissao: string | null;
-  valor_total: number | null;
-  status: string | null;
-  cliente_id: string | null;
-  clientes?: { nome_razao_social: string | null } | null;
-}
+type NfRow = NfVinculavelRow;
 
 interface Props {
   open: boolean;
@@ -52,19 +46,8 @@ export function VincularNfDialog({ open, onClose, orcamento, onLinked }: Props) 
     setLoading(true);
     (async () => {
       try {
-        let q = supabase
-          .from("notas_fiscais")
-          .select("id, numero, serie, chave_acesso, data_emissao, valor_total, status, cliente_id, clientes(nome_razao_social)")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .is("ordem_venda_id", null)
-          .in("status", ["confirmada", "importada", "autorizada"])
-          .order("data_emissao", { ascending: false })
-          .limit(100);
-        if (orcamento.cliente_id) q = q.eq("cliente_id", orcamento.cliente_id);
-        const { data, error } = await q;
-        if (error) throw error;
-        setRows((data ?? []) as NfRow[]);
+        const data = await listNotasFiscaisVinculaveis(orcamento.cliente_id);
+        setRows(data);
       } catch (err) {
         notifyError(err);
       } finally {
@@ -87,12 +70,10 @@ export function VincularNfDialog({ open, onClose, orcamento, onLinked }: Props) 
     if (!orcamento || !selectedId) return;
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("vincular_orcamento_nf" as never, {
-        p_orcamento_id: orcamento.id,
-        p_nf_id: selectedId,
-      } as never);
-      if (error) throw error;
-      const res = data as { ov_id: string; nf_id: string } | null;
+      const res = await vincularOrcamentoNf({
+        orcamentoId: orcamento.id,
+        nfId: selectedId,
+      });
       toast.success(`Orçamento ${orcamento.numero} vinculado à NF.`);
       onLinked?.({ nfId: selectedId, ovId: res?.ov_id ?? "" });
       onClose();

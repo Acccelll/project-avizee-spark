@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import type { NotaFiscal } from "@/types/domain";
+import { fetchNotasFiscaisPaged } from "@/services/fiscal/notasFiscaisPaged.service";
 
 /**
  * Filtros server-side espelhando a RPC `listar_notas_fiscais_ids`.
@@ -22,9 +22,6 @@ export interface NotasFiscaisPagedFilters {
 }
 
 const DEFAULT_PAGE_SIZE = 50;
-
-const SELECT_RELATIONAL =
-  "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)";
 
 interface PageResult {
   rows: NotaFiscal[];
@@ -53,44 +50,23 @@ export function useNotasFiscaisPaged(
   const query = useQuery<PageResult>({
     queryKey,
     queryFn: async ({ signal }) => {
-      const offset = page * pageSize;
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "listar_notas_fiscais_ids",
-        {
-          p_date_from: filters.dateFrom ?? null,
-          p_date_to: filters.dateTo ?? null,
-          p_tipos: filters.tipos?.length ? filters.tipos : null,
-          p_status: filters.status?.length ? filters.status : null,
-          p_status_sefaz: filters.statusSefaz?.length ? filters.statusSefaz : null,
-          p_modelos: filters.modelos?.length ? filters.modelos : null,
-          p_origens: filters.origens?.length ? filters.origens : null,
-          p_fornecedores: filters.fornecedores?.length ? filters.fornecedores : null,
-          p_clientes: filters.clientes?.length ? filters.clientes : null,
-          p_search: filters.search?.trim() || null,
-          p_order_by: orderBy,
-          p_ascending: ascending,
-          p_offset: offset,
-          p_limit: pageSize,
-        },
-      );
-      if (rpcError) throw rpcError;
-      const payload = (rpcData ?? {}) as { ids?: string[] | null; total_count?: number };
-      const ids = payload.ids ?? [];
-      const totalCount = Number(payload.total_count ?? 0);
-      if (ids.length === 0) return { rows: [], totalCount };
-
-      let q = supabase
-        .from("notas_fiscais")
-        .select(SELECT_RELATIONAL)
-        .in("id", ids);
-      if (signal) q = q.abortSignal(signal);
-      const { data: rows, error } = await q;
-      if (error) throw error;
-
-      const byId = new Map<string, NotaFiscal>();
-      ((rows ?? []) as unknown as NotaFiscal[]).forEach((r) => byId.set(r.id, r));
-      const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as NotaFiscal[];
-      return { rows: ordered, totalCount };
+      return fetchNotasFiscaisPaged({
+        dateFrom: filters.dateFrom ?? null,
+        dateTo: filters.dateTo ?? null,
+        tipos: filters.tipos ?? null,
+        status: filters.status ?? null,
+        statusSefaz: filters.statusSefaz ?? null,
+        modelos: filters.modelos ?? null,
+        origens: filters.origens ?? null,
+        fornecedores: filters.fornecedores ?? null,
+        clientes: filters.clientes ?? null,
+        search: filters.search ?? null,
+        orderBy,
+        ascending,
+        offset: page * pageSize,
+        limit: pageSize,
+        signal,
+      });
     },
     placeholderData: (prev) => prev,
     staleTime: 10_000,

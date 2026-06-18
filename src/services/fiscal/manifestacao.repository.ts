@@ -11,6 +11,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AmbienteSefaz } from "@/services/fiscal/sefaz";
 
+/**
+ * Importa uma NF-e do `nfe_distribuicao` como entrada (`notas_fiscais`).
+ * Encapsula a RPC `importar_nfe_distribuicao_como_entrada`.
+ */
+export async function importarNfeDistribuicaoComoEntrada(id: string): Promise<void> {
+  const { error } = await supabase.rpc(
+    "importar_nfe_distribuicao_como_entrada",
+    { p_id: id },
+  );
+  if (error) throw error;
+}
+
 // ── Tipos compartilhados ───────────────────────────────────────────────────────
 
 export interface NfeCapturadaRow {
