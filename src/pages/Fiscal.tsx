@@ -79,6 +79,7 @@ import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
+import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
