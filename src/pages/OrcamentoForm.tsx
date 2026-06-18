@@ -1360,7 +1360,6 @@ export default function OrcamentoForm() {
 
       {/* (footer mobile único renderizado abaixo) */}
 
-      <Dialog open={restoreDraftOpen} onOpenChange={setRestoreDraftOpen}>
       <RestoreDraftDialog
         open={restoreDraftOpen}
         onOpenChange={setRestoreDraftOpen}
