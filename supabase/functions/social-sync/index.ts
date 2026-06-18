@@ -171,9 +171,9 @@ async function syncInstagram(
   try {
     // Fetch Instagram Business Account insights
     const [profileRes, mediaRes, insightsRes] = await Promise.all([
-      fetch(`https://graph.facebook.com/v19.0/${accountId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${accountId}/media?fields=id,caption,media_type,timestamp,like_count,comments_count,permalink&limit=25&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${accountId}/insights?metric=impressions,reach,profile_views&period=day&since=${getDateNDaysAgo(30)}&until=${getTodayISO()}&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}/media?fields=id,caption,media_type,timestamp,like_count,comments_count,permalink&limit=25&access_token=${token}`),
+      sFetch(`https://graph.facebook.com/v19.0/${accountId}/insights?metric=impressions,reach,profile_views&period=day&since=${getDateNDaysAgo(30)}&until=${getTodayISO()}&access_token=${token}`),
     ]);
 
     const profile = await profileRes.json();
