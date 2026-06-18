@@ -504,7 +504,9 @@ export function useFiscalXmlImport(args: UseFiscalXmlImportArgs) {
       setItems((prev) => {
         const next = [...prev];
         const target = next.findIndex((i) => !i.produto_id);
-        const matched = produtos.find((p) => p.id === produtoId);
+        const matched = produtos.find((p) => p.id === produtoId) as
+          | { codigo_interno?: string; nome?: string; preco_custo?: number }
+          | undefined;
         const row: GridItem = {
           produto_id: produtoId,
           codigo: String(matched?.codigo_interno || ""),
