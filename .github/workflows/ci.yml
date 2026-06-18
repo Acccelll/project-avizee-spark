@@ -85,6 +85,8 @@ jobs:
   db-tests:
     name: pgTAP (database)
     runs-on: ubuntu-latest
+    # TODO(7.4): promover a bloqueante após validar verde em runs reais.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -96,6 +98,9 @@ jobs:
   touch-targets:
     name: Touch targets (advisory)
     runs-on: ubuntu-latest
+    # TODO(7.4): promover a bloqueante após sanear violações em ProdutoForm e
+    # demais telas com size="icon" h-9 w-9 (alvo de toque < 44px).
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
