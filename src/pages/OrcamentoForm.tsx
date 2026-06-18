@@ -1,17 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
 import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
@@ -19,22 +14,18 @@ import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoe
 import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
 import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
-import { OrcamentoPdfTemplate } from "@/components/Orcamento/OrcamentoPdfTemplate";
-import { OrcamentoPdfTemplateBrand } from "@/components/Orcamento/OrcamentoPdfTemplateBrand";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send, BarChart3, Truck, CreditCard } from "lucide-react";
+import { Save, Eye, FileText, Copy, Wand2, RefreshCw, CheckCircle2, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, ChevronDown, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
-import { StatusStepper } from "@/pages/comercial/orcamento-form/StatusStepper";
+import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
+import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import {
   emptyCliente,
   STATUS_LABEL,
   type ClienteSnapshot,
-  type SalvarOrcamentoPayload,
-  type SalvarOrcamentoItemPayload,
 } from "@/pages/comercial/orcamento-form/types";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
@@ -53,7 +44,7 @@ import {
   persistOrcamento,
 } from "@/pages/comercial/orcamento-form/saveHelpers";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
-import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
+import { type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCan } from "@/hooks/useCan";
@@ -73,7 +64,6 @@ import {
   getFormaPagamentoDescricao,
   listPrecosEspeciaisAtuais,
   deleteOrcamentoDraft,
-  getOrcamentoDraftPayload,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
@@ -81,7 +71,6 @@ import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import {
   upsertOrcamentoDraft,
   hasOrcamentoDraft,
-  existeOrcamentoComNumero,
   criarRevisaoOrcamento,
 } from "@/services/orcamentos.service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -994,126 +983,26 @@ export default function OrcamentoForm() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className={cn("lg:col-span-8 space-y-5", isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>
         <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70 contents">
-          {/* Identificação do Orçamento */}
-          <div className="bg-card rounded-xl border shadow-soft p-5">
-            <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Nº Orçamento</Label>
-                <div className="relative">
-                  <Input
-                    {...register('numero')}
-                    onBlur={async (e) => {
-                      const val = e.target.value?.trim();
-                      if (!val) return;
-                      // Não revalida se for o próprio número do orçamento em edição
-                      const existe = await existeOrcamentoComNumero(val, id || null).catch(() => false);
-                      if (existe) {
-                        toast.error('Este número de orçamento já está em uso. Escolha outro.');
-                      }
-                    }}
-                    className={`font-mono pr-8 ${fieldErrors.numero ? "border-destructive" : numero ? "border-success" : ""}`}
-                  />
-                  {numero && !fieldErrors.numero && <CheckCircle2 className="h-4 w-4 text-success absolute right-2 top-1/2 -translate-y-1/2" />}
-                  {fieldErrors.numero && <AlertTriangle className="h-4 w-4 text-destructive absolute right-2 top-1/2 -translate-y-1/2" />}
-                </div>
-                {fieldErrors.numero && <p className="text-[11px] text-destructive">{fieldErrors.numero.message}</p>}
-              </div>
-              <div className="space-y-1.5"><Label className="text-xs">Data de Emissão</Label><Input type="date" {...register('dataOrcamento')} /></div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Status</Label>
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isLocked}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <StatusStepper status={status} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Validade</Label>
-                <Input type="date" {...register('validade')} />
-                <p className="text-[11px] text-muted-foreground">Data limite para o cliente aceitar.</p>
-              </div>
-            </div>
-          </div>
+          <IdentificacaoCard
+            register={register}
+            control={control}
+            fieldErrors={fieldErrors}
+            numero={numero}
+            status={status}
+            id={id}
+            isLocked={isLocked}
+            statusOptions={statusOptions}
+          />
 
-          {/* Cliente */}
-          <div className="bg-card rounded-xl border shadow-soft p-5">
-            <h3 className="font-semibold text-foreground mb-4">Cliente</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="col-span-2 md:col-span-2 space-y-1.5">
-                  <Label className="text-xs">Buscar Cliente</Label>
-                  <div className="flex gap-2">
-                    <AutocompleteSearch
-                      options={clienteOptions}
-                      value={clienteId}
-                      onChange={handleClienteChange}
-                      placeholder="Buscar por nome ou CNPJ..."
-                      className="flex-1"
-                      onCreateNew={() => setQuickAddOpen(true)}
-                      createNewLabel="Cadastrar novo cliente"
-                    />
-                    {clienteId && !fieldErrors.clienteId && <CheckCircle2 className="h-4 w-4 text-success mt-3" />}
-                    <ClientSelector
-                      clientes={clientes}
-                      onSelect={(c) => handleClienteChange(c.id)}
-                      trigger={
-                        <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
-                          <Search className="h-4 w-4" />
-                        </Button>
-                      }
-                    />
-                    <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="hidden md:block space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
-              </div>
-              {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId.message}</p>}
-              {clienteId && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm bg-accent/20 rounded-lg p-3">
-                  <div className="md:col-span-2 space-y-0.5"><Label className="text-xs text-muted-foreground">Razão Social</Label><p className="font-medium text-sm leading-tight">{clienteSnapshot.nome_razao_social}</p></div>
-                  <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">CNPJ/CPF</Label><p className="font-mono text-xs">{clienteSnapshot.cpf_cnpj || "—"}</p></div>
-                  <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Cidade/UF</Label><p className="text-sm">{clienteSnapshot.cidade ? `${clienteSnapshot.cidade}/${clienteSnapshot.uf}` : "—"}</p></div>
-                  {clienteSnapshot.email && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Email</Label><p className="text-xs truncate">{clienteSnapshot.email}</p></div>}
-                  {clienteSnapshot.telefone && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Telefone</Label><p className="text-xs">{clienteSnapshot.telefone}</p></div>}
-                  {clienteSnapshot.codigo && (
-                    <div className="md:hidden space-y-0.5"><Label className="text-xs text-muted-foreground">Código do cliente</Label><p className="font-mono text-xs">{clienteSnapshot.codigo}</p></div>
-                  )}
-                </div>
-              )}
-              {clienteId && (clienteSnapshot.logradouro || clienteSnapshot.bairro || clienteSnapshot.cep) && (
-                <div className="rounded-lg border border-dashed bg-muted/30 p-3">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">Endereço</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <div className="md:col-span-2 space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Logradouro</Label>
-                      <p className="text-sm leading-tight">{clienteSnapshot.logradouro || "—"}{clienteSnapshot.numero ? `, ${clienteSnapshot.numero}` : ""}</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">Bairro</Label>
-                      <p className="text-sm">{clienteSnapshot.bairro || "—"}</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-xs text-muted-foreground">CEP</Label>
-                      <p className="font-mono text-xs">{clienteSnapshot.cep || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <ClienteCard
+            clienteOptions={clienteOptions}
+            clientes={clientes}
+            clienteId={clienteId}
+            clienteSnapshot={clienteSnapshot}
+            fieldErrors={fieldErrors}
+            onClienteChange={handleClienteChange}
+            onQuickAdd={() => setQuickAddOpen(true)}
+          />
 
           <OrcamentoItemsGrid
             items={items}
