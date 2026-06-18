@@ -16,6 +16,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPages } from "@/services/_lib/fetchAllPages";
+import { base64ToBlob, latestPorRemessa } from "./_helpers";
 
 export interface RemessaEtiqueta {
   id: string;
@@ -34,14 +35,6 @@ const STORAGE_BUCKET = "etiquetas-correios";
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
-}
-
-function base64ToBlob(b64: string, mime = "application/pdf"): Blob {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
 }
 
 /** Lista as etiquetas conhecidas para uma remessa, mais recente primeiro. */
@@ -71,11 +64,7 @@ export async function listLatestEtiquetasByRemessas(
       .in("remessa_id", remessaIds)
       .order("created_at", { ascending: false }) as never,
   );
-  const map: Record<string, RemessaEtiqueta> = {};
-  for (const row of data) {
-    if (!map[row.remessa_id]) map[row.remessa_id] = row;
-  }
-  return map;
+  return latestPorRemessa(data);
 }
 
 /** Gera signed URL para download do PDF (válida por 5 min). */
