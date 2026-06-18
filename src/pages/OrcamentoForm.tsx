@@ -1,17 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
 import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
@@ -19,24 +14,18 @@ import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoe
 import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
 import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
-import { OrcamentoPdfTemplate } from "@/components/Orcamento/OrcamentoPdfTemplate";
-import { OrcamentoPdfTemplateBrand } from "@/components/Orcamento/OrcamentoPdfTemplateBrand";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send, BarChart3, Truck, CreditCard } from "lucide-react";
+import { Save, Eye, FileText, Copy, Wand2, RefreshCw, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, ChevronDown, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
-import { StatusStepper } from "@/pages/comercial/orcamento-form/StatusStepper";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
 import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import {
   emptyCliente,
   STATUS_LABEL,
   type ClienteSnapshot,
-  type SalvarOrcamentoPayload,
-  type SalvarOrcamentoItemPayload,
 } from "@/pages/comercial/orcamento-form/types";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
@@ -55,7 +44,7 @@ import {
   persistOrcamento,
 } from "@/pages/comercial/orcamento-form/saveHelpers";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
-import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
+import { type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCan } from "@/hooks/useCan";
@@ -75,7 +64,6 @@ import {
   getFormaPagamentoDescricao,
   listPrecosEspeciaisAtuais,
   deleteOrcamentoDraft,
-  getOrcamentoDraftPayload,
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
@@ -83,7 +71,6 @@ import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import {
   upsertOrcamentoDraft,
   hasOrcamentoDraft,
-  existeOrcamentoComNumero,
   criarRevisaoOrcamento,
 } from "@/services/orcamentos.service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
