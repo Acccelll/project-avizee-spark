@@ -1,4 +1,4 @@
-import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
+import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { MonthPicker } from "@/components/filters/MonthPicker";
 import {
@@ -13,8 +13,8 @@ export interface FiscalFiltersBarProps {
   tipoParam: string | null;
   consultaSearch: string;
   setConsultaSearch: (v: string) => void;
-  activeFilters: { id: string; label: string }[];
-  onRemoveFilter: (id: string) => void;
+  activeFilters: FilterChip[];
+  onRemoveFilter: (key: string) => void;
   totalCount: number;
   tipoFilters: string[]; setTipoFilters: (v: string[]) => void;
   modeloFilters: string[]; setModeloFilters: (v: string[]) => void;
