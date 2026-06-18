@@ -425,6 +425,9 @@ Deno.serve(async (req) => {
     );
   } catch (e: any) {
     console.error("[correios-api]", e);
+    if (isTimeoutError(e)) {
+      return timeoutResponse(corsHeaders, "Correios não respondeu a tempo.");
+    }
     return new Response(
       JSON.stringify({ error: e.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
