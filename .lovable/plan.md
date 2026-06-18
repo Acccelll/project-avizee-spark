@@ -104,6 +104,49 @@ follow-up trivial sem impacto no LOC da página.
 - Reforma Tributária IBS/CBS (épico próprio).
 - Cobertura de testes nova (Etapa 7).
 
+# Etapa 7 — Testes & CI/CD (em andamento)
+
+## Pass 1 (concluído)
+
+### 7.1 — Cobertura: pure functions críticas
+- `src/services/fiscal/emitirNfe/__tests__/buildPayload.test.ts` (9 testes):
+  cobre `calcularTotaisWizard`, `buildNotaFiscalRascunho` (mapeamento de
+  finalidade, intermediador on/off, UPPERCASE placa/UF, normalização data/hora)
+  e `buildItensPayload` (csosn = cst, codigo vazio→null). Todos verdes.
+
+### 7.4 — Endurecer pipeline (parcial)
+- CI: novo job `build` (`npm run build`) — antes não validava o bundle.
+- CI: novo job `audit` (`npm audit --omit=dev --audit-level=high`) marcado
+  como `continue-on-error` enquanto saneamos deps legadas; promover a
+  bloqueante após zerar high/critical.
+- pgTAP e touch-targets permanecem advisory (`continue-on-error`) por já
+  existirem violações abertas (ex.: ProdutoForm com `size="icon" h-9 w-9`).
+  TODOs anotados no workflow para promoção futura.
+
+## Pendente
+
+### 7.1 (continuação)
+- Logística: testes para `entregas`, `prepostagem`, `recebimentos`,
+  `remessas`, `etiquetasSimples` (priorizar funções puras já existentes;
+  para queries Supabase, mockar `supabase.from`).
+- Compras: cobrir cálculos de `cotacoesCompra.service.ts` e
+  `pedidosCompra.service.ts` que não dependem de I/O.
+- Conciliação: reforço de casos extremos de `calcularScoreConciliacao`
+  (datas extremas, valores próximos, descrições parciais).
+
+### 7.2 — Gate de cobertura
+- Adicionar `--coverage` ao `npm test` + provider `v8`.
+- Definir thresholds: global 60%, `src/services/**` e `src/utils/**` 80%.
+- Job CI dedicado lendo `coverage/coverage-summary.json`.
+- Subir limiar gradualmente conforme 7.1 evolui.
+
+### 7.3 — E2E Playwright
+- Setup `@playwright/test` + workflow dedicado.
+- Fluxos: login (+MFA), orçamento→pedido, NF-e homologação, baixa
+  financeira, conciliação OFX.
+- Integrar `@axe-core/playwright` nas mesmas specs (gancho com Etapa 5.5).
+- Requer ambiente de preview com seed determinístico — coordenar com Cloud.
+
 ## Critérios de aceite
 
 - Os 4 arquivos-página com **< 300 linhas** cada.
