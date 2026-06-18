@@ -14,6 +14,67 @@ interface OrcamentoBase {
 }
 
 /**
+ * NFs candidatas a vínculo manual de um orçamento (saída, sem OV).
+ * Encapsula o SELECT antes embarcado em `VincularNfDialog`.
+ */
+export interface NfVinculavelRow {
+  id: string;
+  numero: string | null;
+  serie: string | null;
+  chave_acesso: string | null;
+  data_emissao: string | null;
+  valor_total: number | null;
+  status: string | null;
+  cliente_id: string | null;
+  clientes?: { nome_razao_social: string | null } | null;
+}
+
+export async function listNotasFiscaisVinculaveis(
+  clienteId: string | null,
+): Promise<NfVinculavelRow[]> {
+  let q = supabase
+    .from("notas_fiscais")
+    .select(
+      "id, numero, serie, chave_acesso, data_emissao, valor_total, status, cliente_id, clientes(nome_razao_social)",
+    )
+    .eq("ativo", true)
+    .eq("tipo", "saida")
+    .is("ordem_venda_id", null)
+    .in("status", ["confirmada", "importada", "autorizada"])
+    .order("data_emissao", { ascending: false })
+    .limit(100);
+  if (clienteId) q = q.eq("cliente_id", clienteId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as NfVinculavelRow[];
+}
+
+export async function vincularOrcamentoNf(params: {
+  orcamentoId: string;
+  nfId: string;
+}): Promise<{ ov_id: string; nf_id: string } | null> {
+  const { data, error } = await supabase.rpc("vincular_orcamento_nf" as never, {
+    p_orcamento_id: params.orcamentoId,
+    p_nf_id: params.nfId,
+  } as never);
+  if (error) throw error;
+  return (data as { ov_id: string; nf_id: string } | null) ?? null;
+}
+
+/**
+ * Acesso público a orçamento via token. RPC SECURITY DEFINER
+ * `get_orcamento_publico` é a única porta para a tela `/orcamento/:token`
+ * — substitui acesso direto às views públicas (anon revogado).
+ */
+export async function getOrcamentoPublico(token: string): Promise<unknown | null> {
+  const { data, error } = await supabase.rpc("get_orcamento_publico" as never, {
+    p_token: token,
+  } as never);
+  if (error) throw error;
+  return data ?? null;
+}
+
+/**
  * @deprecated Use `enviarOrcamentoAprovacao` em
  * `src/services/comercial/orcamentosLifecycle.service.ts` (mesma RPC,
  * tipagem oficial e telemetria padronizada). Mantido apenas como
