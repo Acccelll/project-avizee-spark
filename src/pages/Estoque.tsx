@@ -93,9 +93,10 @@ function SituacaoEstoqueBadge({ situacao }: { situacao: SituacaoEstoque }) {
 const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku, variacoes)", hasAtivo: false,
+    paginationMode: "all",
   });
   const isMobile = useIsMobile();
-  const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
+  const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos", paginationMode: "all" });
   const ajustar = useAjustarEstoque();
   const saving = ajustar.isPending;
   // Aba Saldos consome a view `vw_estoque_posicao` para refletir reservas.

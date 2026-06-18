@@ -80,8 +80,8 @@ const Financeiro = () => {
     queryClient.invalidateQueries({ queryKey: ["ref", "contas_bancarias"] });
   }, [queryClient]);
 
-  const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
-  const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
+  const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes", paginationMode: "all" });
+  const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores", paginationMode: "all" });
 
   const { contasBancarias, contasContabeis, cartoes } = useFinanceiroAuxiliares();
 

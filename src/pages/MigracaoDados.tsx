@@ -87,7 +87,8 @@ export default function MigracaoDados() {
   const { data: lotes, loading: loadingLotes, fetchData: refreshLotes } = useSupabaseCrud<ImportacaoLote>({
     table: "importacao_lotes",
     hasAtivo: false,
-    orderBy: "created_at"
+    orderBy: "created_at",
+    paginationMode: "all",
   });
 
   const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento" | "conciliacao">("cadastros");

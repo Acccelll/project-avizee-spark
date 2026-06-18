@@ -295,7 +295,7 @@ function ContasTreeView({ data, loading, onView, onEdit }: TreeViewProps) {
 // Main Page
 // ---------------------------------------------------------------------------
 const ContasContabeis = () => {
-  const { data, loading, create, update, remove } = useSupabaseCrud<ContaContabil>({ table: "contas_contabeis" });
+  const { data, loading, create, update, remove } = useSupabaseCrud<ContaContabil>({ table: "contas_contabeis", paginationMode: "all" });
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<ContaContabil | null>(null);

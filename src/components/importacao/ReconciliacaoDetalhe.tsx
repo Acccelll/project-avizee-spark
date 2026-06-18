@@ -27,7 +27,8 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
     filter: lote ? [{ column: "lote_id", value: lote.id }] : [],
     orderBy: "created_at",
     ascending: true,
-    hasAtivo: false
+    hasAtivo: false,
+    paginationMode: "all",
   });
 
   if (!lote) return null;

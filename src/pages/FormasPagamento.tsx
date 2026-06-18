@@ -104,7 +104,7 @@ const formatDateShort = (date: Date): string =>
 
 export default function FormasPagamento() {
   const { pushView } = useRelationalNavigation();
-  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento", filterAtivo: false });
+  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento", filterAtivo: false, paginationMode: "all" });
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
