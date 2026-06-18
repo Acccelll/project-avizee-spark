@@ -183,11 +183,34 @@ sendo global 60% e services/utils 80%; cada novo teste de pure function
 deve vir junto de um bump no threshold correspondente.
 
 ### 7.3 — E2E Playwright
-- Setup `@playwright/test` + workflow dedicado.
-- Fluxos: login (+MFA), orçamento→pedido, NF-e homologação, baixa
-  financeira, conciliação OFX.
-- Integrar `@axe-core/playwright` nas mesmas specs (gancho com Etapa 5.5).
-- Requer ambiente de preview com seed determinístico — coordenar com Cloud.
+
+Entregue (scaffold; specs auto-pulam até o ambiente E2E existir):
+- Dependências: `@playwright/test@^1.61` + `@axe-core/playwright@^4.11`.
+- `playwright.config.ts` com projetos `chromium` e `mobile-chrome` (Pixel 7),
+  retries no CI, trace/video on-failure, reporter `html`+`github`.
+- `e2e/fixtures/env.ts` — fixture que injeta `env` e roda `testInfo.skip()`
+  quando `E2E_BASE_URL`/credenciais ausentes (pipeline verde sem ambiente).
+- `e2e/fixtures/auth.ts` — `login()`/`logout()` com seletores acessíveis
+  (label/role), suporte a TOTP.
+- Specs (`e2e/specs/`):
+  - `auth.spec.ts` — login feliz + erro de credencial.
+  - `orcamento-pedido.spec.ts` — orçamento → aprovar → converter em pedido.
+  - `nfe-homologacao.spec.ts` — wizard de NF-e em SEFAZ homologação.
+  - `financeiro-baixa.spec.ts` — baixa parcial preserva status.
+  - `conciliacao-ofx.spec.ts` — importar OFX + confirmar par sugerido.
+  - `a11y.spec.ts` — axe-core em 6 rotas-chave, falha em `serious`/`critical`.
+- Scripts: `npm run test:e2e` e `npm run test:e2e:ui`.
+- Job CI `e2e` (advisory: `continue-on-error: true`) instala browsers,
+  roda os specs e publica `playwright-report` como artefato (14 dias).
+- `e2e/README.md` documenta envs, comandos locais e checklist de promoção.
+- `e2e/tsconfig.json` isolado (não impacta `typecheck:core` nem build).
+
+Pendências para tirar o `continue-on-error`:
+1. Ambiente de preview com seed determinístico (clientes/produtos/títulos).
+2. `E2E_*` cadastrados em GitHub Secrets.
+3. Commitar `e2e/fixtures/extrato-seed.ofx`.
+4. Certificado A1 de teste com `tpAmb=2` no tenant E2E.
+5. Promover job a bloqueante após 3 runs consecutivos verdes.
 
 ## Critérios de aceite
 
