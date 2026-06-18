@@ -56,7 +56,13 @@ function fromView(viewName: string) {
 
 export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
   const data = await fetchAllPages<EstoquePosicaoRow>(() =>
-    fromView("vw_estoque_posicao").select("*").order("produto_nome") as never,
+    fromView("vw_estoque_posicao")
+      .select(
+        "produto_id,produto_nome,sku,codigo_interno,unidade_medida," +
+          "estoque_minimo,preco_custo,preco_venda,ativo," +
+          "estoque_atual,estoque_reservado,variacoes",
+      )
+      .order("produto_nome") as never,
   );
   return data.filter((row) => !isLegacySku(row.sku));
 }

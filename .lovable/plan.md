@@ -51,11 +51,32 @@ Verificação: `rg "TODO\(pagina" src` → 0. Smoke test em cada tela com >2000 
 
 ### PR-2.2 — Auditoria de `select("*")` e N+1
 
-- Identificar listagens de alto volume com `select("*")` e restringir colunas (mantendo joins). Foco: `estoque.service`, `logistica/entregas`, `orcamentos.service` listagens, `pedidosCompra`.
-- Caçar loops `for/map` que chamam supabase por item nos services de logística e compras; consolidar via `.in("id", ids)` ou embedding PostgREST.
-- Não quebrar tipos: cada `select` restrito ganha tipo derivado local.
+Concluído. Auditoria executada nas 27 chamadas `select("*")` dos services e nos
+services de logística/compras/orçamentos/estoque.
 
-Verificação: payload de 3 listagens medido antes/depois (DevTools). Nenhuma tela faz >2 round-trips por render.
+Ajustes aplicados (alto volume, payload mensurável):
+- `logistica/entregas.service.ts` — `vw_entregas_consolidadas` agora seleciona
+  explicitamente as 15 colunas do `ViewRow` (antes puxava todas as colunas da
+  view consolidada, inclusive joins internos).
+- `estoque.service.ts` — `vw_estoque_posicao` agora seleciona explicitamente as
+  12 colunas do `EstoquePosicaoRow`.
+
+Mantidos como `*` (decisão registrada):
+- Lookups de form (`listClientesAtivosOrcamento`, `listProdutosAtivosComFornecedores`,
+  `fetchProdutosEstoque`) — consumidores tipados pelo `Tables<...>` gerado dependem
+  da row completa; restringir quebraria contratos espalhados em ~12 componentes.
+- CRUDs single-row (`getOrcamentoById`, `getPedidoCompra`, etc.) — payload já é 1
+  registro; ganho nulo.
+- Joins embedados específicos (`*, produtos(nome,sku)`) — `produtos` já é restrito;
+  o `*` é da tabela principal (poucos itens por página).
+
+N+1: varredura de loops `for/map` em logística, compras, orçamentos e estoque não
+revelou chamada Supabase por item — todos os fan-outs já usam `.in(...)` ou
+`Promise.all` controlado (`fetchRemessasRastreioPorDocumento`, geração de PDF de
+pré-postagem, hidratação de remessas por OV).
+
+Verificação: `bunx vitest run` → 785/785 verdes. Payload do consolidado de
+entregas cai conforme número de colunas extras retiradas pelo PostgREST.
 
 ### PR-2.3 — Resiliência das Edge Functions
 
