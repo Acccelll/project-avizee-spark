@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,46 +27,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { toast } from "sonner";
 import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send, BarChart3, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
-
-function MobileSection({
-  title,
-  icon: Icon,
-  summary,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  summary?: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const isMobile = useIsMobile();
-  if (!isMobile) return <>{children}</>;
-  return (
-    <div className="bg-card rounded-xl border shadow-soft overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full min-h-[52px] items-center gap-3 px-5 py-4 text-left active:bg-muted/40 transition-colors"
-      >
-        <Icon className="h-4 w-4 shrink-0 text-primary" />
-        <span className="text-sm font-semibold text-foreground shrink-0">{title}</span>
-        {!open && summary && (
-          <span className="ml-auto text-xs text-muted-foreground truncate">{summary}</span>
-        )}
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open ? "rotate-180" : "", !summary && "ml-auto")} />
-      </button>
-      {open && (
-        <div className="border-t [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
+import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
+import { StatusStepper } from "@/pages/comercial/orcamento-form/StatusStepper";
+import {
+  emptyCliente,
+  STATUS_LABEL,
+  type ClienteSnapshot,
+  type SalvarOrcamentoPayload,
+  type SalvarOrcamentoItemPayload,
+} from "@/pages/comercial/orcamento-form/types";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
@@ -108,119 +76,6 @@ import {
 } from "@/services/orcamentos.service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Lock } from "lucide-react";
-
-interface ClienteSnapshot {
-  nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
-  inscricao_estadual: string; email: string; telefone: string; celular: string;
-  contato: string; logradouro: string; numero: string; bairro: string;
-  cidade: string; uf: string; cep: string; codigo: string;
-}
-
-/** Payload para o parâmetro p_payload da RPC salvar_orcamento. */
-interface SalvarOrcamentoPayload {
-  numero: string;
-  data_orcamento: string;
-  status: string;
-  cliente_id: string | null;
-  validade: string | null;
-  observacoes: string;
-  observacoes_internas: string | null;
-  desconto: number;
-  imposto_st: number;
-  imposto_ipi: number;
-  frete_valor: number;
-  outras_despesas: number;
-  valor_total: number;
-  quantidade_total: number;
-  peso_total: number;
-  pagamento: string;
-  prazo_pagamento: string;
-  prazo_entrega: string;
-  frete_tipo: string;
-  modalidade: string;
-  cliente_snapshot: ClienteSnapshot;
-  transportadora_id: string | null;
-  frete_simulacao_id: string | null;
-  origem_frete: string | null;
-  servico_frete: string | null;
-  prazo_entrega_dias: number | null;
-  volumes: number | null;
-  altura_cm: number | null;
-  largura_cm: number | null;
-  comprimento_cm: number | null;
-}
-
-/** Payload para cada item no parâmetro p_itens da RPC salvar_orcamento. */
-interface SalvarOrcamentoItemPayload {
-  produto_id: string | null;
-  codigo_snapshot: string;
-  descricao_snapshot: string;
-  variacao: string | null;
-  quantidade: number;
-  unidade: string;
-  valor_unitario: number;
-  valor_total: number;
-  peso_unitario: number;
-  peso_total: number;
-}
-
-
-const emptyCliente: ClienteSnapshot = {
-  nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", inscricao_estadual: "",
-  email: "", telefone: "", celular: "", contato: "", logradouro: "", numero: "",
-  bairro: "", cidade: "", uf: "", cep: "", codigo: "",
-};
-
-/** Mini stepper de status do orçamento — destaca a etapa atual. */
-function StatusStepper({ status }: { status: string }) {
-  const steps = [
-    { key: "rascunho", label: "Rascunho", match: ["rascunho"] },
-    { key: "pendente", label: "Aprovação", match: ["pendente"] },
-    { key: "aprovado", label: "Aprovado", match: ["aprovado"] },
-    { key: "convertido", label: "Pedido", match: ["convertido"] },
-  ];
-  const currentIdx = steps.findIndex((s) => s.match.includes(status));
-  const isTerminal = ["rejeitado", "cancelado", "expirado", "historico"].includes(status);
-  if (isTerminal) {
-    return (
-      <p className="text-[11px] text-muted-foreground">Status terminal: <span className="font-medium text-foreground capitalize">{status}</span></p>
-    );
-  }
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1" aria-label="Fluxo do orçamento">
-      {steps.map((s, i) => {
-        const active = i === currentIdx;
-        const done = currentIdx >= 0 && i < currentIdx;
-        return (
-          <div key={s.key} className="flex items-center gap-1 min-w-0">
-            <span
-              className={
-                "inline-block h-1.5 w-1.5 rounded-full shrink-0 " +
-                (active ? "bg-primary ring-2 ring-primary/30" : done ? "bg-primary/60" : "bg-muted-foreground/30")
-              }
-            />
-            <span className={"text-[10px] " + (active ? "font-semibold text-foreground" : "text-muted-foreground")}>
-              {s.label}
-            </span>
-            {i < steps.length - 1 && <span className="hidden sm:inline text-muted-foreground/40 text-[10px]">›</span>}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  rascunho: "Rascunho",
-  pendente: "Aguardando aprovação",
-  aprovado: "Aprovado",
-  convertido: "Convertido",
-  rejeitado: "Rejeitado",
-  expirado: "Expirado",
-  cancelado: "Cancelado",
-  historico: "Histórico",
-};
-
 export default function OrcamentoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
