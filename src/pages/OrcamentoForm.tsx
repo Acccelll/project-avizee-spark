@@ -44,6 +44,8 @@ import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSav
 import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
 import { EnviarEmailDialog, type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pages/comercial/orcamento-form/PreviewDialog";
+import { RestoreDraftDialog } from "@/pages/comercial/orcamento-form/RestoreDraftDialog";
+import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStickyFooter";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import {
   validateOrcamentoItems,
