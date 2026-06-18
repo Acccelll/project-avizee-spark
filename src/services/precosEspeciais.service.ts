@@ -3,6 +3,7 @@
  * usada pelo componente PrecosEspeciaisTab.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 export interface PrecoEspecialRow {
   id: string;
@@ -31,17 +32,16 @@ export async function listPrecosEspeciais(filters: {
   clienteId?: string;
   produtoId?: string;
 }): Promise<PrecoEspecialRow[]> {
-  let query = supabase
-    .from("precos_especiais")
-    .select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda, variacoes)")
-    .eq("ativo", true);
-  if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
-  if (filters.produtoId) query = query.eq("produto_id", filters.produtoId);
-  const { data, error } = await query
-    .order("created_at", { ascending: false })
-    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return (data || []) as unknown as PrecoEspecialRow[];
+  const data = await fetchAllPages<PrecoEspecialRow>(() => {
+    let q = supabase
+      .from("precos_especiais")
+      .select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda, variacoes)")
+      .eq("ativo", true);
+    if (filters.clienteId) q = q.eq("cliente_id", filters.clienteId);
+    if (filters.produtoId) q = q.eq("produto_id", filters.produtoId);
+    return q.order("created_at", { ascending: false }) as never;
+  });
+  return data;
 }
 
 export async function listClientesAtivosBasic() {
@@ -55,13 +55,13 @@ export async function listClientesAtivosBasic() {
 }
 
 export async function listProdutosAtivosBasic() {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("id, nome, sku, variacoes")
-    .eq("ativo", true)
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return data || [];
+  return await fetchAllPages(() =>
+    supabase
+      .from("produtos")
+      .select("id, nome, sku, variacoes")
+      .eq("ativo", true)
+      .order("nome"),
+  );
 }
 
 export async function upsertPrecoEspecial(
