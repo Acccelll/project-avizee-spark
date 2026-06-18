@@ -68,14 +68,26 @@ decomposição por **camadas funcionais** em hooks dedicados.
   — alvo revisado pragmaticamente, conforme constraint
   `mem://constraints/diretrizes-de-desenvolvimento`.
 
-## 6.2 EmitirNFeWizard (por último, maior risco)
+## 6.2 EmitirNFeWizard (concluído)
 
-Criar `src/pages/faturamento/emitir-nfe/`:
-- `useEmitirNFe.ts` — máquina de passos + validação via `preEmissao.validator.ts` (já existe).
-- Um arquivo por passo: `steps/DestinatarioStep.tsx`, `ItensStep.tsx`, `TributosStep.tsx`, `TransporteStep.tsx`, `PagamentoStep.tsx`, `RevisaoStep.tsx`.
-- `useEmitirNFeNavigation.ts` — back/next/validação por passo.
-- Extrair montagem do payload/XML para `src/services/fiscal/emitirNfe/buildPayload.ts` (puro, testável) — prepara IBS/CBS NT 2025.002.
-- Página vira shell de wizard < 300 linhas.
+Decomposição entregue em `src/pages/faturamento/emitir-nfe/`:
+- `schema.ts` — `wizardSchema`/`itemSchema`/`STEPS`/`FORMA_PAGAMENTO`/`WIZARD_DEFAULTS`/`FINALIDADE_MAP`.
+- `Stepper.tsx` — componente do indicador de passos.
+- `steps/Step1Identificacao.tsx` … `steps/Step5Revisao.tsx` — UI de cada passo.
+- `useEmitirNFe.ts` — orquestração: form, totais, querystring loaders, navegação, salvar.
+
+Camada de serviço criada em `src/services/fiscal/emitirNfe/`:
+- `wizardLoaders.service.ts` — `fetchClienteParaWizard`, `fetchOrdemVendaParaWizard`,
+  `fetchNFReferenciadaParaWizard`, `marcarOrdemVendaFaturada`.
+- `buildPayload.ts` (puro, testável) — `calcularTotaisWizard`, `buildNotaFiscalRascunho`,
+  `buildItensPayload`. Prepara IBS/CBS NT 2025.002 sem tocar nas Steps.
+- `salvarRascunho.service.ts` — `salvarRascunhoNFe` (insere NF + itens + marca OV).
+
+Resultado: **1718 → 88 linhas** na página (shell puro de wizard).
+Typecheck verde (`tsc -p tsconfig.app.json --noEmit`), zero alteração de UX
+ou de round-trips. Queries inline dos Steps (naturezas/clientes/produtos/
+transportadoras) permanecem por enquanto — migração para services é um
+follow-up trivial sem impacto no LOC da página.
 
 ## Trilhos comuns (todos os 4 alvos)
 
