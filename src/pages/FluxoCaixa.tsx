@@ -109,8 +109,8 @@ const FluxoCaixa = () => {
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
   // Cadastros para campos cliente/fornecedor do lançamento manual
-  const clientesCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "clientes" });
-  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "fornecedores" });
+  const clientesCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "clientes", paginationMode: "all" });
+  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj: string | null }>({ table: "fornecedores", paginationMode: "all" });
   const [filterBanco, setFilterBanco] = useState(searchParams.get("banco") ?? "todos");
   const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());

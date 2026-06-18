@@ -76,9 +76,9 @@ interface UseFiscalNotaFormOpts {
  * que ambos consumam o mesmo `NfeFormBody`.
  */
 export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
-  const fornecedoresCrud = useSupabaseCrud<FornecedorRefMin>({ table: "fornecedores" });
-  const clientesCrud = useSupabaseCrud<ClienteRefMin>({ table: "clientes" });
-  const produtosCrud = useSupabaseCrud<ProdutoRefMin>({ table: "produtos" });
+  const fornecedoresCrud = useSupabaseCrud<FornecedorRefMin>({ table: "fornecedores", paginationMode: "all" });
+  const clientesCrud = useSupabaseCrud<ClienteRefMin>({ table: "clientes", paginationMode: "all" });
+  const produtosCrud = useSupabaseCrud<ProdutoRefMin>({ table: "produtos", paginationMode: "all" });
   const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRefMin[]>([]);
   const [contasContabeis, setContasContabeis] = useState<ContaContabilRefMin[]>([]);
   const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);

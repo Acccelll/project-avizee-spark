@@ -41,7 +41,7 @@ export interface EstoqueAjusteSheetProps {
 }
 
 export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "ajuste" }: EstoqueAjusteSheetProps) {
-  const produtosCrud = useSupabaseCrud<ProdutoRow>({ table: "produtos" });
+  const produtosCrud = useSupabaseCrud<ProdutoRow>({ table: "produtos", paginationMode: "all" });
   const ajustar = useAjustarEstoque();
   const saving = ajustar.isPending;
   const isMobile = useIsMobile();

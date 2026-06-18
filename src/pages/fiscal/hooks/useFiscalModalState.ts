@@ -31,9 +31,9 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
  * a estado externo (traducaoLinhas, quick-adds, invalidate, navigate).
  */
 export function useFiscalModalState() {
-  const fornecedoresCrud = useSupabaseCrud<FornecedorRefMin>({ table: "fornecedores" });
-  const clientesCrud = useSupabaseCrud<ClienteRefMin>({ table: "clientes" });
-  const produtosCrud = useSupabaseCrud<ProdutoRefMin>({ table: "produtos" });
+  const fornecedoresCrud = useSupabaseCrud<FornecedorRefMin>({ table: "fornecedores", paginationMode: "all" });
+  const clientesCrud = useSupabaseCrud<ClienteRefMin>({ table: "clientes", paginationMode: "all" });
+  const produtosCrud = useSupabaseCrud<ProdutoRefMin>({ table: "produtos", paginationMode: "all" });
 
   const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRefMin[]>([]);
   const [contasContabeis, setContasContabeis] = useState<ContaContabilRefMin[]>([]);

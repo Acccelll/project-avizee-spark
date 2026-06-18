@@ -183,7 +183,7 @@ export default function Logistica() {
   const [dataFimReceb, setDataFimReceb] = useState("");
 
   // ─── Remessas CRUD state (still using useSupabaseCrud for full CRUD) ───
-  const { data: remessasData, loading: remessasLoading, update: updateRemessa, remove: removeRemessa } = useSupabaseCrud<Remessa>({ table: "remessas" });
+  const { data: remessasData, loading: remessasLoading, update: updateRemessa, remove: removeRemessa } = useSupabaseCrud<Remessa>({ table: "remessas", paginationMode: "all" });
   const [remDrawerOpen, setRemDrawerOpen] = useState(false);
   const [remSelected, setRemSelected] = useState<Remessa | null>(null);
   const [remSearchTerm, setRemSearchTerm] = useState("");
