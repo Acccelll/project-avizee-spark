@@ -138,13 +138,27 @@ follow-up trivial sem impacto no LOC da página.
   inválidos, separação de lote misto.
 
 #### Restante
-- Logística: `entregas`, `prepostagem`, `recebimentos`, `remessas` — exports
-  atuais são wrappers de I/O (`useXxx` + chamadas `supabase.from`). Demandam
-  ou extração de helpers puros (cálculo de SLA/prazos, agrupamento de itens
-  recebidos vs pendentes) ou mocks pesados de Supabase. Decisão pragmática:
-  adiar até Pass 3, atacando primeiro a refatoração de helpers puros.
-- Compras: idem — `cotacoesCompra.service.ts` e `pedidosCompra.service.ts`
-  só expõem CRUD assíncrono. Sem código puro hoje para testar.
+
+#### Pass 3 (concluído nesta sessão)
+- ✅ Novo módulo `src/services/logistica/_helpers.ts` extraindo lógica pura
+  antes embutida em `remessas.service` e `prepostagem.service`:
+  `isTransicaoComRpc`, `eventoKey`, `filtrarEventosNovos`,
+  `latestPorRemessa`, `base64ToBlob`.
+- ✅ `remessas.service.ts` e `prepostagem.service.ts` refatorados para
+  consumir os helpers (sem mudança de comportamento — apenas testabilidade).
+- ✅ `src/services/logistica/__tests__/helpers.test.ts` (13 testes) cobre
+  o roteamento de transições por RPC, deduplicação de eventos
+  (incluindo equivalência `null` ↔ `""` no campo `local`), seleção do
+  mais recente por remessa e decodificação base64.
+- Suíte total: 817 testes verdes; cobertura mantém os floors.
+
+#### Restante
+- Compras: `cotacoesCompra.service.ts` e `pedidosCompra.service.ts` só
+  expõem CRUD assíncrono — sem código puro hoje. Aguarda eventual
+  extração de helpers (ex.: regras de aprovação por valor) antes de
+  receber testes unitários.
+- Próximos alvos com ganho rápido: `entregas`/`recebimentos` (validações
+  de transição) e helpers de cálculo de prazo SLA, quando surgirem.
 
 ### 7.2 — Gate de cobertura
 
