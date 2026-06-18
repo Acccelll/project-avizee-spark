@@ -44,8 +44,7 @@ import {
   useResetPageOnFiltersChange,
 } from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
-import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
-import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
+import { FiscalChaveDialogsSlot } from "@/pages/fiscal/components/FiscalChaveDialogsSlot";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
 import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
 import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
