@@ -146,6 +146,7 @@ export default function Funcionarios() {
     searchTerm: debouncedSearch,
     filterAtivo: false,
     searchColumns: ["nome", "cpf", "cargo", "departamento"],
+    paginationMode: "all",
   });
   const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
