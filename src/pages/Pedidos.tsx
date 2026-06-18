@@ -611,6 +611,9 @@ const Pedidos = () => {
 
         <PullToRefresh onRefresh={fetchData}>
         <div data-help-id="pedidos.tabela">
+        {isError ? (
+          <QueryErrorFallback error={queryError} onRetry={fetchData} />
+        ) : (
         <DataTable
           columns={columns}
           data={filteredData}
