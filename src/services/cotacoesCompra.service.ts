@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 
 /**
  * Service para o módulo de Cotações de Compra.
@@ -36,14 +37,13 @@ export async function listCotacaoPropostas(cotacaoId: string) {
 }
 
 export async function listProdutosParaCotacao() {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select("id, nome, codigo_interno, sku, variacoes")
-    .eq("ativo", true)
-    .order("nome")
-    .limit(2000); // TODO(paginação): migrar para serverPagination quando volume justificar
-  if (error) throw error;
-  return data || [];
+  return await fetchAllPages(() =>
+    supabase
+      .from("produtos")
+      .select("id, nome, codigo_interno, sku, variacoes")
+      .eq("ativo", true)
+      .order("nome"),
+  );
 }
 
 export async function listFornecedoresParaCotacao() {
