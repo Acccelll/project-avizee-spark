@@ -15,7 +15,6 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
-import { logger } from "@/lib/logger";
   FolderTree,
   FileText,
   GitBranch,
@@ -30,6 +29,7 @@ import { logger } from "@/lib/logger";
   Edit,
   PackageOpen,
 } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ContaContabil {
   id: string;

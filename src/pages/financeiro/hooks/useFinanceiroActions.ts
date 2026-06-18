@@ -8,9 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
 import { useGerarParcelas } from "@/pages/financeiro/hooks/useBaixaFinanceira";
-import { logger } from "@/lib/logger";
 import { cartaoFaturaParaData } from "@/services/cartoesCredito.service";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { logger } from "@/lib/logger";
 
 type LancamentoWritePayload = Partial<Lancamento>;
 

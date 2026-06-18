@@ -12,7 +12,6 @@ import { notifyError } from "@/utils/errorMessages";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
 import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
-import { logger } from "@/lib/logger";
   listPrecosEspeciais,
   listClientesAtivosBasic,
   listProdutosAtivosBasic,
@@ -20,6 +19,7 @@ import { logger } from "@/lib/logger";
   softDeletePrecoEspecial,
   type PrecoEspecialRow,
 } from "@/services/precosEspeciais.service";
+import { logger } from "@/lib/logger";
 
 interface Props {
   clienteId?: string;

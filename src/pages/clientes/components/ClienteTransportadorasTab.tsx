@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-import { logger } from "@/lib/logger";
   listTransportadorasVinculadas,
   listTransportadorasAtivas,
   vincularTransportadora,
@@ -14,6 +13,7 @@ import { Truck, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { logger } from "@/lib/logger";
 
 interface TransportadoraBasic { id: string; nome_razao_social: string; }
 

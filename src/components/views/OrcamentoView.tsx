@@ -26,7 +26,6 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import {
-import { logger } from "@/lib/logger";
   ensurePublicToken,
   cancelarOrcamento,
   criarRevisaoOrcamento,
@@ -63,6 +62,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { logger } from "@/lib/logger";
 
 interface Props {
   id: string;

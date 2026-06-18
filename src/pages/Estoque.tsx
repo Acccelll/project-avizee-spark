@@ -42,8 +42,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
-import { logger } from "@/lib/logger";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
+import { logger } from "@/lib/logger";
 
 type ProdutoRow = TableRow<"produtos">;
 

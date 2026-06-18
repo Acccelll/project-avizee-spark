@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
-import { logger } from "@/lib/logger";
   desativarUsuario,
   fetchUsuarios,
   setUsuarioRole,
@@ -14,6 +13,7 @@ import { logger } from "@/lib/logger";
   type AppRole,
   type UsuarioComPerfil,
 } from "@/services/admin/_legacy/usuarios.service";
+import { logger } from "@/lib/logger";
 
 const QUERY_KEY = ["admin", "usuarios"] as const;
 

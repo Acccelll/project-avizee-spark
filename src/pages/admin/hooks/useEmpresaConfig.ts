@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
-import { logger } from "@/lib/logger";
   fetchEmpresaConfig,
   fetchAppConfig,
   saveEmpresaConfig,
@@ -17,6 +16,7 @@ import { logger } from "@/lib/logger";
   type EmpresaConfigUpdate,
 } from "@/services/admin/empresa.service";
 import { BRANDING_QUERY_KEY } from "@/hooks/useBrandingPreview";
+import { logger } from "@/lib/logger";
 
 const EMPRESA_KEY = ["admin", "empresa-config"] as const;
 const appConfigKey = (chave: AppConfigChave) =>

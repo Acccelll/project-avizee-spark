@@ -4,12 +4,12 @@ import { toast } from 'sonner';
 import { notifyError } from '@/utils/errorMessages';
 import { getPasswordCriteriaWithMatch, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
-import { logger } from "@/lib/logger";
   verifyPasswordReauth,
   updateUserPassword,
   signOutOtherSessions,
   logSelfUpdateAudit,
 } from '@/services/auth.service';
+import { logger } from "@/lib/logger";
 
 export interface PasswordErrors {
   current?: string;

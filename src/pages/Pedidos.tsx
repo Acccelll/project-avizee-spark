@@ -21,7 +21,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatCurrencyCompact, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
 import { FileText, DollarSign } from "lucide-react";
 import {
-import { logger } from "@/lib/logger";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -45,6 +44,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PedidoEditModal } from "@/components/views/PedidoEditModal";
+import { logger } from "@/lib/logger";
 
 interface Pedido {
   id: string;

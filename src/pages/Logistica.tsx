@@ -37,7 +37,6 @@ import { useTransicionarRemessa, type RemessaTransition } from "@/pages/logistic
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useLogisticaRealtime } from "@/hooks/useLogisticaRealtime";
 import {
-import { logger } from "@/lib/logger";
   trackAndPersistEventos,
   updateStatusTransporte,
   findRemessaByOvAndTracking,
@@ -74,6 +73,7 @@ import {
   type RemessaEtiqueta,
 } from "@/services/logistica/prepostagem.service";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { logger } from "@/lib/logger";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;

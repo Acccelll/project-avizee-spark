@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-import { logger } from "@/lib/logger";
   listRegistrosComunicacao,
   createRegistroComunicacao,
 } from "@/services/clientes.service";
@@ -14,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquare, MessageSquarePlus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
 
 interface ComunicacaoCliente {
   id: string;

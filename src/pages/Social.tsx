@@ -14,7 +14,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatNumber } from '@/lib/format';
 import { getDefaultDateRange, toLocalDateInput } from '@/lib/date';
 import {
-import { logger } from "@/lib/logger";
   buildSocialConsolidadoRows,
   carregarDashboardSocial,
   criarContaSocial,
@@ -36,6 +35,7 @@ import { SocialAlertasTab } from '@/components/social/SocialAlertasTab';
 import { SocialContaModal } from '@/components/social/SocialContaModal';
 import { calculateContentDistribution, calculatePercentGrowth, calculatePostingFrequency, calculateTrend } from '@/components/social/socialAnalytics';
 import type { SocialAlerta, SocialConta, SocialDashboardConsolidado, SocialPost, SocialPostType } from '@/types/social';
+import { logger } from "@/lib/logger";
 
 const defaultRange = getDefaultDateRange(30);
 

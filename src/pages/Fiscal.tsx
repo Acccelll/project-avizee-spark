@@ -73,13 +73,13 @@ import {
   type NfItemFiscalData,
 } from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
-import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
 import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
+import { logger } from "@/lib/logger";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.

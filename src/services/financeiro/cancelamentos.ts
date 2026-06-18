@@ -9,8 +9,8 @@
  */
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
-import { logger } from "@/lib/logger";
 import { financeiroCancelarLancamentoRpc } from "@/types/rpc";
+import { logger } from "@/lib/logger";
 
 export async function cancelarLancamento(
   lancamentoId: string,

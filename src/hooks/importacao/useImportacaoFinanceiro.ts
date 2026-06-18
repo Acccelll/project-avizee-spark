@@ -6,7 +6,6 @@ import { validateFinanceiroImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
 import {
-import { logger } from "@/lib/logger";
   listClientesLookup,
   listFornecedoresLookup,
   createImportacaoLote,
@@ -15,6 +14,7 @@ import { logger } from "@/lib/logger";
   consolidarFinanceiro,
   cancelarLote,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook de importação financeira com staging real.

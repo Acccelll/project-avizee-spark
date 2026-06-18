@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-import { logger } from "@/lib/logger";
   Form,
   FormField,
   FormItem,
@@ -31,6 +30,7 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getEmpresaConfig, upsertEmpresaConfig } from "@/services/fiscal.service";
+import { logger } from "@/lib/logger";
 
 const configuracaoSchema = z.object({
   crt: z.string().min(1, "CRT obrigatório"),

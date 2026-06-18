@@ -2,12 +2,12 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValues } from "@/lib/dashboard/aggregations";
 import {
-import { logger } from "@/lib/logger";
   BACKLOG_FATURAMENTO_STATUSES,
   BACKLOG_OV_STATUSES,
   OPEN_ORCAMENTO_STATUSES,
 } from "@/lib/comercialStatuses";
 import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
+import { logger } from "@/lib/logger";
 
 interface ComercialData {
   /** Cotações abertas (non-terminal) in the selected period. */

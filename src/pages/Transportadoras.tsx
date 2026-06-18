@@ -23,7 +23,6 @@ import { useViaCep } from "@/hooks/useViaCep";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { Switch } from "@/components/ui/switch";
 import {
-import { logger } from "@/lib/logger";
   getTransportadoraContext,
   listClientesAtivos,
   listClientesVinculados,
@@ -54,6 +53,7 @@ import { useCan } from "@/hooks/useCan";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { logger } from "@/lib/logger";
 
 interface Transportadora {
   id: string;

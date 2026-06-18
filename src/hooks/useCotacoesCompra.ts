@@ -10,7 +10,6 @@ import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSc
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
 import type { TableRow } from "@/types/domain";
 import {
-import { logger } from "@/lib/logger";
   type CotacaoCompra,
   type CotacaoItem,
   type Proposta,
@@ -21,6 +20,7 @@ import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import * as ccs from "@/services/cotacoesCompra.service";
 import { useCotacoesEnrichment } from "@/hooks/compras/useCotacoesEnrichment";
 import { useCotacaoPropostas } from "@/hooks/compras/useCotacaoPropostas";
+import { logger } from "@/lib/logger";
 
 export function useCotacoesCompra() {
   const gerarPedidoCompra = useGerarPedidoCompra();

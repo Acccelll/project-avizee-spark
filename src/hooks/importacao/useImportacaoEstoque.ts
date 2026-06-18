@@ -6,7 +6,6 @@ import { validateEstoqueInicialImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
 import {
-import { logger } from "@/lib/logger";
   listProdutosLookup,
   createImportacaoLote,
   insertStagingChunks,
@@ -14,6 +13,7 @@ import { logger } from "@/lib/logger";
   consolidarEstoque,
   cancelarLote,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 interface ProdutoLookup {
   id: string;

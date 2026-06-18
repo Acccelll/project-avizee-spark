@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
 import { uploadNfeXml } from "@/services/fiscal/xmlStorage.service";
 import {
-import { logger } from "@/lib/logger";
   createImportacaoLote,
   updateLoteStatus,
   logImportacaoBatch,
@@ -13,6 +12,7 @@ import { logger } from "@/lib/logger";
   findNotasFiscaisPorChaves,
   inserirCompraXml,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 export interface XmlImportItem {
   fileName: string;

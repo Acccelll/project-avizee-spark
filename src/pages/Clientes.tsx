@@ -31,7 +31,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-import { logger } from "@/lib/logger";
   listGruposEconomicosAtivos,
   listFormasPagamentoAtivas,
   fetchKpiClientesQualidade,
@@ -60,6 +59,7 @@ import { QuickAddFormaPagamentoModal } from "@/components/QuickAddFormaPagamento
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { logger } from "@/lib/logger";
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;

@@ -15,7 +15,6 @@ import { VISUAL_SHEET_NAMES, RAW_SHEET_NAMES } from './templateMap';
 import { hashParametros } from './utils';
 import type { WorkbookParametros } from '@/types/workbook';
 import type { WorkbookCaps } from './fetchWorkbookData';
-import { logger } from "@/lib/logger";
 // V2 — abas analíticas modulares
 import { buildCapa } from './sheets/capa';
 import { buildDre } from './sheets/dre';
@@ -24,6 +23,7 @@ import {
   buildComprasFornecedor, buildEstoqueGiro, buildEstoqueCritico,
   buildLogistica, buildFiscal, buildCaixaEvolutivo,
 } from './sheets/operacional';
+import { logger } from "@/lib/logger";
 
 export interface GenerateWorkbookOptions {
   parametros: WorkbookParametros;

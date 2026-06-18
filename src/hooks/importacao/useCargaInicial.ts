@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { parseConciliacaoWorkbook, type ConciliacaoBundle } from "@/lib/importacao/conciliacaoParser";
 import {
-import { logger } from "@/lib/logger";
   createImportacaoLote,
   insertStagingChunks,
   logImportacao,
@@ -10,6 +9,7 @@ import { logger } from "@/lib/logger";
   cargaInicialProcessarExtras,
   mergeLoteConciliacao,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook orquestrador da CARGA INICIAL DE PRODUÇÃO (insert-only).

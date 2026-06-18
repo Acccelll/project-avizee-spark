@@ -4,7 +4,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
-import { logger } from "@/lib/logger";
   getEmpresaCepOrigem,
   getClienteTransportadoras,
   criarOuAtualizarSimulacao,
@@ -23,6 +22,7 @@ import { logger } from "@/lib/logger";
   type SimulacaoDimensoes,
   type FreteSelecaoPayload,
 } from '@/services/freteSimulacao.service';
+import { logger } from "@/lib/logger";
 
 export interface UseFreteSimuladorProps {
   orcamentoId: string | null;

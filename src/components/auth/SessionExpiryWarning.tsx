@@ -14,7 +14,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPreference } from "@/hooks/useUserPreference";
 import {
-import { logger } from "@/lib/logger";
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,6 +22,7 @@ import { logger } from "@/lib/logger";
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 const TOAST_ID = "session-expiry";
 const KEEPALIVE_INTERVAL_MS = 30 * 60 * 1000; // 30 min

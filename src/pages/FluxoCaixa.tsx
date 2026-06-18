@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
-import { logger } from "@/lib/logger";
   TrendingUp, TrendingDown, Wallet, AlertTriangle,
   Plus, Upload, BarChart2, List, Building2, FileDown,
   Loader2,
@@ -43,6 +42,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
+import { logger } from "@/lib/logger";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 

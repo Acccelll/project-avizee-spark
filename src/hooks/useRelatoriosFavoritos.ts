@@ -21,13 +21,13 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-import { logger } from "@/lib/logger";
   listRelatoriosFavoritos,
   insertRelatoriosFavoritos,
   insertRelatorioFavorito,
   deleteRelatorioFavorito,
   renameRelatorioFavorito,
 } from "@/services/relatoriosFavoritos.service";
+import { logger } from "@/lib/logger";
 
 const STORAGE_KEY = "relatorios_favoritos_v1";
 const MAX_FAVORITOS = 20;

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-import { logger } from "@/lib/logger";
   listEnderecosEntrega,
   createEnderecoEntrega,
   updateEnderecoEntrega,
@@ -22,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UF_OPTIONS } from "@/constants/brasil";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
 
 interface EnderecoEntrega {
   id: string;

@@ -2,12 +2,12 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import * as pcs from "@/services/pedidosCompra.service";
 import {
-import { logger } from "@/lib/logger";
   aprovarPedido as rpcAprovarPedido,
   rejeitarPedido as rpcRejeitarPedido,
   cancelarPedidoCompra as rpcCancelarPedidoCompra,
 } from "@/types/rpc";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
+import { logger } from "@/lib/logger";
 
 /**
  * Ações de ciclo de vida de Pedido de Compra:

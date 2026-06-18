@@ -13,8 +13,8 @@ import {
 } from "@/services/orcamentos.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
 import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
-import { logger } from "@/lib/logger";
 import type { ClienteSnapshot } from "./types";
+import { logger } from "@/lib/logger";
 
 interface LoadArgs {
   id: string | undefined;

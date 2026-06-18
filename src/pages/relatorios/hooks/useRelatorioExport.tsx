@@ -13,7 +13,6 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import {
-import { logger } from "@/lib/logger";
   exportarParaCsv,
   exportarParaExcel,
   exportarParaPdf,
@@ -26,6 +25,7 @@ import type {
 } from '@/services/relatorios.service';
 import { exportarXmlsZip } from '@/services/fiscal/xmlBatchExport';
 import type { XmlArquivadoRow } from '@/types/relatorios-xml';
+import { logger } from "@/lib/logger";
 
 const PDF_ROW_LIMIT = 200;
 const XLSX_ROW_LIMIT = 10000;

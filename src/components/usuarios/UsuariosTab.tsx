@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-import { logger } from "@/lib/logger";
   Search,
   Shield,
   ShieldAlert,
@@ -42,6 +41,7 @@ import { UserFilters, type RoleFilter, type StatusFilter } from './UserFilters';
 import { UserRow } from './UserRow';
 import { UserFormModal } from './UserFormModal';
 import { ToggleStatusDialog } from './ToggleStatusDialog';
+import { logger } from "@/lib/logger";
 
 export function UsuariosTab() {
   const { user: currentUser } = useAuth();

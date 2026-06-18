@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-import { logger } from "@/lib/logger";
   Receipt,
   FileWarning,
   Inbox,
@@ -44,6 +43,7 @@ import {
   Bar,
   CartesianGrid,
 } from "recharts";
+import { logger } from "@/lib/logger";
 
 /**
  * Dashboard Fiscal (Onda 18) — visão consolidada de emissão (saída) e

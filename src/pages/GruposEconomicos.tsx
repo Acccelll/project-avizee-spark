@@ -31,9 +31,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
-import { logger } from "@/lib/logger";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CollapsibleSection as MobileSection } from "@/components/CollapsibleSection";
+import { logger } from "@/lib/logger";
 
 interface GrupoEconomico {
   id: string;

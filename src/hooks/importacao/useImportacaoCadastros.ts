@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { toast } from "sonner";
 import {
-import { logger } from "@/lib/logger";
   validateProdutoImport,
   validateClienteImport,
   validateFornecedorImport
@@ -19,6 +18,7 @@ import {
   consolidarCadastros,
   cancelarLote,
 } from "@/services/importacao.service";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook de importação de cadastros (produtos, clientes, fornecedores).

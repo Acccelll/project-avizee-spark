@@ -17,7 +17,6 @@ import { RelatorioBody } from '@/pages/relatorios/components/RelatorioBody';
 import { RelatorioHeaderActions } from '@/pages/relatorios/components/RelatorioHeaderActions';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
-import { logger } from "@/lib/logger";
   useRelatoriosFiltrosData,
   useSelectedRefLabels,
 } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
@@ -42,6 +41,7 @@ import { formatReportCell } from '@/services/relatorios/lib/formatCell';
 import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
+import { logger } from "@/lib/logger";
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };

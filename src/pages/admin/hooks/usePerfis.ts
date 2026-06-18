@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import {
-import { logger } from "@/lib/logger";
   atribuirPerfil,
   concederPermissao,
   fetchPermissoesExtras,
@@ -16,6 +15,7 @@ import { logger } from "@/lib/logger";
   revogarPermissao,
   type AppRole,
 } from "@/services/admin/perfis.service";
+import { logger } from "@/lib/logger";
 
 export function usePerfis(userId: string) {
   const queryClient = useQueryClient();

@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyError } from "@/utils/errorMessages";
 import {
-import { logger } from "@/lib/logger";
   autorizarNFe,
   consultarNFe,
   cancelarNFe,
@@ -27,6 +26,7 @@ import {
 } from "@/services/fiscal/numeracao.service";
 import { validarPreEmissao } from "@/services/fiscal/validadores/preEmissao.validator";
 import type { NotaFiscal } from "@/types/domain";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook orquestrador das ações SEFAZ usadas na UI Fiscal.

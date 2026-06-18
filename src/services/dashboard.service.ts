@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
-import { logger } from "@/lib/logger";
   computeValorTotalEstoque,
   filterEstoqueBaixo,
 } from "@/lib/dashboard/aggregations";
@@ -9,6 +8,7 @@ import type {
   DashboardDateRange,
   ProdRow,
 } from "@/pages/dashboard/hooks/types";
+import { logger } from "@/lib/logger";
 
 /* -------- Estoque (KPIs do dashboard) -------- */
 

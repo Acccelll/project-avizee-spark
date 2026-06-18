@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-import { logger } from "@/lib/logger";
   Eye,
   ChevronUp,
   ChevronDown,
@@ -62,6 +61,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Info } from 'lucide-react';
+import { logger } from "@/lib/logger";
 
 export interface Column<T> {
   key: string;

@@ -21,7 +21,6 @@ import { parseOFX, type OFXTransaction } from "@/lib/parseOFX";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
-import { logger } from "@/lib/logger";
   Upload, CheckCircle, XCircle, Shuffle, AlertTriangle,
   CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown, Loader2,
 } from "lucide-react";
@@ -49,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;

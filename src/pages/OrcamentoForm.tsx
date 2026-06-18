@@ -53,7 +53,6 @@ import { TemplateConfig } from "@/types/orcamento";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { logger } from "@/lib/logger";
 import {
   listClientesAtivosOrcamento,
   listProdutosAtivosComFornecedores,
@@ -63,6 +62,7 @@ import {
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import { criarRevisaoOrcamento } from "@/services/orcamentos.service";
+import { logger } from "@/lib/logger";
 export default function OrcamentoForm() {
   const { id } = useParams();
   const navigate = useNavigate();

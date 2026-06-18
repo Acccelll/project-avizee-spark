@@ -52,11 +52,11 @@ import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { logger } from "@/lib/logger";
 import { Badge } from "@/components/ui/badge";
 import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { FILTER_W_SM, FILTER_W_MD } from "@/components/list/filterTokens";
 import { AlertCircle, PhoneOff } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 function isSemContato(f: { email?: string | null; telefone?: string | null; celular?: string | null }) {
   return !f.email && !f.telefone && !f.celular;

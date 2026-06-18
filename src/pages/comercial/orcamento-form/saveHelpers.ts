@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { salvarOrcamentoRpc } from "@/services/orcamentos.service";
-import { logger } from "@/lib/logger";
 import type { OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
 import type { SalvarOrcamentoPayload, SalvarOrcamentoItemPayload } from "./types";
+import { logger } from "@/lib/logger";
 
 export interface ValidateOrcamentoResult {
   ok: boolean;

@@ -11,7 +11,6 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
-import { logger } from "@/lib/logger";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,6 +20,7 @@ import { logger } from "@/lib/logger";
 import { ShieldAlert } from 'lucide-react';
 import { invokeAdminUsers, type UserWithRoles } from './_shared';
 import { RoleBadge, StatusBadgeUser } from './UserBadges';
+import { logger } from "@/lib/logger";
 
 interface UserRowProps {
   user: UserWithRoles;

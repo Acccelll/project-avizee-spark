@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { notifyError } from "@/utils/errorMessages";
 import { type GridItem } from "@/components/ui/ItemsGrid";
 import {
-import { logger } from "@/lib/logger";
   type PedidoCompra,
   type FornecedorOptionRow,
   type ProdutoOptionRow,
@@ -24,6 +23,7 @@ import {
 } from "@/types/rpc";
 import * as pcs from "@/services/pedidosCompra.service";
 import { useCompraLifecycle } from "@/hooks/compras/useCompraLifecycle";
+import { logger } from "@/lib/logger";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {

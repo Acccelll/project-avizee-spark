@@ -7,13 +7,13 @@ import {
   type AppRole,
   type PermissionKey,
 } from "@/lib/permissions";
-import { logger } from "@/lib/logger";
 import {
   fetchAuthProfile,
   fetchAuthRoles,
   fetchAuthPermissions,
   type AuthProfileRow,
 } from "@/services/auth.service";
+import { logger } from "@/lib/logger";
 
 export type { AppRole };
 
