@@ -7,16 +7,15 @@ import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
-import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
-import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
+import { type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
+import { type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoesCard";
 import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
 import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { FileText, CheckCircle2, CalendarDays, Clock, BarChart3, Truck, CreditCard } from "lucide-react";
+import { FileText, CheckCircle2, CalendarDays, Clock, Truck, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { MobileSection } from "@/pages/comercial/orcamento-form/MobileSection";
 import { IdentificacaoCard } from "@/pages/comercial/orcamento-form/IdentificacaoCard";
@@ -24,6 +23,7 @@ import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import { ActionsToolbar } from "@/pages/comercial/orcamento-form/ActionsToolbar";
 import { EditMetaBanner } from "@/pages/comercial/orcamento-form/EditMetaBanner";
 import { ShareCard } from "@/pages/comercial/orcamento-form/ShareCard";
+import { ItensSection } from "@/pages/comercial/orcamento-form/ItensSection";
 import {
   emptyCliente,
   STATUS_LABEL,
@@ -870,32 +870,27 @@ export default function OrcamentoForm() {
             onQuickAdd={() => setQuickAddOpen(true)}
           />
 
-          <OrcamentoItemsGrid
+          <ItensSection
             items={items}
-            onChange={setItems}
+            onItemsChange={setItems}
             produtos={produtos}
             precosEspeciais={precosEspeciais}
-          />
-
-          <MobileSection title="Análise Interna" icon={BarChart3} summary="Margem · Cenário" defaultOpen={false}>
-            <OrcamentoInternalAnalysisPanel
-              baseAnalysis={baseAnalysis}
-              scenarioAnalysis={scenarioAnalysis}
-              items={items}
-              onItemsChange={setItems}
-              scenarioConfig={scenarioConfig}
-              onScenarioConfigChange={setScenarioConfig}
-              access={internalAccess}
-            />
-          </MobileSection>
-
-          <OrcamentoTotaisCard
+            baseAnalysis={baseAnalysis}
+            scenarioAnalysis={scenarioAnalysis}
+            scenarioConfig={scenarioConfig}
+            onScenarioConfigChange={setScenarioConfig}
+            internalAccess={internalAccess}
             totalProdutos={totalProdutos}
-            pesoTotal={pesoTotalCalculado}
-            pesoOverride={pesoTotalOverride}
+            pesoTotalCalculado={pesoTotalCalculado}
+            pesoTotalOverride={pesoTotalOverride}
             onPesoOverrideChange={setPesoTotalOverride}
-            form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
-            onChange={handleTotalChange}
+            valorTotal={valorTotal}
+            desconto={desconto}
+            impostoSt={impostoSt}
+            impostoIpi={impostoIpi}
+            freteValor={freteValor}
+            outrasDespesas={outrasDespesas}
+            onTotalChange={handleTotalChange}
             freteSimulacaoId={freteSimulacaoId}
             freteServico={freteServico || servicoFrete || null}
             onClearFrete={() => {
