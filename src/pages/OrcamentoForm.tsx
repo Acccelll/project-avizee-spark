@@ -44,6 +44,8 @@ import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSav
 import { useOrcamentoFormTemplates } from "@/pages/comercial/orcamento-form/useOrcamentoFormTemplates";
 import { EnviarEmailDialog, type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pages/comercial/orcamento-form/PreviewDialog";
+import { RestoreDraftDialog } from "@/pages/comercial/orcamento-form/RestoreDraftDialog";
+import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStickyFooter";
 import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import {
   validateOrcamentoItems,
@@ -1358,43 +1360,13 @@ export default function OrcamentoForm() {
 
       {/* (footer mobile único renderizado abaixo) */}
 
-      <Dialog open={restoreDraftOpen} onOpenChange={setRestoreDraftOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Restaurar rascunho não finalizado?</DialogTitle>
-            <DialogDescription>Encontramos um rascunho salvo automaticamente para este orçamento.</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={async () => {
-                localStorage.removeItem(draftKey);
-                 if (user?.id) {
-                   try {
-                     await deleteOrcamentoDraft(user.id, draftKey);
-                   } catch {/* ignore */}
-                 }
-                setRestoreDraftOpen(false);
-              }}
-            >Descartar</Button>
-            <Button
-              onClick={async () => {
-                 let payload: unknown = null;
-                 if (user?.id) {
-                   payload = await getOrcamentoDraftPayload(user.id, draftKey).catch(() => null);
-                 }
-                if (!payload) {
-                  const raw = localStorage.getItem(draftKey);
-                  if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
-                }
-                if (payload) applyDraft(payload as Parameters<typeof applyDraft>[0]);
-                setRestoreDraftOpen(false);
-              }}
-              className="gap-2"
-            ><RefreshCw className="h-4 w-4" />Restaurar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <RestoreDraftDialog
+        open={restoreDraftOpen}
+        onOpenChange={setRestoreDraftOpen}
+        draftKey={draftKey}
+        userId={user?.id}
+        applyDraft={(payload) => applyDraft(payload as Parameters<typeof applyDraft>[0])}
+      />
 
       <QuickAddClientModal
         open={quickAddOpen}
@@ -1416,50 +1388,14 @@ export default function OrcamentoForm() {
 
       {confirmActionDialog}
 
-      {/* Footer sticky mobile consolidado — posicionado acima do MobileBottomNav (~64px + safe-area) */}
-      <div
-        className={cn(
-          "md:hidden fixed inset-x-0 z-30",
-          "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
-          "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
-          "px-3 py-2",
-        )}
-        style={{
-          // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
-          bottom: "calc(64px + env(safe-area-inset-bottom))",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-base font-bold text-primary font-mono truncate">{formatCurrency(valorTotal)}</p>
-            <p className="text-[10px] text-muted-foreground">{items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</p>
-          </div>
-          <Button onClick={handleSave} disabled={saving} className="h-10 gap-2 flex-1 max-w-[160px]">
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPreviewOpen(true)}
-            className="h-11 w-11"
-            aria-label="Visualizar proposta"
-            title="Visualizar proposta em PDF"
-          >
-            <Eye className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={handleGeneratePdf}
-            className="h-11 w-11"
-            aria-label="Gerar PDF"
-            title="Baixar PDF"
-          >
-            <FileText className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      <MobileStickyFooter
+        items={items}
+        valorTotal={valorTotal}
+        saving={saving}
+        onSave={handleSave}
+        onPreview={() => setPreviewOpen(true)}
+        onGeneratePdf={handleGeneratePdf}
+      />
     </PageShell>
   );
 }
