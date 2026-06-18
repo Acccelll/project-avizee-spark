@@ -37,15 +37,22 @@ vi.mock("@/pages/financeiro/hooks/useFinanceiroKpisRpc", () => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
-  const builder = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockResolvedValue({ data: [] }),
+  // Cada chamada a `.from()` devolve um builder que se auto-encadeia em
+  // qualquer método PostgREST usado pelo Financeiro (select/eq/order/limit/in...)
+  // e resolve em `{ data: [], error: null }` quando `await`-ado.
+  const makeBuilder = () => {
+    const builder: Record<string, unknown> = {};
+    const passthrough = ["select", "eq", "neq", "is", "in", "or", "order", "limit", "range"];
+    for (const m of passthrough) builder[m] = vi.fn(() => builder);
+    builder.then = (resolve: (v: unknown) => void) =>
+      Promise.resolve({ data: [], error: null, count: 0 }).then(resolve);
+    return builder;
   };
 
   return {
     supabase: {
-      from: vi.fn(() => builder),
+      from: vi.fn(() => makeBuilder()),
+      functions: { invoke: vi.fn(() => Promise.resolve({ data: null, error: null })) },
     },
   };
 });
