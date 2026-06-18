@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { fetchAllPages } from "@/services/_lib/fetchAllPages";
 import {
   fetchTracking,
   normalizarEventos,
@@ -20,15 +21,14 @@ const QUERY_KEY = "remessas";
 // ── Service functions ──────────────────────────────────────────────────────────
 
 export async function fetchRemessas(): Promise<Remessa[]> {
-  const { data, error } = await supabase
-    .from("remessas")
-    .select("*")
-    .eq("ativo", true)
-    .order("created_at", { ascending: false })
-    .limit(1000); // TODO(paginação): migrar para serverPagination quando volume justificar
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const data = await fetchAllPages<Remessa>(() =>
+    supabase
+      .from("remessas")
+      .select("*")
+      .eq("ativo", true)
+      .order("created_at", { ascending: false }) as never,
+  );
+  return data;
 }
 
 export async function createRemessa(payload: RemessaInsert): Promise<Remessa> {
