@@ -2,81 +2,42 @@ import { useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OriginContextBanner } from "@/components/navigation/OriginContextBanner";
 import { ModulePage } from "@/components/ModulePage";
-import { DataTable } from "@/components/DataTable";
-import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import { calcularFaturaParaData } from "@/lib/cartaoFatura";
-import { SummaryCard } from "@/components/SummaryCard";
-import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
-import { MonthPicker } from "@/components/filters/MonthPicker";
-import { toast } from "sonner";
-import { notifyError } from "@/utils/errorMessages";
-import { formatCurrency, formatCurrencyCompact, formatDate } from "@/lib/format";
-import { FileText, FileDown, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/hooks/useCan";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
+import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { useFiscalKpis } from "@/pages/fiscal/hooks/useFiscalKpis";
 import {
   useNotasFiscaisPaged,
   useResetPageOnFiltersChange,
 } from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
-import { FiscalChaveDialogsSlot } from "@/pages/fiscal/components/FiscalChaveDialogsSlot";
-import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
-import { FiscalTipoSwitchMobile } from "@/components/fiscal/FiscalTipoSwitchMobile";
-import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
-import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
-import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
-import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
-import {
-  fiscalInternalStatusOptions,
-  fiscalSefazStatusOptions,
-  getFiscalInternalStatus,
-  getFiscalSefazStatus,
-} from "@/lib/fiscalStatus";
 import { useFiscalVencimentosLoader } from "@/pages/fiscal/hooks/useFiscalVencimentos";
-import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
 import { useFiscalModalState } from "@/pages/fiscal/hooks/useFiscalModalState";
-import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
-import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
-import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
-import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
 import { useFiscalAutoOpen } from "@/pages/fiscal/hooks/useFiscalAutoOpen";
 import { useFiscalLifecycleActions } from "@/pages/fiscal/hooks/useFiscalLifecycleActions";
 import { useFiscalSubmit } from "@/pages/fiscal/hooks/useFiscalSubmit";
 import { useFiscalXmlImport } from "@/pages/fiscal/hooks/useFiscalXmlImport";
+import { FiscalChaveDialogsSlot } from "@/pages/fiscal/components/FiscalChaveDialogsSlot";
+import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
+import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
+import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
+import { buildFiscalColumns } from "@/pages/fiscal/components/FiscalTableColumns";
+import { FiscalKpisStrip } from "@/pages/fiscal/components/FiscalKpisStrip";
+import { buildFiscalMobileRowActions } from "@/pages/fiscal/components/FiscalMobileRowActions";
 import { FiscalXmlSlots } from "@/pages/fiscal/components/FiscalXmlSlots";
+import { FiscalFiltersBar } from "@/pages/fiscal/components/FiscalFiltersBar";
+import { FiscalNotasTable, type FiscalSortKey } from "@/pages/fiscal/components/FiscalNotasTable";
+import { FiscalNotaModalsSlot } from "@/pages/fiscal/components/FiscalNotaModalsSlot";
+import { getFiscalTipoConfig } from "@/pages/fiscal/fiscalFilterOptions";
+import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
  * Centralização: Fase 3 do roadmap fiscal.
  */
 export type NotaFiscal = NotaFiscalDomain;
-
-const modeloLabels: Record<string, string> = {
-  '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
-};
-
-const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", xml_importado: "Importação XML" };
-
-interface NfItemRow {
-  id: string; produto_id: string; quantidade: number; valor_unitario: number;
-  conta_contabil_id: string | null; cfop: string | null; cst: string | null;
-  ncm: string | null; unidade: string | null; descricao: string | null;
-  icms_valor: number | null; icms_aliquota: number | null; icms_base: number | null;
-  ipi_valor: number | null; ipi_aliquota: number | null;
-  pis_valor: number | null; pis_aliquota: number | null; base_pis: number | null;
-  cofins_valor: number | null; cofins_aliquota: number | null; base_cofins: number | null;
-  valor_st: number | null; base_st: number | null;
-  csosn: string | null; cst_pis: string | null; cst_cofins: string | null; cst_ipi: string | null;
-  desconto: number | null; codigo_produto: string | null;
-  produtos?: { nome: string; sku: string } | null;
-}
 
 const Fiscal = () => {
   const navigate = useNavigate();
