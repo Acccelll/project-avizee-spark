@@ -1414,6 +1414,21 @@ const Fiscal = () => {
     [tipoParam, tipoConfig.parceiroLabel, isMobile],
   );
 
+  // Frente §6 — renderers mobile (primary/inline) extraídos para
+  // `buildFiscalMobileRowActions`. Mantido como factory por render para
+  // preservar o contrato funcional do DataTable sem mudanças de comportamento.
+  const { renderPrimary: mobilePrimaryAction, renderInline: mobileInlineActions } =
+    buildFiscalMobileRowActions({
+      canEstornarNF,
+      onConfirmar: handleConfirmar,
+      onDanfe: openDanfe,
+      onView: openView,
+      onEditNavigate: (n) => navigate(`/fiscal/${n.id}`),
+      onDevolucao: openDevolucao,
+      onEstornar: handleEstornar,
+      onBaixarXml: baixarXmlArquivado,
+    });
+
   return (
     <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
         addButtonHelpId="fiscal.novoBtn"
