@@ -1644,40 +1644,14 @@ const Fiscal = () => {
       <FiscalDanfeViewer ref={danfeViewerRef} />
 
       {/* Busca de NF-e por chave de acesso (44 dígitos) — DistDFe local + sync SEFAZ */}
-      <BuscarPorChaveDialog
-        open={buscarChaveOpen}
-        chaveInicial={buscarChaveInicial}
-        onClose={() => {
-          setBuscarChaveOpen(false);
-          setBuscarChaveInicial(undefined);
-        }}
-        onXmlObtido={async (xml) => {
-          try {
-            await processarXmlImportado(xml);
-          } catch (err) {
-            logger.error("[fiscal] processar XML por chave:", err);
-            toast.error(
-              `Erro ao processar XML: ${err instanceof Error ? err.message : String(err)}`,
-            );
-          }
-        }}
-      />
-
-      {/* Scanner de chave (câmera/upload/digitação) — extrai apenas a chave;
-          os fluxos de consulta/XML continuam canônicos. */}
-      <FiscalChaveScannerDialog
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onBuscarXml={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
-        onConsultarSituacao={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
+      <FiscalChaveDialogsSlot
+        buscarChaveOpen={buscarChaveOpen}
+        buscarChaveInicial={buscarChaveInicial}
+        setBuscarChaveOpen={setBuscarChaveOpen}
+        setBuscarChaveInicial={setBuscarChaveInicial}
+        scannerOpen={scannerOpen}
+        setScannerOpen={setScannerOpen}
+        processarXmlImportado={processarXmlImportado}
       />
 
       {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
