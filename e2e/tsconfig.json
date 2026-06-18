@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["@playwright/test", "node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["./**/*.ts"]
+}
