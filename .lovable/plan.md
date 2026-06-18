@@ -1,6 +1,30 @@
 
 # Plano de execução — §6 completo (Lovable + Copilot)
 
+> **Status 18/jun/2026 — execução parcial concluída.**
+>
+> **Concluído nesta rodada:**
+> - Fase 1.1 (ajustada): SELECT por papel em tabelas que de fato tinham `USING(true)` —
+>   fiscais (`eventos_fiscais`, `nfe_distribuicao*`, `nota_fiscal_anexos`,
+>   `nota_fiscal_eventos`, `inutilizacoes_numeracao`, `matriz_fiscal`,
+>   `naturezas_operacao`), cotações (`cotacoes_compra*`) e `financeiro_baixa_lotes`.
+>   As tabelas listadas na review original já estavam multi-tenant via
+>   `current_empresa_id()` (Ondas 1–4).
+> - Fase 1.2: `SEFAZ_C14N_REAL` virou default em `sefaz-proxy`; opt-in inverso via
+>   `SEFAZ_C14N_LEGACY=true`. Edge function redeployada.
+> - Fase 1.3: baseline reference de schema em
+>   `supabase/migrations/_baseline_20260618.sql.reference`.
+> - Fase 2.2 (parcial): `useSupabaseCrud` emite warning em dev quando cai em modo
+>   `'all'` implicitamente. Inversão hard do default adiada (risco em ~31 callers).
+> - Fase 2.3: README sincronizado.
+> - Memórias atualizadas: `rls-single-tenant.md`, `c14n-sefaz.md`.
+>
+> **Pendente (próxima rodada):**
+> - Fase 2.1: refactor dos monólitos (`Fiscal.tsx`, `OrcamentoForm.tsx`,
+>   `EmitirNFeWizard.tsx`, `Conciliacao.tsx`, `ProdutoForm.tsx`).
+> - Fase 2.2 hard: auditoria caller-a-caller + inversão do default.
+> - Fase 1.2 cleanup: remover fallback C14N legado após 1 emissão real validada.
+
 Objetivo: fechar os pontos residuais da review mantendo o sistema **single-tenant** e sem regressões de fluxo. Execução em 3 fases, cada uma entregável e validável de forma independente.
 
 ---
