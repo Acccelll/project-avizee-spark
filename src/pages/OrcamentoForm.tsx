@@ -7,9 +7,8 @@ import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
-import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
-import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
+import { type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
+import { type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoesCard";
 import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
 import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
@@ -24,6 +23,7 @@ import { ClienteCard } from "@/pages/comercial/orcamento-form/ClienteCard";
 import { ActionsToolbar } from "@/pages/comercial/orcamento-form/ActionsToolbar";
 import { EditMetaBanner } from "@/pages/comercial/orcamento-form/EditMetaBanner";
 import { ShareCard } from "@/pages/comercial/orcamento-form/ShareCard";
+import { ItensSection } from "@/pages/comercial/orcamento-form/ItensSection";
 import {
   emptyCliente,
   STATUS_LABEL,
