@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import DashboardPage from "@/pages/Index";
 import { makeAuthState, renderWithSmokeProviders } from "./smokeTestUtils";
+import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
 
 const mockUseAuth = vi.fn();
 const mockUseDashboardData = vi.fn();
@@ -64,7 +65,13 @@ describe("smoke: dashboard cenário feliz", () => {
   });
 
   it("renderiza dashboard principal com cards e blocos críticos", async () => {
-    renderWithSmokeProviders(<DashboardPage />, "/", { relationalNav: true });
+    renderWithSmokeProviders(
+      <DashboardPeriodProvider>
+        <DashboardPage />
+      </DashboardPeriodProvider>,
+      "/",
+      { relationalNav: true },
+    );
 
     expect(await screen.findByText(/Contas a Receber/i)).toBeInTheDocument();
     expect(await screen.findByText(/Contas a Pagar/i)).toBeInTheDocument();
