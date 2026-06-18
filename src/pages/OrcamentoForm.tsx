@@ -40,6 +40,7 @@ import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/comercial/orcamento-form/buildPayload";
 import { applyOrcamentoDraft, applyOrcamentoTemplate } from "@/pages/comercial/orcamento-form/draftTemplate";
+import { mapClienteToSnapshot, recalcItemsWithSpecialPrices } from "@/pages/comercial/orcamento-form/clienteHelpers";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -475,14 +476,7 @@ export default function OrcamentoForm() {
     setValue('clienteId', cId);
     const c = clientes.find((cl) => cl.id === cId);
     if (c) {
-      setClienteSnapshot({
-        nome_razao_social: c.nome_razao_social || "", nome_fantasia: c.nome_fantasia || "",
-        cpf_cnpj: c.cpf_cnpj || "", inscricao_estadual: c.inscricao_estadual || "",
-        email: c.email || "", telefone: c.telefone || "", celular: c.celular || "",
-        contato: c.contato || "", logradouro: c.logradouro || "", numero: c.numero || "",
-        bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "",
-        cep: c.cep || "", codigo: c.id?.substring(0, 6) || "",
-      });
+      setClienteSnapshot(mapClienteToSnapshot(c));
       // Auto-fill payment preferences: prioriza FK forma_pagamento_id (descrição via join);
       // mantém leitura legada de forma_pagamento_padrao como fallback até backfill estar completo.
       if (!pagamento) {
@@ -499,41 +493,15 @@ export default function OrcamentoForm() {
       // Load special prices for this client (only active and within validity period)
       listPrecosEspeciaisAtuais(cId)
         .then((rules) => {
-          setPrecosEspeciais(rules as Tables<"precos_especiais">[]);
-
-          // Recalculate prices for existing items if they have special prices
-          if (items.length > 0) {
-            const itensCompat = items
-              .filter((it) => it.produto_id)
-              .map((it) => ({
-                produto_id: it.produto_id as string,
-                valor_unitario: it.valor_unitario,
-                quantidade: it.quantidade,
-              }));
-            const { alterados } = aplicarPrecosEspeciaisEmLote(
-              itensCompat,
-              rules as RegraPrecoEspecial[],
-              new Date(),
-            );
-            if (alterados.length > 0) {
-              const alteradosSet = new Set(alterados);
-              const nextItems = items.map((item) => {
-                if (!item.produto_id || !alteradosSet.has(item.produto_id)) return item;
-                const regra = (rules as RegraPrecoEspecial[]).find(
-                  (r) => r.produto_id === item.produto_id,
-                );
-                const novoPreco = regra?.preco_especial
-                  ? Number(regra.preco_especial)
-                  : item.valor_unitario;
-                return {
-                  ...item,
-                  valor_unitario: novoPreco,
-                  valor_total: Math.round(item.quantidade * novoPreco * 100) / 100,
-                };
-              });
-              setItems(nextItems);
-              toast.info("Preços recalculados com base nas regras do cliente selecionado");
-            }
+          const tipadas = rules as Tables<"precos_especiais">[];
+          setPrecosEspeciais(tipadas);
+          const { items: next, changedCount } = recalcItemsWithSpecialPrices(
+            items,
+            tipadas as RegraPrecoEspecial[],
+          );
+          if (changedCount > 0) {
+            setItems(next);
+            toast.info("Preços recalculados com base nas regras do cliente selecionado");
           }
         })
         .catch((err) => {
