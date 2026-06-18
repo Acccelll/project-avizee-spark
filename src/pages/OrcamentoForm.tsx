@@ -112,34 +112,8 @@ export default function OrcamentoForm() {
   const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const previewStageRef = useRef<HTMLDivElement>(null);
-  const [autoScale, setAutoScale] = useState<number>(1);
+  const autoScale = usePreviewAutoScale(previewStageRef, previewOpen, previewFullscreen);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
-
-  // Auto-fit do preview A4 ao container do stage (largura E altura)
-  useEffect(() => {
-    if (!previewOpen) return;
-    const el = previewStageRef.current;
-    if (!el) return;
-    const A4_WIDTH_PX = 794;  // 210mm @ 96dpi
-    const A4_HEIGHT_PX = 1123; // 297mm @ 96dpi
-    const PAD = 32; // padding interno do stage
-    const compute = () => {
-      const w = Math.max(0, el.clientWidth - PAD);
-      const h = Math.max(0, el.clientHeight - PAD);
-      const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
-      if (Number.isFinite(s) && s > 0) {
-        setAutoScale(Math.min(1.5, Math.max(0.25, s)));
-      }
-    };
-    // Pequeno delay para o dialog terminar a animação de abertura/fullscreen
-    const t = window.setTimeout(compute, 50);
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => {
-      window.clearTimeout(t);
-      ro.disconnect();
-    };
-  }, [previewOpen, previewFullscreen]);
 
   // Ao alternar para fullscreen, voltar para auto-fit para enquadrar tudo
   useEffect(() => {
