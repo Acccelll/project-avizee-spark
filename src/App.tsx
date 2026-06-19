@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { QUERY_STALE, QUERY_GC } from "@/lib/queryConfig";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -29,8 +30,11 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
+      // Default global = tier TRANSACTIONAL (5min). Hooks específicos
+      // sobrescrevem com `QUERY_STALE.OPERATIONAL` (estoque/fluxo) ou
+      // `QUERY_STALE.REFERENCE` (cadastros estáveis). Ver src/lib/queryConfig.ts.
+      staleTime: QUERY_STALE.TRANSACTIONAL,
+      gcTime: QUERY_GC.TRANSACTIONAL,
       retry: 1,
       // Refetch ao voltar à aba/janela — garante que mudanças feitas em
       // outras telas/abas apareçam sem F5. Hooks que querem desligar isso
