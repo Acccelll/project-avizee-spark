@@ -17,6 +17,7 @@
     "typecheck:core": "tsc -p tsconfig.strict-core.json",
     "lint:touch-targets": "node scripts/lint-touch-targets.mjs",
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
+    "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
     "test:db": "supabase test db"
   },
   "dependencies": {
