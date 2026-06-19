@@ -200,9 +200,9 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       <SectionHeader title="Partes" />
       <div className="bg-accent/30 rounded-lg p-4 space-y-3">
         {form.tipo === "entrada" ? (
-          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
+          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj ?? undefined }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
         ) : (
-          <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj }))} value={String(form.cliente_id)} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
+          <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj ?? undefined }))} value={String(form.cliente_id)} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
         )}
       </div>
       {form.tipo === "saida" && ordensVenda.length > 0 && (
