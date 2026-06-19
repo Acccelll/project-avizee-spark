@@ -127,7 +127,7 @@ export async function upsertNotaFiscalComItens(params: {
   const itensRaw = itemsBuilder(placeholderId);
   const itensPayload = itensRaw.map(({ nota_fiscal_id: _ignored, ...rest }) => rest);
   const { data, error } = await supabase.rpc("salvar_nota_fiscal", {
-    p_nf_id: mode === "edit" ? (nfId as string) : null,
+    p_nf_id: mode === "edit" ? (nfId as string) : undefined,
     p_payload: payload as unknown as Json,
     p_itens: itensPayload as unknown as Json,
   });
