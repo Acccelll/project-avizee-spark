@@ -366,7 +366,7 @@ export async function generatePresentation(
       addHeader(slide, s.titulo, s.subtitulo);
       renderSlideBody(slide, s);
       addCommentary(slide, comment);
-      addFooter(slide, s.codigo, periodo);
+      addFooter(slide, s.codigo ?? "", periodo);
     }
   });
 
