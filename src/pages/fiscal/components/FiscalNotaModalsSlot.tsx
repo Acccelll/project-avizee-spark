@@ -5,6 +5,7 @@ import type { ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEdito
 import type { useFiscalModalState } from "@/pages/fiscal/hooks/useFiscalModalState";
 import type { useFiscalXmlImport } from "@/pages/fiscal/hooks/useFiscalXmlImport";
 import type { NotaFiscal } from "@/types/domain";
+import type { NotaFiscalForEdit } from "@/components/fiscal/NotaFiscalEditModal";
 import type { NfItemFiscalData, FiscalFormState } from "@/pages/fiscal/hooks/useFiscalNotaForm";
 
 type ModalState = ReturnType<typeof useFiscalModalState>;
@@ -85,9 +86,9 @@ export function FiscalNotaModalsSlot({
         <NotaFiscalEditModal
           open={modalOpen && mode === "edit"}
           onClose={() => setModalOpen(false)}
-          selected={selected}
-          form={form}
-          setForm={setForm}
+          selected={selected as unknown as NotaFiscalForEdit}
+          form={form as unknown as Record<string, unknown>}
+          setForm={setForm as unknown as (f: Record<string, unknown>) => void}
           items={items}
           setItems={setItems}
           itemContaContabil={itemContaContabil}
