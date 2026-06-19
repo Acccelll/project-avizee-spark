@@ -43,7 +43,8 @@ export interface FiscalMobileRowActionsDeps {
  */
 export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
   const renderPrimary = (n: NotaFiscal): ReactNode => {
-    if (canConfirmFiscal(n.status)) {
+    const status = n.status ?? "";
+    if (canConfirmFiscal(status)) {
       return (
         <Button
           size="sm"
@@ -55,7 +56,7 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
         </Button>
       );
     }
-    if (["confirmada", "autorizada", "importada"].includes(n.status)) {
+    if (["confirmada", "autorizada", "importada"].includes(status)) {
       return (
         <Button
           size="sm"
