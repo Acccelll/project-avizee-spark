@@ -144,7 +144,7 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
                 <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
               </DropdownMenuItem>
             )}
-            {canEstornarFiscal(n.status) && deps.canEstornarNF && (
+            {canEstornarFiscal(status) && deps.canEstornarNF && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
