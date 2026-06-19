@@ -270,10 +270,28 @@ Pendências menores (não regressivas, apenas oportunidades):
   TODO: promover a bloqueante após estabilizar baseline real e ajustar
   `BUDGET_KB` para `baseline + 10%`).
 
+### 8.2 — Cache TanStack Query padronizado (concluído Pass 1)
+
+- Novo `src/lib/queryConfig.ts` expõe `QUERY_STALE`/`QUERY_GC` em 7 tiers
+  (`REALTIME`, `SHORT`, `OPERATIONAL`, `TRANSACTIONAL`, `AGGREGATE`,
+  `REFERENCE`, `STATIC`) com diretriz documentada de qual usar em cada caso.
+- `App.tsx` — `QueryClient` global adota `QUERY_STALE.TRANSACTIONAL` +
+  `QUERY_GC.TRANSACTIONAL` em vez de literais.
+- `useReferenceCache.ts` — clientes/fornecedores/contas usam
+  `TRANSACTIONAL`; `grupos_produto` e `formas_pagamento` usam `REFERENCE`.
+- KPIs e lookups das telas `Clientes`, `Fornecedores`, `GruposEconomicos`
+  migrados para os tiers (`OPERATIONAL`/`SHORT`/`TRANSACTIONAL`).
+- `useRelatorio.ts` já tinha mapa próprio por tipo (`STALE_TIME_BY_TIPO`) —
+  pendência futura: alinhar nomes ao novo enum sem mudar comportamento.
+
+Pendências para fechar 8.2 nos passes seguintes:
+- Migrar `useFluxoCaixaData`, `useSidebarAlerts`, `useCorreiosTracking`,
+  `useNotasPendentesForma`, `useSessoes` e demais ocorrências restantes em
+  `src/hooks/**` e `src/pages/**` para o enum.
+- Auditar invalidações cross-módulo (`src/services/_invalidationKeys.ts`)
+  contra novos tiers — confirmar que mutations cobrem todos os queryKeys.
+
 Pendências da Etapa 8 (próximos passes):
-- 8.2 — `staleTime`/`gcTime` por domínio: já parcialmente implementado em
-  `useRelatorio.ts` (mapa `STALE_TIME_BY_TIPO`). Estender padrão para hooks
-  de cadastros (clientes/fornecedores/produtos) e de movimentações.
 - 8.3 — Auditoria de re-render: instrumentar Profiler em `Fiscal`/`Conciliacao`/
   `Dashboard` e estabilizar callbacks em props de listas virtualizadas.
 - 8.5 — Squash de migrations: seguir `docs/migrations-squash-plan.md` (Fase A

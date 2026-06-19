@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
+import { QUERY_STALE } from "@/lib/queryConfig";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
@@ -148,7 +149,7 @@ const Fornecedores = () => {
   // KPI agregado server-side (substitui 3 queries: count ativo + 2 .or()).
   const { data: kpiQualidade } = useQuery({
     queryKey: ["fornecedores", "kpi-qualidade"],
-    staleTime: 30_000,
+    staleTime: QUERY_STALE.SHORT,
     queryFn: fetchKpiFornecedoresQualidade,
   });
   const totalAtivos = kpiQualidade?.total_ativos ?? null;

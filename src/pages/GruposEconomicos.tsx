@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { QUERY_STALE } from "@/lib/queryConfig";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
@@ -163,7 +164,7 @@ const GruposEconomicos = () => {
   const { data: matrizNomeMap = {} } = useQuery<Record<string, string>>({
     queryKey: ["grupos-economicos", "matriz-nomes", matrizIdsKey],
     enabled: !!matrizIdsKey,
-    staleTime: 5 * 60 * 1000,
+    staleTime: QUERY_STALE.TRANSACTIONAL,
     queryFn: async ({ signal }) => {
       const ids = matrizIdsKey.split(",").filter(Boolean);
       if (ids.length === 0) return {};
