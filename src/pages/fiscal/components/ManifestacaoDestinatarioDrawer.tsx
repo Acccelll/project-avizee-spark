@@ -263,7 +263,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
       const parsed = parseNFeXml(text);
       await upsertNfeFromXml({
         chave_acesso: parsed.chave,
-        cnpj_emitente: parsed.cnpjEmitente,
+        cnpj_emitente: parsed.cnpjEmitente ?? "",
         nome_emitente: parsed.nomeEmitente,
         numero: parsed.numero || null,
         serie: parsed.serie || null,

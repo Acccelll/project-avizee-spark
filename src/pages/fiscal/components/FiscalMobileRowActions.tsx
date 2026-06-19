@@ -43,7 +43,8 @@ export interface FiscalMobileRowActionsDeps {
  */
 export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
   const renderPrimary = (n: NotaFiscal): ReactNode => {
-    if (canConfirmFiscal(n.status)) {
+    const status = n.status ?? "";
+    if (canConfirmFiscal(status)) {
       return (
         <Button
           size="sm"
@@ -55,7 +56,7 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
         </Button>
       );
     }
-    if (["confirmada", "autorizada", "importada"].includes(n.status)) {
+    if (["confirmada", "autorizada", "importada"].includes(status)) {
       return (
         <Button
           size="sm"
@@ -82,11 +83,12 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
   };
 
   const renderInline = (n: NotaFiscal): ReactNode => {
-    const editable = ["pendente", "rascunho"].includes(n.status);
+    const status = n.status ?? "";
+    const editable = ["pendente", "rascunho"].includes(status);
     const canDevolucao =
       n.tipo === "saida" &&
       (n.tipo_operacao || "normal") === "normal" &&
-      ["confirmada", "autorizada", "importada"].includes(n.status);
+      ["confirmada", "autorizada", "importada"].includes(status);
     return (
       <>
         <Button
@@ -127,7 +129,7 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
             <DropdownMenuItem onClick={() => deps.onView(n)}>
               <Eye className="h-4 w-4 mr-2" /> Ver detalhes
             </DropdownMenuItem>
-            {["confirmada", "autorizada", "importada"].includes(n.status) && (
+            {["confirmada", "autorizada", "importada"].includes(status) && (
               <DropdownMenuItem onClick={() => deps.onDanfe(n)}>
                 <FileText className="h-4 w-4 mr-2" /> DANFE
               </DropdownMenuItem>
@@ -142,7 +144,7 @@ export function buildFiscalMobileRowActions(deps: FiscalMobileRowActionsDeps) {
                 <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
               </DropdownMenuItem>
             )}
-            {canEstornarFiscal(n.status) && deps.canEstornarNF && (
+            {canEstornarFiscal(status) && deps.canEstornarNF && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

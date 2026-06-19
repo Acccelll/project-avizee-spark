@@ -212,6 +212,31 @@ Pendências para tirar o `continue-on-error`:
 4. Certificado A1 de teste com `tpAmb=2` no tenant E2E.
 5. Promover job a bloqueante após 3 runs consecutivos verdes.
 
+### 7.4 — Saneamento TS strict-core (fiscal + adjacências)
+
+Eliminados os 40 erros pré-existentes em `tsconfig.strict-core.json`
+(módulos `src/pages/fiscal/**` e `src/services/fiscal/**`):
+- Serviços RPC: `dashboardFiscal.service.ts`, `notasFiscaisPaged.service.ts`,
+  `lifecycle.service.ts`, `manifestacao.repository.ts` — parâmetros opcionais
+  passam `undefined` em vez de `null` (alinha com tipos gerados Supabase).
+- `FiscalMobileRowActions.tsx` — `n.status` (string|null) coagido via
+  `status = n.status ?? ""` antes de `.includes()`.
+- `FiscalTableColumns.tsx` — `formatDate` recebe fallback quando
+  `data_emissao` é nulo.
+- `ManifestacaoDestinatarioDrawer.tsx` — `cnpj_emitente ?? ""` no upsert.
+- `NfeFormBody.tsx` — tipo `ModeloOpt` + fallback `MODELOS_NFE` para
+  `modelosDisponiveis`, e `sublabel: cpf_cnpj ?? undefined` nos autocompletes.
+- `NotaFiscalEditModal.tsx` — mesmo tratamento de `sublabel`.
+- `FiscalNotaModalsSlot.tsx` — casts explícitos `NotaFiscal → NotaFiscalForEdit`
+  e `setForm` adaptado ao contrato `Record<string, unknown>` do modal.
+- `useFiscalXmlImport.ts` — `status` recebe fallback `"pendente"` quando
+  `anexarNa.status` é nulo.
+- `PreviewFinanceiroTable.tsx`, `generatePresentation.ts` — fallbacks para
+  campos opcionais.
+
+Resultado: `npx tsc -p tsconfig.strict-core.json --noEmit` retorna **0
+erros**, mantendo os 817 testes verdes.
+
 ## Critérios de aceite
 
 - Os 4 arquivos-página com **< 300 linhas** cada.

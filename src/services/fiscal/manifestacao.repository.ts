@@ -383,7 +383,7 @@ export async function processarNfeDistribuicao(
     p_nfe_id: input.nfeId,
     p_fornecedor_id: input.fornecedorId,
     p_data_vencimento: input.dataVencimento,
-    p_descricao: input.descricao ?? null,
+    p_descricao: input.descricao ?? undefined,
   });
   if (error) throw error;
   return (data ?? {}) as ProcessarNfeDistribuicaoResult;

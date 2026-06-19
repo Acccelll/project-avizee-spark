@@ -195,7 +195,7 @@ export function useFiscalXmlImport(args: UseFiscalXmlImportArgs) {
       cliente_id: anexarNa
         ? (anexarNa.cliente_id || (tipo === "saida" ? clienteId : ""))
         : (tipo === "saida" ? clienteId : ""),
-      status: anexarNa ? anexarNa.status : (temProtocolo ? "importada" : "pendente"),
+      status: (anexarNa ? anexarNa.status : (temProtocolo ? "importada" : "pendente")) ?? "pendente",
       status_sefaz: anexarNa
         ? (temProtocolo ? "importada_externa" : (anexarNa.status_sefaz || "nao_enviada"))
         : (temProtocolo ? "importada_externa" : "nao_enviada"),

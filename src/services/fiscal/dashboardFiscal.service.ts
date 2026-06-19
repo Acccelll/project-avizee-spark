@@ -108,14 +108,14 @@ export async function fetchKpisFiscal(
   filters: FiscalKpisFilters,
 ): Promise<FiscalKpisResult> {
   const { data, error } = await supabase.rpc("kpis_fiscal", {
-    p_date_from: filters.dateFrom ?? null,
-    p_date_to: filters.dateTo ?? null,
-    p_tipos: filters.tipos?.length ? filters.tipos : null,
-    p_status: filters.status?.length ? filters.status : null,
-    p_fornecedores: filters.fornecedores?.length ? filters.fornecedores : null,
-    p_clientes: filters.clientes?.length ? filters.clientes : null,
-    p_modelos: filters.modelos?.length ? filters.modelos : null,
-    p_search: filters.search?.trim() || null,
+    p_date_from: filters.dateFrom ?? undefined,
+    p_date_to: filters.dateTo ?? undefined,
+    p_tipos: filters.tipos?.length ? filters.tipos : undefined,
+    p_status: filters.status?.length ? filters.status : undefined,
+    p_fornecedores: filters.fornecedores?.length ? filters.fornecedores : undefined,
+    p_clientes: filters.clientes?.length ? filters.clientes : undefined,
+    p_modelos: filters.modelos?.length ? filters.modelos : undefined,
+    p_search: filters.search?.trim() || undefined,
   });
   if (error) throw error;
   return { ...EMPTY_KPIS, ...((data as Partial<FiscalKpisResult>) ?? {}) };

@@ -97,7 +97,12 @@ export function NfeFormBody(props: NfeFormBodyProps) {
   const isNfse = tipoDoc === "nfse";
   const isCte = tipoDoc === "cte";
   // Modelos válidos por tipo de documento.
-  const modelosPorTipo: Partial<Record<TipoDocumentoFiscal, Array<{ value: string; label: string }>>> = {
+  type ModeloOpt = { value: string; label: string };
+  const MODELOS_NFE: ModeloOpt[] = [
+    { value: "55", label: "NF-e (Modelo 55)" },
+    { value: "65", label: "NFC-e (Modelo 65)" },
+  ];
+  const modelosPorTipo: Partial<Record<TipoDocumentoFiscal, ModeloOpt[]>> = {
     nfe: [
       { value: "55", label: "NF-e (Modelo 55)" },
       { value: "65", label: "NFC-e (Modelo 65)" },
@@ -108,7 +113,8 @@ export function NfeFormBody(props: NfeFormBodyProps) {
     ],
     nfse: [{ value: "nfse", label: "NFS-e (Serviço)" }],
   };
-  const modelosDisponiveis = modelosPorTipo[tipoDoc] ?? modelosPorTipo.nfe;
+  const modelosDisponiveis: ModeloOpt[] =
+    modelosPorTipo[tipoDoc] ?? MODELOS_NFE;
   // Garante que o modelo selecionado seja válido para o tipo atual.
   const modeloSelecionado = (() => {
     const atual = String(form.modelo_documento || modelosDisponiveis[0].value);
@@ -123,7 +129,7 @@ export function NfeFormBody(props: NfeFormBodyProps) {
         onChange={(v) => {
           const next: Record<string, string | number | boolean> = { ...form, tipo_documento: v };
           // Ajusta modelo para um válido do novo tipo.
-          next.modelo_documento = (modelosPorTipo[v] ?? modelosPorTipo.nfe)[0].value;
+          next.modelo_documento = (modelosPorTipo[v] ?? MODELOS_NFE)[0].value;
           setForm(next);
         }}
       />
@@ -194,9 +200,9 @@ export function NfeFormBody(props: NfeFormBodyProps) {
       <SectionHeader title="Partes" />
       <div className="bg-accent/30 rounded-lg p-4 space-y-3">
         {form.tipo === "entrada" ? (
-          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
+          <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedores.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj ?? undefined }))} value={String(form.fornecedor_id)} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." onCreateNew={onCriarFornecedorQuick} createNewLabel="Cadastrar novo fornecedor" /></>
         ) : (
-          <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj }))} value={String(form.cliente_id)} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
+          <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj ?? undefined }))} value={String(form.cliente_id)} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
         )}
       </div>
       {form.tipo === "saida" && ordensVenda.length > 0 && (

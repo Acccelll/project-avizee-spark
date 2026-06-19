@@ -608,7 +608,7 @@ export function NotaFiscalEditModal({
                         options={fornecedores.map((f) => ({
                           id: f.id,
                           label: f.nome_razao_social,
-                          sublabel: f.cpf_cnpj,
+                          sublabel: f.cpf_cnpj ?? undefined,
                         }))}
                         value={form.fornecedor_id}
                         onChange={(id) =>
@@ -624,7 +624,7 @@ export function NotaFiscalEditModal({
                         options={clientes.map((c) => ({
                           id: c.id,
                           label: c.nome_razao_social,
-                          sublabel: c.cpf_cnpj,
+                          sublabel: c.cpf_cnpj ?? undefined,
                         }))}
                         value={form.cliente_id}
                         onChange={(id) =>

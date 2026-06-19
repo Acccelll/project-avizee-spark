@@ -50,7 +50,7 @@ export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
                 {item.data_vencimento ? format(parseISO(item.data_vencimento), "dd/MM/yyyy") : "—"}
               </TableCell>
               <TableCell className="font-mono text-xs">
-                {formatCurrency(item.valor)}
+                {formatCurrency(item.valor ?? 0)}
               </TableCell>
               <TableCell>
                 {!item._valid && (
