@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
+import { QUERY_STALE } from "@/lib/queryConfig";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
@@ -274,7 +275,7 @@ const Clientes = () => {
   const { data: kpiQualidade } = useQuery({
     queryKey: ["clientes", "kpi-qualidade"],
     queryFn: fetchKpiClientesQualidade,
-    staleTime: 60_000,
+    staleTime: QUERY_STALE.OPERATIONAL,
   });
   const totalAtivos = kpiQualidade?.total_ativos ?? null;
   const totalComGrupo = kpiQualidade?.com_grupo ?? null;
