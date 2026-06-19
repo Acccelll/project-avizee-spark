@@ -104,6 +104,11 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+      - name: Bundle budget (advisory)
+        # Etapa 8.4 — detecta regressão de tamanho do bundle inicial.
+        # Promover a bloqueante após estabilizar baseline (ajustar BUDGET_KB).
+        continue-on-error: true
+        run: npm run check:bundle-budget
 
   audit:
     name: npm audit (high+)

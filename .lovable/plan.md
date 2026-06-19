@@ -237,6 +237,50 @@ Eliminados os 40 erros pré-existentes em `tsconfig.strict-core.json`
 Resultado: `npx tsc -p tsconfig.strict-core.json --noEmit` retorna **0
 erros**, mantendo os 817 testes verdes.
 
+## Etapa 8 — Performance & DX
+
+### 8.1 — Code splitting (Pass 1, concluído)
+
+Auditoria de libs pesadas em `src/**`:
+- `exceljs` (~400KB): só em `src/lib/workbook/**`; entry `apresentacaoService`/
+  `gerarWorkbook` já carrega via `await import(...)`. ✅
+- `pptxgenjs` (~250KB): único `import` estático em `src/lib/apresentacao/generatePresentation.ts`,
+  consumido só por `apresentacaoService` em dynamic import. ✅
+- `jspdf` (~200KB): em `danfe.service.ts` é `import type` (zero custo);
+  carregamento real via dynamic dentro de `gerarDanfePdf`. ✅
+- `@zxing/browser` + `@zxing/library` (~150KB): **arrastados para o chunk do
+  Fiscal** porque `FiscalChaveDialogsSlot` importava o scanner estaticamente.
+  Corrigido: `FiscalChaveScannerDialog` virou `lazy()` + Suspense, renderizado
+  só quando `scannerOpen=true`. Resultado esperado: chunk inicial do Fiscal
+  cai ~150KB; usuários que nunca abrem o scanner não baixam o decoder.
+- Rotas: 100% já usam `LazyPage` + `lazy(import(...))` (verificado em
+  `src/routes/*.routes.tsx`).
+
+Pendências menores (não regressivas, apenas oportunidades):
+- `recharts` está consolidado num `manualChunk` próprio — bom para cache.
+- `html2canvas`/`pdf-lib`/`jsbarcode` rodam só sob dynamic import.
+
+### 8.4 — Orçamento de bundle (advisory)
+
+- Novo `scripts/check-bundle-budget.mjs` soma os chunks que entram no shell
+  inicial (`index`, `react-vendor`, `query`, `radix`) após `vite build` e
+  falha se ultrapassarem `BUDGET_KB` (default 900KB).
+- `npm run check:bundle-budget` (sempre rodado após `build`).
+- CI: novo step no job `build` com `continue-on-error: true` (Etapa 8.4
+  TODO: promover a bloqueante após estabilizar baseline real e ajustar
+  `BUDGET_KB` para `baseline + 10%`).
+
+Pendências da Etapa 8 (próximos passes):
+- 8.2 — `staleTime`/`gcTime` por domínio: já parcialmente implementado em
+  `useRelatorio.ts` (mapa `STALE_TIME_BY_TIPO`). Estender padrão para hooks
+  de cadastros (clientes/fornecedores/produtos) e de movimentações.
+- 8.3 — Auditoria de re-render: instrumentar Profiler em `Fiscal`/`Conciliacao`/
+  `Dashboard` e estabilizar callbacks em props de listas virtualizadas.
+- 8.5 — Squash de migrations: seguir `docs/migrations-squash-plan.md` (Fase A
+  pronta; Fase C aguardando queda da velocidade de migrations).
+- 8.6 — README/CONTRIBUTING/ADRs: alinhar à arquitetura atual (remover seção
+  de `@ts-nocheck` já zerada; refletir SEFAZ-proxy + IA Gateway).
+
 ## Critérios de aceite
 
 - Os 4 arquivos-página com **< 300 linhas** cada.
