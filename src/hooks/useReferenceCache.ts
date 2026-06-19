@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_STALE } from "@/lib/queryConfig";
 import {
   fetchClientesRef,
   fetchFornecedoresRef,
@@ -15,11 +16,14 @@ import {
  * espalhados pelas páginas. Cada hook usa um queryKey global, então
  * o cache do React Query é reaproveitado entre módulos.
  *
- * staleTime: 5 minutos. Listas de cadastro mudam raramente; quem precisar
- * forçar refresh pode chamar `queryClient.invalidateQueries(["ref","..."])`.
+ * staleTime: tier TRANSACTIONAL (5min) para clientes/fornecedores/contas
+ * (mudam ao longo do dia) e REFERENCE (30min) para grupos e formas de
+ * pagamento (raramente alterados). Quem precisar forçar refresh pode chamar
+ * `queryClient.invalidateQueries(["ref","..."])`.
  */
 
-const STALE = 5 * 60 * 1000;
+const STALE_TRANSACTIONAL = QUERY_STALE.TRANSACTIONAL;
+const STALE_REFERENCE = QUERY_STALE.REFERENCE;
 
 export interface ClienteRef {
   id: string;
@@ -51,7 +55,7 @@ export function useClientesRef(opts?: { ativosOnly?: boolean; limit?: number }) 
   return useQuery<ClienteRef[]>({
     queryKey: ["ref", "clientes", { ativosOnly, limit }],
     queryFn: () => fetchClientesRef({ ativosOnly, limit }),
-    staleTime: STALE,
+    staleTime: STALE_TRANSACTIONAL,
   });
 }
 
@@ -61,7 +65,7 @@ export function useFornecedoresRef(opts?: { ativosOnly?: boolean; limit?: number
   return useQuery<FornecedorRef[]>({
     queryKey: ["ref", "fornecedores", { ativosOnly, limit }],
     queryFn: () => fetchFornecedoresRef({ ativosOnly, limit }),
-    staleTime: STALE,
+    staleTime: STALE_TRANSACTIONAL,
   });
 }
 
@@ -70,7 +74,7 @@ export function useContasBancariasRef(opts?: { ativasOnly?: boolean }) {
   return useQuery<ContaBancariaRef[]>({
     queryKey: ["ref", "contas_bancarias", { ativasOnly }],
     queryFn: () => fetchContasBancariasRef({ ativasOnly }),
-    staleTime: STALE,
+    staleTime: STALE_TRANSACTIONAL,
   });
 }
 
@@ -79,7 +83,7 @@ export function useGruposProdutoRef(opts?: { ativosOnly?: boolean }) {
   return useQuery<GrupoProdutoRef[]>({
     queryKey: ["ref", "grupos_produto", { ativosOnly }],
     queryFn: () => fetchGruposProdutoRef({ ativosOnly }),
-    staleTime: STALE,
+    staleTime: STALE_REFERENCE,
   });
 }
 
@@ -88,6 +92,6 @@ export function useFormasPagamentoRef(opts?: { ativasOnly?: boolean }) {
   return useQuery<FormaPagamentoRef[]>({
     queryKey: ["ref", "formas_pagamento", { ativasOnly }],
     queryFn: () => fetchFormasPagamentoRef({ ativasOnly }),
-    staleTime: STALE,
+    staleTime: STALE_REFERENCE,
   });
 }
