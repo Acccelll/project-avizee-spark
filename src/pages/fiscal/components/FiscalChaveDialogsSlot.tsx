@@ -1,7 +1,17 @@
+import { Suspense, lazy } from "react";
 import { toast } from "sonner";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
-import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { logger } from "@/lib/logger";
+
+// Lazy: o scanner arrasta `@zxing/browser` + `@zxing/library` (~150KB) que só
+// são necessários quando o usuário abre o diálogo de leitura por câmera/upload.
+// Mantendo o import estático, o bundle inicial da rota /fiscal carregava o
+// decoder mesmo para usuários que nunca usam o scanner.
+const FiscalChaveScannerDialog = lazy(() =>
+  import("@/pages/fiscal/components/FiscalChaveScannerDialog").then((m) => ({
+    default: m.FiscalChaveScannerDialog,
+  })),
+);
 
 export interface FiscalChaveDialogsSlotProps {
   buscarChaveOpen: boolean;
@@ -56,20 +66,24 @@ export function FiscalChaveDialogsSlot({
 
       {/* Scanner de chave (câmera/upload/digitação) — extrai apenas a chave;
           os fluxos de consulta/XML continuam canônicos. */}
-      <FiscalChaveScannerDialog
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onBuscarXml={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
-        onConsultarSituacao={(chave) => {
-          setScannerOpen(false);
-          setBuscarChaveInicial(chave);
-          setBuscarChaveOpen(true);
-        }}
-      />
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <FiscalChaveScannerDialog
+            open={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onBuscarXml={(chave) => {
+              setScannerOpen(false);
+              setBuscarChaveInicial(chave);
+              setBuscarChaveOpen(true);
+            }}
+            onConsultarSituacao={(chave) => {
+              setScannerOpen(false);
+              setBuscarChaveInicial(chave);
+              setBuscarChaveOpen(true);
+            }}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
