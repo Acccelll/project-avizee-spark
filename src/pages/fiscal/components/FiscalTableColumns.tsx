@@ -85,7 +85,7 @@ export function buildFiscalColumns(opts: BuildFiscalColumnsOpts) {
       label: "Emissão",
       sortable: true,
       serverSortable: true,
-      render: (n: NotaFiscal) => formatDate(n.data_emissao),
+      render: (n: NotaFiscal) => (n.data_emissao ? formatDate(n.data_emissao) : "—"),
     },
     {
       key: "status",
