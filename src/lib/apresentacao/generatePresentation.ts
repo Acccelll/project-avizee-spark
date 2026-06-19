@@ -363,7 +363,7 @@ export async function generatePresentation(
     } else if (s.codigo === 'closing') {
       renderClosing(slide, s, comment, options?.metadata);
     } else {
-      addHeader(slide, s.titulo, s.subtitulo);
+      addHeader(slide, s.titulo, s.subtitulo ?? "");
       renderSlideBody(slide, s);
       addCommentary(slide, comment);
       addFooter(slide, s.codigo ?? "", periodo);
