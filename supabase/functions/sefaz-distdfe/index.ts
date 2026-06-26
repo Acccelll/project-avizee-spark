@@ -718,6 +718,10 @@ Deno.serve(async (req) => {
     let xmlRetorno = "";
     let respondeu = false;
     let ultimoErroTransporte: { raw: string; codigo: string } | null = null;
+    // Telemetria por tentativa — usada no diagnóstico final para distinguir
+    // "binding mTLS quebrado" (TODAS as tentativas = CF 520) de "AN instável"
+    // (alguma tentativa devolveu HTTP real do BIG-IP da SEFAZ).
+    const tentativasUpstream: Array<{ tentativa: number; soapVariant: SoapVariant; status: number; cfOriginFail: boolean }> = [];
 
     for (let i = 0; i < tentativas.length; i++) {
       const variant = tentativas[i];
@@ -818,18 +822,19 @@ Deno.serve(async (req) => {
             const isCloudflareOriginFail =
               workerFail.status === 520 &&
               /^error code:\s*520\s*$/i.test(workerFail.body.trim());
-            if (isCloudflareOriginFail) {
-              ultimoErroTransporte = {
-                raw:
-                  "Cloudflare Worker não conseguiu estabelecer conexão com a SEFAZ " +
-                  "(retornou a página de erro 520 do próprio Cloudflare, não da SEFAZ).",
-                codigo: "CLOUDFLARE_ORIGIN_FAIL",
-              };
-              break;
-            }
+            tentativasUpstream.push({
+              tentativa: i + 1,
+              soapVariant: variant,
+              status: workerFail.status,
+              cfOriginFail: isCloudflareOriginFail,
+            });
             ultimoErroTransporte = {
-              raw: `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
-              codigo: workerFail.status === 520
+              raw: isCloudflareOriginFail
+                ? `Cloudflare devolveu "error code: 520" (origin unreachable) na tentativa ${i + 1}.`
+                : `Worker→SEFAZ falhou (HTTP ${workerFail.status}): ${workerFail.body || "<sem corpo>"}`,
+              codigo: isCloudflareOriginFail
+                ? "CLOUDFLARE_ORIGIN_FAIL"
+                : workerFail.status === 520
                 ? "WORKER_UPSTREAM_520"
                 : workerFail.status >= 500
                 ? "WORKER_UPSTREAM_5XX"
@@ -837,6 +842,9 @@ Deno.serve(async (req) => {
             };
             // 520/5xx intermitentes do BIG-IP do AN: aguarda um pouco e
             // tenta de novo (a mesma requisição costuma passar em seguida).
+            // Importante: NÃO abortamos em CF 520 isolado — só classificamos
+            // como "binding mTLS quebrado" se TODAS as tentativas falharem
+            // dessa forma. A reclassificação acontece no diagnóstico final.
             if (i < tentativas.length - 1) {
               await new Promise((r) => setTimeout(r, 1500));
             }
@@ -935,7 +943,28 @@ Deno.serve(async (req) => {
 
     if (!respondeu) {
       try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
-      const codigo = ultimoErroTransporte?.codigo ?? "TRANSPORT_ERROR";
+      // Reclassificação determinística: só declaramos "binding mTLS quebrado"
+      // (CLOUDFLARE_ORIGIN_FAIL) se TODAS as tentativas devolveram a página
+      // 520 do próprio Cloudflare. Se houve qualquer outra resposta (500 do
+      // BIG-IP, p.ex.), provamos que o transporte mTLS está funcional e o
+      // problema é instabilidade do Ambiente Nacional — reclassificamos para
+      // AN_INSTAVEL para não exibir diagnóstico falso ao usuário.
+      const todasCfOriginFail =
+        tentativasUpstream.length > 0 &&
+        tentativasUpstream.every((t) => t.cfOriginFail);
+      let codigo = ultimoErroTransporte?.codigo ?? "TRANSPORT_ERROR";
+      if (
+        tentativasUpstream.length > 0 &&
+        tentativasUpstream.some((t) => t.cfOriginFail) &&
+        !todasCfOriginFail
+      ) {
+        codigo = "AN_INSTAVEL";
+      } else if (
+        codigo !== "CLOUDFLARE_ORIGIN_FAIL" &&
+        todasCfOriginFail
+      ) {
+        codigo = "CLOUDFLARE_ORIGIN_FAIL";
+      }
       const raw = ultimoErroTransporte?.raw ?? "Falha de transporte sem detalhes.";
       let hint = "";
       if (codigo === "HTTP2_REQUIRED") {
@@ -951,6 +980,16 @@ Deno.serve(async (req) => {
       } else if (codigo === "CLOUDFLARE_ORIGIN_FAIL") {
         hint =
           " — o problema NÃO é a SEFAZ. O próprio Cloudflare devolveu a página \"error code: 520\" (origin unreachable), o que significa que o Worker mTLS não conseguiu abrir conexão TLS com a SEFAZ. Causas prováveis, em ordem: (1) certificado A1 instalado no Cloudflare expirou ou foi removido; (2) o binding `mtls_certificate` do Worker não está mais associado/ativo; (3) o binding não inclui o hostname alvo. Verifique no painel do Cloudflare → Worker → Settings → mTLS Certificates e refaça o upload do certificado A1 se necessário.";
+      } else if (codigo === "AN_INSTAVEL") {
+        const resumo = tentativasUpstream
+          .map((t) => `t${t.tentativa}(${t.soapVariant})=${t.status}${t.cfOriginFail ? "/cf520" : ""}`)
+          .join(", ");
+        hint =
+          ` — instabilidade do Ambiente Nacional nas ${tentativasUpstream.length} tentativas (${resumo}).` +
+          " O Worker mTLS CONSEGUIU abrir conexão TLS com a SEFAZ — se o certificado A1/binding mTLS estivessem quebrados," +
+          " TODAS as tentativas voltariam 520 do Cloudflare, e não foi o caso." +
+          " O BIG-IP do AN está devolvendo HTTP 500/520 intermitentes. Aguarde 1-2 minutos e sincronize novamente." +
+          " Se persistir por mais de 15 min, verifique se o serviço NFeDistribuicaoDFe está em manutenção no Portal NF-e.";
       }
       return json({
         sucesso: false,
@@ -958,6 +997,7 @@ Deno.serve(async (req) => {
         cnpj,
         erro: `${raw}${hint}`,
         codigoTransporte: codigo,
+        tentativasUpstream,
       });
     }
 
