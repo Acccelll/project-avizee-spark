@@ -254,7 +254,7 @@ const DashboardContent = () => {
     },
     vendas_chart: () => (
       <LazyInViewWidget fallback={<Skeleton className="min-h-[240px] w-full rounded-xl" />}>
-        <DashboardCard>
+        <DashboardCard tone="hero">
           <BlockErrorBoundary label="Gráfico de Vendas">
             <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
               <div className="h-[260px] md:h-[280px]">
