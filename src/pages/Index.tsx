@@ -254,7 +254,7 @@ const DashboardContent = () => {
     },
     vendas_chart: () => (
       <LazyInViewWidget fallback={<Skeleton className="min-h-[240px] w-full rounded-xl" />}>
-        <DashboardCard>
+        <DashboardCard tone="hero">
           <BlockErrorBoundary label="Gráfico de Vendas">
             <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
               <div className="h-[260px] md:h-[280px]">
@@ -472,6 +472,8 @@ const DashboardContent = () => {
       />
 
       <div className="space-y-3 md:space-y-4">
+        {/* Bento entrance: as linhas/cards aparecem em cascata leve. */}
+        <div className="space-y-3 md:space-y-4 stagger-children">
         {rows.map((row) => {
           if (row.pair) {
             const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';
@@ -491,6 +493,7 @@ const DashboardContent = () => {
           }
           return <Fragment key={row.key}>{RENDERERS[row.items[0]]()}</Fragment>;
         })}
+        </div>
       </div>
 
       <KpiDetailDrawer

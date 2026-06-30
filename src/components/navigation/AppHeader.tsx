@@ -139,7 +139,11 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
   }, []);
 
   return (
-    <header ref={headerRef} role="banner" className="sticky top-0 z-40 border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_0_hsl(var(--border)/0.4)]">
+    <header
+      ref={headerRef}
+      role="banner"
+      className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/55"
+    >
       <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 md:px-6">
         {isMobile ? (
           <>

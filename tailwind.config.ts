@@ -18,9 +18,15 @@ export default {
         "xs": "480px",
       },
       fontFamily: {
-        inter: ['Montserrat', 'Inter', 'sans-serif'],
-        sans: ['Montserrat', 'Inter', 'sans-serif'],
-        mono: ['Montserrat', 'Inter', 'sans-serif'],
+        // Body / UI default — DM Sans é leve, neutro e legível em densidade alta.
+        sans: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Display / títulos — Space Grotesk dá um tom editorial moderno.
+        display: ['"Space Grotesk"', '"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Aliases legados para evitar quebra em classes antigas (`font-inter`,
+        // `font-mono`). Mantêm Montserrat só como fallback para o PDF do orçamento.
+        inter: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        montserrat: ['Montserrat', '"DM Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
