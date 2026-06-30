@@ -3,6 +3,15 @@ import App from "./App.tsx";
 import "./index.css";
 import { registerPwa } from "./lib/pwa";
 
+// Premium typography stack — Space Grotesk for display/headings, DM Sans for UI/body.
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/600.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/700.css";
+
 createRoot(document.getElementById("root")!).render(<App />);
 
 // Registro do service worker (apenas produção; ver src/lib/pwa.ts).
