@@ -1165,6 +1165,54 @@ export default function PortalFiscal() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!pingResult} onOpenChange={(v) => !v && setPingResult(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico Worker mTLS</DialogTitle>
+          </DialogHeader>
+          {pingResult && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                {pingResult.sucesso ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                )}
+                <span className="font-medium">
+                  {pingResult.sucesso ? "Transporte OK" : "Falha no transporte"}
+                </span>
+                <Badge variant="outline">Ambiente {pingResult.ambiente}</Badge>
+              </div>
+              <dl className="grid grid-cols-[120px_1fr] gap-y-1">
+                <dt className="text-muted-foreground">HTTP</dt>
+                <dd>{pingResult.statusHttp ?? "—"} {pingResult.statusText ?? ""}</dd>
+                <dt className="text-muted-foreground">Bytes</dt>
+                <dd>{pingResult.bytes ?? 0}</dd>
+              </dl>
+              {pingResult.diagnostico && (
+                <div>
+                  <div className="text-muted-foreground mb-1">Diagnóstico</div>
+                  <div className="rounded border bg-muted/50 p-2">{pingResult.diagnostico}</div>
+                </div>
+              )}
+              {pingResult.preview && (
+                <div>
+                  <div className="text-muted-foreground mb-1">Preview da resposta</div>
+                  <pre className="rounded border bg-muted/50 p-2 text-xs overflow-auto max-h-48 whitespace-pre-wrap break-all">{pingResult.preview}</pre>
+                </div>
+              )}
+              {!pingResult.sucesso && (
+                <p className="text-xs text-muted-foreground">
+                  HTTP 520 com corpo <code>error code: 520</code> indica que o Cloudflare não conseguiu
+                  abrir a conexão TLS com a SEFAZ (binding mTLS/cert A1). Outros 5xx/timeouts com XML do
+                  BIG-IP indicam instabilidade do ambiente nacional (AN).
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
