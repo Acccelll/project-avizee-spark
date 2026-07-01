@@ -60,12 +60,13 @@ import {
   sincronizarDistDFe,
   resolverAmbienteDistDFe,
   verificarCircuitBreaker,
+  testarWorkerDistDFe,
 } from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { ShieldAlert, Trash2, Activity } from "lucide-react";
 
 interface PortalRow {
   id: string;
@@ -189,6 +190,35 @@ export default function PortalFiscal() {
     ate: string;
     minutosRestantes: number;
   } | null>(null);
+
+  const [pingLoading, setPingLoading] = useState(false);
+  const [pingResult, setPingResult] = useState<{
+    sucesso: boolean;
+    ambiente: "1" | "2";
+    statusHttp?: number;
+    statusText?: string;
+    bytes?: number;
+    preview?: string;
+    diagnostico?: string;
+    erro?: string;
+  } | null>(null);
+
+  const testarWorker = useCallback(async () => {
+    setPingLoading(true);
+    try {
+      const ambiente = await resolverAmbienteDistDFe();
+      const res = await testarWorkerDistDFe(ambiente);
+      setPingResult(res);
+      if (res.sucesso) toast.success("Worker mTLS OK — transporte funcional.");
+      else toast.error(res.diagnostico ?? res.erro ?? "Falha no worker mTLS.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro ao testar worker.";
+      toast.error(msg);
+      setPingResult({ sucesso: false, ambiente: "1", erro: msg, diagnostico: msg });
+    } finally {
+      setPingLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void getEmpresaIdent().then(setEmpresaInfo);
@@ -553,6 +583,19 @@ export default function PortalFiscal() {
           <Button variant="outline" onClick={exportarCsv} disabled={rows.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => void testarWorker()}
+            disabled={pingLoading}
+            title="Diagnóstico do transporte mTLS (Cloudflare Worker → SEFAZ AN)"
+          >
+            {pingLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Activity className="h-4 w-4 mr-2" />
+            )}
+            Testar Worker mTLS
           </Button>
           {isAdmin && (
             <Button
@@ -1118,6 +1161,54 @@ export default function PortalFiscal() {
               <div className="shadow-lg">
                 <DanfeRender data={danfePreview.data} />
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pingResult} onOpenChange={(v) => !v && setPingResult(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico Worker mTLS</DialogTitle>
+          </DialogHeader>
+          {pingResult && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                {pingResult.sucesso ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                )}
+                <span className="font-medium">
+                  {pingResult.sucesso ? "Transporte OK" : "Falha no transporte"}
+                </span>
+                <Badge variant="outline">Ambiente {pingResult.ambiente}</Badge>
+              </div>
+              <dl className="grid grid-cols-[120px_1fr] gap-y-1">
+                <dt className="text-muted-foreground">HTTP</dt>
+                <dd>{pingResult.statusHttp ?? "—"} {pingResult.statusText ?? ""}</dd>
+                <dt className="text-muted-foreground">Bytes</dt>
+                <dd>{pingResult.bytes ?? 0}</dd>
+              </dl>
+              {pingResult.diagnostico && (
+                <div>
+                  <div className="text-muted-foreground mb-1">Diagnóstico</div>
+                  <div className="rounded border bg-muted/50 p-2">{pingResult.diagnostico}</div>
+                </div>
+              )}
+              {pingResult.preview && (
+                <div>
+                  <div className="text-muted-foreground mb-1">Preview da resposta</div>
+                  <pre className="rounded border bg-muted/50 p-2 text-xs overflow-auto max-h-48 whitespace-pre-wrap break-all">{pingResult.preview}</pre>
+                </div>
+              )}
+              {!pingResult.sucesso && (
+                <p className="text-xs text-muted-foreground">
+                  HTTP 520 com corpo <code>error code: 520</code> indica que o Cloudflare não conseguiu
+                  abrir a conexão TLS com a SEFAZ (binding mTLS/cert A1). Outros 5xx/timeouts com XML do
+                  BIG-IP indicam instabilidade do ambiente nacional (AN).
+                </p>
+              )}
             </div>
           )}
         </DialogContent>
