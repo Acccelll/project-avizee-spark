@@ -60,12 +60,13 @@ import {
   sincronizarDistDFe,
   resolverAmbienteDistDFe,
   verificarCircuitBreaker,
+  testarWorkerDistDFe,
 } from "@/services/fiscal/sefaz";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { ShieldAlert, Trash2, Activity } from "lucide-react";
 
 interface PortalRow {
   id: string;
