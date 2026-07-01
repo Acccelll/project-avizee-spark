@@ -584,6 +584,19 @@ export default function PortalFiscal() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => void testarWorker()}
+            disabled={pingLoading}
+            title="Diagnóstico do transporte mTLS (Cloudflare Worker → SEFAZ AN)"
+          >
+            {pingLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Activity className="h-4 w-4 mr-2" />
+            )}
+            Testar Worker mTLS
+          </Button>
           {isAdmin && (
             <Button
               variant="outline"
