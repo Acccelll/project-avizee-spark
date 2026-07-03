@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Truck, MapPin, Users, PackageSearch, DollarSign, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +45,15 @@ export function CteFieldsSection({ form, setForm, disabled }: Props) {
   const [chaveInput, setChaveInput] = useState("");
   const chaves: string[] = Array.isArray(form.cte_chave_nfe_ref) ? form.cte_chave_nfe_ref : [];
 
+  // Pré-seleciona modal "rodoviário" quando ainda não houver valor —
+  // maioria dos CT-es em NF de entrada são de transporte rodoviário.
+  useEffect(() => {
+    if (!form.cte_modal) {
+      setForm({ ...form, cte_modal: "rodoviario" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addChave = () => {
     const v = chaveInput.replace(/\D/g, "");
     if (v.length !== 44) return;
@@ -84,7 +93,7 @@ export function CteFieldsSection({ form, setForm, disabled }: Props) {
           </div>
           <div className="space-y-1">
             <Label>Modal de transporte *</Label>
-            <Select value={form.cte_modal ?? ""} onValueChange={(v) => setForm({ ...form, cte_modal: v })} disabled={disabled}>
+            <Select value={form.cte_modal || "rodoviario"} onValueChange={(v) => setForm({ ...form, cte_modal: v })} disabled={disabled}>
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
                 {MODAL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
