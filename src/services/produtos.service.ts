@@ -211,11 +211,22 @@ export async function updateProduto(
   id: string,
   payload: TablesUpdate<"produtos">,
 ): Promise<void> {
-  const { error } = await supabase
+  // Usa .select().single() para garantir que a linha foi de fato atualizada.
+  // Sem isso, um UPDATE bloqueado por RLS (0 rows) retorna success silencioso
+  // e a edição "não persiste" sem qualquer mensagem de erro ao usuário.
+  const { data, error } = await supabase
     .from("produtos")
     .update(payload as never)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!data) {
+    throw new Error(
+      "Não foi possível salvar as alterações do produto (nenhuma linha atualizada). " +
+      "Verifique se você tem permissão para editar este produto.",
+    );
+  }
 }
 
 // ── KPIs (Produtos.tsx) ──────────────────────────────────────────────────────
