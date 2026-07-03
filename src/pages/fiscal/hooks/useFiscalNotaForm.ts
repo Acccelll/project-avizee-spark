@@ -58,7 +58,7 @@ export const emptyFiscalForm: FiscalFormState = {
   tipo: "entrada", numero: "", serie: "1", chave_acesso: "",
   data_emissao: new Date().toISOString().split("T")[0],
   fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente",
-  observacoes: "", movimenta_estoque: true, gera_financeiro: true,
+  observacoes: "", movimenta_estoque: false, gera_financeiro: true,
   forma_pagamento: "", condicao_pagamento: "a_vista",
   ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
