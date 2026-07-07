@@ -378,10 +378,13 @@ export async function loadPosicaoEstoqueData(filtros: FiltroRelatorio): Promise<
   };
 }
 /**
- * Top saídas de produtos por mês — agrega `estoque_movimentos` do tipo
- * `saida` no período informado, agrupa por produto + mês (competência) e
- * ordena pela quantidade movimentada (mês desc, quantidade desc). Serve
- * para responder: "quais foram os produtos com maior saída em cada mês?".
+ * Sazonalidade de saídas por mês do ano — agrega TODO o histórico de
+ * `estoque_movimentos` do tipo `saida` e agrupa por (produto, mês 1..12),
+ * somando quantidades entre anos. Responde: "quais produtos mais saem no
+ * mês 7 considerando todos os anos anteriores?".
+ *
+ * O período (`dataInicio`/`dataFim`) NÃO é aplicado — o objetivo é olhar
+ * o histórico completo. Filtro por grupo de produto continua valendo.
  */
 export async function loadTopSaidasProdutos(
   filtros: FiltroRelatorio,
@@ -397,16 +400,16 @@ export async function loadTopSaidasProdutos(
     produtoIds = (prods ?? []).map((p) => p.id);
     if (!produtoIds.length) {
       return {
-        title: "Top saídas de produtos por mês",
-        subtitle: "Maiores saídas de estoque agrupadas por produto e mês.",
+        title: "Sazonalidade de Saídas por Mês",
+        subtitle: "Maiores saídas históricas agrupadas por produto e mês do ano.",
         rows: [],
         chartData: [],
         totals: { totalSaidas: 0 },
-        kpis: { totalSaidas: 0, produtosDistintos: 0, mesesCobertos: 0 },
+        kpis: { totalSaidas: 0, produtosDistintos: 0, anosCobertos: 0 },
         meta: {
           kind: "ranking",
           valueNature: "quantidade",
-          timeAxis: { field: "criacao", label: "mês da saída", required: false },
+          timeAxis: { field: "criacao", label: "mês do ano (histórico)", required: false },
           drillDownReady: true,
         },
       };
@@ -419,11 +422,6 @@ export async function loadTopSaidasProdutos(
       .select("produto_id, quantidade, created_at, produtos(nome, sku, codigo_interno)")
       .eq("tipo", "saida")
       .order("created_at", { ascending: false });
-    const filtrosAjustados = {
-      ...filtros,
-      dataFim: filtros.dataFim ? `${filtros.dataFim}T23:59:59.999` : undefined,
-    };
-    q = withDateRange(q, "created_at", filtrosAjustados);
     if (produtoIds) q = q.in("produto_id", produtoIds);
     return q;
   });
@@ -432,18 +430,28 @@ export async function loadTopSaidasProdutos(
     produtoId: string | null;
     produto: string;
     codigo: string;
-    mesKey: string;
+    mesNum: number; // 1..12
     quantidade: number;
     ocorrencias: number;
+    anos: Set<number>;
   };
 
+  const MES_NOMES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  ];
+
   const buckets = new Map<string, Bucket>();
+  const anosGlobais = new Set<number>();
   for (const item of data) {
     const produtoId = (item.produto_id as string | null) ?? null;
     const created = item.created_at as string | null;
     if (!created) continue;
-    const mesKey = created.slice(0, 7);
-    const key = `${produtoId ?? "sem-produto"}|${mesKey}`;
+    const ano = Number(created.slice(0, 4));
+    const mesNum = Number(created.slice(5, 7));
+    if (!mesNum) continue;
+    anosGlobais.add(ano);
+    const key = `${produtoId ?? "sem-produto"}|${mesNum}`;
     const prod = item.produtos as
       | { nome?: string; sku?: string | null; codigo_interno?: string | null }
       | null;
@@ -452,61 +460,63 @@ export async function loadTopSaidasProdutos(
     if (existing) {
       existing.quantidade += qtd;
       existing.ocorrencias += 1;
+      existing.anos.add(ano);
     } else {
       buckets.set(key, {
         produtoId,
         produto: prod?.nome || "-",
         codigo: prod?.codigo_interno || prod?.sku || "-",
-        mesKey,
+        mesNum,
         quantidade: qtd,
         ocorrencias: 1,
+        anos: new Set([ano]),
       });
     }
   }
 
   const rows = [...buckets.values()]
     .sort((a, b) => {
-      if (a.mesKey !== b.mesKey) return b.mesKey.localeCompare(a.mesKey);
+      if (a.mesNum !== b.mesNum) return a.mesNum - b.mesNum;
       return b.quantidade - a.quantidade;
     })
-    .map((b) => {
-      const [ano, mes] = b.mesKey.split("-");
-      return {
-        produtoId: b.produtoId,
-        mes: `${mes}/${ano}`,
-        mesKey: b.mesKey,
-        codigo: b.codigo,
-        produto: b.produto,
-        quantidade: b.quantidade,
-        ocorrencias: b.ocorrencias,
-      };
-    });
+    .map((b) => ({
+      produtoId: b.produtoId,
+      mesNum: b.mesNum,
+      mes: MES_NOMES[b.mesNum - 1] ?? String(b.mesNum),
+      codigo: b.codigo,
+      produto: b.produto,
+      quantidade: b.quantidade,
+      ocorrencias: b.ocorrencias,
+      anosCobertos: b.anos.size,
+      mediaAnual: b.anos.size > 0 ? Number((b.quantidade / b.anos.size).toFixed(2)) : b.quantidade,
+    }));
 
   const totalSaidas = rows.reduce((s, r) => s + r.quantidade, 0);
   const produtosDistintos = new Set(rows.map((r) => r.produtoId ?? r.produto)).size;
-  const mesesCobertos = new Set(rows.map((r) => r.mesKey)).size;
+  const anosCobertos = anosGlobais.size;
 
-  const porProduto = new Map<string, number>();
+  // Gráfico: total de saídas por mês do ano (sazonalidade agregada).
+  const porMes = new Map<number, number>();
   for (const r of rows) {
-    porProduto.set(r.produto, (porProduto.get(r.produto) ?? 0) + r.quantidade);
+    porMes.set(r.mesNum, (porMes.get(r.mesNum) ?? 0) + r.quantidade);
   }
-  const chartData = [...porProduto.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, value]) => ({ name: name.substring(0, 24), value }));
+  const chartData = Array.from({ length: 12 }, (_, i) => ({
+    name: MES_NOMES[i].slice(0, 3),
+    value: porMes.get(i + 1) ?? 0,
+  }));
 
   return {
-    title: "Top saídas de produtos por mês",
+    title: "Sazonalidade de Saídas por Mês",
     subtitle:
-      "Maiores saídas de estoque agregadas por produto e mês (competência da movimentação).",
+      "Histórico completo agrupado por mês do ano (jan–dez), somando todos os anos. Ordene ou filtre a coluna Mês para responder \"quais produtos mais saem no mês X?\".",
     rows,
     chartData,
     totals: { totalSaidas },
-    kpis: { totalSaidas, produtosDistintos, mesesCobertos },
+    kpis: { totalSaidas, produtosDistintos, anosCobertos },
     meta: {
       kind: "ranking",
       valueNature: "quantidade",
-      timeAxis: { field: "criacao", label: "mês da saída", required: false },
+      timeAxis: { field: "criacao", label: "mês do ano (histórico)", required: false },
       drillDownReady: true,
     },
   };
