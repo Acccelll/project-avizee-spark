@@ -1054,6 +1054,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   estoque_minimo: estoqueMinConfig,
   movimentos_estoque: movimentosConfig,
   posicao_estoque_data: posicaoEstoqueDataConfig,
+  top_saidas_produtos: topSaidasProdutosConfig,
   financeiro: financeiroConfig,
   fluxo_caixa: fluxoCaixaConfig,
   vendas: vendasConfig,
