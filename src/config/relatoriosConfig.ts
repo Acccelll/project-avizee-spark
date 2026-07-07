@@ -313,6 +313,41 @@ const posicaoEstoqueDataConfig: ReportConfig = {
   ],
 };
 
+const topSaidasProdutosConfig: ReportConfig = {
+  id: 'top_saidas_produtos',
+  title: 'Top Saídas de Produtos por Mês',
+  description: 'Ranking histórico das maiores saídas de estoque por produto e mês',
+  objective: 'Identificar os produtos com maior volume de saída em cada mês do período',
+  category: 'estoque_suprimentos',
+  icon: TrendingUp,
+  chartType: 'bar',
+  columns: [
+    { key: 'mes', label: 'Mês' },
+    { key: 'codigo', label: 'Código' },
+    { key: 'produto', label: 'Produto' },
+    { key: 'quantidade', label: 'Qtd. Saída', format: 'quantity', align: 'right', footerTotal: true },
+    { key: 'ocorrencias', label: 'Movimentos', format: 'number', align: 'right' },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: false,
+    showFornecedores: false,
+    showGrupos: true,
+    showStatus: false,
+    showTipos: false,
+  },
+  timeAxis: { field: 'criacao', label: 'mês da saída', required: false },
+  kpis: [
+    { key: 'totalSaidas', label: 'Total de Saídas', format: 'number', variation: 'unidades no período' },
+    { key: 'produtosDistintos', label: 'Produtos', format: 'number', variation: 'distintos com saída' },
+    { key: 'mesesCobertos', label: 'Meses', format: 'number', variation: 'com movimentação' },
+  ],
+  drillDown: [
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
+    { key: 'movimentos', label: 'Ver movimentações', route: '/relatorios?tipo=movimentos_estoque', targetField: 'produtoId', available: true },
+  ],
+};
+
 const financeiroConfig: ReportConfig = {
   id: 'financeiro',
   title: 'Financeiro',
