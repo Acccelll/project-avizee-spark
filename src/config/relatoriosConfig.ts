@@ -1152,6 +1152,13 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     highlightFilters: ['periodo', 'grupos'],
     investigableField: 'produto',
   },
+  top_saidas_produtos: {
+    valueSortField: 'quantidade',
+    dateSortField: 'mesKey',
+    periodAxisLabel: 'mês da saída de estoque',
+    highlightFilters: ['periodo', 'grupos'],
+    investigableField: 'produto',
+  },
   financeiro: {
     statusField: 'status',
     valueSortField: 'valor',
