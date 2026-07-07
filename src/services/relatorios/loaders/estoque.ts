@@ -377,3 +377,137 @@ export async function loadPosicaoEstoqueData(filtros: FiltroRelatorio): Promise<
     },
   };
 }
+/**
+ * Top saídas de produtos por mês — agrega `estoque_movimentos` do tipo
+ * `saida` no período informado, agrupa por produto + mês (competência) e
+ * ordena pela quantidade movimentada (mês desc, quantidade desc). Serve
+ * para responder: "quais foram os produtos com maior saída em cada mês?".
+ */
+export async function loadTopSaidasProdutos(
+  filtros: FiltroRelatorio,
+): Promise<RelatorioResultado> {
+  let produtoIds: string[] | null = null;
+  if (filtros.grupoProdutoIds?.length) {
+    const { data: prods, error: prodErr } = await supabase
+      .from("produtos")
+      .select("id")
+      .in("grupo_id", filtros.grupoProdutoIds)
+      .limit(10000);
+    if (prodErr) throw prodErr;
+    produtoIds = (prods ?? []).map((p) => p.id);
+    if (!produtoIds.length) {
+      return {
+        title: "Top saídas de produtos por mês",
+        subtitle: "Maiores saídas de estoque agrupadas por produto e mês.",
+        rows: [],
+        chartData: [],
+        totals: { totalSaidas: 0 },
+        kpis: { totalSaidas: 0, produtosDistintos: 0, mesesCobertos: 0 },
+        meta: {
+          kind: "ranking",
+          valueNature: "quantidade",
+          timeAxis: { field: "criacao", label: "mês da saída", required: false },
+          drillDownReady: true,
+        },
+      };
+    }
+  }
+
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("estoque_movimentos")
+      .select("produto_id, quantidade, created_at, produtos(nome, sku, codigo_interno)")
+      .eq("tipo", "saida")
+      .order("created_at", { ascending: false });
+    const filtrosAjustados = {
+      ...filtros,
+      dataFim: filtros.dataFim ? `${filtros.dataFim}T23:59:59.999` : undefined,
+    };
+    q = withDateRange(q, "created_at", filtrosAjustados);
+    if (produtoIds) q = q.in("produto_id", produtoIds);
+    return q;
+  });
+
+  type Bucket = {
+    produtoId: string | null;
+    produto: string;
+    codigo: string;
+    mesKey: string;
+    quantidade: number;
+    ocorrencias: number;
+  };
+
+  const buckets = new Map<string, Bucket>();
+  for (const item of data) {
+    const produtoId = (item.produto_id as string | null) ?? null;
+    const created = item.created_at as string | null;
+    if (!created) continue;
+    const mesKey = created.slice(0, 7);
+    const key = `${produtoId ?? "sem-produto"}|${mesKey}`;
+    const prod = item.produtos as
+      | { nome?: string; sku?: string | null; codigo_interno?: string | null }
+      | null;
+    const qtd = Math.abs(Number(item.quantidade || 0));
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.quantidade += qtd;
+      existing.ocorrencias += 1;
+    } else {
+      buckets.set(key, {
+        produtoId,
+        produto: prod?.nome || "-",
+        codigo: prod?.codigo_interno || prod?.sku || "-",
+        mesKey,
+        quantidade: qtd,
+        ocorrencias: 1,
+      });
+    }
+  }
+
+  const rows = [...buckets.values()]
+    .sort((a, b) => {
+      if (a.mesKey !== b.mesKey) return b.mesKey.localeCompare(a.mesKey);
+      return b.quantidade - a.quantidade;
+    })
+    .map((b) => {
+      const [ano, mes] = b.mesKey.split("-");
+      return {
+        produtoId: b.produtoId,
+        mes: `${mes}/${ano}`,
+        mesKey: b.mesKey,
+        codigo: b.codigo,
+        produto: b.produto,
+        quantidade: b.quantidade,
+        ocorrencias: b.ocorrencias,
+      };
+    });
+
+  const totalSaidas = rows.reduce((s, r) => s + r.quantidade, 0);
+  const produtosDistintos = new Set(rows.map((r) => r.produtoId ?? r.produto)).size;
+  const mesesCobertos = new Set(rows.map((r) => r.mesKey)).size;
+
+  const porProduto = new Map<string, number>();
+  for (const r of rows) {
+    porProduto.set(r.produto, (porProduto.get(r.produto) ?? 0) + r.quantidade);
+  }
+  const chartData = [...porProduto.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name: name.substring(0, 24), value }));
+
+  return {
+    title: "Top saídas de produtos por mês",
+    subtitle:
+      "Maiores saídas de estoque agregadas por produto e mês (competência da movimentação).",
+    rows,
+    chartData,
+    totals: { totalSaidas },
+    kpis: { totalSaidas, produtosDistintos, mesesCobertos },
+    meta: {
+      kind: "ranking",
+      valueNature: "quantidade",
+      timeAxis: { field: "criacao", label: "mês da saída", required: false },
+      drillDownReady: true,
+    },
+  };
+}
