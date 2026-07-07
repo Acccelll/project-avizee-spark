@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -94,6 +96,24 @@ const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku, variacoes)", hasAtivo: false,
     paginationMode: "all",
+  });
+  // Mapa id→nome dos responsáveis das movimentações. Feito em query separada
+  // porque não existe FK entre `estoque_movimentos.usuario_id` e `profiles.id`
+  // e o PostgREST não faz o embed automaticamente.
+  const { data: profilesMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["estoque-movimentos-profiles"],
+    queryFn: async () => {
+      const { data: profs, error } = await supabase
+        .from("profiles")
+        .select("id, nome, email");
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p) => {
+        map[p.id] = p.nome || p.email || p.id.slice(0, 8);
+      });
+      return map;
+    },
+    staleTime: 5 * 60 * 1000,
   });
   const isMobile = useIsMobile();
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos", paginationMode: "all" });
@@ -461,8 +481,10 @@ const Estoque = () => {
     { key: "responsavel", label: "Responsável", render: (m: Movimento) => {
       const uid = m.usuario_id ?? null;
       if (!uid) return <span className="text-muted-foreground">—</span>;
+      const nome = profilesMap[uid];
+      if (nome) return <span className="text-sm" title={uid}>{nome}</span>;
       return <span className="text-xs font-mono text-muted-foreground" title={uid}>{uid.slice(0, 8)}…</span>;
-    }, hidden: true },
+    } },
   ];
 
   const posColumns = [

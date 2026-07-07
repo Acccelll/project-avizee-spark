@@ -106,6 +106,16 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
       setOrdensVenda(ovs);
       setContasContabeis(contas);
       setCartoes(cs);
+      // Pré-seleção "Revenda" para novas NFs (não edições): busca a primeira
+      // conta contábil cuja descrição/código contenha "revenda".
+      if (!notaId) {
+        const revenda = contas.find((c) =>
+          `${c.descricao ?? ""} ${c.codigo ?? ""}`.toLowerCase().includes("revenda"),
+        );
+        if (revenda) {
+          setForm((f) => (f.conta_contabil_id ? f : { ...f, conta_contabil_id: String(revenda.id) }));
+        }
+      }
     })();
   }, []);
 
