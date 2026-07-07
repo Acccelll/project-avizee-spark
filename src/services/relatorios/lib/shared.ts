@@ -13,6 +13,7 @@ export type TipoRelatorio =
   | "estoque"
   | "movimentos_estoque"
   | "posicao_estoque_data"
+  | "top_saidas_produtos"
   | "financeiro"
   | "fluxo_caixa"
   | "vendas"
