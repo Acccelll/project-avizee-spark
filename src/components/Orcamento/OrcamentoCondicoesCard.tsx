@@ -77,7 +77,13 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
             onChange={(e) => onChange("prazo_entrega", e.target.value)}
             onBlur={(e) => {
               const v = e.target.value.trim();
-              if (v && /^\d+$/.test(v)) onChange("prazo_entrega", `${v} dias úteis`);
+              if (!v) return;
+              // Sempre normaliza para "N dias úteis": aceita "12", "12 dias",
+              // "12 dias corridos", etc., e converte para o padrão.
+              const m = v.match(/^(\d+)/);
+              if (m && !/dias\s+úteis/i.test(v)) {
+                onChange("prazo_entrega", `${m[1]} dias úteis`);
+              }
             }}
             placeholder="Ex: 12 dias úteis"
           />
