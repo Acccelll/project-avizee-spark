@@ -91,8 +91,11 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
 
   const handleSelect = (opcao: FreteOption) => {
     setSelected(opcao.codigo);
-    onSelect(opcao.valor, `CORREIOS (${opcao.servico})`, `${opcao.prazo} dias úteis`);
-    toast.success(`Frete ${opcao.servico} selecionado!`);
+    // Regra de negócio: sempre acrescentar R$ 5,00 sobre o valor consultado
+    // dos Correios ao aplicar no campo Frete do orçamento.
+    const valorComAcrescimo = Number(opcao.valor) + 5;
+    onSelect(valorComAcrescimo, `CORREIOS (${opcao.servico})`, `${opcao.prazo} dias úteis`);
+    toast.success(`Frete ${opcao.servico} selecionado (+R$ 5,00)`);
   };
 
   return (
