@@ -3,12 +3,14 @@ import App from "./App.tsx";
 import "./index.css";
 import { registerPwa } from "./lib/pwa";
 
-// Premium typography stack — Sora for display/headings, Manrope for UI/body.
-import "@fontsource/sora/600.css";
-import "@fontsource/sora/700.css";
-import "@fontsource/manrope/400.css";
-import "@fontsource/manrope/500.css";
-import "@fontsource/manrope/600.css";
+// Premium typography stack — Space Grotesk for display/headings, DM Sans for UI/body.
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/600.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/700.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 

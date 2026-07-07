@@ -31,7 +31,6 @@ import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomiz
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
 import { GreetingBanner } from "@/components/dashboard/GreetingBanner";
-import { DesktopBentoLayout } from "@/components/dashboard/DesktopBentoLayout";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -473,47 +472,28 @@ const DashboardContent = () => {
       />
 
       <div className="space-y-3 md:space-y-4">
-        {/* Desktop premium (v2 bento) — composição fixa, densidade editorial. */}
-        {!isMobile && (
-          <DesktopBentoLayout
-            saldoProjetado={saldoProjetado}
-            totalReceber={stats.totalReceber}
-            totalPagar={stats.totalPagar}
-            contasVencidas={stats.contasVencidas}
-            faturamentoMesAtual={faturamento.mesAtual}
-            faturamentoMesAnterior={faturamento.mesAnterior}
-            estoqueBaixoCount={estoqueBaixo.length}
-            comprasAtrasadasCount={comprasAtrasadasCount}
-            remessasAtrasadasCount={remessasAtrasadas}
-            fiscalPendentes={fiscalStats.pendentes}
-            backlogOVsCount={backlogOVsCount}
-          />
-        )}
-
-        {/* Mobile: mantém rows/collapsibles existentes (customize + pares). */}
-        {isMobile && (
-          <div className="space-y-3 md:space-y-4 stagger-children">
-            {rows.map((row) => {
-              if (row.pair) {
-                const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';
-                return (
-                  <div
-                    key={row.key}
-                    className={
-                      'grid grid-cols-1 gap-4 lg:items-start ' +
-                      (isFinRow ? 'lg:grid-cols-[2fr_1fr]' : 'lg:grid-cols-2')
-                    }
-                  >
-                    {row.items.map((id) => (
-                      <Fragment key={id}>{RENDERERS[id]()}</Fragment>
-                    ))}
-                  </div>
-                );
-              }
-              return <Fragment key={row.key}>{RENDERERS[row.items[0]]()}</Fragment>;
-            })}
-          </div>
-        )}
+        {/* Bento entrance: as linhas/cards aparecem em cascata leve. */}
+        <div className="space-y-3 md:space-y-4 stagger-children">
+        {rows.map((row) => {
+          if (row.pair) {
+            const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';
+            return (
+              <div
+                key={row.key}
+                className={
+                  'grid grid-cols-1 gap-4 lg:items-start ' +
+                  (isFinRow ? 'lg:grid-cols-[2fr_1fr]' : 'lg:grid-cols-2')
+                }
+              >
+                {row.items.map((id) => (
+                  <Fragment key={id}>{RENDERERS[id]()}</Fragment>
+                ))}
+              </div>
+            );
+          }
+          return <Fragment key={row.key}>{RENDERERS[row.items[0]]()}</Fragment>;
+        })}
+        </div>
       </div>
 
       <KpiDetailDrawer

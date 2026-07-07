@@ -35,13 +35,9 @@ export function GreetingBanner({
   const temAlgo = temVencimentos || temBacklog;
 
   return (
-    <div className="relative mb-3 overflow-hidden rounded-2xl border border-border/60 bg-gradient-hero px-4 py-3 shadow-soft md:mb-4 md:px-5 md:py-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl"
-      />
-      <p className="font-display text-base font-semibold tracking-tight text-foreground md:text-lg">
-        {greeting}, <span className="text-primary">{nome?.split(' ')[0] || 'time'}</span>.
+    <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
+      <p className="text-sm font-medium text-foreground">
+        {greeting}, {nome?.split(' ')[0] || 'time'}.
       </p>
       {temAlgo && (
         <p className="mt-0.5 text-xs leading-snug text-muted-foreground">

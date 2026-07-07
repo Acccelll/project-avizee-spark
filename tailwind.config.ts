@@ -18,14 +18,15 @@ export default {
         "xs": "480px",
       },
       fontFamily: {
-        // Body / UI default — Manrope: neutra, geométrica, ótima em densidade alta.
-        sans: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
-        // Display / títulos — Sora dá um tom "digital tool premium".
-        display: ['Sora', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],
-        // Aliases legados.
-        inter: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
-        montserrat: ['Montserrat', 'Manrope', 'system-ui', 'sans-serif'],
+        // Body / UI default — DM Sans é leve, neutro e legível em densidade alta.
+        sans: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Display / títulos — Space Grotesk dá um tom editorial moderno.
+        display: ['"Space Grotesk"', '"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Aliases legados para evitar quebra em classes antigas (`font-inter`,
+        // `font-mono`). Mantêm Montserrat só como fallback para o PDF do orçamento.
+        inter: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"DM Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        montserrat: ['Montserrat', '"DM Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
