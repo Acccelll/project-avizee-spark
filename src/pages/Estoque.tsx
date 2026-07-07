@@ -481,8 +481,10 @@ const Estoque = () => {
     { key: "responsavel", label: "Responsável", render: (m: Movimento) => {
       const uid = m.usuario_id ?? null;
       if (!uid) return <span className="text-muted-foreground">—</span>;
+      const nome = profilesMap[uid];
+      if (nome) return <span className="text-sm" title={uid}>{nome}</span>;
       return <span className="text-xs font-mono text-muted-foreground" title={uid}>{uid.slice(0, 8)}…</span>;
-    }, hidden: true },
+    } },
   ];
 
   const posColumns = [
