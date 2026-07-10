@@ -2992,16 +2992,23 @@ export type Database = {
         Row: {
           arquivo_hash: string | null
           baixa_id: string | null
+          categoria_sugerida: string | null
           conta_bancaria_id: string
           created_at: string
           data: string
           descricao: string | null
+          documento: string | null
           documento_importacao_id: string | null
           empresa_id: string
+          favorecido: string | null
+          favorecido_documento: string | null
           fitid: string
+          forma_pagamento: string | null
           id: string
           importado_por: string | null
+          natureza: string | null
           origem: string
+          origem_padrao: string | null
           status: string
           sugestao_lancamento_id: string | null
           sugestao_motivos: Json | null
@@ -3012,16 +3019,23 @@ export type Database = {
         Insert: {
           arquivo_hash?: string | null
           baixa_id?: string | null
+          categoria_sugerida?: string | null
           conta_bancaria_id: string
           created_at?: string
           data: string
           descricao?: string | null
+          documento?: string | null
           documento_importacao_id?: string | null
           empresa_id: string
+          favorecido?: string | null
+          favorecido_documento?: string | null
           fitid: string
+          forma_pagamento?: string | null
           id?: string
           importado_por?: string | null
+          natureza?: string | null
           origem?: string
+          origem_padrao?: string | null
           status?: string
           sugestao_lancamento_id?: string | null
           sugestao_motivos?: Json | null
@@ -3032,16 +3046,23 @@ export type Database = {
         Update: {
           arquivo_hash?: string | null
           baixa_id?: string | null
+          categoria_sugerida?: string | null
           conta_bancaria_id?: string
           created_at?: string
           data?: string
           descricao?: string | null
+          documento?: string | null
           documento_importacao_id?: string | null
           empresa_id?: string
+          favorecido?: string | null
+          favorecido_documento?: string | null
           fitid?: string
+          forma_pagamento?: string | null
           id?: string
           importado_por?: string | null
+          natureza?: string | null
           origem?: string
+          origem_padrao?: string | null
           status?: string
           sugestao_lancamento_id?: string | null
           sugestao_motivos?: Json | null
