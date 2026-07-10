@@ -527,6 +527,22 @@ export function FinanceiroLancamentoForm({
           });
         }}
       />
+      <QuickAddSupplierModal
+        open={quickAddSupplierOpen}
+        onClose={() => setQuickAddSupplierOpen(false)}
+        onCreated={(id) => {
+          updateField("fornecedor_id", id);
+          setQuickAddSupplierOpen(false);
+        }}
+      />
+      <QuickAddClientModal
+        open={quickAddClienteOpen}
+        onClose={() => setQuickAddClienteOpen(false)}
+        onCreated={(id) => {
+          updateField("cliente_id", id);
+          setQuickAddClienteOpen(false);
+        }}
+      />
     </form>
   );
 }
