@@ -25,6 +25,7 @@ import {
   listarExtratoPersistido,
   type ExtratoTransacaoPersistida,
 } from "@/services/financeiro/extratoImportacoes.service";
+import { registrarFeedbackMatching } from "@/services/financeiro/matching/feedback.service";
 import { useState } from "react";
 
 /** Par de conciliação: transação do extrato ↔ lançamento ERP. */
@@ -32,9 +33,11 @@ export interface ParConciliacao {
   extratoId: string;
   lancamentoId: string;
   /** Origem da sugestão: heurística determinística ou IA fallback. */
-  origem?: "heuristica" | "ia";
+  origem?: "heuristica" | "ia" | "sugestao";
   /** Justificativa textual quando origem === "ia". */
   justificativa?: string;
+  /** Score original da sugestão persistida (Motor Inteligente). */
+  sugestaoScore?: number | null;
 }
 
 /** Estado completo do processo de conciliação para uma conta. */
@@ -67,6 +70,15 @@ export interface UseConciliacaoBancariaResult {
 
   /** Executa a conciliação automática por valor e data. */
   autoMatch: () => void;
+
+  /** Aceita todas as sugestões persistidas com score ≥ minScore. */
+  aceitarSugestoesPersistidas: (minScore?: number) => number;
+
+  /** Sugestões persistidas mapeadas por extratoId. */
+  sugestoesPersistidas: Map<string, { lancamentoId: string; score: number; motivos: string[] | null }>;
+
+  /** Extrato bruto persistido (com campos do Motor Inteligente). */
+  extratoPersistido: ExtratoTransacaoPersistida[];
 
   /** Persiste os pares confirmados no banco de dados. */
   conciliar: () => Promise<void>;
@@ -112,6 +124,21 @@ export function useConciliacaoBancaria(
       tipo: Number(t.valor) >= 0 ? "C" : "D",
     }));
 
+  // Índice fitid → sugestão persistida (Motor Inteligente, ondas 3–4).
+  const sugestoesPersistidas = new Map<
+    string,
+    { lancamentoId: string; score: number; motivos: string[] | null }
+  >();
+  for (const t of extratoPersistido) {
+    if (t.status === "pendente" && t.sugestao_lancamento_id && t.sugestao_score != null) {
+      sugestoesPersistidas.set(t.fitid, {
+        lancamentoId: t.sugestao_lancamento_id,
+        score: Number(t.sugestao_score),
+        motivos: t.sugestao_motivos,
+      });
+    }
+  }
+
   // ── Importar extrato OFX ──────────────────────────────────────────────────
   const importarExtrato = useCallback(async (file: File) => {
     if (!contaId) {
@@ -144,6 +171,29 @@ export function useConciliacaoBancaria(
   const removerPar = useCallback((extratoId: string) => {
     setPares((prev) => prev.filter((p) => p.extratoId !== extratoId));
   }, []);
+
+  // ── Aceita sugestões persistidas em lote (Onda 7) ─────────────────────────
+  const aceitarSugestoesPersistidas = useCallback((minScore = 0.7): number => {
+    const usados = new Set(pares.map((p) => p.lancamentoId));
+    const novos: ParConciliacao[] = [];
+    for (const [fitid, s] of sugestoesPersistidas.entries()) {
+      if (s.score < minScore) continue;
+      if (usados.has(s.lancamentoId)) continue;
+      if (pares.some((p) => p.extratoId === fitid)) continue;
+      novos.push({
+        extratoId: fitid,
+        lancamentoId: s.lancamentoId,
+        origem: "sugestao",
+        sugestaoScore: s.score,
+      });
+      usados.add(s.lancamentoId);
+    }
+    if (novos.length) {
+      setPares((prev) => [...prev, ...novos]);
+      toast.success(`${novos.length} sugestão(ões) aceita(s).`);
+    }
+    return novos.length;
+  }, [pares, sugestoesPersistidas]);
 
   // ── Auto-match por valor e data ───────────────────────────────────────────
   const autoMatch = useCallback(async () => {
@@ -246,6 +296,29 @@ export function useConciliacaoBancaria(
           return conciliarTransacao(contaId, transacao, par.lancamentoId);
         })
       );
+
+      // Onda 7 — feedback ao motor de aprendizado (best-effort).
+      const persistidoByFitid = new Map(extratoPersistido.map((t) => [t.fitid, t]));
+      await Promise.allSettled(
+        pares.map((par) => {
+          const persistido = persistidoByFitid.get(par.extratoId);
+          if (!persistido) return Promise.resolve();
+          const sugerido = persistido.sugestao_lancamento_id;
+          const acao: "aceito" | "trocado" | "manual" =
+            sugerido && sugerido === par.lancamentoId
+              ? "aceito"
+              : sugerido
+                ? "trocado"
+                : "manual";
+          return registrarFeedbackMatching({
+            extrato_importacao_id: persistido.id,
+            lancamento_id: par.lancamentoId,
+            sugestao_lancamento_id: sugerido,
+            sugestao_score: persistido.sugestao_score,
+            acao,
+          });
+        }),
+      );
     },
     onSuccess: () => {
       toast.success(`${pares.length} transação(ões) conciliada(s) com sucesso!`);
@@ -271,6 +344,9 @@ export function useConciliacaoBancaria(
     confirmarPar,
     removerPar,
     autoMatch,
+    aceitarSugestoesPersistidas,
+    sugestoesPersistidas,
+    extratoPersistido,
     conciliar: persistirConciliacao,
     conciliando,
   };
