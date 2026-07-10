@@ -24,9 +24,17 @@ import type { LancamentoComStatus, Match } from "./types";
 import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
+import { listarExtratoPersistido } from "@/services/financeiro/extratoImportacoes.service";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
+const SUGESTAO_SCORE_THRESHOLD = 0.7;
+
+type SugestaoPersistida = {
+  lancamentoId: string;
+  score: number;
+  motivos: string[] | null;
+};
 
 const defaultDataInicio = () => {
   const d = new Date();
@@ -53,6 +61,7 @@ export function useConciliacao() {
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [sugestoesPersistidas, setSugestoesPersistidas] = useState<Map<string, SugestaoPersistida>>(new Map());
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [loadingLanc, setLoadingLanc] = useState(false);
@@ -112,9 +121,45 @@ export function useConciliacao() {
     }
   }, []);
 
+  const loadSugestoesPersistidas = useCallback(async (items: OFXTransaction[], contaId: string) => {
+    if (!contaId || items.length === 0) {
+      setSugestoesPersistidas(new Map());
+      return;
+    }
+    const datas = items.map((i) => i.data).sort();
+    try {
+      const rows = await listarExtratoPersistido({
+        contaBancariaId: contaId,
+        dataInicio: datas[0],
+        dataFim: datas[datas.length - 1],
+      });
+      const fitidsAtuais = new Set(items.map((i) => i.id));
+      const next = new Map<string, SugestaoPersistida>();
+      rows.forEach((row) => {
+        if (
+          row.status === "pendente" &&
+          fitidsAtuais.has(row.fitid) &&
+          row.sugestao_lancamento_id &&
+          row.sugestao_score != null
+        ) {
+          next.set(row.fitid, {
+            lancamentoId: row.sugestao_lancamento_id,
+            score: Number(row.sugestao_score),
+            motivos: row.sugestao_motivos,
+          });
+        }
+      });
+      setSugestoesPersistidas(next);
+    } catch (err) {
+      logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
+      setSugestoesPersistidas(new Map());
+    }
+  }, []);
+
   useEffect(() => {
     loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
     setMatches([]);
+    setSugestoesPersistidas(new Map());
   }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
 
   // OFX upload
@@ -158,6 +203,7 @@ export function useConciliacao() {
               if (res.com_sugestao > 0) {
                 toast.info(`${res.com_sugestao} sugestão(ões) automáticas geradas.`);
               }
+              await loadSugestoesPersistidas(items, selectedConta);
             }
           } catch (persistErr) {
             logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
@@ -185,6 +231,7 @@ export function useConciliacao() {
         toast.success(
           `${res.inseridas} de ${res.total} transações importadas (${res.origem}) — ${res.com_sugestao} com sugestão automática.`,
         );
+        await loadSugestoesPersistidas([], selectedConta);
       }
     } catch (err: unknown) {
       logger.error("[conciliacao] erro ao processar OFX:", err);
@@ -194,6 +241,59 @@ export function useConciliacao() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  const handleAceitarSugestao = useCallback((extratoId: string): boolean => {
+    const sugestao = sugestoesPersistidas.get(extratoId);
+    if (!sugestao) {
+      toast.error("Sugestão não encontrada para esta transação.");
+      return false;
+    }
+    const usados = new Set(matches.map((m) => m.lancamentoId));
+    if (usados.has(sugestao.lancamentoId)) {
+      toast.error("O lançamento sugerido já está pareado.");
+      return false;
+    }
+    setMatches((prev) => [
+      ...prev.filter((m) => m.extratoId !== extratoId && m.lancamentoId !== sugestao.lancamentoId),
+      {
+        extratoId,
+        lancamentoId: sugestao.lancamentoId,
+        origem: "sugestao",
+        sugestaoScore: sugestao.score,
+        sugestaoMotivos: sugestao.motivos,
+      },
+    ]);
+    toast.success("Sugestão aceita.");
+    return true;
+  }, [matches, sugestoesPersistidas]);
+
+  const handleAceitarSugestoesPersistidas = useCallback((minScore = SUGESTAO_SCORE_THRESHOLD): number => {
+    const jaPareados = new Set(matches.map((m) => m.extratoId));
+    const usados = new Set(matches.map((m) => m.lancamentoId));
+    const novos: Match[] = [];
+
+    for (const item of extratoItems) {
+      if (jaPareados.has(item.id)) continue;
+      const sugestao = sugestoesPersistidas.get(item.id);
+      if (!sugestao || sugestao.score < minScore || usados.has(sugestao.lancamentoId)) continue;
+      novos.push({
+        extratoId: item.id,
+        lancamentoId: sugestao.lancamentoId,
+        origem: "sugestao",
+        sugestaoScore: sugestao.score,
+        sugestaoMotivos: sugestao.motivos,
+      });
+      usados.add(sugestao.lancamentoId);
+    }
+
+    if (novos.length === 0) {
+      toast.info("Nenhuma sugestão disponível para aceitar.");
+      return 0;
+    }
+    setMatches((prev) => [...prev, ...novos]);
+    toast.success(`${novos.length} sugestão(ões) aceita(s).`);
+    return novos.length;
+  }, [extratoItems, matches, sugestoesPersistidas]);
 
   const handleContaChange = async (contaId: string) => {
     setSelectedConta(contaId);
@@ -561,11 +661,12 @@ export function useConciliacao() {
     // derivados
     lancamentosComStatus, filteredData,
     pareados, semParOFX, pendentesERP,
-    usedLancamentoIds, getMatch,
+    usedLancamentoIds, getMatch, sugestoesPersistidas,
     // handlers
     handleFileSelect, handleContaChange,
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
+    handleAceitarSugestao, handleAceitarSugestoesPersistidas,
     handleCriarLancamentoInline,
     handleConfirmarSelecao, handleDesvincularExtrato,
     setMatches,
