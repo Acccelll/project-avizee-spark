@@ -3,6 +3,12 @@ export interface OFXTransaction {
   data: string;
   valor: number;
   descricao: string;
+  /** Campos crus adicionais preservados para enriquecimento canônico (Fase 1 do Motor Inteligente). */
+  trntype?: string;
+  name?: string;
+  checknum?: string;
+  refnum?: string;
+  memo?: string;
 }
 
 const ENTITY_MAP: Record<string, string> = {
@@ -50,10 +56,16 @@ export async function parseOFXFile(file: File): Promise<OFXTransaction[]> {
 }
 
 function parseTransaction(block: string, index: number): OFXTransaction {
-  const fitid = extractField(block, "FITID") || extractField(block, "REFNUM") || extractField(block, "CHECKNUM");
+  const rawFitid = extractField(block, "FITID");
+  const refnum = extractField(block, "REFNUM") || undefined;
+  const checknum = extractField(block, "CHECKNUM") || undefined;
+  const fitid = rawFitid || refnum || checknum;
   const dtposted = extractField(block, "DTPOSTED") || extractField(block, "DTAVAIL") || "";
   const trnamt = extractField(block, "TRNAMT") || "";
-  const memo = extractField(block, "MEMO") || extractField(block, "NAME") || extractField(block, "TRNTYPE") || "";
+  const memoRaw = extractField(block, "MEMO") || undefined;
+  const nameRaw = extractField(block, "NAME") || undefined;
+  const trntype = extractField(block, "TRNTYPE") || undefined;
+  const memo = memoRaw || nameRaw || trntype || "";
 
   if (!dtposted) {
     throw new Error(`Transação OFX inválida na posição ${index + 1}: campo DTPOSTED ausente.`);
@@ -75,6 +87,11 @@ function parseTransaction(block: string, index: number): OFXTransaction {
     data,
     valor,
     descricao: memo.trim(),
+    trntype,
+    name: nameRaw,
+    checknum,
+    refnum,
+    memo: memoRaw,
   };
 }
 
