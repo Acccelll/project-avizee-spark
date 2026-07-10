@@ -202,7 +202,7 @@ export function OFXMatchingPane(p: Props) {
               <SortSelect value={sortExtrato} onChange={setSortExtrato} />
             </div>
             <div className="space-y-2">
-            {extratoOrdenado.map((item) => {
+            {extratoVisivel.map((item) => {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
@@ -314,7 +314,7 @@ export function OFXMatchingPane(p: Props) {
                 <SortSelect value={sortExtrato} onChange={setSortExtrato} />
               </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                {extratoOrdenado.map((item) => {
+                {extratoVisivel.map((item) => {
                   const match = p.getMatch(item.id);
                   const isPareado = !!match;
                   const checked = selExtrato.has(item.id);
