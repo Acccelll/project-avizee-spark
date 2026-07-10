@@ -143,12 +143,12 @@ export function OFXMatchingPane(p: Props) {
                         </div>
                       </div>
                       <div className="mt-2">
-                        <Select value={match?.lancamentoId || ""} onValueChange={(val) => p.onManualMatch(item.id, val)}>
+                        <Select value={match?.lancamentoId || "__none__"} onValueChange={(val) => p.onManualMatch(item.id, val === "__none__" ? "" : val)}>
                           <SelectTrigger className="h-9 text-xs">
                             <SelectValue placeholder="Vincular lançamento..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
+                            <SelectItem value="__none__">Nenhum</SelectItem>
                             {p.lancamentos
                               .filter((l) => !p.usedLancamentoIds.has(l.id) || l.id === match?.lancamentoId)
                               .map((l) => (
