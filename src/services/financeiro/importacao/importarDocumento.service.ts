@@ -21,6 +21,7 @@ import { adaptOFX } from "./adapters/ofx";
 import { adaptCSV } from "./adapters/csv";
 import { adaptPDF } from "./adapters/pdf";
 import { aplicarRegrasEAliases, carregarRegrasEAliases } from "../matching/rulesEngine.service";
+import { scoreExtratoPendentes } from "../matching/scoreExtratoPendentes.service";
 import type { ImportacaoDocumentoResumo, OrigemImportacao, StagedTx } from "./types";
 
 function detectarOrigem(file: File): OrigemImportacao {
@@ -144,11 +145,24 @@ export async function importarDocumentoUniversal(input: {
     .update({ status: "processado" })
     .eq("id", docRow.id);
 
+  // 6) Fase 2 — escora candidatos ERP para as linhas recém-inseridas.
+  //    Falhas aqui não abortam o import (matcher é opcional/best-effort).
+  let sugestoesMatcher = 0;
+  try {
+    const r = await scoreExtratoPendentes({
+      empresa_id: input.empresa_id,
+      documento_importacao_id: docRow.id,
+    });
+    sugestoesMatcher = r.com_sugestao;
+  } catch {
+    // silencioso — resumo apenas não conta essas sugestões
+  }
+
   return {
     documento_id: docRow.id,
     origem,
     total: staged.length,
     inseridas: count ?? 0,
-    com_sugestao: comSugestao,
+    com_sugestao: comSugestao + sugestoesMatcher,
   };
 }
