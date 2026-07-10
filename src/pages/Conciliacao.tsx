@@ -221,6 +221,7 @@ export default function Conciliacao() {
               v.setVincularSearch("");
               v.setVincularOpen(true);
             }}
+            onCriarInline={v.handleCriarLancamentoInline}
             onConfirmar={v.handleConfirmarConciliacao}
           />
         )}
