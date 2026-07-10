@@ -27,6 +27,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { sugerirClassificacao } from "@/services/ia/sugestao.service";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { Plus } from "lucide-react";
 
 interface Props {
   form: LancamentoForm;
@@ -75,6 +78,8 @@ export function FinanceiroLancamentoForm({
   // ── IA: sugestão de conta contábil / centro de custo ─────────────────
   const [iaSuggesting, setIaSuggesting] = useState(false);
   const [iaJustificativa, setIaJustificativa] = useState<string | null>(null);
+  const [quickAddSupplierOpen, setQuickAddSupplierOpen] = useState(false);
+  const [quickAddClienteOpen, setQuickAddClienteOpen] = useState(false);
   const handleSugerirClassificacao = async () => {
     if (!form.descricao?.trim()) {
       toast.error("Preencha a descrição antes de pedir a sugestão.");
@@ -205,7 +210,20 @@ export function FinanceiroLancamentoForm({
         </div>
         <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
         {form.tipo === "receber" && (
-          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Cliente</Label>
+          <div className="col-span-2 md:col-span-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Cliente</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuickAddClienteOpen(true)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Novo
+              </Button>
+            </div>
             <AutocompleteSearch
               options={clientes.map((c) => ({
                 id: c.id,
@@ -219,7 +237,20 @@ export function FinanceiroLancamentoForm({
           </div>
         )}
         {form.tipo === "pagar" && (
-          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Fornecedor</Label>
+          <div className="col-span-2 md:col-span-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Fornecedor</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuickAddSupplierOpen(true)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Novo
+              </Button>
+            </div>
             <AutocompleteSearch
               options={fornecedores.map((f) => ({
                 id: f.id,
@@ -494,6 +525,22 @@ export function FinanceiroLancamentoForm({
               ? `${form.observacoes}\nLinha digitável: ${r.linhaDigitavel}`
               : `Linha digitável: ${r.linhaDigitavel}`,
           });
+        }}
+      />
+      <QuickAddSupplierModal
+        open={quickAddSupplierOpen}
+        onClose={() => setQuickAddSupplierOpen(false)}
+        onCreated={(id) => {
+          updateField("fornecedor_id", id);
+          setQuickAddSupplierOpen(false);
+        }}
+      />
+      <QuickAddClientModal
+        open={quickAddClienteOpen}
+        onClose={() => setQuickAddClienteOpen(false)}
+        onCreated={(id) => {
+          updateField("cliente_id", id);
+          setQuickAddClienteOpen(false);
         }}
       />
     </form>

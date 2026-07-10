@@ -31,6 +31,13 @@ interface QuickAddSupplierModalProps {
     email: string;
     telefone: string;
   }>;
+  /**
+   * Marca o cadastro como parcial (`fornecedores.cadastro_status = 'parcial'`).
+   * Padrão: `true` — QuickAdd é por definição um cadastro mínimo que deve
+   * ser completado depois. Passe `false` só se o chamador garantir dados
+   * completos.
+   */
+  cadastroParcial?: boolean;
 }
 
 type TipoPessoa = "F" | "J";
@@ -54,6 +61,7 @@ export function QuickAddSupplierModal({
   onClose,
   onCreated,
   defaults,
+  cadastroParcial = true,
 }: QuickAddSupplierModalProps) {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar fornecedor" });
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -114,6 +122,7 @@ export function QuickAddSupplierModal({
           telefone: form.telefone || null,
           contato: form.contato || null,
           ativo: true,
+          cadastro_status: cadastroParcial ? "parcial" : "completo",
         })
         .select("id")
         .single();
