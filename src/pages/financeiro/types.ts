@@ -27,6 +27,12 @@ export interface LancamentoForm {
   gerar_parcelas: boolean;
   num_parcelas: number;
   intervalo_dias: number;
+  /**
+   * Dados específicos da forma de pagamento (Épico E — Financeiro 2.0).
+   * Persistido em `financeiro_lancamentos.forma_pagamento_dados` (jsonb).
+   * Ex.: `{ chave_pix, txid }`, `{ linha_digitavel }`, `{ tipo: "TED" }`.
+   */
+  forma_pagamento_dados: Record<string, unknown>;
 }
 
 export const emptyLancamentoForm: LancamentoForm = {
@@ -49,6 +55,7 @@ export const emptyLancamentoForm: LancamentoForm = {
   gerar_parcelas: false,
   num_parcelas: 2,
   intervalo_dias: 30,
+  forma_pagamento_dados: {},
 };
 
 export interface FinanceiroAuxiliaresState {
