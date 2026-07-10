@@ -90,8 +90,47 @@ export async function marcarExtratoConciliado(input: {
 }): Promise<void> {
   const { error } = await supabase
     .from("financeiro_extrato_importacoes")
-    .update({ status: "conciliado", baixa_id: input.baixaId })
+    .update({
+      status: "conciliado",
+      baixa_id: input.baixaId,
+      sugestao_lancamento_id: null,
+      sugestao_score: null,
+      sugestao_motivos: null,
+    })
     .eq("id", input.extratoId);
+  if (error) throw new Error(error.message);
+}
+
+/** Marca uma transação persistida como conciliada usando a chave natural do OFX. */
+export async function marcarExtratoConciliadoPorFitid(input: {
+  contaBancariaId: string;
+  fitid: string;
+  baixaId: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .update({
+      status: "conciliado",
+      baixa_id: input.baixaId,
+      sugestao_lancamento_id: null,
+      sugestao_score: null,
+      sugestao_motivos: null,
+    })
+    .eq("conta_bancaria_id", input.contaBancariaId)
+    .eq("fitid", input.fitid);
+  if (error) throw new Error(error.message);
+}
+
+/** Remove a sugestão materializada de uma linha de extrato sem alterar o status. */
+export async function limparSugestaoExtrato(extratoId: string): Promise<void> {
+  const { error } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .update({
+      sugestao_lancamento_id: null,
+      sugestao_score: null,
+      sugestao_motivos: null,
+    })
+    .eq("id", extratoId);
   if (error) throw new Error(error.message);
 }
 
@@ -99,7 +138,13 @@ export async function marcarExtratoConciliado(input: {
 export async function ignorarExtrato(extratoId: string): Promise<void> {
   const { error } = await supabase
     .from("financeiro_extrato_importacoes")
-    .update({ status: "ignorado", baixa_id: null })
+    .update({
+      status: "ignorado",
+      baixa_id: null,
+      sugestao_lancamento_id: null,
+      sugestao_score: null,
+      sugestao_motivos: null,
+    })
     .eq("id", extratoId);
   if (error) throw new Error(error.message);
 }

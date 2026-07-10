@@ -232,8 +232,8 @@ export async function conciliarTransacao(
   contaId: string,
   transacaoExtrato: TransacaoExtrato,
   tituloId?: string,
-): Promise<void> {
-  if (!tituloId) return; // Sem par — nada a persistir por ora
+): Promise<string | null> {
+  if (!tituloId) return null; // Sem par — nada a persistir por ora
 
   const { data: lanc, error: fetchError } = await supabase
     .from("financeiro_lancamentos")
@@ -313,6 +313,8 @@ export async function conciliarTransacao(
     p_status: "conciliado",
     p_extrato_referencia: transacaoExtrato.id,
   });
+
+  return baixaId;
 }
 
 /**
