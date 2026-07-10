@@ -3006,6 +3006,7 @@ export type Database = {
           forma_pagamento: string | null
           id: string
           importado_por: string | null
+          is_transferencia_interna: boolean
           natureza: string | null
           origem: string
           origem_padrao: string | null
@@ -3013,6 +3014,7 @@ export type Database = {
           sugestao_lancamento_id: string | null
           sugestao_motivos: Json | null
           sugestao_score: number | null
+          transferencia_par_id: string | null
           updated_at: string
           valor: number
         }
@@ -3033,6 +3035,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           importado_por?: string | null
+          is_transferencia_interna?: boolean
           natureza?: string | null
           origem?: string
           origem_padrao?: string | null
@@ -3040,6 +3043,7 @@ export type Database = {
           sugestao_lancamento_id?: string | null
           sugestao_motivos?: Json | null
           sugestao_score?: number | null
+          transferencia_par_id?: string | null
           updated_at?: string
           valor: number
         }
@@ -3060,6 +3064,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           importado_por?: string | null
+          is_transferencia_interna?: boolean
           natureza?: string | null
           origem?: string
           origem_padrao?: string | null
@@ -3067,6 +3072,7 @@ export type Database = {
           sugestao_lancamento_id?: string | null
           sugestao_motivos?: Json | null
           sugestao_score?: number | null
+          transferencia_par_id?: string | null
           updated_at?: string
           valor?: number
         }
@@ -3104,6 +3110,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_transferencia_par_id_fkey"
+            columns: ["transferencia_par_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_extrato_importacoes"
             referencedColumns: ["id"]
           },
         ]
