@@ -46,16 +46,22 @@ export default function FinanceiroRegrasAliases() {
   const [tab, setTab] = useState("regras");
   const [regras, setRegras] = useState<Regra[]>([]);
   const [aliases, setAliases] = useState<Alias[]>([]);
+  const [fornecedores, setFornecedores] = useState<{ id: string; nome: string }[]>([]);
+  const [centros, setCentros] = useState<{ id: string; nome: string }[]>([]);
+  const [contasCont, setContasCont] = useState<{ id: string; nome: string }[]>([]);
   const [novaRegra, setNovaRegra] = useState({
     nome: "",
     padrao: "",
     padrao_tipo: "substring",
     quando_tipo: "ambos",
     prioridade: 100,
+    aplica_fornecedor_id: "",
+    aplica_centro_custo_id: "",
+    aplica_conta_contabil_id: "",
   });
 
   const carregar = async () => {
-    const [rRes, aRes] = await Promise.all([
+    const [rRes, aRes, fRes, cRes, ccRes] = await Promise.all([
       supabase
         .from("financeiro_regras")
         .select("*")
@@ -65,11 +71,36 @@ export default function FinanceiroRegrasAliases() {
         .select("*")
         .order("hits", { ascending: false })
         .limit(200),
+      supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social")
+        .order("nome_razao_social")
+        .limit(1000),
+      supabase.from("centros_custo").select("id, descricao").order("descricao").limit(500),
+      supabase.from("contas_contabeis").select("id, descricao").order("descricao").limit(1000),
     ]);
     if (rRes.error) logger.error("[regras]", rRes.error);
     if (aRes.error) logger.error("[aliases]", aRes.error);
     setRegras((rRes.data as Regra[]) ?? []);
     setAliases((aRes.data as Alias[]) ?? []);
+    setFornecedores(
+      ((fRes.data as { id: string; nome_razao_social: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.nome_razao_social,
+      })),
+    );
+    setCentros(
+      ((cRes.data as { id: string; descricao: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.descricao,
+      })),
+    );
+    setContasCont(
+      ((ccRes.data as { id: string; descricao: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.descricao,
+      })),
+    );
   };
 
   useEffect(() => {
@@ -81,6 +112,22 @@ export default function FinanceiroRegrasAliases() {
       toast.error("Informe nome e padrão.");
       return;
     }
+    const alvoDefinido =
+      novaRegra.aplica_fornecedor_id ||
+      novaRegra.aplica_centro_custo_id ||
+      novaRegra.aplica_conta_contabil_id;
+    if (!alvoDefinido) {
+      toast.error("Escolha ao menos um alvo (fornecedor, centro de custo ou conta contábil).");
+      return;
+    }
+    if (novaRegra.padrao_tipo === "regex") {
+      try {
+        new RegExp(novaRegra.padrao);
+      } catch {
+        toast.error("Regex inválida.");
+        return;
+      }
+    }
     const { error } = await supabase.from("financeiro_regras").insert({
       nome: novaRegra.nome.trim(),
       padrao: novaRegra.padrao.trim(),
@@ -88,10 +135,16 @@ export default function FinanceiroRegrasAliases() {
       quando_tipo: novaRegra.quando_tipo,
       prioridade: Number(novaRegra.prioridade) || 100,
       ativo: true,
+      aplica_fornecedor_id: novaRegra.aplica_fornecedor_id || null,
+      aplica_centro_custo_id: novaRegra.aplica_centro_custo_id || null,
+      aplica_conta_contabil_id: novaRegra.aplica_conta_contabil_id || null,
     });
     if (error) return toast.error(error.message);
     toast.success("Regra criada.");
-    setNovaRegra({ nome: "", padrao: "", padrao_tipo: "substring", quando_tipo: "ambos", prioridade: 100 });
+    setNovaRegra({
+      nome: "", padrao: "", padrao_tipo: "substring", quando_tipo: "ambos", prioridade: 100,
+      aplica_fornecedor_id: "", aplica_centro_custo_id: "", aplica_conta_contabil_id: "",
+    });
     carregar();
   };
 
@@ -160,6 +213,51 @@ export default function FinanceiroRegrasAliases() {
                     <SelectItem value="ambos">ambos</SelectItem>
                     <SelectItem value="debito">débito</SelectItem>
                     <SelectItem value="credito">crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Fornecedor (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_fornecedor_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_fornecedor_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhum —</SelectItem>
+                    {fornecedores.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Centro de custo (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_centro_custo_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_centro_custo_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhum —</SelectItem>
+                    {centros.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Conta contábil (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_conta_contabil_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_conta_contabil_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhuma —</SelectItem>
+                    {contasCont.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
