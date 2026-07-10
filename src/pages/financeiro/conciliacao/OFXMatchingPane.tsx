@@ -309,7 +309,8 @@ export function OFXMatchingPane(p: Props) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Extrato OFX ({p.extratoItems.length} transações)
+                  Extrato OFX ({extratoVisivel.length}
+                  {conciliadosOcultos > 0 && hideConciliados ? ` de ${p.extratoItems.length}` : ""} transações)
                 </h3>
                 <SortSelect value={sortExtrato} onChange={setSortExtrato} />
               </div>
