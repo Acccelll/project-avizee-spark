@@ -216,6 +216,51 @@ export default function FinanceiroRegrasAliases() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Fornecedor (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_fornecedor_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_fornecedor_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhum —</SelectItem>
+                    {fornecedores.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Centro de custo (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_centro_custo_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_centro_custo_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhum —</SelectItem>
+                    {centros.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs">Conta contábil (alvo)</Label>
+                <Select
+                  value={novaRegra.aplica_conta_contabil_id || "__none__"}
+                  onValueChange={(v) => setNovaRegra({ ...novaRegra, aplica_conta_contabil_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— nenhuma —</SelectItem>
+                    {contasCont.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="md:col-span-6 flex justify-end">
                 <Button onClick={criarRegra}><Plus className="w-4 h-4 mr-1" /> Adicionar</Button>
               </div>
