@@ -25,7 +25,6 @@ import {
   listarExtratoPersistido,
   type ExtratoTransacaoPersistida,
 } from "@/services/financeiro/extratoImportacoes.service";
-import { registrarFeedbackMatching } from "@/services/financeiro/matching/feedback.service";
 import { useState } from "react";
 
 /** Par de conciliação: transação do extrato ↔ lançamento ERP. */
@@ -295,29 +294,6 @@ export function useConciliacaoBancaria(
           if (!transacao) return Promise.resolve();
           return conciliarTransacao(contaId, transacao, par.lancamentoId);
         })
-      );
-
-      // Onda 7 — feedback ao motor de aprendizado (best-effort).
-      const persistidoByFitid = new Map(extratoPersistido.map((t) => [t.fitid, t]));
-      await Promise.allSettled(
-        pares.map((par) => {
-          const persistido = persistidoByFitid.get(par.extratoId);
-          if (!persistido) return Promise.resolve();
-          const sugerido = persistido.sugestao_lancamento_id;
-          const acao: "aceito" | "trocado" | "manual" =
-            sugerido && sugerido === par.lancamentoId
-              ? "aceito"
-              : sugerido
-                ? "trocado"
-                : "manual";
-          return registrarFeedbackMatching({
-            extrato_importacao_id: persistido.id,
-            lancamento_id: par.lancamentoId,
-            sugestao_lancamento_id: sugerido,
-            sugestao_score: persistido.sugestao_score,
-            acao,
-          });
-        }),
       );
     },
     onSuccess: () => {
