@@ -9,6 +9,6 @@ export interface LancamentoComStatus extends Lancamento {
 export interface Match {
   extratoId: string;
   lancamentoId: string;
-  origem?: "heuristica" | "ia";
+  origem?: "heuristica" | "ia" | "inline";
   justificativa?: string;
 }
