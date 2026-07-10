@@ -27,6 +27,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { sugerirClassificacao } from "@/services/ia/sugestao.service";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { Plus } from "lucide-react";
 
 interface Props {
   form: LancamentoForm;
@@ -75,6 +78,8 @@ export function FinanceiroLancamentoForm({
   // ── IA: sugestão de conta contábil / centro de custo ─────────────────
   const [iaSuggesting, setIaSuggesting] = useState(false);
   const [iaJustificativa, setIaJustificativa] = useState<string | null>(null);
+  const [quickAddSupplierOpen, setQuickAddSupplierOpen] = useState(false);
+  const [quickAddClienteOpen, setQuickAddClienteOpen] = useState(false);
   const handleSugerirClassificacao = async () => {
     if (!form.descricao?.trim()) {
       toast.error("Preencha a descrição antes de pedir a sugestão.");
