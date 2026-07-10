@@ -210,7 +210,20 @@ export function FinanceiroLancamentoForm({
         </div>
         <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
         {form.tipo === "receber" && (
-          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Cliente</Label>
+          <div className="col-span-2 md:col-span-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Cliente</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuickAddClienteOpen(true)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Novo
+              </Button>
+            </div>
             <AutocompleteSearch
               options={clientes.map((c) => ({
                 id: c.id,
@@ -224,7 +237,20 @@ export function FinanceiroLancamentoForm({
           </div>
         )}
         {form.tipo === "pagar" && (
-          <div className="col-span-2 md:col-span-3 space-y-2"><Label>Fornecedor</Label>
+          <div className="col-span-2 md:col-span-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Fornecedor</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuickAddSupplierOpen(true)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Novo
+              </Button>
+            </div>
             <AutocompleteSearch
               options={fornecedores.map((f) => ({
                 id: f.id,
