@@ -9,15 +9,9 @@ import {
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
-import type { Match } from "./types";
+import type { Match, SugestaoPersistida } from "./types";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
-
-type SugestaoPersistida = {
-  lancamentoId: string;
-  score: number;
-  motivos: string[] | null;
-};
 
 function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
   return (
@@ -69,6 +63,7 @@ interface Props {
   sugestoesPersistidas?: Map<string, SugestaoPersistida>;
   onAceitarSugestao?: (extratoId: string) => boolean;
   onAceitarSugestoesPersistidas?: () => number;
+  onRejeitarSugestao?: (extratoId: string) => boolean;
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -247,6 +242,12 @@ export function OFXMatchingPane(p: Props) {
                             <Sparkles className="w-4 h-4" /> Aceitar
                           </Button>
                         )}
+                        {podeAceitarSugestao && p.onRejeitarSugestao && (
+                          <Button size="sm" variant="ghost" className="h-11 px-3"
+                            onClick={() => p.onRejeitarSugestao!(item.id)} title="Rejeitar sugestão">
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        )}
                         {p.onCriarInline && (
                           <Button size="sm" variant="secondary" className="h-11 gap-1"
                             onClick={() => p.onCriarInline!(item.id)}
@@ -333,11 +334,21 @@ export function OFXMatchingPane(p: Props) {
                               {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)} · {Math.round(sugestao.score * 100)}%
                             </p>
                           </div>
-                          {p.onAceitarSugestao && (
-                            <Button size="sm" variant="secondary" className="h-7 text-xs gap-1 shrink-0"
-                              onClick={() => p.onAceitarSugestao!(item.id)}>
-                              <CheckCircle className="w-3 h-3" /> Aceitar
-                            </Button>
+                          {(p.onAceitarSugestao || p.onRejeitarSugestao) && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {p.onAceitarSugestao && (
+                                <Button size="sm" variant="secondary" className="h-7 text-xs gap-1"
+                                  onClick={() => p.onAceitarSugestao!(item.id)}>
+                                  <CheckCircle className="w-3 h-3" /> Aceitar
+                                </Button>
+                              )}
+                              {p.onRejeitarSugestao && (
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
+                                  onClick={() => p.onRejeitarSugestao!(item.id)} title="Rejeitar sugestão">
+                                  <XCircle className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}

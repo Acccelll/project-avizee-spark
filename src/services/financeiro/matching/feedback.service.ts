@@ -8,7 +8,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AcaoFeedback = "aceito" | "rejeitado" | "trocado" | "manual";
+export type AcaoFeedback = "aceita" | "rejeitada" | "corrigida" | "criada_inline";
 
 export interface FeedbackMatchingInput {
   empresa_id: string;
@@ -38,7 +38,7 @@ export async function registrarFeedbackMatching(input: FeedbackMatchingInput): P
   // materializa/reforça um alias `descricao_normalizada → alvo` para acelerar
   // matches futuros. Rejeições não geram alias.
   if (
-    (input.acao === "aceito" || input.acao === "trocado" || input.acao === "manual") &&
+    (input.acao === "aceita" || input.acao === "corrigida" || input.acao === "criada_inline") &&
     input.extrato_id &&
     input.escolha_final_lancamento_id
   ) {

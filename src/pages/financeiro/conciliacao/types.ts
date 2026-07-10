@@ -14,3 +14,10 @@ export interface Match {
   sugestaoScore?: number | null;
   sugestaoMotivos?: string[] | null;
 }
+
+export interface SugestaoPersistida {
+  extratoPersistidoId: string;
+  lancamentoId: string;
+  score: number;
+  motivos: string[] | null;
+}
