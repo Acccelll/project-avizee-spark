@@ -116,6 +116,14 @@ export async function importarDocumentoUniversal(input: {
       documento_importacao_id: docRow.id,
       sugestao_score: score,
       sugestao_motivos: motivos,
+      // Fase 1 (Motor Inteligente) — enriquecimento canônico do OFX.
+      natureza: s.natureza ?? null,
+      favorecido: s.favorecido ?? null,
+      favorecido_documento: s.favorecido_documento ?? null,
+      forma_pagamento: s.forma_pagamento ?? null,
+      documento: s.documento ?? null,
+      categoria_sugerida: s.categoria_sugerida ?? null,
+      origem_padrao: s.origem_padrao ?? null,
     };
   });
 
