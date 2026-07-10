@@ -480,41 +480,31 @@ export function useConciliacao() {
         );
         return false;
       }
+      const novos: Match[] = [];
+      if (extratoIds.length === 1) {
+        const eid = extratoIds[0];
+        for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+      } else {
+        const lid = lancamentoIds[0];
+        for (const eid of extratoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+      }
+
+      novos.forEach((match) => {
+        const sugestao = sugestoesPersistidas.get(match.extratoId);
+        if (!sugestao) return;
+        registrarFeedbackSugestao({
+          extratoId: match.extratoId,
+          acao: sugestao.lancamentoId === match.lancamentoId ? "aceita" : "corrigida",
+          escolhaFinalLancamentoId: match.lancamentoId,
+          motivo: "Sugestão persistida revisada via seleção múltipla.",
+        });
+      });
+
       setMatches((prev) => {
         // Remove pares existentes envolvendo qualquer id selecionado.
         const limpo = prev.filter(
           (m) => !extratoIds.includes(m.extratoId) && !lancamentoIds.includes(m.lancamentoId),
         );
-        const novos: Match[] = [];
-        if (extratoIds.length === 1) {
-          const eid = extratoIds[0];
-          for (const lid of lancamentoIds) {
-            novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
-            const sugestao = sugestoesPersistidas.get(eid);
-            if (sugestao) {
-              registrarFeedbackSugestao({
-                extratoId: eid,
-                acao: sugestao.lancamentoId === lid ? "aceita" : "corrigida",
-                escolhaFinalLancamentoId: lid,
-                motivo: "Sugestão persistida revisada via seleção múltipla.",
-              });
-            }
-          }
-        } else {
-          const lid = lancamentoIds[0];
-          for (const eid of extratoIds) {
-            novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
-            const sugestao = sugestoesPersistidas.get(eid);
-            if (sugestao) {
-              registrarFeedbackSugestao({
-                extratoId: eid,
-                acao: sugestao.lancamentoId === lid ? "aceita" : "corrigida",
-                escolhaFinalLancamentoId: lid,
-                motivo: "Sugestão persistida revisada via seleção múltipla.",
-              });
-            }
-          }
-        }
         return [...limpo, ...novos];
       });
       toast.success(
