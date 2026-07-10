@@ -22,6 +22,7 @@ import { adaptCSV } from "./adapters/csv";
 import { adaptPDF } from "./adapters/pdf";
 import { aplicarRegrasEAliases, carregarRegrasEAliases } from "../matching/rulesEngine.service";
 import { scoreExtratoPendentes } from "../matching/scoreExtratoPendentes.service";
+import { detectarTransferenciasInternas } from "../matching/detectarTransferencias.service";
 import type { ImportacaoDocumentoResumo, OrigemImportacao, StagedTx } from "./types";
 
 function detectarOrigem(file: File): OrigemImportacao {
@@ -65,6 +66,22 @@ export async function importarDocumentoUniversal(input: {
 
   // 2) header em financeiro_importacoes_docs
   const arquivoHash = rawTexto ? await hashArquivo(rawTexto) : null;
+
+  // Prevenção de reimport (Fase 3): mesmo arquivo já processado pela empresa.
+  if (arquivoHash) {
+    const { data: existente } = await supabase
+      .from("financeiro_importacoes_docs")
+      .select("id")
+      .eq("empresa_id", input.empresa_id)
+      .eq("arquivo_hash", arquivoHash)
+      .maybeSingle();
+    if (existente) {
+      throw new Error(
+        "Arquivo já importado anteriormente para esta empresa (hash idêntico).",
+      );
+    }
+  }
+
   const datas = staged.map((s) => s.data).sort();
   const { data: userRes } = await supabase.auth.getUser();
   const importadoPor = userRes?.user?.id ?? null;
@@ -156,6 +173,13 @@ export async function importarDocumentoUniversal(input: {
     sugestoesMatcher = r.com_sugestao;
   } catch {
     // silencioso — resumo apenas não conta essas sugestões
+  }
+
+  // 7) Fase 3 — detecta pares de transferências internas entre contas próprias.
+  try {
+    await detectarTransferenciasInternas({ empresa_id: input.empresa_id });
+  } catch {
+    // best-effort
   }
 
   return {
