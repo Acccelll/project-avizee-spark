@@ -126,7 +126,7 @@ export function useConciliacao() {
     if (!contaId || items.length === 0) {
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
-      return;
+      return { conciliados: 0, sugestoes: 0 };
     }
     const datas = items.map((i) => i.data).sort();
     try {
@@ -162,10 +162,12 @@ export function useConciliacao() {
       });
       setSugestoesPersistidas(next);
       setConciliadosPersistidos(conciliados);
+      return { conciliados: conciliados.size, sugestoes: next.size };
     } catch (err) {
       logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      return { conciliados: 0, sugestoes: 0 };
     }
   }, []);
 
