@@ -139,6 +139,30 @@ export function useConciliacao() {
           const dates = items.map((i) => i.data).sort();
           await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
         }
+        // Onda 7 — também persiste o OFX no Motor Universal para gerar
+        // sugestões (best-effort; falha silenciosa não bloqueia a UI).
+        if (selectedConta) {
+          try {
+            const { data: userRes } = await supabase.auth.getUser();
+            const { data: ue } = await supabase
+              .from("user_empresas")
+              .select("empresa_id")
+              .eq("user_id", userRes?.user?.id ?? "")
+              .maybeSingle();
+            if (ue?.empresa_id) {
+              const res = await importarDocumentoUniversal({
+                file,
+                empresa_id: ue.empresa_id,
+                conta_bancaria_id: selectedConta,
+              });
+              if (res.com_sugestao > 0) {
+                toast.info(`${res.com_sugestao} sugestão(ões) automáticas geradas.`);
+              }
+            }
+          } catch (persistErr) {
+            logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
+          }
+        }
       } else {
         // Motor Universal (PDF/CSV) — grava no banco e recarrega
         if (!selectedConta) {
