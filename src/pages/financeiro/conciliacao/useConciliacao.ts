@@ -259,7 +259,18 @@ export function useConciliacao() {
               if (res.com_sugestao > 0) {
                 toast.info(`${res.com_sugestao} sugestão(ões) automáticas geradas.`);
               }
-              await loadSugestoesPersistidas(items, selectedConta);
+              const duplicadas = Math.max(0, (res.total ?? items.length) - (res.inseridas ?? 0));
+              if (duplicadas > 0) {
+                toast.info(
+                  `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
+                );
+              }
+              const meta = await loadSugestoesPersistidas(items, selectedConta);
+              if (meta && meta.conciliados > 0) {
+                toast.info(
+                  `${meta.conciliados} transação(ões) já conciliadas em sessões anteriores foram ocultadas.`,
+                );
+              }
             }
           } catch (persistErr) {
             logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
@@ -287,6 +298,12 @@ export function useConciliacao() {
         toast.success(
           `${res.inseridas} de ${res.total} transações importadas (${res.origem}) — ${res.com_sugestao} com sugestão automática.`,
         );
+        const duplicadas = Math.max(0, (res.total ?? 0) - (res.inseridas ?? 0));
+        if (duplicadas > 0) {
+          toast.info(
+            `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
+          );
+        }
         await loadSugestoesPersistidas([], selectedConta);
       }
     } catch (err: unknown) {
