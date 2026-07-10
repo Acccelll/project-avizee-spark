@@ -97,14 +97,22 @@ export async function criarLancamentoInlineDoExtrato(
     .single();
   if (insErr) throw new Error(insErr.message);
 
-  const baixaId = await registrarBaixaFinanceiraRpc({
-    p_lancamento_id: lanc.id,
-    p_valor_pago: valor,
-    p_data_baixa: extrato.data,
-    p_forma_pagamento: "extrato_conciliacao",
-    p_conta_bancaria_id: input.conta_bancaria_id,
-    p_observacoes: `Baixa automática — criação inline (${extrato.id})`,
-  });
+  // Compensação: se a baixa falhar, apaga o lançamento recém-criado para não
+  // deixar título órfão em "aberto".
+  let baixaId: string;
+  try {
+    baixaId = await registrarBaixaFinanceiraRpc({
+      p_lancamento_id: lanc.id,
+      p_valor_pago: valor,
+      p_data_baixa: extrato.data,
+      p_forma_pagamento: "extrato_conciliacao",
+      p_conta_bancaria_id: input.conta_bancaria_id,
+      p_observacoes: `Baixa automática — criação inline (${extrato.id})`,
+    });
+  } catch (err) {
+    await supabase.from("financeiro_lancamentos").delete().eq("id", lanc.id);
+    throw err;
+  }
 
   return { lancamento_id: lanc.id, baixa_id: baixaId, hint_aplicado: hintAplicado };
 }
