@@ -187,6 +187,7 @@ export const navSections: NavSection[] = [
           { title: 'Cartões de Crédito', path: '/cartoes-credito', icon: CreditCard, keywords: ['cartao', 'fatura', 'credito'] },
           { title: 'Plano de Contas', path: '/contas-contabeis-plano', icon: FileSearch, keywords: ['contabil'] },
           { title: 'Conciliação', path: '/conciliacao', icon: DollarSign, keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
+          { title: 'Aprendizado do matching', path: '/financeiro/matching-aprendizado', icon: BarChart3, keywords: ['aprendizado', 'matching', 'sugestoes', 'metricas', 'feedback', 'conciliar'] },
           { title: 'Budget Mensal', path: '/financeiro/budget', icon: BarChart3, keywords: ['orcamento', 'meta', 'planejamento', 'workbook'] },
         ],
       },
