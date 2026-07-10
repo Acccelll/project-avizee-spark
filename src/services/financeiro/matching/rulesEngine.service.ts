@@ -40,15 +40,14 @@ interface FinanceiroAlias {
 interface FinanceiroRegra {
   id: string;
   nome: string;
-  padrao_tipo: "substring" | "regex";
+  padrao_tipo: string;
   padrao: string;
-  quando_tipo: "debito" | "credito" | "ambos";
+  quando_tipo: string;
   prioridade: number;
   ativo: boolean;
-  fornecedor_id: string | null;
-  cliente_id: string | null;
-  centro_custo_id: string | null;
-  conta_contabil_id: string | null;
+  aplica_fornecedor_id: string | null;
+  aplica_centro_custo_id: string | null;
+  aplica_conta_contabil_id: string | null;
 }
 
 /** Normalização canônica: usada tanto para aliases quanto para regras. */
@@ -109,10 +108,10 @@ export function aplicarRegrasEAliases(params: {
     }
     if (bate) {
       return {
-        fornecedor_id: regra.fornecedor_id,
-        cliente_id: regra.cliente_id,
-        centro_custo_id: regra.centro_custo_id,
-        conta_contabil_id: regra.conta_contabil_id,
+        fornecedor_id: regra.aplica_fornecedor_id,
+        cliente_id: null,
+        centro_custo_id: regra.aplica_centro_custo_id,
+        conta_contabil_id: regra.aplica_conta_contabil_id,
         fonte: "regra",
         motivo: `regra "${regra.nome}" (${regra.padrao_tipo})`,
         regra_id: regra.id,
@@ -135,7 +134,7 @@ export async function carregarRegrasEAliases(empresaId: string): Promise<{
       .eq("empresa_id", empresaId),
     supabase
       .from("financeiro_regras")
-      .select("id, nome, padrao_tipo, padrao, quando_tipo, prioridade, ativo, fornecedor_id, cliente_id, centro_custo_id, conta_contabil_id")
+      .select("id, nome, padrao_tipo, padrao, quando_tipo, prioridade, ativo, aplica_fornecedor_id, aplica_centro_custo_id, aplica_conta_contabil_id")
       .eq("empresa_id", empresaId)
       .eq("ativo", true),
   ]);
@@ -144,8 +143,8 @@ export async function carregarRegrasEAliases(empresaId: string): Promise<{
   if (regrasRes.error) throw new Error(regrasRes.error.message);
 
   return {
-    aliases: (aliasesRes.data ?? []) as FinanceiroAlias[],
-    regras: (regrasRes.data ?? []) as FinanceiroRegra[],
+    aliases: (aliasesRes.data ?? []) as unknown as FinanceiroAlias[],
+    regras: (regrasRes.data ?? []) as unknown as FinanceiroRegra[],
   };
 }
 
@@ -192,7 +191,6 @@ export async function confirmarAlias(params: {
   await supabase.from("financeiro_aliases").insert({
     empresa_id: params.empresa_id,
     descricao_normalizada: desc,
-    descricao_exemplo: params.descricao,
     fornecedor_id: params.fornecedor_id ?? null,
     cliente_id: params.cliente_id ?? null,
     centro_custo_id: params.centro_custo_id ?? null,
