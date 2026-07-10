@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +9,37 @@ import {
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
 import type { Match } from "./types";
+
+type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
+
+function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as SortKey)}>
+      <SelectTrigger className="h-7 w-[150px] text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="data-asc">Data ↑</SelectItem>
+        <SelectItem value="data-desc">Data ↓</SelectItem>
+        <SelectItem value="valor-asc">Valor ↑</SelectItem>
+        <SelectItem value="valor-desc">Valor ↓</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function sortBy<T>(items: T[], key: SortKey, getDate: (i: T) => string, getValor: (i: T) => number): T[] {
+  const arr = [...items];
+  arr.sort((a, b) => {
+    switch (key) {
+      case "data-asc": return getDate(a).localeCompare(getDate(b));
+      case "data-desc": return getDate(b).localeCompare(getDate(a));
+      case "valor-asc": return Math.abs(getValor(a)) - Math.abs(getValor(b));
+      case "valor-desc": return Math.abs(getValor(b)) - Math.abs(getValor(a));
+    }
+  });
+  return arr;
+}
 
 interface Props {
   extratoItems: OFXTransaction[];
@@ -28,6 +60,16 @@ interface Props {
 }
 
 export function OFXMatchingPane(p: Props) {
+  const [sortExtrato, setSortExtrato] = useState<SortKey>("data-asc");
+  const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
+  const extratoOrdenado = useMemo(
+    () => sortBy(p.extratoItems, sortExtrato, (i) => i.data, (i) => i.valor),
+    [p.extratoItems, sortExtrato],
+  );
+  const lancamentosOrdenados = useMemo(
+    () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
+    [p.lancamentos, sortLanc],
+  );
   return (
     <div className="mt-6 rounded-lg border border-border/60">
       <button
@@ -52,8 +94,13 @@ export function OFXMatchingPane(p: Props) {
       {p.showOFXPane && (
         <div className="p-4 border-t border-border/60">
           {/* MOBILE */}
-          <div className="md:hidden space-y-2 mb-4">
-            {p.extratoItems.map((item) => {
+          <div className="md:hidden mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase">Extrato OFX</span>
+              <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+            </div>
+            <div className="space-y-2">
+            {extratoOrdenado.map((item) => {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
@@ -110,16 +157,20 @@ export function OFXMatchingPane(p: Props) {
                 </div>
               );
             })}
+            </div>
           </div>
 
           {/* DESKTOP split */}
           <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             <div>
-              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                Extrato OFX ({p.extratoItems.length} transações)
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Extrato OFX ({p.extratoItems.length} transações)
+                </h3>
+                <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+              </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                {p.extratoItems.map((item) => {
+                {extratoOrdenado.map((item) => {
                   const match = p.getMatch(item.id);
                   const isPareado = !!match;
                   return (
@@ -175,9 +226,12 @@ export function OFXMatchingPane(p: Props) {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                Lançamentos ERP ({p.lancamentos.length} no período)
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Lançamentos ERP ({p.lancamentos.length} no período)
+                </h3>
+                <SortSelect value={sortLanc} onChange={setSortLanc} />
+              </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                 {p.lancamentos.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic">
@@ -186,7 +240,7 @@ export function OFXMatchingPane(p: Props) {
                       : "Selecione uma conta bancária para carregar lançamentos."}
                   </p>
                 ) : (
-                  p.lancamentos.map((l) => {
+                  lancamentosOrdenados.map((l) => {
                     const isPareado = p.usedLancamentoIds.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
