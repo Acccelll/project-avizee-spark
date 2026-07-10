@@ -36,11 +36,15 @@ export function ConciliacaoTopControls(p: Props) {
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
           <Landmark className="w-3 h-3" />Conta Bancária
         </label>
-        <Select value={p.selectedConta} onValueChange={p.onContaChange}>
+        <Select
+          value={p.selectedConta || "__all__"}
+          onValueChange={(v) => p.onContaChange(v === "__all__" ? "" : v)}
+        >
           <SelectTrigger className="w-full sm:w-64">
-            <SelectValue placeholder="Selecionar conta..." />
+            <SelectValue placeholder="Todas as contas" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__all__">Todas as contas</SelectItem>
             {p.contasBancarias.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.nome}{c.banco ? ` — ${c.banco}` : ""}

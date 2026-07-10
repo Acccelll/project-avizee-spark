@@ -103,10 +103,9 @@ export function useConciliacao() {
 
   // Carga de lançamentos
   const loadLancamentosFromPeriod = useCallback(async (from: string, to: string, contaId: string) => {
-    if (!contaId) return;
     setLoadingLanc(true);
     try {
-      const rows = await fetchLancamentosParaConciliacao(contaId, from, to);
+      const rows = await fetchLancamentosParaConciliacao(contaId || null, from, to);
       setLancamentos(rows);
     } finally {
       setLoadingLanc(false);
@@ -114,12 +113,8 @@ export function useConciliacao() {
   }, []);
 
   useEffect(() => {
-    if (selectedConta) {
-      loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
-      setMatches([]);
-    } else {
-      setLancamentos([]);
-    }
+    loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+    setMatches([]);
   }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
 
   // OFX upload
