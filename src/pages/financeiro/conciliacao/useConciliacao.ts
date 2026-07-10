@@ -488,10 +488,32 @@ export function useConciliacao() {
         const novos: Match[] = [];
         if (extratoIds.length === 1) {
           const eid = extratoIds[0];
-          for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+          for (const lid of lancamentoIds) {
+            novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+            const sugestao = sugestoesPersistidas.get(eid);
+            if (sugestao) {
+              registrarFeedbackSugestao({
+                extratoId: eid,
+                acao: sugestao.lancamentoId === lid ? "aceita" : "corrigida",
+                escolhaFinalLancamentoId: lid,
+                motivo: "Sugestão persistida revisada via seleção múltipla.",
+              });
+            }
+          }
         } else {
           const lid = lancamentoIds[0];
-          for (const eid of extratoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+          for (const eid of extratoIds) {
+            novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+            const sugestao = sugestoesPersistidas.get(eid);
+            if (sugestao) {
+              registrarFeedbackSugestao({
+                extratoId: eid,
+                acao: sugestao.lancamentoId === lid ? "aceita" : "corrigida",
+                escolhaFinalLancamentoId: lid,
+                motivo: "Sugestão persistida revisada via seleção múltipla.",
+              });
+            }
+          }
         }
         return [...limpo, ...novos];
       });
@@ -500,7 +522,7 @@ export function useConciliacao() {
       );
       return true;
     },
-    [],
+    [registrarFeedbackSugestao, sugestoesPersistidas],
   );
 
   const handleDesvincularExtrato = useCallback((extratoId: string) => {
@@ -748,7 +770,7 @@ export function useConciliacao() {
     handleFileSelect, handleContaChange,
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
-    handleAceitarSugestao, handleAceitarSugestoesPersistidas,
+    handleAceitarSugestao, handleAceitarSugestoesPersistidas, handleRejeitarSugestao,
     handleCriarLancamentoInline,
     handleConfirmarSelecao, handleDesvincularExtrato,
     setMatches,
