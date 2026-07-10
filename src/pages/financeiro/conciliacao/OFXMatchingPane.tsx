@@ -159,6 +159,15 @@ export function OFXMatchingPane(p: Props) {
                           </SelectContent>
                         </Select>
                       </div>
+                      {!isPareado && p.onCriarInline && (
+                        <div className="mt-2 flex justify-end">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
+                            onClick={() => p.onCriarInline!(item.id)}
+                            title="Criar lançamento e baixar automaticamente">
+                            <Plus className="w-3 h-3" /> Criar lançamento
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
