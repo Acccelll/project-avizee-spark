@@ -74,12 +74,29 @@ export function OFXMatchingPane(p: Props) {
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
   const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
+  // Onda 12 — por padrão, itens já conciliados em sessões anteriores
+  // não aparecem nas pendências. Um toggle no cabeçalho permite exibi-los
+  // (necessário para desfazer uma conciliação persistida).
+  const [hideConciliados, setHideConciliados] = useState(true);
   const TOLERANCIA = 0.05;
 
   const extratoOrdenado = useMemo(
     () => sortBy(p.extratoItems, sortExtrato, (i) => i.data, (i) => i.valor),
     [p.extratoItems, sortExtrato],
   );
+  const conciliadosOcultos = useMemo(() => {
+    if (!p.conciliadosPersistidos || p.conciliadosPersistidos.size === 0) return 0;
+    return p.extratoItems.reduce(
+      (acc, item) => acc + (p.conciliadosPersistidos!.has(item.id) ? 1 : 0),
+      0,
+    );
+  }, [p.extratoItems, p.conciliadosPersistidos]);
+  const extratoVisivel = useMemo(() => {
+    if (!hideConciliados || !p.conciliadosPersistidos || p.conciliadosPersistidos.size === 0) {
+      return extratoOrdenado;
+    }
+    return extratoOrdenado.filter((item) => !p.conciliadosPersistidos!.has(item.id));
+  }, [extratoOrdenado, hideConciliados, p.conciliadosPersistidos]);
   const lancamentosOrdenados = useMemo(
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
@@ -143,6 +160,20 @@ export function OFXMatchingPane(p: Props) {
               <Sparkles className="w-3 h-3" /> {sugestoesDisponiveis} sugestão(ões)
             </Badge>
           )}
+          {conciliadosOcultos > 0 && (
+            <Badge
+              variant="outline"
+              className="text-xs font-normal gap-1 cursor-pointer hover:bg-muted"
+              onClick={(e) => {
+                e.stopPropagation();
+                setHideConciliados((v) => !v);
+              }}
+              title={hideConciliados ? "Mostrar conciliados" : "Ocultar conciliados"}
+            >
+              <CheckCircle className="w-3 h-3 text-success" />
+              {conciliadosOcultos} conciliado(s) {hideConciliados ? "ocultos" : "visíveis"}
+            </Badge>
+          )}
         </span>
         {p.showOFXPane ? (
           <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -171,7 +202,7 @@ export function OFXMatchingPane(p: Props) {
               <SortSelect value={sortExtrato} onChange={setSortExtrato} />
             </div>
             <div className="space-y-2">
-            {extratoOrdenado.map((item) => {
+            {extratoVisivel.map((item) => {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
@@ -278,12 +309,13 @@ export function OFXMatchingPane(p: Props) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Extrato OFX ({p.extratoItems.length} transações)
+                  Extrato OFX ({extratoVisivel.length}
+                  {conciliadosOcultos > 0 && hideConciliados ? ` de ${p.extratoItems.length}` : ""} transações)
                 </h3>
                 <SortSelect value={sortExtrato} onChange={setSortExtrato} />
               </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                {extratoOrdenado.map((item) => {
+                {extratoVisivel.map((item) => {
                   const match = p.getMatch(item.id);
                   const isPareado = !!match;
                   const checked = selExtrato.has(item.id);

@@ -126,7 +126,7 @@ export function useConciliacao() {
     if (!contaId || items.length === 0) {
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
-      return;
+      return { conciliados: 0, sugestoes: 0 };
     }
     const datas = items.map((i) => i.data).sort();
     try {
@@ -162,10 +162,12 @@ export function useConciliacao() {
       });
       setSugestoesPersistidas(next);
       setConciliadosPersistidos(conciliados);
+      return { conciliados: conciliados.size, sugestoes: next.size };
     } catch (err) {
       logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      return { conciliados: 0, sugestoes: 0 };
     }
   }, []);
 
@@ -257,7 +259,18 @@ export function useConciliacao() {
               if (res.com_sugestao > 0) {
                 toast.info(`${res.com_sugestao} sugestão(ões) automáticas geradas.`);
               }
-              await loadSugestoesPersistidas(items, selectedConta);
+              const duplicadas = Math.max(0, (res.total ?? items.length) - (res.inseridas ?? 0));
+              if (duplicadas > 0) {
+                toast.info(
+                  `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
+                );
+              }
+              const meta = await loadSugestoesPersistidas(items, selectedConta);
+              if (meta && meta.conciliados > 0) {
+                toast.info(
+                  `${meta.conciliados} transação(ões) já conciliadas em sessões anteriores foram ocultadas.`,
+                );
+              }
             }
           } catch (persistErr) {
             logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
@@ -285,6 +298,12 @@ export function useConciliacao() {
         toast.success(
           `${res.inseridas} de ${res.total} transações importadas (${res.origem}) — ${res.com_sugestao} com sugestão automática.`,
         );
+        const duplicadas = Math.max(0, (res.total ?? 0) - (res.inseridas ?? 0));
+        if (duplicadas > 0) {
+          toast.info(
+            `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
+          );
+        }
         await loadSugestoesPersistidas([], selectedConta);
       }
     } catch (err: unknown) {
