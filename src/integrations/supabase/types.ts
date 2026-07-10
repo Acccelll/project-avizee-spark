@@ -773,6 +773,109 @@ export type Database = {
           },
         ]
       }
+      cartao_fatura_lancamentos: {
+        Row: {
+          cartao_fatura_id: string
+          categoria_sugerida: string | null
+          conta_contabil_sugerida_id: string | null
+          created_at: string
+          data_compra: string
+          descricao: string
+          empresa_id: string
+          estabelecimento: string | null
+          fornecedor_sugerido_id: string | null
+          hash: string
+          id: string
+          lancamento_id: string | null
+          parcela_atual: number | null
+          parcela_total: number | null
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          cartao_fatura_id: string
+          categoria_sugerida?: string | null
+          conta_contabil_sugerida_id?: string | null
+          created_at?: string
+          data_compra: string
+          descricao: string
+          empresa_id?: string
+          estabelecimento?: string | null
+          fornecedor_sugerido_id?: string | null
+          hash: string
+          id?: string
+          lancamento_id?: string | null
+          parcela_atual?: number | null
+          parcela_total?: number | null
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          cartao_fatura_id?: string
+          categoria_sugerida?: string | null
+          conta_contabil_sugerida_id?: string | null
+          created_at?: string
+          data_compra?: string
+          descricao?: string
+          empresa_id?: string
+          estabelecimento?: string | null
+          fornecedor_sugerido_id?: string | null
+          hash?: string
+          id?: string
+          lancamento_id?: string | null
+          parcela_atual?: number | null
+          parcela_total?: number | null
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_cartao_fatura_id_fkey"
+            columns: ["cartao_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_conta_contabil_sugerida_id_fkey"
+            columns: ["conta_contabil_sugerida_id"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_fornecedor_sugerido_id_fkey"
+            columns: ["fornecedor_sugerido_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_fatura_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartao_faturas: {
         Row: {
           cartao_id: string
@@ -2599,6 +2702,80 @@ export type Database = {
         }
         Relationships: []
       }
+      financeiro_aliases: {
+        Row: {
+          centro_custo_id: string | null
+          cliente_id: string | null
+          conta_contabil_id: string | null
+          created_at: string
+          criado_por: string | null
+          descricao_normalizada: string
+          empresa_id: string
+          fornecedor_id: string | null
+          hits: number
+          id: string
+          ultima_confirmacao_em: string
+          updated_at: string
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao_normalizada: string
+          empresa_id?: string
+          fornecedor_id?: string | null
+          hits?: number
+          id?: string
+          ultima_confirmacao_em?: string
+          updated_at?: string
+        }
+        Update: {
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao_normalizada?: string
+          empresa_id?: string
+          fornecedor_id?: string | null
+          hits?: number
+          id?: string
+          ultima_confirmacao_em?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_aliases_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_aliases_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_aliases_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_aliases_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_auditoria: {
         Row: {
           baixa_id: string | null
@@ -2819,11 +2996,16 @@ export type Database = {
           created_at: string
           data: string
           descricao: string | null
+          documento_importacao_id: string | null
           empresa_id: string
           fitid: string
           id: string
           importado_por: string | null
+          origem: string
           status: string
+          sugestao_lancamento_id: string | null
+          sugestao_motivos: Json | null
+          sugestao_score: number | null
           updated_at: string
           valor: number
         }
@@ -2834,11 +3016,16 @@ export type Database = {
           created_at?: string
           data: string
           descricao?: string | null
+          documento_importacao_id?: string | null
           empresa_id: string
           fitid: string
           id?: string
           importado_por?: string | null
+          origem?: string
           status?: string
+          sugestao_lancamento_id?: string | null
+          sugestao_motivos?: Json | null
+          sugestao_score?: number | null
           updated_at?: string
           valor: number
         }
@@ -2849,15 +3036,27 @@ export type Database = {
           created_at?: string
           data?: string
           descricao?: string | null
+          documento_importacao_id?: string | null
           empresa_id?: string
           fitid?: string
           id?: string
           importado_por?: string | null
+          origem?: string
           status?: string
+          sugestao_lancamento_id?: string | null
+          sugestao_motivos?: Json | null
+          sugestao_score?: number | null
           updated_at?: string
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fin_extrato_documento_importacao_fk"
+            columns: ["documento_importacao_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_importacoes_docs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financeiro_extrato_importacoes_baixa_id_fkey"
             columns: ["baixa_id"]
@@ -2888,6 +3087,82 @@ export type Database = {
           },
         ]
       }
+      financeiro_importacoes_docs: {
+        Row: {
+          arquivo_hash: string | null
+          arquivo_nome: string
+          cartao_id: string | null
+          conta_bancaria_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          importado_por: string | null
+          origem: string
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          raw_texto: string | null
+          status: string
+          total_transacoes: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_hash?: string | null
+          arquivo_nome: string
+          cartao_id?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          importado_por?: string | null
+          origem: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          raw_texto?: string | null
+          status?: string
+          total_transacoes?: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_hash?: string | null
+          arquivo_nome?: string
+          cartao_id?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          importado_por?: string | null
+          origem?: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          raw_texto?: string | null
+          status?: string
+          total_transacoes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_importacoes_docs_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_credito"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_importacoes_docs_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_importacoes_docs_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_lancamentos: {
         Row: {
           ativo: boolean
@@ -2908,6 +3183,7 @@ export type Database = {
           documento_pai_id: string | null
           empresa_id: string
           forma_pagamento: string | null
+          forma_pagamento_dados: Json | null
           forma_pagamento_id: string | null
           fornecedor_id: string | null
           funcionario_id: string | null
@@ -2953,6 +3229,7 @@ export type Database = {
           documento_pai_id?: string | null
           empresa_id?: string
           forma_pagamento?: string | null
+          forma_pagamento_dados?: Json | null
           forma_pagamento_id?: string | null
           fornecedor_id?: string | null
           funcionario_id?: string | null
@@ -2998,6 +3275,7 @@ export type Database = {
           documento_pai_id?: string | null
           empresa_id?: string
           forma_pagamento?: string | null
+          forma_pagamento_dados?: Json | null
           forma_pagamento_id?: string | null
           fornecedor_id?: string | null
           funcionario_id?: string | null
@@ -3160,6 +3438,53 @@ export type Database = {
           },
         ]
       }
+      financeiro_matching_feedback: {
+        Row: {
+          acao: string
+          created_at: string
+          empresa_id: string
+          escolha_final_lancamento_id: string | null
+          extrato_id: string | null
+          id: string
+          motivo: string | null
+          sugestao_lancamento_id: string | null
+          sugestao_score: number | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          empresa_id?: string
+          escolha_final_lancamento_id?: string | null
+          extrato_id?: string | null
+          id?: string
+          motivo?: string | null
+          sugestao_lancamento_id?: string | null
+          sugestao_score?: number | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          empresa_id?: string
+          escolha_final_lancamento_id?: string | null
+          extrato_id?: string | null
+          id?: string
+          motivo?: string | null
+          sugestao_lancamento_id?: string | null
+          sugestao_score?: number | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_matching_feedback_extrato_id_fkey"
+            columns: ["extrato_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_extrato_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_recorrencias: {
         Row: {
           ativo: boolean
@@ -3287,6 +3612,79 @@ export type Database = {
           {
             foreignKeyName: "financeiro_recorrencias_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_regras: {
+        Row: {
+          aplica_centro_custo_id: string | null
+          aplica_conta_contabil_id: string | null
+          aplica_fornecedor_id: string | null
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          padrao: string
+          padrao_tipo: string
+          prioridade: number
+          quando_tipo: string
+          updated_at: string
+        }
+        Insert: {
+          aplica_centro_custo_id?: string | null
+          aplica_conta_contabil_id?: string | null
+          aplica_fornecedor_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          nome: string
+          padrao: string
+          padrao_tipo?: string
+          prioridade?: number
+          quando_tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          aplica_centro_custo_id?: string | null
+          aplica_conta_contabil_id?: string | null
+          aplica_fornecedor_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          padrao?: string
+          padrao_tipo?: string
+          prioridade?: number
+          quando_tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_regras_aplica_centro_custo_id_fkey"
+            columns: ["aplica_centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_regras_aplica_conta_contabil_id_fkey"
+            columns: ["aplica_conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_regras_aplica_fornecedor_id_fkey"
+            columns: ["aplica_fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
             referencedColumns: ["id"]
@@ -3448,6 +3846,7 @@ export type Database = {
         Row: {
           ativo: boolean
           bairro: string | null
+          cadastro_status: string
           celular: string | null
           cep: string | null
           cidade: string | null
@@ -3483,6 +3882,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           bairro?: string | null
+          cadastro_status?: string
           celular?: string | null
           cep?: string | null
           cidade?: string | null
@@ -3518,6 +3918,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           bairro?: string | null
+          cadastro_status?: string
           celular?: string | null
           cep?: string | null
           cidade?: string | null
