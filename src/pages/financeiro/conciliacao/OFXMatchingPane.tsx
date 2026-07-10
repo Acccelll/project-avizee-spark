@@ -5,13 +5,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
-  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X,
+  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
 import type { Match } from "./types";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
+
+type SugestaoPersistida = {
+  lancamentoId: string;
+  score: number;
+  motivos: string[] | null;
+};
 
 function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
   return (
@@ -60,6 +66,9 @@ interface Props {
   onConfirmar: () => void;
   onConfirmarSelecao: (extratoIds: string[], lancamentoIds: string[]) => boolean;
   onDesvincularExtrato: (extratoId: string) => void;
+  sugestoesPersistidas?: Map<string, SugestaoPersistida>;
+  onAceitarSugestao?: (extratoId: string) => boolean;
+  onAceitarSugestoesPersistidas?: () => number;
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -94,6 +103,13 @@ export function OFXMatchingPane(p: Props) {
   const diferenca = totalExtratoSel - totalLancSel;
   const diferencaAbs = Math.abs(diferenca);
   const podeConciliar = selExtrato.size > 0 && selLanc.size > 0 && !(selExtrato.size > 1 && selLanc.size > 1);
+  const sugestoesDisponiveis = useMemo(() => {
+    if (!p.sugestoesPersistidas) return 0;
+    return p.extratoItems.filter((item) => {
+      const sugestao = p.sugestoesPersistidas?.get(item.id);
+      return !!sugestao && !p.getMatch(item.id) && !p.usedLancamentoIds.has(sugestao.lancamentoId);
+    }).length;
+  }, [p.extratoItems, p.getMatch, p.sugestoesPersistidas, p.usedLancamentoIds]);
   const corDif =
     diferencaAbs < 0.005 ? "text-success"
     : diferencaAbs <= TOLERANCIA ? "text-warning"
@@ -124,6 +140,11 @@ export function OFXMatchingPane(p: Props) {
           <Badge variant="outline" className="text-xs font-normal">
             {p.pareados} pareados · {p.semParOFX} sem par
           </Badge>
+          {sugestoesDisponiveis > 0 && (
+            <Badge variant="secondary" className="text-xs font-normal gap-1">
+              <Sparkles className="w-3 h-3" /> {sugestoesDisponiveis} sugestão(ões)
+            </Badge>
+          )}
         </span>
         {p.showOFXPane ? (
           <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -134,6 +155,17 @@ export function OFXMatchingPane(p: Props) {
 
       {p.showOFXPane && (
         <div className="p-4 border-t border-border/60">
+          {sugestoesDisponiveis > 0 && p.onAceitarSugestoesPersistidas && (
+            <div className="mb-4 rounded-lg border border-info/40 bg-info/5 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4 text-info shrink-0" />
+                <span className="font-medium">{sugestoesDisponiveis} sugestão(ões) do motor inteligente disponíveis</span>
+              </div>
+              <Button size="sm" variant="secondary" onClick={p.onAceitarSugestoesPersistidas} className="gap-1">
+                <CheckCircle className="w-4 h-4" /> Aceitar sugestões
+              </Button>
+            </div>
+          )}
           {/* MOBILE */}
           <div className="md:hidden mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -145,6 +177,9 @@ export function OFXMatchingPane(p: Props) {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
+              const sugestao = p.sugestoesPersistidas?.get(item.id);
+              const sugestaoLanc = sugestao ? p.lancamentos.find((l) => l.id === sugestao.lancamentoId) : null;
+              const podeAceitarSugestao = !!sugestao && !isPareado && !p.usedLancamentoIds.has(sugestao.lancamentoId);
               const checked = selExtrato.has(item.id);
               return (
                 <div
@@ -184,6 +219,15 @@ export function OFXMatchingPane(p: Props) {
                       ↔ {linked.descricao} · {formatCurrency(linked.valor)}
                     </p>
                   )}
+                  {podeAceitarSugestao && sugestaoLanc && (
+                    <div className="text-xs rounded px-2 py-1 border border-info/30 bg-info/5 text-muted-foreground space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate"><Sparkles className="inline w-3 h-3 mr-1 text-info" />{sugestaoLanc.descricao}</span>
+                        <Badge variant="outline" className="text-[10px]">{Math.round(sugestao.score * 100)}%</Badge>
+                      </div>
+                      <p className="truncate">{formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)}</p>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     {isPareado ? (
                       <Button size="sm" variant="outline" className="flex-1 h-11"
@@ -197,6 +241,12 @@ export function OFXMatchingPane(p: Props) {
                           onClick={() => p.onAbrirVincular(item.id)}>
                           <Search className="w-4 h-4" /> Vincular
                         </Button>
+                        {podeAceitarSugestao && p.onAceitarSugestao && (
+                          <Button size="sm" variant="secondary" className="h-11 gap-1"
+                            onClick={() => p.onAceitarSugestao!(item.id)}>
+                            <Sparkles className="w-4 h-4" /> Aceitar
+                          </Button>
+                        )}
                         {p.onCriarInline && (
                           <Button size="sm" variant="secondary" className="h-11 gap-1"
                             onClick={() => p.onCriarInline!(item.id)}
@@ -228,6 +278,9 @@ export function OFXMatchingPane(p: Props) {
                   const isPareado = !!match;
                   const checked = selExtrato.has(item.id);
                   const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
+                  const sugestao = p.sugestoesPersistidas?.get(item.id);
+                  const sugestaoLanc = sugestao ? p.lancamentos.find((l) => l.id === sugestao.lancamentoId) : null;
+                  const podeAceitarSugestao = !!sugestao && !isPareado && !p.usedLancamentoIds.has(sugestao.lancamentoId);
                   return (
                     <div key={item.id} className={`rounded-lg border p-3 transition-colors ${
                       isPareado ? "border-success/40 bg-success/5"
@@ -267,6 +320,25 @@ export function OFXMatchingPane(p: Props) {
                             onClick={() => p.onDesvincularExtrato(item.id)}>
                             <Link2Off className="w-3 h-3" /> Desvincular
                           </Button>
+                        </div>
+                      )}
+                      {podeAceitarSugestao && sugestaoLanc && (
+                        <div className="mt-2 rounded border border-info/30 bg-info/5 px-2 py-1.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0 text-xs text-muted-foreground">
+                            <p className="truncate font-medium">
+                              <Sparkles className="inline w-3 h-3 mr-1 text-info" />
+                              {sugestaoLanc.descricao}
+                            </p>
+                            <p className="truncate">
+                              {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)} · {Math.round(sugestao.score * 100)}%
+                            </p>
+                          </div>
+                          {p.onAceitarSugestao && (
+                            <Button size="sm" variant="secondary" className="h-7 text-xs gap-1 shrink-0"
+                              onClick={() => p.onAceitarSugestao!(item.id)}>
+                              <CheckCircle className="w-3 h-3" /> Aceitar
+                            </Button>
+                          )}
                         </div>
                       )}
                       {!isPareado && p.onCriarInline && (

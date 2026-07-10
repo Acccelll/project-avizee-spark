@@ -225,6 +225,9 @@ export default function Conciliacao() {
             onConfirmar={v.handleConfirmarConciliacao}
             onConfirmarSelecao={v.handleConfirmarSelecao}
             onDesvincularExtrato={v.handleDesvincularExtrato}
+            sugestoesPersistidas={v.sugestoesPersistidas}
+            onAceitarSugestao={v.handleAceitarSugestao}
+            onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
           />
         )}
 
