@@ -20,21 +20,16 @@ import { notifyError } from "@/utils/errorMessages";
 import { getOrigemKey } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
-import type { LancamentoComStatus, Match } from "./types";
+import type { LancamentoComStatus, Match, SugestaoPersistida } from "./types";
 import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 import { listarExtratoPersistido } from "@/services/financeiro/extratoImportacoes.service";
+import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
-
-type SugestaoPersistida = {
-  lancamentoId: string;
-  score: number;
-  motivos: string[] | null;
-};
 
 const defaultDataInicio = () => {
   const d = new Date();
@@ -143,6 +138,7 @@ export function useConciliacao() {
           row.sugestao_score != null
         ) {
           next.set(row.fitid, {
+            extratoPersistidoId: row.id,
             lancamentoId: row.sugestao_lancamento_id,
             score: Number(row.sugestao_score),
             motivos: row.sugestao_motivos,
@@ -155,6 +151,46 @@ export function useConciliacao() {
       setSugestoesPersistidas(new Map());
     }
   }, []);
+
+  const obterSessaoEmpresa = useCallback(async (): Promise<{ empresaId: string; userId: string } | null> => {
+    const { data: userRes } = await supabase.auth.getUser();
+    const userId = userRes?.user?.id;
+    if (!userId) return null;
+    const { data: ue } = await supabase
+      .from("user_empresas")
+      .select("empresa_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return ue?.empresa_id ? { empresaId: ue.empresa_id, userId } : null;
+  }, []);
+
+  const registrarFeedbackSugestao = useCallback((input: {
+    extratoId: string;
+    acao: AcaoFeedback;
+    escolhaFinalLancamentoId?: string | null;
+    motivo?: string | null;
+  }) => {
+    const sugestao = sugestoesPersistidas.get(input.extratoId);
+    if (!sugestao) return;
+    void (async () => {
+      try {
+        const sessao = await obterSessaoEmpresa();
+        if (!sessao) return;
+        await registrarFeedbackMatching({
+          empresa_id: sessao.empresaId,
+          usuario_id: sessao.userId,
+          extrato_id: sugestao.extratoPersistidoId,
+          sugestao_lancamento_id: sugestao.lancamentoId,
+          sugestao_score: sugestao.score,
+          escolha_final_lancamento_id: input.escolhaFinalLancamentoId ?? null,
+          acao: input.acao,
+          motivo: input.motivo ?? null,
+        });
+      } catch (err) {
+        logger.warn("[conciliacao] falha ao registrar feedback de matching:", err);
+      }
+    })();
+  }, [obterSessaoEmpresa, sugestoesPersistidas]);
 
   useEffect(() => {
     loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
@@ -263,9 +299,15 @@ export function useConciliacao() {
         sugestaoMotivos: sugestao.motivos,
       },
     ]);
+    registrarFeedbackSugestao({
+      extratoId,
+      acao: "aceita",
+      escolhaFinalLancamentoId: sugestao.lancamentoId,
+      motivo: "Sugestão persistida aceita na conciliação OFX.",
+    });
     toast.success("Sugestão aceita.");
     return true;
-  }, [matches, sugestoesPersistidas]);
+  }, [matches, registrarFeedbackSugestao, sugestoesPersistidas]);
 
   const handleAceitarSugestoesPersistidas = useCallback((minScore = SUGESTAO_SCORE_THRESHOLD): number => {
     const jaPareados = new Set(matches.map((m) => m.extratoId));
@@ -291,9 +333,38 @@ export function useConciliacao() {
       return 0;
     }
     setMatches((prev) => [...prev, ...novos]);
+    novos.forEach((match) => {
+      registrarFeedbackSugestao({
+        extratoId: match.extratoId,
+        acao: "aceita",
+        escolhaFinalLancamentoId: match.lancamentoId,
+        motivo: "Sugestão persistida aceita em lote na conciliação OFX.",
+      });
+    });
     toast.success(`${novos.length} sugestão(ões) aceita(s).`);
     return novos.length;
-  }, [extratoItems, matches, sugestoesPersistidas]);
+  }, [extratoItems, matches, registrarFeedbackSugestao, sugestoesPersistidas]);
+
+  const handleRejeitarSugestao = useCallback((extratoId: string): boolean => {
+    const sugestao = sugestoesPersistidas.get(extratoId);
+    if (!sugestao) {
+      toast.error("Sugestão não encontrada para esta transação.");
+      return false;
+    }
+    registrarFeedbackSugestao({
+      extratoId,
+      acao: "rejeitada",
+      escolhaFinalLancamentoId: null,
+      motivo: "Sugestão persistida rejeitada na conciliação OFX.",
+    });
+    setSugestoesPersistidas((prev) => {
+      const next = new Map(prev);
+      next.delete(extratoId);
+      return next;
+    });
+    toast.success("Sugestão rejeitada.");
+    return true;
+  }, [registrarFeedbackSugestao, sugestoesPersistidas]);
 
   const handleContaChange = async (contaId: string) => {
     setSelectedConta(contaId);
@@ -371,6 +442,17 @@ export function useConciliacao() {
   };
 
   const handleManualMatch = (extratoId: string, lancamentoId: string) => {
+    const sugestao = sugestoesPersistidas.get(extratoId);
+    if (sugestao && lancamentoId) {
+      registrarFeedbackSugestao({
+        extratoId,
+        acao: sugestao.lancamentoId === lancamentoId ? "aceita" : "corrigida",
+        escolhaFinalLancamentoId: lancamentoId,
+        motivo: sugestao.lancamentoId === lancamentoId
+          ? "Sugestão persistida escolhida via pareamento manual."
+          : "Sugestão persistida corrigida via pareamento manual.",
+      });
+    }
     setMatches((prev) => {
       const filtered = prev.filter((m) => m.extratoId !== extratoId);
       if (lancamentoId === "") return filtered;
@@ -398,19 +480,31 @@ export function useConciliacao() {
         );
         return false;
       }
+      const novos: Match[] = [];
+      if (extratoIds.length === 1) {
+        const eid = extratoIds[0];
+        for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+      } else {
+        const lid = lancamentoIds[0];
+        for (const eid of extratoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+      }
+
+      novos.forEach((match) => {
+        const sugestao = sugestoesPersistidas.get(match.extratoId);
+        if (!sugestao) return;
+        registrarFeedbackSugestao({
+          extratoId: match.extratoId,
+          acao: sugestao.lancamentoId === match.lancamentoId ? "aceita" : "corrigida",
+          escolhaFinalLancamentoId: match.lancamentoId,
+          motivo: "Sugestão persistida revisada via seleção múltipla.",
+        });
+      });
+
       setMatches((prev) => {
         // Remove pares existentes envolvendo qualquer id selecionado.
         const limpo = prev.filter(
           (m) => !extratoIds.includes(m.extratoId) && !lancamentoIds.includes(m.lancamentoId),
         );
-        const novos: Match[] = [];
-        if (extratoIds.length === 1) {
-          const eid = extratoIds[0];
-          for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
-        } else {
-          const lid = lancamentoIds[0];
-          for (const eid of extratoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
-        }
         return [...limpo, ...novos];
       });
       toast.success(
@@ -418,7 +512,7 @@ export function useConciliacao() {
       );
       return true;
     },
-    [],
+    [registrarFeedbackSugestao, sugestoesPersistidas],
   );
 
   const handleDesvincularExtrato = useCallback((extratoId: string) => {
@@ -666,7 +760,7 @@ export function useConciliacao() {
     handleFileSelect, handleContaChange,
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
-    handleAceitarSugestao, handleAceitarSugestoesPersistidas,
+    handleAceitarSugestao, handleAceitarSugestoesPersistidas, handleRejeitarSugestao,
     handleCriarLancamentoInline,
     handleConfirmarSelecao, handleDesvincularExtrato,
     setMatches,

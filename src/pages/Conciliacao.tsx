@@ -228,6 +228,7 @@ export default function Conciliacao() {
             sugestoesPersistidas={v.sugestoesPersistidas}
             onAceitarSugestao={v.handleAceitarSugestao}
             onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
+            onRejeitarSugestao={v.handleRejeitarSugestao}
           />
         )}
 
