@@ -335,6 +335,11 @@ const Fornecedores = () => {
                 {f.tipo_pessoa === "F" ? "PF" : "PJ"}
               </Badge>
               <StatusBadge status={f.ativo ? "ativo" : "inativo"} />
+              {(f as unknown as { cadastro_status?: string }).cadastro_status === "parcial" && (
+                <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1" title="Cadastro criado via QuickAdd — complete os dados">
+                  <AlertCircle className="h-3 w-3" /> Parcial
+                </Badge>
+              )}
               {semContato && (
                 <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
                   <PhoneOff className="h-3 w-3" /> Sem contato
@@ -407,7 +412,16 @@ const Fornecedores = () => {
       : <span className="text-muted-foreground text-xs">—</span>,
   },
   { key: "ativo",
-      mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
+      mobileCard: true, label: "Status", render: (f: Fornecedor) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={f.ativo ? "ativo" : "inativo"} />
+          {(f as unknown as { cadastro_status?: string }).cadastro_status === "parcial" && (
+            <Badge variant="warning" className="h-5 px-1.5 text-[10px]" title="Cadastro parcial — complete os dados">
+              Parcial
+            </Badge>
+          )}
+        </div>
+      ) },
   ];
 
 
