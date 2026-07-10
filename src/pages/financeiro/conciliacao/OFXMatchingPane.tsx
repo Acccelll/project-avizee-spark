@@ -178,12 +178,13 @@ export function OFXMatchingPane(p: Props) {
               const sugestao = p.sugestoesPersistidas?.get(item.id);
               const sugestaoLanc = sugestao ? p.lancamentos.find((l) => l.id === sugestao.lancamentoId) : null;
               const podeAceitarSugestao = !!sugestao && !isPareado && !p.usedLancamentoIds.has(sugestao.lancamentoId);
+              const conciliadoPersistido = p.conciliadosPersistidos?.get(item.id);
               const checked = selExtrato.has(item.id);
               return (
                 <div
                   key={item.id}
                   className={`rounded-lg border p-3 space-y-2 ${
-                    isPareado ? "border-success/40 bg-success/5"
+                    isPareado || conciliadoPersistido ? "border-success/40 bg-success/5"
                     : checked ? "border-primary bg-primary/5"
                     : "border-destructive/30 bg-card"
                   }`}
@@ -232,6 +233,11 @@ export function OFXMatchingPane(p: Props) {
                         onClick={() => p.onDesvincularExtrato(item.id)}>
                         <Link2Off className="w-4 h-4 mr-1" />
                         Desvincular
+                      </Button>
+                    ) : conciliadoPersistido && p.onDesfazerConciliacao ? (
+                      <Button size="sm" variant="outline" className="flex-1 h-11 gap-1"
+                        onClick={() => p.onDesfazerConciliacao!(item.id)}>
+                        <RotateCcw className="w-4 h-4" /> Desfazer conciliação
                       </Button>
                     ) : (
                       <>
