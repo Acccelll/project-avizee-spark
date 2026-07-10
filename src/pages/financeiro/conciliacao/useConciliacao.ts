@@ -255,6 +255,53 @@ export function useConciliacao() {
   };
 
   /**
+   * Estilo TOTVS: confirma um "lote" de pareamento a partir de linhas
+   * marcadas via checkbox em cada painel. Suporta:
+   *  - 1↔1: pareamento direto.
+   *  - N↔1: várias linhas do extrato → um lançamento (ex.: parcelas do mesmo título).
+   *  - 1↔N: uma linha do extrato → vários lançamentos (ex.: crédito agrupando títulos).
+   *  - N↔N não é permitido (ambíguo); usuário deve conciliar em passos.
+   */
+  const handleConfirmarSelecao = useCallback(
+    (extratoIds: string[], lancamentoIds: string[]): boolean => {
+      if (extratoIds.length === 0 || lancamentoIds.length === 0) {
+        toast.error("Selecione ao menos uma linha em cada lado.");
+        return false;
+      }
+      if (extratoIds.length > 1 && lancamentoIds.length > 1) {
+        toast.error(
+          "Seleção N↔N não é permitida. Marque apenas um lado com múltiplas linhas.",
+        );
+        return false;
+      }
+      setMatches((prev) => {
+        // Remove pares existentes envolvendo qualquer id selecionado.
+        const limpo = prev.filter(
+          (m) => !extratoIds.includes(m.extratoId) && !lancamentoIds.includes(m.lancamentoId),
+        );
+        const novos: Match[] = [];
+        if (extratoIds.length === 1) {
+          const eid = extratoIds[0];
+          for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+        } else {
+          const lid = lancamentoIds[0];
+          for (const eid of extratoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
+        }
+        return [...limpo, ...novos];
+      });
+      toast.success(
+        `Pareamento confirmado: ${extratoIds.length} extrato(s) ↔ ${lancamentoIds.length} lançamento(s).`,
+      );
+      return true;
+    },
+    [],
+  );
+
+  const handleDesvincularExtrato = useCallback((extratoId: string) => {
+    setMatches((prev) => prev.filter((m) => m.extratoId !== extratoId));
+  }, []);
+
+  /**
    * Épico D — Cria um lançamento novo diretamente a partir de uma
    * transação sem par no extrato, já baixado na conta selecionada,
    * e adiciona o match automaticamente.
@@ -496,6 +543,7 @@ export function useConciliacao() {
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
     handleCriarLancamentoInline,
+    handleConfirmarSelecao, handleDesvincularExtrato,
     setMatches,
   };
 }
