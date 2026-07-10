@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +9,37 @@ import {
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
 import type { Match } from "./types";
+
+type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
+
+function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as SortKey)}>
+      <SelectTrigger className="h-7 w-[150px] text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="data-asc">Data ↑</SelectItem>
+        <SelectItem value="data-desc">Data ↓</SelectItem>
+        <SelectItem value="valor-asc">Valor ↑</SelectItem>
+        <SelectItem value="valor-desc">Valor ↓</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function sortBy<T>(items: T[], key: SortKey, getDate: (i: T) => string, getValor: (i: T) => number): T[] {
+  const arr = [...items];
+  arr.sort((a, b) => {
+    switch (key) {
+      case "data-asc": return getDate(a).localeCompare(getDate(b));
+      case "data-desc": return getDate(b).localeCompare(getDate(a));
+      case "valor-asc": return Math.abs(getValor(a)) - Math.abs(getValor(b));
+      case "valor-desc": return Math.abs(getValor(b)) - Math.abs(getValor(a));
+    }
+  });
+  return arr;
+}
 
 interface Props {
   extratoItems: OFXTransaction[];
@@ -28,6 +60,16 @@ interface Props {
 }
 
 export function OFXMatchingPane(p: Props) {
+  const [sortExtrato, setSortExtrato] = useState<SortKey>("data-asc");
+  const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
+  const extratoOrdenado = useMemo(
+    () => sortBy(p.extratoItems, sortExtrato, (i) => i.data, (i) => i.valor),
+    [p.extratoItems, sortExtrato],
+  );
+  const lancamentosOrdenados = useMemo(
+    () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
+    [p.lancamentos, sortLanc],
+  );
   return (
     <div className="mt-6 rounded-lg border border-border/60">
       <button
