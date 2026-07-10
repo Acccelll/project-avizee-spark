@@ -160,6 +160,20 @@ export function OFXMatchingPane(p: Props) {
               <Sparkles className="w-3 h-3" /> {sugestoesDisponiveis} sugestão(ões)
             </Badge>
           )}
+          {conciliadosOcultos > 0 && (
+            <Badge
+              variant="outline"
+              className="text-xs font-normal gap-1 cursor-pointer hover:bg-muted"
+              onClick={(e) => {
+                e.stopPropagation();
+                setHideConciliados((v) => !v);
+              }}
+              title={hideConciliados ? "Mostrar conciliados" : "Ocultar conciliados"}
+            >
+              <CheckCircle className="w-3 h-3 text-success" />
+              {conciliadosOcultos} conciliado(s) {hideConciliados ? "ocultos" : "visíveis"}
+            </Badge>
+          )}
         </span>
         {p.showOFXPane ? (
           <ChevronUp className="w-4 h-4 text-muted-foreground" />
