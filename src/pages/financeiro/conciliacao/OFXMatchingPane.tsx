@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
-  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus,
+  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -57,11 +58,17 @@ interface Props {
   onAbrirVincular: (extratoId: string) => void;
   onCriarInline?: (extratoId: string) => void;
   onConfirmar: () => void;
+  onConfirmarSelecao: (extratoIds: string[], lancamentoIds: string[]) => boolean;
+  onDesvincularExtrato: (extratoId: string) => void;
 }
 
 export function OFXMatchingPane(p: Props) {
   const [sortExtrato, setSortExtrato] = useState<SortKey>("data-asc");
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
+  const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
+  const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
+  const TOLERANCIA = 0.05;
+
   const extratoOrdenado = useMemo(
     () => sortBy(p.extratoItems, sortExtrato, (i) => i.data, (i) => i.valor),
     [p.extratoItems, sortExtrato],
@@ -70,6 +77,40 @@ export function OFXMatchingPane(p: Props) {
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
   );
+
+  const toggle = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSet(next);
+  };
+  const totalExtratoSel = useMemo(
+    () => extratoOrdenado.filter((e) => selExtrato.has(e.id)).reduce((s, e) => s + Math.abs(e.valor), 0),
+    [extratoOrdenado, selExtrato],
+  );
+  const totalLancSel = useMemo(
+    () => lancamentosOrdenados.filter((l) => selLanc.has(l.id)).reduce((s, l) => s + Math.abs(Number(l.valor)), 0),
+    [lancamentosOrdenados, selLanc],
+  );
+  const diferenca = totalExtratoSel - totalLancSel;
+  const diferencaAbs = Math.abs(diferenca);
+  const podeConciliar = selExtrato.size > 0 && selLanc.size > 0 && !(selExtrato.size > 1 && selLanc.size > 1);
+  const corDif =
+    diferencaAbs < 0.005 ? "text-success"
+    : diferencaAbs <= TOLERANCIA ? "text-warning"
+    : "text-destructive";
+
+  const limparSelecao = () => { setSelExtrato(new Set()); setSelLanc(new Set()); };
+  const handleConciliar = () => {
+    if (diferencaAbs > TOLERANCIA) {
+      const ok = window.confirm(
+        `Diferença de ${formatCurrency(diferenca)} entre extrato e lançamentos. Conciliar mesmo assim?`,
+      );
+      if (!ok) return;
+    }
+    const ok = p.onConfirmarSelecao(Array.from(selExtrato), Array.from(selLanc));
+    if (ok) limparSelecao();
+  };
+
   return (
     <div className="mt-6 rounded-lg border border-border/60">
       <button
@@ -104,14 +145,25 @@ export function OFXMatchingPane(p: Props) {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
+              const checked = selExtrato.has(item.id);
               return (
                 <div
                   key={item.id}
                   className={`rounded-lg border p-3 space-y-2 ${
-                    isPareado ? "border-success/40 bg-success/5" : "border-destructive/30 bg-card"
+                    isPareado ? "border-success/40 bg-success/5"
+                    : checked ? "border-primary bg-primary/5"
+                    : "border-destructive/30 bg-card"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
+                    {!isPareado && (
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggle(selExtrato, setSelExtrato, item.id)}
+                        className="mt-1"
+                        aria-label="Selecionar extrato"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.descricao || "Sem descrição"}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(item.data)}</p>
@@ -135,7 +187,8 @@ export function OFXMatchingPane(p: Props) {
                   <div className="flex gap-2">
                     {isPareado ? (
                       <Button size="sm" variant="outline" className="flex-1 h-11"
-                        onClick={() => p.onManualMatch(item.id, "")}>
+                        onClick={() => p.onDesvincularExtrato(item.id)}>
+                        <Link2Off className="w-4 h-4 mr-1" />
                         Desvincular
                       </Button>
                     ) : (
@@ -173,14 +226,26 @@ export function OFXMatchingPane(p: Props) {
                 {extratoOrdenado.map((item) => {
                   const match = p.getMatch(item.id);
                   const isPareado = !!match;
+                  const checked = selExtrato.has(item.id);
+                  const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
                   return (
                     <div key={item.id} className={`rounded-lg border p-3 transition-colors ${
-                      isPareado ? "border-success/40 bg-success/5" : "border-destructive/40 bg-destructive/5"
+                      isPareado ? "border-success/40 bg-success/5"
+                      : checked ? "border-primary bg-primary/5"
+                      : "border-destructive/40 bg-destructive/5"
                     }`}>
                       <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <Checkbox
+                            checked={checked}
+                            disabled={isPareado}
+                            onCheckedChange={() => toggle(selExtrato, setSelExtrato, item.id)}
+                            aria-label="Selecionar extrato"
+                          />
+                          <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{item.descricao || "Sem descrição"}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(item.data)}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className={`text-sm font-mono font-semibold ${item.valor >= 0 ? "text-success" : "text-destructive"}`}>
@@ -193,23 +258,17 @@ export function OFXMatchingPane(p: Props) {
                           )}
                         </div>
                       </div>
-                      <div className="mt-2">
-                        <Select value={match?.lancamentoId || "__none__"} onValueChange={(val) => p.onManualMatch(item.id, val === "__none__" ? "" : val)}>
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="Vincular lançamento..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">Nenhum</SelectItem>
-                            {p.lancamentos
-                              .filter((l) => !p.usedLancamentoIds.has(l.id) || l.id === match?.lancamentoId)
-                              .map((l) => (
-                                <SelectItem key={l.id} value={l.id}>
-                                  {formatDate(l.data_vencimento)} · {l.descricao} · {formatCurrency(l.valor)}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {isPareado && linked && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded bg-success/10 px-2 py-1">
+                          <p className="text-xs text-success truncate">
+                            ↔ {linked.descricao} · {formatCurrency(linked.valor)}
+                          </p>
+                          <Button size="sm" variant="ghost" className="h-6 text-xs gap-1"
+                            onClick={() => p.onDesvincularExtrato(item.id)}>
+                            <Link2Off className="w-3 h-3" /> Desvincular
+                          </Button>
+                        </div>
+                      )}
                       {!isPareado && p.onCriarInline && (
                         <div className="mt-2 flex justify-end">
                           <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
@@ -242,14 +301,25 @@ export function OFXMatchingPane(p: Props) {
                 ) : (
                   lancamentosOrdenados.map((l) => {
                     const isPareado = p.usedLancamentoIds.has(l.id);
+                    const checked = selLanc.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
-                        isPareado ? "border-success/40 bg-success/5" : "border-border bg-card"
+                        isPareado ? "border-success/40 bg-success/5"
+                        : checked ? "border-primary bg-primary/5"
+                        : "border-border bg-card"
                       }`}>
                         <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <Checkbox
+                              checked={checked}
+                              disabled={isPareado}
+                              onCheckedChange={() => toggle(selLanc, setSelLanc, l.id)}
+                              aria-label="Selecionar lançamento"
+                            />
+                            <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{l.descricao}</p>
                             <p className="text-xs text-muted-foreground">{formatDate(l.data_vencimento)}</p>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-sm font-mono font-semibold">{formatCurrency(l.valor)}</span>
@@ -266,6 +336,43 @@ export function OFXMatchingPane(p: Props) {
               </div>
             </div>
           </div>
+
+          {/* Barra de seleção estilo TOTVS */}
+          {(selExtrato.size > 0 || selLanc.size > 0) && (
+            <div className="mb-4 rounded-lg border border-primary/40 bg-primary/5 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex flex-wrap items-center gap-4 text-sm flex-1">
+                <div>
+                  <span className="text-muted-foreground">Extrato: </span>
+                  <span className="font-semibold">{selExtrato.size}</span>
+                  <span className="text-muted-foreground"> · </span>
+                  <span className="font-mono font-semibold">{formatCurrency(totalExtratoSel)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">ERP: </span>
+                  <span className="font-semibold">{selLanc.size}</span>
+                  <span className="text-muted-foreground"> · </span>
+                  <span className="font-mono font-semibold">{formatCurrency(totalLancSel)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Diferença: </span>
+                  <span className={`font-mono font-semibold ${corDif}`}>{formatCurrency(diferenca)}</span>
+                </div>
+                {selExtrato.size > 1 && selLanc.size > 1 && (
+                  <span className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> N↔N não permitido
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={limparSelecao} className="gap-1">
+                  <X className="w-4 h-4" /> Limpar
+                </Button>
+                <Button size="sm" disabled={!podeConciliar} onClick={handleConciliar} className="gap-1">
+                  <Link2 className="w-4 h-4" /> Conciliar selecionados
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg border border-border/60 bg-muted/10 p-4 flex flex-col gap-3">
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
