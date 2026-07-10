@@ -23,6 +23,7 @@ import { logger } from "@/lib/logger";
 import type { LancamentoComStatus, Match } from "./types";
 import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
+import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
@@ -127,19 +128,45 @@ export function useConciliacao() {
     if (!file) return;
     setUploading(true);
     try {
-      const text = await file.text();
-      const items = parseOFX(text);
-      if (items.length === 0) {
-        toast.error("Nenhuma transação encontrada no arquivo OFX.");
-        return;
-      }
-      setExtratoItems(items);
-      setMatches([]);
-      setShowOFXPane(true);
-      toast.success(`${items.length} transações importadas do extrato.`);
-      if (selectedConta) {
-        const dates = items.map((i) => i.data).sort();
-        await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
+      const nome = file.name.toLowerCase();
+      const isOFX = nome.endsWith(".ofx") || nome.endsWith(".qfx") || nome.endsWith(".xml");
+      if (isOFX) {
+        const text = await file.text();
+        const items = parseOFX(text);
+        if (items.length === 0) {
+          toast.error("Nenhuma transação encontrada no arquivo OFX.");
+          return;
+        }
+        setExtratoItems(items);
+        setMatches([]);
+        setShowOFXPane(true);
+        toast.success(`${items.length} transações importadas.`);
+        if (selectedConta) {
+          const dates = items.map((i) => i.data).sort();
+          await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
+        }
+      } else {
+        // Motor Universal (PDF/CSV) — grava no banco e recarrega
+        if (!selectedConta) {
+          toast.error("Selecione uma conta bancária antes de importar PDF/CSV.");
+          return;
+        }
+        const { data: userRes } = await supabase.auth.getUser();
+        const { data: ue } = await supabase
+          .from("user_empresas")
+          .select("empresa_id")
+          .eq("user_id", userRes?.user?.id ?? "")
+          .maybeSingle();
+        const empresaId = ue?.empresa_id;
+        if (!empresaId) throw new Error("Empresa não identificada.");
+        const res = await importarDocumentoUniversal({
+          file,
+          empresa_id: empresaId,
+          conta_bancaria_id: selectedConta,
+        });
+        toast.success(
+          `${res.inseridas} de ${res.total} transações importadas (${res.origem}) — ${res.com_sugestao} com sugestão automática.`,
+        );
       }
     } catch (err: unknown) {
       logger.error("[conciliacao] erro ao processar OFX:", err);
