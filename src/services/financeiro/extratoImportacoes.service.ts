@@ -19,6 +19,14 @@ export interface ExtratoTransacaoPersistida {
   descricao: string | null;
   status: ExtratoStatus;
   baixa_id: string | null;
+  sugestao_lancamento_id: string | null;
+  sugestao_score: number | null;
+  sugestao_motivos: string[] | null;
+  is_transferencia_interna: boolean | null;
+  transferencia_par_id: string | null;
+  favorecido: string | null;
+  forma_pagamento: string | null;
+  natureza: string | null;
 }
 
 /** Faz upsert de transações OFX (idempotente por (conta, fitid)). */
@@ -61,7 +69,12 @@ export async function listarExtratoPersistido(input: {
   if (!contaBancariaId) return [];
   const { data, error } = await supabase
     .from("financeiro_extrato_importacoes")
-    .select("id, conta_bancaria_id, fitid, data, valor, descricao, status, baixa_id")
+    .select(
+      "id, conta_bancaria_id, fitid, data, valor, descricao, status, baixa_id, " +
+        "sugestao_lancamento_id, sugestao_score, sugestao_motivos, " +
+        "is_transferencia_interna, transferencia_par_id, " +
+        "favorecido, forma_pagamento, natureza",
+    )
     .eq("conta_bancaria_id", contaBancariaId)
     .gte("data", dataInicio)
     .lte("data", dataFim)
