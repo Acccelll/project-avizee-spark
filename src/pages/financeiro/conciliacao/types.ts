@@ -21,3 +21,8 @@ export interface SugestaoPersistida {
   score: number;
   motivos: string[] | null;
 }
+
+export interface ConciliacaoPersistida {
+  extratoPersistidoId: string;
+  baixaId: string | null;
+}

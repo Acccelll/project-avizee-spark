@@ -7,6 +7,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { TransacaoExtrato } from "./ofxParser.service";
+import { estornarBaixaFinanceira } from "./baixaRpc";
 
 export type ExtratoStatus = "pendente" | "conciliado" | "ignorado";
 
@@ -146,5 +147,35 @@ export async function ignorarExtrato(extratoId: string): Promise<void> {
       sugestao_motivos: null,
     })
     .eq("id", extratoId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Onda 10 — Desfaz uma conciliação já persistida: estorna a baixa
+ * financeira vinculada e reabre a linha do extrato (status → pendente,
+ * baixa_id → null). Se `baixaId` não for informado, apenas reabre o
+ * extrato (usado quando a baixa já foi estornada por outro fluxo).
+ */
+export async function desfazerConciliacaoExtrato(input: {
+  extratoPersistidoId: string;
+  baixaId?: string | null;
+  motivo?: string;
+}): Promise<void> {
+  if (input.baixaId) {
+    try {
+      await estornarBaixaFinanceira({
+        baixaId: input.baixaId,
+        motivo: input.motivo ?? "Conciliação bancária desfeita pelo usuário.",
+      });
+    } catch (err) {
+      // Se a baixa já estava estornada, prossegue apenas reabrindo o extrato.
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      if (!msg.includes("estorn") && !msg.includes("not found")) throw err;
+    }
+  }
+  const { error } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .update({ status: "pendente", baixa_id: null })
+    .eq("id", input.extratoPersistidoId);
   if (error) throw new Error(error.message);
 }
