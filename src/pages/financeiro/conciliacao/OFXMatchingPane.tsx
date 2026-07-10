@@ -291,9 +291,10 @@ export function OFXMatchingPane(p: Props) {
                   const sugestao = p.sugestoesPersistidas?.get(item.id);
                   const sugestaoLanc = sugestao ? p.lancamentos.find((l) => l.id === sugestao.lancamentoId) : null;
                   const podeAceitarSugestao = !!sugestao && !isPareado && !p.usedLancamentoIds.has(sugestao.lancamentoId);
+                  const conciliadoPersistido = p.conciliadosPersistidos?.get(item.id);
                   return (
                     <div key={item.id} className={`rounded-lg border p-3 transition-colors ${
-                      isPareado ? "border-success/40 bg-success/5"
+                      isPareado || conciliadoPersistido ? "border-success/40 bg-success/5"
                       : checked ? "border-primary bg-primary/5"
                       : "border-destructive/40 bg-destructive/5"
                     }`}>
@@ -301,7 +302,7 @@ export function OFXMatchingPane(p: Props) {
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <Checkbox
                             checked={checked}
-                            disabled={isPareado}
+                            disabled={isPareado || !!conciliadoPersistido}
                             onCheckedChange={() => toggle(selExtrato, setSelExtrato, item.id)}
                             aria-label="Selecionar extrato"
                           />
@@ -314,7 +315,7 @@ export function OFXMatchingPane(p: Props) {
                           <span className={`text-sm font-mono font-semibold ${item.valor >= 0 ? "text-success" : "text-destructive"}`}>
                             {formatCurrency(item.valor)}
                           </span>
-                          {isPareado ? (
+                          {isPareado || conciliadoPersistido ? (
                             <CheckCircle className="w-4 h-4 text-success" />
                           ) : (
                             <XCircle className="w-4 h-4 text-destructive" />
@@ -329,6 +330,15 @@ export function OFXMatchingPane(p: Props) {
                           <Button size="sm" variant="ghost" className="h-6 text-xs gap-1"
                             onClick={() => p.onDesvincularExtrato(item.id)}>
                             <Link2Off className="w-3 h-3" /> Desvincular
+                          </Button>
+                        </div>
+                      )}
+                      {!isPareado && conciliadoPersistido && p.onDesfazerConciliacao && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded bg-success/10 px-2 py-1">
+                          <p className="text-xs text-success truncate">Conciliado em sessão anterior</p>
+                          <Button size="sm" variant="ghost" className="h-6 text-xs gap-1"
+                            onClick={() => p.onDesfazerConciliacao!(item.id)}>
+                            <RotateCcw className="w-3 h-3" /> Desfazer
                           </Button>
                         </div>
                       )}
