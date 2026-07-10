@@ -30,6 +30,7 @@ import { sugerirClassificacao } from "@/services/ia/sugestao.service";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { Plus } from "lucide-react";
+import { PaymentMethodFieldset } from "./payment-methods/registry";
 
 interface Props {
   form: LancamentoForm;
