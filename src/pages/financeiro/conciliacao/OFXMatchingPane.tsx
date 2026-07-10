@@ -74,12 +74,29 @@ export function OFXMatchingPane(p: Props) {
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
   const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
+  // Onda 12 — por padrão, itens já conciliados em sessões anteriores
+  // não aparecem nas pendências. Um toggle no cabeçalho permite exibi-los
+  // (necessário para desfazer uma conciliação persistida).
+  const [hideConciliados, setHideConciliados] = useState(true);
   const TOLERANCIA = 0.05;
 
   const extratoOrdenado = useMemo(
     () => sortBy(p.extratoItems, sortExtrato, (i) => i.data, (i) => i.valor),
     [p.extratoItems, sortExtrato],
   );
+  const conciliadosOcultos = useMemo(() => {
+    if (!p.conciliadosPersistidos || p.conciliadosPersistidos.size === 0) return 0;
+    return p.extratoItems.reduce(
+      (acc, item) => acc + (p.conciliadosPersistidos!.has(item.id) ? 1 : 0),
+      0,
+    );
+  }, [p.extratoItems, p.conciliadosPersistidos]);
+  const extratoVisivel = useMemo(() => {
+    if (!hideConciliados || !p.conciliadosPersistidos || p.conciliadosPersistidos.size === 0) {
+      return extratoOrdenado;
+    }
+    return extratoOrdenado.filter((item) => !p.conciliadosPersistidos!.has(item.id));
+  }, [extratoOrdenado, hideConciliados, p.conciliadosPersistidos]);
   const lancamentosOrdenados = useMemo(
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
