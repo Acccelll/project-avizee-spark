@@ -502,6 +502,14 @@ export function FinanceiroLancamentoForm({
       </div>
       )}
 
+      {form.forma_pagamento && (
+        <PaymentMethodFieldset
+          forma={form.forma_pagamento}
+          value={form.forma_pagamento_dados ?? {}}
+          onChange={(next) => updateField("forma_pagamento_dados", next)}
+        />
+      )}
+
       <div className="flex justify-between items-center gap-2">
         {showBoleto ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => setBoletoOpen(true)}>
