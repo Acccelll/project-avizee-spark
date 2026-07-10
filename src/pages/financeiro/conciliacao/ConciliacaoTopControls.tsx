@@ -73,13 +73,13 @@ export function ConciliacaoTopControls(p: Props) {
         <input
           ref={p.fileInputRef}
           type="file"
-          accept=".ofx,.qfx,.xml"
+          accept=".ofx,.qfx,.xml,.pdf,.csv"
           className="hidden"
           onChange={p.onFileSelect}
         />
         <Button onClick={() => p.fileInputRef.current?.click()} disabled={p.uploading} variant="outline" size="sm">
           <Upload className="w-4 h-4 mr-2" />
-          {p.uploading ? "Importando..." : "Importar OFX"}
+          {p.uploading ? "Importando..." : "Importar extrato"}
         </Button>
 
         {!p.isMobile && p.hasExtrato && p.hasLancamentos && (

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
-  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2,
+  Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -23,6 +23,7 @@ interface Props {
   selectedConta: string;
   onManualMatch: (extratoId: string, lancamentoId: string) => void;
   onAbrirVincular: (extratoId: string) => void;
+  onCriarInline?: (extratoId: string) => void;
   onConfirmar: () => void;
 }
 
@@ -91,10 +92,19 @@ export function OFXMatchingPane(p: Props) {
                         Desvincular
                       </Button>
                     ) : (
-                      <Button size="sm" className="flex-1 h-11 gap-2"
-                        onClick={() => p.onAbrirVincular(item.id)}>
-                        <Search className="w-4 h-4" /> Vincular
-                      </Button>
+                      <>
+                        <Button size="sm" className="flex-1 h-11 gap-2"
+                          onClick={() => p.onAbrirVincular(item.id)}>
+                          <Search className="w-4 h-4" /> Vincular
+                        </Button>
+                        {p.onCriarInline && (
+                          <Button size="sm" variant="secondary" className="h-11 gap-1"
+                            onClick={() => p.onCriarInline!(item.id)}
+                            title="Criar lançamento e baixar automaticamente">
+                            <Plus className="w-4 h-4" /> Criar
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -149,6 +159,15 @@ export function OFXMatchingPane(p: Props) {
                           </SelectContent>
                         </Select>
                       </div>
+                      {!isPareado && p.onCriarInline && (
+                        <div className="mt-2 flex justify-end">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
+                            onClick={() => p.onCriarInline!(item.id)}
+                            title="Criar lançamento e baixar automaticamente">
+                            <Plus className="w-3 h-3" /> Criar lançamento
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
