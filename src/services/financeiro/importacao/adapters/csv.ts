@@ -36,5 +36,20 @@ function normalizarData(raw: string): string | null {
 }
 
 function normalizarValor(raw: string): number {
-  return Number(raw.replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", "."));
+  // Aceita formatos pt-BR ("1.234,56") e en-US ("1234.56" / "1,234.56").
+  const limpo = raw.replace(/[R$\s]/g, "");
+  const temVirgula = limpo.includes(",");
+  const temPonto = limpo.includes(".");
+  let normalizado = limpo;
+  if (temVirgula && temPonto) {
+    // O último separador que aparece é o decimal.
+    const decimalSep = limpo.lastIndexOf(",") > limpo.lastIndexOf(".") ? "," : ".";
+    const milharSep = decimalSep === "," ? "." : ",";
+    normalizado = limpo.split(milharSep).join("");
+    if (decimalSep === ",") normalizado = normalizado.replace(",", ".");
+  } else if (temVirgula) {
+    // Só vírgula → assume decimal pt-BR.
+    normalizado = limpo.replace(",", ".");
+  }
+  return Number(normalizado);
 }
