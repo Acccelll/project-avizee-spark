@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
-import type { Match, SugestaoPersistida } from "./types";
+import type { ConciliacaoPersistida, Match, SugestaoPersistida } from "./types";
+import { RotateCcw } from "lucide-react";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
 
@@ -64,6 +65,8 @@ interface Props {
   onAceitarSugestao?: (extratoId: string) => boolean;
   onAceitarSugestoesPersistidas?: () => number;
   onRejeitarSugestao?: (extratoId: string) => boolean;
+  conciliadosPersistidos?: Map<string, ConciliacaoPersistida>;
+  onDesfazerConciliacao?: (extratoId: string) => void | Promise<boolean>;
 }
 
 export function OFXMatchingPane(p: Props) {
