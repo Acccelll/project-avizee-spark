@@ -20,11 +20,12 @@ import { notifyError } from "@/utils/errorMessages";
 import { getOrigemKey } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
-import type { LancamentoComStatus, Match, SugestaoPersistida } from "./types";
+import type { ConciliacaoPersistida, LancamentoComStatus, Match, SugestaoPersistida } from "./types";
 import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 import {
+  desfazerConciliacaoExtrato,
   limparSugestaoExtrato,
   listarExtratoPersistido,
   marcarExtratoConciliadoPorFitid,
@@ -61,6 +62,7 @@ export function useConciliacao() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [sugestoesPersistidas, setSugestoesPersistidas] = useState<Map<string, SugestaoPersistida>>(new Map());
+  const [conciliadosPersistidos, setConciliadosPersistidos] = useState<Map<string, ConciliacaoPersistida>>(new Map());
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [loadingLanc, setLoadingLanc] = useState(false);
@@ -123,6 +125,7 @@ export function useConciliacao() {
   const loadSugestoesPersistidas = useCallback(async (items: OFXTransaction[], contaId: string) => {
     if (!contaId || items.length === 0) {
       setSugestoesPersistidas(new Map());
+      setConciliadosPersistidos(new Map());
       return;
     }
     const datas = items.map((i) => i.data).sort();
@@ -134,10 +137,18 @@ export function useConciliacao() {
       });
       const fitidsAtuais = new Set(items.map((i) => i.id));
       const next = new Map<string, SugestaoPersistida>();
+      const conciliados = new Map<string, ConciliacaoPersistida>();
       rows.forEach((row) => {
+        if (!fitidsAtuais.has(row.fitid)) return;
+        if (row.status === "conciliado") {
+          conciliados.set(row.fitid, {
+            extratoPersistidoId: row.id,
+            baixaId: row.baixa_id,
+          });
+          return;
+        }
         if (
           row.status === "pendente" &&
-          fitidsAtuais.has(row.fitid) &&
           row.sugestao_lancamento_id &&
           row.sugestao_score != null
         ) {
@@ -150,9 +161,11 @@ export function useConciliacao() {
         }
       });
       setSugestoesPersistidas(next);
+      setConciliadosPersistidos(conciliados);
     } catch (err) {
       logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
       setSugestoesPersistidas(new Map());
+      setConciliadosPersistidos(new Map());
     }
   }, []);
 
@@ -200,6 +213,7 @@ export function useConciliacao() {
     loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
     setMatches([]);
     setSugestoesPersistidas(new Map());
+    setConciliadosPersistidos(new Map());
   }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
 
   // OFX upload
@@ -372,6 +386,41 @@ export function useConciliacao() {
     toast.success("Sugestão rejeitada.");
     return true;
   }, [registrarFeedbackSugestao, sugestoesPersistidas]);
+
+  /**
+   * Onda 10 — Desfaz uma conciliação persistida a partir do fitid do
+   * extrato: estorna a baixa vinculada, reabre o extrato e recarrega
+   * lançamentos para refletir o novo saldo em aberto.
+   */
+  const handleDesfazerConciliacaoPersistida = useCallback(async (extratoId: string): Promise<boolean> => {
+    const conc = conciliadosPersistidos.get(extratoId);
+    if (!conc) {
+      toast.error("Esta transação não está conciliada.");
+      return false;
+    }
+    const confirmar = window.confirm(
+      "Desfazer a conciliação irá estornar a baixa financeira vinculada. Continuar?",
+    );
+    if (!confirmar) return false;
+    try {
+      await desfazerConciliacaoExtrato({
+        extratoPersistidoId: conc.extratoPersistidoId,
+        baixaId: conc.baixaId,
+        motivo: "Conciliação bancária desfeita pelo usuário.",
+      });
+      setConciliadosPersistidos((prev) => {
+        const next = new Map(prev);
+        next.delete(extratoId);
+        return next;
+      });
+      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+      toast.success("Conciliação desfeita. A baixa foi estornada.");
+      return true;
+    } catch (err) {
+      notifyError(err);
+      return false;
+    }
+  }, [conciliadosPersistidos, dataFim, dataInicio, loadLancamentosFromPeriod, selectedConta]);
 
   const handleContaChange = async (contaId: string) => {
     setSelectedConta(contaId);
@@ -785,11 +834,13 @@ export function useConciliacao() {
     lancamentosComStatus, filteredData,
     pareados, semParOFX, pendentesERP,
     usedLancamentoIds, getMatch, sugestoesPersistidas,
+    conciliadosPersistidos,
     // handlers
     handleFileSelect, handleContaChange,
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
     handleAceitarSugestao, handleAceitarSugestoesPersistidas, handleRejeitarSugestao,
+    handleDesfazerConciliacaoPersistida,
     handleCriarLancamentoInline,
     handleConfirmarSelecao, handleDesvincularExtrato,
     setMatches,
