@@ -248,7 +248,8 @@ export function useConciliacao() {
       toast.error("Sugestão não encontrada para esta transação.");
       return false;
     }
-    if (usedLancamentoIds.has(sugestao.lancamentoId)) {
+    const usados = new Set(matches.map((m) => m.lancamentoId));
+    if (usados.has(sugestao.lancamentoId)) {
       toast.error("O lançamento sugerido já está pareado.");
       return false;
     }
@@ -264,7 +265,7 @@ export function useConciliacao() {
     ]);
     toast.success("Sugestão aceita.");
     return true;
-  }, [sugestoesPersistidas, usedLancamentoIds]);
+  }, [matches, sugestoesPersistidas]);
 
   const handleAceitarSugestoesPersistidas = useCallback((minScore = SUGESTAO_SCORE_THRESHOLD): number => {
     const jaPareados = new Set(matches.map((m) => m.extratoId));
