@@ -347,6 +347,9 @@ const Financeiro = () => {
       gerar_parcelas: false,
       num_parcelas: 2,
       intervalo_dias: 30,
+      forma_pagamento_dados:
+        ((l as unknown as { forma_pagamento_dados?: Record<string, unknown> })
+          .forma_pagamento_dados as Record<string, unknown>) ?? {},
     });
     setModalOpen(true);
   };

@@ -30,6 +30,7 @@ import { sugerirClassificacao } from "@/services/ia/sugestao.service";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { Plus } from "lucide-react";
+import { PaymentMethodFieldset } from "./payment-methods/registry";
 
 interface Props {
   form: LancamentoForm;
@@ -499,6 +500,14 @@ export function FinanceiroLancamentoForm({
 
         <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
       </div>
+      )}
+
+      {form.forma_pagamento && (
+        <PaymentMethodFieldset
+          forma={form.forma_pagamento}
+          value={form.forma_pagamento_dados ?? {}}
+          onChange={(next) => updateField("forma_pagamento_dados", next)}
+        />
       )}
 
       <div className="flex justify-between items-center gap-2">
