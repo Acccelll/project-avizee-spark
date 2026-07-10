@@ -24,7 +24,11 @@ import type { LancamentoComStatus, Match, SugestaoPersistida } from "./types";
 import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
-import { listarExtratoPersistido } from "@/services/financeiro/extratoImportacoes.service";
+import {
+  limparSugestaoExtrato,
+  listarExtratoPersistido,
+  marcarExtratoConciliadoPorFitid,
+} from "@/services/financeiro/extratoImportacoes.service";
 import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
 
 /** Threshold de score para conciliação automática em lote. */
@@ -357,6 +361,9 @@ export function useConciliacao() {
       escolhaFinalLancamentoId: null,
       motivo: "Sugestão persistida rejeitada na conciliação OFX.",
     });
+    void limparSugestaoExtrato(sugestao.extratoPersistidoId).catch((err) => {
+      logger.warn("[conciliacao] falha ao limpar sugestão rejeitada:", err);
+    });
     setSugestoesPersistidas((prev) => {
       const next = new Map(prev);
       next.delete(extratoId);
@@ -553,6 +560,14 @@ export function useConciliacao() {
           tipo: extrato.valor >= 0 ? "C" : "D",
         },
       });
+      if (sugestoesPersistidas.has(extratoId)) {
+        registrarFeedbackSugestao({
+          extratoId,
+          acao: "criada_inline",
+          escolhaFinalLancamentoId: res.lancamento_id,
+          motivo: "Lançamento criado inline em vez de aceitar a sugestão persistida.",
+        });
+      }
       setMatches((prev) => [
         ...prev.filter((m) => m.extratoId !== extratoId),
         { extratoId, lancamentoId: res.lancamento_id, origem: "inline" },
@@ -566,7 +581,7 @@ export function useConciliacao() {
     } catch (err) {
       notifyError(err);
     }
-  }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
+  }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, registrarFeedbackSugestao, sugestoesPersistidas]);
 
   // Conciliação automática em lote (score ≥ AUTO_SCORE_THRESHOLD)
   const handleConciliacaoAutomatica = useCallback(() => {
@@ -653,7 +668,16 @@ export function useConciliacao() {
             valor: extrato.valor,
             tipo: extrato.valor >= 0 ? "C" : "D",
           };
-          return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
+          return conciliarTransacao(selectedConta, transacao, par.lancamento_id)
+            .then((baixaId) => marcarExtratoConciliadoPorFitid({
+              contaBancariaId: selectedConta,
+              fitid: extrato.id,
+              baixaId,
+            }))
+            .catch((err) => {
+              logger.warn("[conciliacao] falha ao persistir status do extrato conciliado:", err);
+              throw err;
+            });
         }),
       );
       try {
@@ -671,6 +695,11 @@ export function useConciliacao() {
       toast.success(
         `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
       );
+      setSugestoesPersistidas((prev) => {
+        const next = new Map(prev);
+        payload.pares.forEach((par) => next.delete(par.extrato_id));
+        return next;
+      });
       setMatches([]);
     } catch (err) {
       notifyError(err);

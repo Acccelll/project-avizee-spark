@@ -40,7 +40,7 @@ export async function scoreExtratoPendentes(
 
   let comSugestao = 0;
   for (const row of data ?? []) {
-    const [best] = await buscarCandidatos({
+    const candidatos = await buscarCandidatos({
       empresa_id,
       extrato: {
         data: row.data as string,
@@ -51,8 +51,27 @@ export async function scoreExtratoPendentes(
         documento: row.documento as string | null,
       },
       minScore,
-      topN: 1,
+      topN: 5,
     });
+
+    const idsCandidatos = candidatos.map((c) => c.lancamento_id);
+    let bloqueados = new Set<string>();
+    if (idsCandidatos.length > 0) {
+      const { data: feedback, error: fbErr } = await supabase
+        .from("financeiro_matching_feedback")
+        .select("sugestao_lancamento_id")
+        .eq("extrato_id", row.id as string)
+        .in("acao", ["rejeitada", "corrigida"])
+        .in("sugestao_lancamento_id", idsCandidatos);
+      if (fbErr) throw new Error(fbErr.message);
+      bloqueados = new Set(
+        (feedback ?? [])
+          .map((f) => f.sugestao_lancamento_id as string | null)
+          .filter((id): id is string => Boolean(id)),
+      );
+    }
+
+    const best = candidatos.find((c) => !bloqueados.has(c.lancamento_id));
 
     const update = best
       ? {
