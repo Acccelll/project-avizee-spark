@@ -101,7 +101,11 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
           conta_contabil_id: form.conta_contabil_id || null,
           data_pagamento: form.data_pagamento || null,
           observacoes: form.observacoes || null,
-        };
+          forma_pagamento_dados:
+            form.forma_pagamento_dados && Object.keys(form.forma_pagamento_dados).length
+              ? form.forma_pagamento_dados
+              : null,
+        } as LancamentoWritePayload;
 
         if (mode === "create" && form.gerar_parcelas && form.num_parcelas > 1) {
           const numParcelas = Number(form.num_parcelas);
