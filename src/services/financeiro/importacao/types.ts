@@ -1,4 +1,4 @@
-export type OrigemImportacao = "OFX" | "PDF" | "CSV" | "CARTAO_PDF";
+export type OrigemImportacao = "ofx" | "pdf_cartao" | "csv" | "manual";
 
 export interface StagedTx {
   id: string;

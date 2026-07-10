@@ -5,7 +5,7 @@
  * interface tipada para upload de arquivos diretamente do browser.
  */
 
-import { parseOFX as parseOFXText } from "@/lib/parseOFX";
+import { parseOFXFile } from "@/lib/parseOFX";
 
 /**
  * Representa uma transação extraída de um extrato bancário OFX.
@@ -32,8 +32,7 @@ export interface TransacaoExtrato {
  * @throws      Erro se o arquivo não puder ser lido ou não contiver transações.
  */
 export async function parseOFX(file: File): Promise<TransacaoExtrato[]> {
-  const text = await file.text();
-  const transacoes = parseOFXText(text);
+  const transacoes = await parseOFXFile(file);
 
   if (transacoes.length === 0) {
     throw new Error("Nenhuma transação encontrada no arquivo OFX.");

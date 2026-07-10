@@ -28,6 +28,10 @@ export function parseOFX(text: string): OFXTransaction[] {
 
 /** Lê arquivos OFX/QFX preservando acentuação comum em bancos brasileiros. */
 export async function readOFXFileText(file: File): Promise<string> {
+  if (!file.arrayBuffer) {
+    return file.text();
+  }
+
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const probe = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 4096));

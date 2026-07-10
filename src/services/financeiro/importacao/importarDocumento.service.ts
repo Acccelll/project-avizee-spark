@@ -16,6 +16,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { readOFXFileText } from "@/lib/parseOFX";
 import { adaptOFX } from "./adapters/ofx";
 import { adaptCSV } from "./adapters/csv";
 import { adaptPDF } from "./adapters/pdf";
@@ -24,12 +25,12 @@ import type { ImportacaoDocumentoResumo, OrigemImportacao, StagedTx } from "./ty
 
 function detectarOrigem(file: File): OrigemImportacao {
   const nome = file.name.toLowerCase();
-  if (nome.endsWith(".ofx") || nome.endsWith(".qfx")) return "OFX";
-  if (nome.endsWith(".csv")) return "CSV";
-  if (nome.endsWith(".pdf")) return "PDF";
-  if (file.type === "application/pdf") return "PDF";
-  if (file.type.includes("csv")) return "CSV";
-  return "OFX";
+  if (nome.endsWith(".ofx") || nome.endsWith(".qfx")) return "ofx";
+  if (nome.endsWith(".csv")) return "csv";
+  if (nome.endsWith(".pdf")) return "pdf_cartao";
+  if (file.type === "application/pdf") return "pdf_cartao";
+  if (file.type.includes("csv")) return "csv";
+  return "ofx";
 }
 
 async function hashArquivo(text: string): Promise<string> {
@@ -51,10 +52,10 @@ export async function importarDocumentoUniversal(input: {
   // 1) adapter → StagedTx[]
   let staged: StagedTx[] = [];
   let rawTexto: string | null = null;
-  if (origem === "OFX") {
-    rawTexto = await input.file.text();
+  if (origem === "ofx") {
+    rawTexto = await readOFXFileText(input.file);
     staged = adaptOFX(rawTexto);
-  } else if (origem === "CSV") {
+  } else if (origem === "csv") {
     rawTexto = await input.file.text();
     staged = adaptCSV(rawTexto);
   } else {
