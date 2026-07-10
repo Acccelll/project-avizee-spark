@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { parseOFX, type OFXTransaction } from "@/lib/parseOFX";
+import { parseOFXFile, type OFXTransaction } from "@/lib/parseOFX";
 import {
   calcularScoreConciliacao,
   conciliarTransacao,
@@ -131,8 +131,7 @@ export function useConciliacao() {
       const nome = file.name.toLowerCase();
       const isOFX = nome.endsWith(".ofx") || nome.endsWith(".qfx") || nome.endsWith(".xml");
       if (isOFX) {
-        const text = await file.text();
-        const items = parseOFX(text);
+        const items = await parseOFXFile(file);
         if (items.length === 0) {
           toast.error("Nenhuma transação encontrada no arquivo OFX.");
           return;
