@@ -94,8 +94,13 @@ export function OFXMatchingPane(p: Props) {
       {p.showOFXPane && (
         <div className="p-4 border-t border-border/60">
           {/* MOBILE */}
-          <div className="md:hidden space-y-2 mb-4">
-            {p.extratoItems.map((item) => {
+          <div className="md:hidden mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase">Extrato OFX</span>
+              <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+            </div>
+            <div className="space-y-2">
+            {extratoOrdenado.map((item) => {
               const match = p.getMatch(item.id);
               const isPareado = !!match;
               const linked = match ? p.lancamentos.find((l) => l.id === match.lancamentoId) : null;
@@ -152,16 +157,20 @@ export function OFXMatchingPane(p: Props) {
                 </div>
               );
             })}
+            </div>
           </div>
 
           {/* DESKTOP split */}
           <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             <div>
-              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                Extrato OFX ({p.extratoItems.length} transações)
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Extrato OFX ({p.extratoItems.length} transações)
+                </h3>
+                <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+              </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                {p.extratoItems.map((item) => {
+                {extratoOrdenado.map((item) => {
                   const match = p.getMatch(item.id);
                   const isPareado = !!match;
                   return (
@@ -217,9 +226,12 @@ export function OFXMatchingPane(p: Props) {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                Lançamentos ERP ({p.lancamentos.length} no período)
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Lançamentos ERP ({p.lancamentos.length} no período)
+                </h3>
+                <SortSelect value={sortLanc} onChange={setSortLanc} />
+              </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                 {p.lancamentos.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic">
@@ -228,7 +240,7 @@ export function OFXMatchingPane(p: Props) {
                       : "Selecione uma conta bancária para carregar lançamentos."}
                   </p>
                 ) : (
-                  p.lancamentos.map((l) => {
+                  lancamentosOrdenados.map((l) => {
                     const isPareado = p.usedLancamentoIds.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
