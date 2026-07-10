@@ -223,6 +223,8 @@ export default function Conciliacao() {
             }}
             onCriarInline={v.handleCriarLancamentoInline}
             onConfirmar={v.handleConfirmarConciliacao}
+            onConfirmarSelecao={v.handleConfirmarSelecao}
+            onDesvincularExtrato={v.handleDesvincularExtrato}
           />
         )}
 
