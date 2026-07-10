@@ -71,17 +71,36 @@ export default function FinanceiroRegrasAliases() {
         .select("*")
         .order("hits", { ascending: false })
         .limit(200),
-      supabase.from("fornecedores").select("id, nome").order("nome").limit(1000),
-      supabase.from("centros_custo").select("id, nome").order("nome").limit(500),
-      supabase.from("contas_contabeis").select("id, nome").order("nome").limit(1000),
+      supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social")
+        .order("nome_razao_social")
+        .limit(1000),
+      supabase.from("centros_custo").select("id, descricao").order("descricao").limit(500),
+      supabase.from("contas_contabeis").select("id, descricao").order("descricao").limit(1000),
     ]);
     if (rRes.error) logger.error("[regras]", rRes.error);
     if (aRes.error) logger.error("[aliases]", aRes.error);
     setRegras((rRes.data as Regra[]) ?? []);
     setAliases((aRes.data as Alias[]) ?? []);
-    setFornecedores((fRes.data as { id: string; nome: string }[]) ?? []);
-    setCentros((cRes.data as { id: string; nome: string }[]) ?? []);
-    setContasCont((ccRes.data as { id: string; nome: string }[]) ?? []);
+    setFornecedores(
+      ((fRes.data as { id: string; nome_razao_social: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.nome_razao_social,
+      })),
+    );
+    setCentros(
+      ((cRes.data as { id: string; descricao: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.descricao,
+      })),
+    );
+    setContasCont(
+      ((ccRes.data as { id: string; descricao: string }[]) ?? []).map((r) => ({
+        id: r.id,
+        nome: r.descricao,
+      })),
+    );
   };
 
   useEffect(() => {
