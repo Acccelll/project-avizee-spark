@@ -35,28 +35,29 @@ const LANC_SELECT =
  *  2) Títulos abertos/parciais pelo vencimento no período (candidatos a nova baixa).
  */
 export async function fetchLancamentosParaConciliacao(
-  contaId: string,
+  contaId: string | null,
   dataInicio: string,
   dataFim: string,
 ): Promise<Array<Lancamento & { data_baixa?: string | null }>> {
-  const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([
-    supabase
-      .from("financeiro_baixas")
-      .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${LANC_SELECT})`)
-      .eq("conta_bancaria_id", contaId)
-      .is("estornada_em", null)
-      .gte("data_baixa", dataInicio)
-      .lte("data_baixa", dataFim),
-    supabase
-      .from("financeiro_lancamentos")
-      .select(LANC_SELECT)
-      .eq("ativo", true)
-      .eq("conta_bancaria_id", contaId)
-      .in("status", ["aberto", "parcial"])
-      .gte("data_vencimento", dataInicio)
-      .lte("data_vencimento", dataFim)
-      .order("data_vencimento", { ascending: true }),
-  ]);
+  const baixasQ = supabase
+    .from("financeiro_baixas")
+    .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${LANC_SELECT})`)
+    .is("estornada_em", null)
+    .gte("data_baixa", dataInicio)
+    .lte("data_baixa", dataFim);
+  const vencQ = supabase
+    .from("financeiro_lancamentos")
+    .select(LANC_SELECT)
+    .eq("ativo", true)
+    .in("status", ["aberto", "parcial"])
+    .gte("data_vencimento", dataInicio)
+    .lte("data_vencimento", dataFim)
+    .order("data_vencimento", { ascending: true });
+  if (contaId) {
+    baixasQ.eq("conta_bancaria_id", contaId);
+    vencQ.eq("conta_bancaria_id", contaId);
+  }
+  const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([baixasQ, vencQ]);
 
   const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
   ((porBaixa as Array<{
