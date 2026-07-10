@@ -21,6 +21,8 @@ import { getOrigemKey } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
 import type { LancamentoComStatus, Match } from "./types";
+import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
@@ -231,6 +233,55 @@ export function useConciliacao() {
     });
   };
 
+  /**
+   * Épico D — Cria um lançamento novo diretamente a partir de uma
+   * transação sem par no extrato, já baixado na conta selecionada,
+   * e adiciona o match automaticamente.
+   */
+  const handleCriarLancamentoInline = useCallback(async (extratoId: string) => {
+    const extrato = extratoItems.find((e) => e.id === extratoId);
+    if (!extrato) return;
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de criar o lançamento.");
+      return;
+    }
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id;
+      if (!userId) throw new Error("Sessão expirada.");
+      const { data: ue } = await supabase
+        .from("user_empresas")
+        .select("empresa_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const empresaId = ue?.empresa_id;
+      if (!empresaId) throw new Error("Empresa não identificada.");
+      const res = await criarLancamentoInlineDoExtrato({
+        empresa_id: empresaId,
+        conta_bancaria_id: selectedConta,
+        extrato: {
+          id: extrato.id,
+          data: extrato.data,
+          descricao: extrato.descricao ?? "",
+          valor: extrato.valor,
+          tipo: extrato.valor >= 0 ? "C" : "D",
+        },
+      });
+      setMatches((prev) => [
+        ...prev.filter((m) => m.extratoId !== extratoId),
+        { extratoId, lancamentoId: res.lancamento_id, origem: "inline" },
+      ]);
+      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+      toast.success(
+        res.hint_aplicado
+          ? "Lançamento criado e baixado (fornecedor/conta sugeridos por regra)."
+          : "Lançamento criado e baixado automaticamente.",
+      );
+    } catch (err) {
+      notifyError(err);
+    }
+  }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
+
   // Conciliação automática em lote (score ≥ AUTO_SCORE_THRESHOLD)
   const handleConciliacaoAutomatica = useCallback(() => {
     const newMatches: Match[] = [];
@@ -423,6 +474,7 @@ export function useConciliacao() {
     handleFileSelect, handleContaChange,
     handleAutoMatch, handleManualMatch,
     handleConciliacaoAutomatica, handleConfirmarConciliacao,
+    handleCriarLancamentoInline,
     setMatches,
   };
 }
