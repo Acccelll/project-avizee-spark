@@ -903,6 +903,18 @@ export function useConciliacao() {
         return next;
       });
       setMatches([]);
+      // Reidrata estado após efetivar as baixas para que:
+      //  - lançamentos recém-baixados apareçam como conciliados (via eixo baixa);
+      //  - extrato importado mantenha as linhas conciliadas visíveis com badge
+      //    "N conciliado(s)" no cabeçalho do painel, permitindo desfazer.
+      try {
+        await Promise.all([
+          loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta),
+          hydrateExtratoPersistido({ contaId: selectedConta, from: dataInicio, to: dataFim }),
+        ]);
+      } catch (reloadErr) {
+        logger.warn("[conciliacao] falha ao recarregar estado pós-confirmação:", reloadErr);
+      }
     } catch (err) {
       notifyError(err);
     } finally {
