@@ -10840,6 +10840,14 @@ export type Database = {
           matches_aprovados: number
         }[]
       }
+      conciliacao_dashboard_kpis: {
+        Args: {
+          p_empresa_id: string
+          p_periodo_fim: string
+          p_periodo_inicio: string
+        }
+        Returns: Json
+      }
       conciliacao_decidir_match: {
         Args: { p_decisao: string; p_match_id: string; p_motivo?: string }
         Returns: {
