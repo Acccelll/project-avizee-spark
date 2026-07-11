@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
-import { n as useInvalidateAfterMutation } from "@/hooks/n";
+import { n as useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
