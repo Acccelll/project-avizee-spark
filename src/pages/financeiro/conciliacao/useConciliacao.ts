@@ -233,6 +233,7 @@ export function useConciliacao() {
         .map((c) => c.baixaId)
         .filter((v): v is string => !!v);
       const lancamentosIds = new Set<string>();
+      const conciliadosHidratados = new Map(conciliados);
       if (fitidsConciliados.length > 0) {
         try {
           const baixasPorFitid = await listarBaixasConciliadasPorFitids({
@@ -243,27 +244,21 @@ export function useConciliacao() {
             ...baixaIds,
             ...Array.from(baixasPorFitid.values()).flat().map((b) => b.baixaId),
           ]));
-          setConciliadosPersistidos((prev) => {
-            const hydrated = new Map(prev.size ? prev : conciliados);
-            baixasPorFitid.forEach((baixas, fitid) => {
-              const atual = hydrated.get(fitid);
-              if (!atual) return;
-              hydrated.set(fitid, {
-                ...atual,
-                baixaId: atual.baixaId ?? baixas[0]?.baixaId ?? null,
-                baixaIds: baixas.map((b) => b.baixaId),
-              });
-              baixas.forEach((b) => lancamentosIds.add(b.lancamentoId));
+          baixasPorFitid.forEach((baixas, fitid) => {
+            const atual = conciliadosHidratados.get(fitid);
+            if (!atual) return;
+            conciliadosHidratados.set(fitid, {
+              ...atual,
+              baixaId: atual.baixaId ?? baixas[0]?.baixaId ?? null,
+              baixaIds: baixas.map((b) => b.baixaId),
             });
-            return hydrated;
+            baixas.forEach((b) => lancamentosIds.add(b.lancamentoId));
           });
         } catch (err) {
           logger.warn("[conciliacao] falha ao carregar baixas por fitid:", err);
-          setConciliadosPersistidos(conciliados);
         }
-      } else {
-        setConciliadosPersistidos(conciliados);
       }
+      setConciliadosPersistidos(conciliadosHidratados);
       if (baixaIds.length > 0) {
         try {
           const mapa = await mapBaixasParaLancamentos(baixaIds);
