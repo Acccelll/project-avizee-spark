@@ -451,7 +451,52 @@ const Financeiro = () => {
             options={financialPeriods}
             direction="future"
           />
-          <MonthFilter value={mes} onChange={setMes} direction="future" />
+          <MonthFilter
+            value={mes}
+            onChange={(v) => { setMes(v); if (v) setDataEspecifica(null); }}
+            direction="future"
+          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0 justify-start",
+                  !dataEspecifica && "text-muted-foreground",
+                )}
+                title="Filtrar por data específica"
+              >
+                <CalendarIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                {dataEspecifica
+                  ? new Date(dataEspecifica + "T00:00:00").toLocaleDateString("pt-BR")
+                  : "Data específica"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dataEspecifica ? new Date(dataEspecifica + "T00:00:00") : undefined}
+                onSelect={(d) => {
+                  if (!d) { setDataEspecifica(null); return; }
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, "0");
+                  const dd = String(d.getDate()).padStart(2, "0");
+                  setDataEspecifica(`${yyyy}-${mm}-${dd}`);
+                }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+              {dataEspecifica && (
+                <div className="border-t p-2 flex justify-end">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs"
+                    onClick={() => setDataEspecifica(null)}>
+                    Limpar
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5" data-help-id="financeiro.viewToggle">
             <Tooltip>
               <TooltipTrigger asChild>
