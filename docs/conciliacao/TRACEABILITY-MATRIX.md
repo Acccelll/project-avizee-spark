@@ -1,0 +1,19 @@
+# Traceability Matrix — Conciliação
+
+Rastreabilidade Requisito → Caso de Uso → Arquitetura → Domínio → Service → Hook → Store → Tela → Teste → Documentação.
+
+| Req                          | Caso de Uso                    | Arquitetura         | Domínio       | Service              | Hook                    | Store/State           | Tela                          | Teste                        | Doc                                    |
+| ---------------------------- | ------------------------------ | ------------------- | ------------- | -------------------- | ----------------------- | --------------------- | ----------------------------- | ---------------------------- | -------------------------------------- |
+| Importar extrato OFX/CNAB    | UC-IMP-01 Upload arquivo       | Ports & Adapters    | Importação    | importService        | useImportacaoUpload     | importacaoStore       | ConciliacaoImportarPage       | import.spec / e2e            | REQUISITOS §Import; ARQUITETURA §Ports |
+| Deduplicar importação        | UC-IMP-02 Hash arquivo         | Idempotência        | Importação    | importService.dedupe | –                       | –                     | Toast/Diálogo                 | dedupe.spec                  | ADR Idempotência                       |
+| Sugerir matching              | UC-MAT-01 Score N candidatos   | Domain puro         | Matching      | matchingService      | useMatchingSugestoes    | matchingStore         | ConciliacaoWorkbench          | scoring.spec / e2e           | REQUISITOS §Matching                   |
+| Aplicar regras                | UC-RUL-01 Regras versionadas   | Motor de Regras     | Regras        | ruleService          | useRegrasVigentes       | regrasStore           | ConfigRegrasPage              | rule.spec                    | ADR Regras                             |
+| Conciliar N×N                 | UC-CON-01 Vincular pares      | Workflow            | Conciliação   | conciliacaoService   | useConciliacaoAcoes     | conciliacaoStore      | ConciliacaoWorkbench          | conciliacao.spec / e2e       | REQUISITOS §Conciliação                |
+| Baixa parcial/lote            | UC-BAI-01 Baixa transacional  | RPC atômica         | Baixa         | baixaService         | useBaixaExecucao        | baixaStore            | BaixaLotePage                 | baixa.spec / e2e             | ADR RPC                                |
+| Estorno                       | UC-BAI-02 Reversão            | Ledger              | Baixa         | baixaService.reverse | useEstorno              | –                     | BaixaDetalhesPage             | reverse.spec                 | ADR Ledger                             |
+| Trilha imutável               | UC-AUD-01 Hash-chain          | Ledger              | Auditoria     | auditService         | useAuditoriaTrilha      | –                     | AuditoriaLancamentoDrawer     | ledger.spec                  | ADR Hash-chain                         |
+| Dashboard operacional         | UC-DASH-01 KPIs               | CQRS leitura        | Dashboard     | dashboardService     | useDashboardConciliacao | dashboardStore        | ConciliacaoDashboardPage      | dashboard.spec               | REQUISITOS §Dashboard                  |
+| Configurar aliases            | UC-CFG-01 Aliases             | Configurações       | Configurações| aliasService         | useAliases              | configStore           | ConfigAliasesPage             | alias.spec                   | REQUISITOS §Configurações              |
+| Feedback de matching          | UC-MAT-02 Aprendizado         | Feedback loop       | Matching      | matchingService.log  | useMatchingFeedback     | –                     | Workbench (ação)              | feedback.spec                | ROADMAP                                |
+
+Cada linha desta matriz deve estar coberta por, no mínimo: 1 teste, 1 tela e 1 documento.
