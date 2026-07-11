@@ -1,10 +1,171 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, FileText, RefreshCw, CheckCircle2 } from "lucide-react";
+import { AlertCircle, FileText, RefreshCw, CheckCircle2, Check, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { toast } from "sonner";
+import { notifyError } from "@/utils/errorMessages";
+
+interface QuickPayoutRow {
+  notaId: string;
+  valorTotal: number;
+  dataEmissao: string | null;
+  onDone: () => void;
+}
+
+function addMonths(iso: string, m: number): string {
+  const [y, mo, d] = iso.split("-").map(Number);
+  const dt = new Date(y, mo - 1 + m, d);
+  return dt.toISOString().split("T")[0];
+}
+
+function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPayoutRow) {
+  const invalidate = useInvalidateAfterMutation();
+  const [open, setOpen] = useState(false);
+  const [forma, setForma] = useState<string>("boleto_dda");
+  const [condicao, setCondicao] = useState<"a_vista" | "a_prazo">("a_vista");
+  const [nParcelas, setNParcelas] = useState<number>(1);
+  const hoje = new Date().toISOString().split("T")[0];
+  const [primeiroVenc, setPrimeiroVenc] = useState<string>(dataEmissao || hoje);
+  const [saving, setSaving] = useState(false);
+
+  const isCartao = forma === "cartao_credito";
+
+  const salvar = async () => {
+    if (isCartao) {
+      toast.info("Cartão de crédito: use a edição completa da NF para selecionar o cartão.");
+      return;
+    }
+    const total = Number(valorTotal || 0);
+    if (!total) {
+      toast.error("Valor da nota inválido.");
+      return;
+    }
+    const qtde = condicao === "a_prazo" ? Math.max(1, Number(nParcelas) || 1) : 1;
+    const base = Math.round((total / qtde) * 100) / 100;
+    const parcelas = Array.from({ length: qtde }, (_, i) => {
+      const isLast = i === qtde - 1;
+      const valor = isLast
+        ? Math.round((total - base * (qtde - 1)) * 100) / 100
+        : base;
+      const vencimento =
+        qtde === 1
+          ? (condicao === "a_prazo" ? primeiroVenc : (dataEmissao || hoje))
+          : addMonths(primeiroVenc, i);
+      return { numero: i + 1, vencimento, valor };
+    });
+    setSaving(true);
+    try {
+      await atualizarFinanceiroNota({
+        notaId,
+        formaPagamento: forma,
+        condicaoPagamento: condicao,
+        parcelas: parcelas as never,
+      });
+      toast.success("Pagamento definido e lançamentos gerados.");
+      await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
+      setOpen(false);
+      onDone();
+    } catch (err) {
+      notifyError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
+          <Check className="h-3 w-3" /> Definir
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 space-y-3">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold">Definir pagamento</p>
+          <p className="text-[11px] text-muted-foreground">
+            Total: {formatCurrency(Number(valorTotal || 0))}
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Forma</Label>
+          <Select value={forma} onValueChange={setForma}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+              <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+              <SelectItem value="pix">PIX</SelectItem>
+              <SelectItem value="transferencia">Transferência</SelectItem>
+              <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+              <SelectItem value="cartao_credito">Cartão de Crédito…</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {isCartao ? (
+          <p className="text-[11px] text-warning">
+            Cartão de crédito exige seleção do cartão — use a edição completa da NF.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Condição</Label>
+              <Select value={condicao} onValueChange={(v) => setCondicao(v as "a_vista" | "a_prazo")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="a_vista">À vista</SelectItem>
+                  <SelectItem value="a_prazo">A prazo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {condicao === "a_prazo" && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Parcelas</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={48}
+                    value={nParcelas}
+                    onChange={(e) => setNParcelas(Math.max(1, Number(e.target.value) || 1))}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">1º Venc.</Label>
+                  <Input
+                    type="date"
+                    value={primeiroVenc}
+                    onChange={(e) => setPrimeiroVenc(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        <Button
+          size="sm"
+          className="w-full h-8 text-xs"
+          onClick={salvar}
+          disabled={saving || isCartao}
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+          Confirmar
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -97,16 +258,22 @@ export function PendenciasPanel({ open, onClose }: Props) {
                         <span className="font-mono font-semibold text-sm">
                           {formatCurrency(Number(nota.valor_total || 0))}
                         </span>
+                        <QuickPayoutPopover
+                          notaId={nota.id}
+                          valorTotal={Number(nota.valor_total || 0)}
+                          dataEmissao={nota.data_emissao}
+                          onDone={() => refetch()}
+                        />
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-7 gap-1 text-xs"
+                          variant="ghost"
+                          className="h-6 gap-1 text-[10px] text-muted-foreground"
                           onClick={() => {
                             onClose();
                             navigate(`/fiscal/${nota.id}/editar`);
                           }}
                         >
-                          <FileText className="h-3 w-3" /> Definir
+                          <FileText className="h-3 w-3" /> Editar NF
                         </Button>
                       </div>
                     </div>
