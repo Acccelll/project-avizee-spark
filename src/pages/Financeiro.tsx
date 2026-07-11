@@ -87,11 +87,13 @@ function MesOuDiaFilter({
   dataEspecifica,
   onChangeMes,
   onChangeDia,
+  onClear,
 }: {
   mes: string | null;
   dataEspecifica: string | null;
   onChangeMes: (v: string | null) => void;
   onChangeDia: (v: string | null) => void;
+  onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const initialTab: "mes" | "dia" = dataEspecifica ? "dia" : "mes";
@@ -109,10 +111,7 @@ function MesOuDiaFilter({
       ? new Date(dataEspecifica + "T00:00:00").toLocaleDateString("pt-BR")
       : "Mês / Dia";
 
-  const limpar = () => {
-    onChangeMes(null);
-    onChangeDia(null);
-  };
+  const limpar = () => onClear();
 
   return (
     <Popover
@@ -359,6 +358,7 @@ const Financeiro = () => {
     setMes,
     dataEspecifica,
     setDataEspecifica,
+    clearMesDia,
     activeFilters,
     handleRemoveFilter,
     tipoOpts,
@@ -596,8 +596,9 @@ const Financeiro = () => {
           <MesOuDiaFilter
             mes={mes}
             dataEspecifica={dataEspecifica}
-            onChangeMes={(v) => { setMes(v); if (v) setDataEspecifica(null); }}
-            onChangeDia={(v) => { setDataEspecifica(v); if (v) setMes(null); }}
+            onChangeMes={setMes}
+            onChangeDia={setDataEspecifica}
+            onClear={clearMesDia}
           />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5" data-help-id="financeiro.viewToggle">
             <Tooltip>
