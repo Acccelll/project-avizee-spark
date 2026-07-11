@@ -491,7 +491,10 @@ export function OFXMatchingPane(p: Props) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Lançamentos ERP ({p.lancamentos.length} no período)
+                  Lançamentos ERP ({lancamentosVisiveis.length}
+                  {hideConciliados && p.lancamentosConciliadosIds && p.lancamentosConciliadosIds.size > 0
+                    ? ` de ${p.lancamentos.length}`
+                    : " no período"})
                 </h3>
                 <SortSelect value={sortLanc} onChange={setSortLanc} />
               </div>
@@ -503,8 +506,9 @@ export function OFXMatchingPane(p: Props) {
                       : "Selecione uma conta bancária para carregar lançamentos."}
                   </p>
                 ) : (
-                  lancamentosOrdenados.map((l) => {
-                    const isPareado = p.usedLancamentoIds.has(l.id);
+                  lancamentosVisiveis.map((l) => {
+                    const isConciliadoPersistido = p.lancamentosConciliadosIds?.has(l.id) ?? false;
+                    const isPareado = p.usedLancamentoIds.has(l.id) || isConciliadoPersistido;
                     const checked = selLanc.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
@@ -527,7 +531,12 @@ export function OFXMatchingPane(p: Props) {
                             <Badge variant={l.tipo === "receber" ? "default" : "secondary"} className="text-[10px]">
                               {l.tipo}
                             </Badge>
-                            {isPareado && <CheckCircle className="w-4 h-4 text-success" />}
+                            {isConciliadoPersistido && (
+                              <Badge variant="outline" className="text-[10px] gap-1 border-success/50 text-success bg-success/5">
+                                <CheckCircle className="w-3 h-3" /> Conciliado
+                              </Badge>
+                            )}
+                            {isPareado && !isConciliadoPersistido && <CheckCircle className="w-4 h-4 text-success" />}
                           </div>
                         </div>
                       </div>
