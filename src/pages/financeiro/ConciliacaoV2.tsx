@@ -131,6 +131,20 @@ export default function ConciliacaoV2Page() {
     }
   };
 
+  const handleAutoAprovar = async () => {
+    try {
+      const res = await matches.autoAprovar.mutateAsync();
+      toast.success(
+        `${res.matches_aprovados} sugestões autoaprovadas · ${res.baixas_aplicadas} baixas aplicadas` +
+          (res.falhas ? ` · ${res.falhas} falharam` : ""),
+      );
+      setSelecionados(new Set());
+    } catch (err) {
+      logger.error("conciliacao.v2.auto_aprovar", { err });
+      toast.error("Falha ao autoaprovar sugestões");
+    }
+  };
+
   return (
     <div className="container mx-auto space-y-4 p-4">
       <h1 className="text-2xl font-semibold">Conciliação v2</h1>
@@ -185,6 +199,14 @@ export default function ConciliacaoV2Page() {
                 disabled={matches.sugerirAgrupados.isPending}
               >
                 {matches.sugerirAgrupados.isPending ? "Agrupando…" : "Gerar agrupadas"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleAutoAprovar}
+                disabled={matches.autoAprovar.isPending}
+              >
+                {matches.autoAprovar.isPending ? "Autoaprovando…" : "Auto-aprovar sugestões"}
               </Button>
               <Button
                 size="sm"
