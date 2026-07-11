@@ -83,7 +83,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
   const setPeriod = (v: Period, opts?: { clearMes?: boolean; clearStatus?: boolean }) =>
     setFilters({
       period: v === "todos" ? "" : v,
-      ...(opts?.clearMes ? { mes: "" } : {}),
+      ...(opts?.clearMes ? { mes: "", from: "", to: "" } : {}),
       ...(opts?.clearStatus ? { status: [] } : {}),
     });
   /**
@@ -92,7 +92,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
    * `dateRange` memo (`dataEspecifica` tem prioridade sobre `mes`).
    */
   const setMes = (v: string | null) =>
-    setFilters(v ? { mes: v, from: "", to: "" } : { mes: "" });
+    setFilters(v ? { mes: v, from: "", to: "", period: "" } : { mes: "" });
   /**
    * Data específica (dia único). Grava `from=to=data` e, quando um valor é
    * definido, limpa `mes`/`period`. Ao limpar (v=null) NÃO toca em `mes` para
@@ -104,6 +104,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
         ? { from: v, to: v, mes: "", period: "" }
         : { from: "", to: "" },
     );
+  const clearMesDia = () => setFilters({ mes: "", from: "", to: "" });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -283,6 +284,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
     setMes,
     dataEspecifica: fromIso && toIso && fromIso === toIso ? fromIso : null,
     setDataEspecifica,
+    clearMesDia,
     filteredData,
     activeFilters,
     handleRemoveFilter,
