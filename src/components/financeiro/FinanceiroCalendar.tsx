@@ -11,6 +11,10 @@ import { CreditCard } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { useFinanceiroAuxiliares } from "@/pages/financeiro/hooks/useFinanceiroAuxiliares";
+import {
+  useFinanceiroLancamentosPaged,
+  type FinanceiroPagedFilters,
+} from "@/pages/financeiro/hooks/useFinanceiroLancamentosPaged";
 
 interface Lancamento {
   id: string;
@@ -27,14 +31,27 @@ interface Lancamento {
 }
 
 interface Props {
-  data: Lancamento[];
+  /**
+   * Filtros herdados da tela (tipo, banco, status, etc.). O intervalo de datas
+   * é **sempre sobrescrito** pelo mês atualmente visível no calendário para
+   * garantir que todas as marcações do mês apareçam, independente da paginação
+   * da listagem.
+   */
+  baseFilters: FinanceiroPagedFilters;
   onBaixaSuccess?: () => void;
   initialMonth?: Date;
 }
 
-export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props) {
+function toIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+export function FinanceiroCalendar({ baseFilters, onBaixaSuccess, initialMonth }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [month, setMonth] = useState<Date | undefined>(initialMonth);
+  const [month, setMonth] = useState<Date>(initialMonth ?? new Date());
   // Sincroniza o mês exibido quando o filtro de período externo muda.
   useEffect(() => {
     if (initialMonth) setMonth(initialMonth);
@@ -43,6 +60,21 @@ export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props
   const [sheetOpen, setSheetOpen] = useState(false);
   const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
   const { contasBancarias, cartoes } = useFinanceiroAuxiliares();
+
+  // Busca todos os lançamentos do mês visível (padding de 7 dias para as
+  // células fora do mês), independente da paginação e do filtro de período.
+  const monthFilters = useMemo<FinanceiroPagedFilters>(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1);
+    const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    first.setDate(first.getDate() - 7);
+    last.setDate(last.getDate() + 7);
+    return {
+      ...baseFilters,
+      dateFrom: toIso(first),
+      dateTo: toIso(last),
+    };
+  }, [baseFilters, month]);
+  const { data } = useFinanceiroLancamentosPaged(monthFilters, 0, 5000);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Lancamento[]>();
@@ -168,7 +200,7 @@ export function FinanceiroCalendar({ data, onBaixaSuccess, initialMonth }: Props
             selected={selectedDate}
             onSelect={handleSelectDate}
             month={month}
-            onMonthChange={setMonth}
+            onMonthChange={(m) => m && setMonth(m)}
             className={cn("p-3 pointer-events-auto")}
             modifiers={modifiers}
             modifiersClassNames={{
