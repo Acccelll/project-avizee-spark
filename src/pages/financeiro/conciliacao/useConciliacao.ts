@@ -102,6 +102,10 @@ export function useConciliacao() {
   const [showOFXPane, setShowOFXPane] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Modal inline "Novo Lançamento" (evita navegação para /financeiro)
+  const [novoLancOpen, setNovoLancOpen] = useState(false);
+  const [novoLancPrefill, setNovoLancPrefill] = useState<Record<string, unknown> | null>(null);
+
   // Mobile vincular bottom-sheet
   const [vincularOpen, setVincularOpen] = useState(false);
   const [vincularExtratoId, setVincularExtratoId] = useState<string | null>(null);
@@ -801,20 +805,19 @@ export function useConciliacao() {
   const handleCriarLancamentoInline = useCallback((extratoId: string) => {
     const extrato = extratoItems.find((e) => e.id === extratoId);
     if (!extrato) return;
-    try {
-      const prefill = {
-        tipo: extrato.valor >= 0 ? "receber" : "pagar",
-        descricao: extrato.descricao ?? "",
-        valor: Math.abs(extrato.valor),
-        data_vencimento: extrato.data,
-        conta_bancaria_id: selectedConta || "",
-      };
-      sessionStorage.setItem("financeiro:prefill", JSON.stringify(prefill));
-      navigate("/financeiro?novo=1");
-    } catch (err) {
-      notifyError(err);
-    }
-  }, [extratoItems, selectedConta, navigate]);
+    setNovoLancPrefill({
+      tipo: extrato.valor >= 0 ? "receber" : "pagar",
+      descricao: extrato.descricao ?? "",
+      valor: Math.abs(extrato.valor),
+      data_vencimento: extrato.data,
+      conta_bancaria_id: selectedConta || "",
+    });
+    setNovoLancOpen(true);
+  }, [extratoItems, selectedConta]);
+
+  const handleNovoLancamentoSaved = useCallback(async () => {
+    await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+  }, [dataFim, dataInicio, loadLancamentosFromPeriod, selectedConta]);
 
   /**
    * Conciliar automaticamente — pareia pelos que batem em DATA + VALOR.
