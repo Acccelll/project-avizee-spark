@@ -388,6 +388,11 @@ export default function CartoesCredito() {
         subtitle="Cadastro de cartões com ciclo de fechamento e vencimento para gerar faturas automáticas"
         addLabel="Novo Cartão"
         onAdd={openCreate}
+        headerActions={
+          <Button asChild variant="outline" size="sm">
+            <Link to="/financeiro/conciliacao-cartao">Conciliar faturas</Link>
+          </Button>
+        }
         summaryCards={
           <>
             <SummaryCard title="Total" value={String(cartoes.length)} icon={CreditCard} />
