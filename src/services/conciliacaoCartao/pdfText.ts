@@ -1,8 +1,13 @@
 // Extrai texto de PDF usando pdfjs-dist (client-side).
+// pdfjs-dist v5+ distribui apenas worker ESM. Usamos `?worker` do Vite e
+// atribuímos via `workerPort` — usar `workerSrc` com URL do .mjs faz o
+// pdfjs criar um Worker clássico, disparando "Setting up fake worker failed".
 import * as pdfjsLib from "pdfjs-dist";
-import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
+if (!pdfjsLib.GlobalWorkerOptions.workerPort) {
+  pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
+}
 
 export async function extractPdfText(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
