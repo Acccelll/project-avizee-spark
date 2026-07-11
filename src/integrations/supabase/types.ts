@@ -10778,6 +10778,36 @@ export type Database = {
         Args: { p_cartao_id: string; p_data: string }
         Returns: string
       }
+      conciliacao_decidir_match: {
+        Args: { p_decisao: string; p_match_id: string; p_motivo?: string }
+        Returns: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          baixa_id: string | null
+          created_at: string
+          empresa_id: string
+          extrato_linha_id: string
+          id: string
+          lancamento_id: string
+          match_tipo: string
+          motivos: Json
+          observacao: string | null
+          operation_id: string
+          regra_id: string | null
+          rejeitado_em: string | null
+          rejeitado_por: string | null
+          score: number
+          status: string
+          sugerido_por: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "conciliacao_matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       conciliacao_sugerir_matches: {
         Args: {
           p_extrato_id: string
