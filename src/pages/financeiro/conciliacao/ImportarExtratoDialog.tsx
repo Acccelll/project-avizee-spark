@@ -46,8 +46,9 @@ export function ImportarExtratoDialog({ onImported }: { onImported?: () => void 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contas_bancarias")
-        .select("id, nome, banco_id")
-        .order("nome");
+        .select("id, descricao, agencia, conta")
+        .eq("ativo", true)
+        .order("descricao");
       if (error) throw error;
       return data ?? [];
     },
@@ -149,7 +150,7 @@ export function ImportarExtratoDialog({ onImported }: { onImported?: () => void 
               <SelectContent>
                 {contasQuery.data?.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
+                    {c.descricao ?? `Ag ${c.agencia} · Cc ${c.conta}`}
                   </SelectItem>
                 ))}
               </SelectContent>
