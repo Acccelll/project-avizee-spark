@@ -619,6 +619,13 @@ const Financeiro = () => {
               moduleKey="financeiro-lancamentos"
               showColumnToggle={true}
               selectable
+              serverPagination={{
+                page,
+                setPage,
+                totalCount,
+                hasMore: (page + 1) * PAGE_SIZE < (totalCount ?? 0),
+                pageSize: PAGE_SIZE,
+              }}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               emptyTitle="Nenhum lançamento encontrado"
