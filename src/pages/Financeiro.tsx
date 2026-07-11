@@ -61,6 +61,9 @@ import { Sparkles } from "lucide-react";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
 import { displayObservacoes } from "@/lib/displayLancamento";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { Trash2 } from "lucide-react";
 
 const FORMAS_CARTAO = new Set(["cartao_credito", "cartao_debito"]);
 
@@ -101,6 +104,8 @@ const Financeiro = () => {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelProcessing, setCancelProcessing] = useState(false);
   const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<Lancamento | null>(null);
+  const { canHardDelete } = useCanHardDelete();
   const [importIaOpen, setImportIaOpen] = useState(false);
   const [iaFields, setIaFields] = useState<Set<keyof LancamentoForm>>(new Set());
   const [bulkCancelMotivo, setBulkCancelMotivo] = useState("");
