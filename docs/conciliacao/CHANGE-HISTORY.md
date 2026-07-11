@@ -38,6 +38,7 @@ YYYY-MM-DD | CAT-ID | Título | Autor | Sprint/Release | Impacto | Link (relativ
 
 ## Entradas
 
+2026-07-11 | FT-0001 | Fundação de Dados da Conciliação v2 | Lovable | Sprint 1 / Fundação | Alto | journal/sprints/2026-W28-fundacao-dados/README.md
+
 <!-- Adicionar novas entradas ACIMA desta linha -->
 
-*(sem entradas — arquivo inicializado nesta etapa)*
