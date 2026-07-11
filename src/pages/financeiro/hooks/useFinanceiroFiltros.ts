@@ -86,10 +86,24 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
       ...(opts?.clearMes ? { mes: "" } : {}),
       ...(opts?.clearStatus ? { status: [] } : {}),
     });
-  const setMes = (v: string | null) => setFilters({ mes: v ?? "" });
-  /** Data específica (dia único). Grava `from=to=data` e limpa `mes`/`period`. */
+  /**
+   * Ao selecionar um mês, limpa também a data específica (`from`/`to`) para
+   * evitar que um dia previamente escolhido sobrescreva a range do mês na
+   * `dateRange` memo (`dataEspecifica` tem prioridade sobre `mes`).
+   */
+  const setMes = (v: string | null) =>
+    setFilters(v ? { mes: v, from: "", to: "" } : { mes: "" });
+  /**
+   * Data específica (dia único). Grava `from=to=data` e, quando um valor é
+   * definido, limpa `mes`/`period`. Ao limpar (v=null) NÃO toca em `mes` para
+   * não apagar uma seleção de mês feita logo em seguida.
+   */
   const setDataEspecifica = (v: string | null) =>
-    setFilters({ from: v ?? "", to: v ?? "", mes: "", period: v ? "" : "" });
+    setFilters(
+      v
+        ? { from: v, to: v, mes: "", period: "" }
+        : { from: "", to: "" },
+    );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
