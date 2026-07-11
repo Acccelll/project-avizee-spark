@@ -20,8 +20,24 @@ function getLancamentoNome(l: Lancamento): string {
     (l.tipo === "receber"
       ? l.clientes?.nome_razao_social
       : l.fornecedores?.nome_razao_social) ||
-    l.descricao ||
-    "Sem nome"
+    "Sem cliente/fornecedor vinculado"
+  );
+}
+
+function LancamentoResumo({ lancamento }: { lancamento: Lancamento }) {
+  return (
+    <div className="min-w-0 space-y-0.5">
+      <p className="text-sm font-medium truncate">
+        <span className="text-muted-foreground font-normal">Nome: </span>
+        {getLancamentoNome(lancamento)}
+      </p>
+      <p className="text-xs text-muted-foreground truncate">
+        <span>Descrição: </span>{lancamento.descricao || "—"}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {formatDate(lancamento.data_vencimento)}
+      </p>
+    </div>
   );
 }
 
@@ -273,7 +289,7 @@ export function OFXMatchingPane(p: Props) {
                   </div>
                   {linked && (
                     <p className="text-xs text-success bg-success/10 rounded px-2 py-1 truncate">
-                      ↔ {getLancamentoNome(linked)} · {formatCurrency(linked.valor)}
+                      ↔ {getLancamentoNome(linked)} · {linked.descricao || "sem descrição"} · {formatCurrency(linked.valor)}
                     </p>
                   )}
                   {podeAceitarSugestao && sugestaoLanc && (
@@ -282,7 +298,7 @@ export function OFXMatchingPane(p: Props) {
                         <span className="truncate"><Sparkles className="inline w-3 h-3 mr-1 text-info" />{getLancamentoNome(sugestaoLanc)}</span>
                         <Badge variant="outline" className="text-[10px]">{Math.round(sugestao.score * 100)}%</Badge>
                       </div>
-                      <p className="truncate">{formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)}</p>
+                      <p className="truncate">{sugestaoLanc.descricao || "sem descrição"} · {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)}</p>
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -381,8 +397,8 @@ export function OFXMatchingPane(p: Props) {
                             aria-label="Selecionar extrato"
                           />
                           <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{item.descricao || "Sem descrição"}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(item.data)}</p>
+                            <p className="text-sm font-medium truncate">{item.descricao || "Sem descrição"}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(item.data)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -399,7 +415,7 @@ export function OFXMatchingPane(p: Props) {
                       {isPareado && linked && (
                         <div className="mt-2 flex items-center justify-between gap-2 rounded bg-success/10 px-2 py-1">
                           <p className="text-xs text-success truncate">
-                            ↔ {getLancamentoNome(linked)} · {formatCurrency(linked.valor)}
+                            ↔ {getLancamentoNome(linked)} · {linked.descricao || "sem descrição"} · {formatCurrency(linked.valor)}
                           </p>
                           <Button size="sm" variant="ghost" className="h-6 text-xs gap-1"
                             onClick={() => p.onDesvincularExtrato(item.id)}>
@@ -424,7 +440,7 @@ export function OFXMatchingPane(p: Props) {
                               {getLancamentoNome(sugestaoLanc)}
                             </p>
                             <p className="truncate">
-                              {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)} · {Math.round(sugestao.score * 100)}%
+                              {sugestaoLanc.descricao || "sem descrição"} · {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)} · {Math.round(sugestao.score * 100)}%
                             </p>
                           </div>
                           {(p.onAceitarSugestao || p.onRejeitarSugestao) && (
@@ -492,12 +508,7 @@ export function OFXMatchingPane(p: Props) {
                               onCheckedChange={() => toggle(selLanc, setSelLanc, l.id)}
                               aria-label="Selecionar lançamento"
                             />
-                            <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {formatDate(l.data_vencimento)}{l.descricao ? ` · ${l.descricao}` : ""}
-                            </p>
-                            </div>
+                            <LancamentoResumo lancamento={l} />
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-sm font-mono font-semibold">{formatCurrency(l.valor)}</span>
@@ -553,13 +564,6 @@ export function OFXMatchingPane(p: Props) {
           )}
 
           <div className="rounded-lg border border-border/60 bg-muted/10 p-4 flex flex-col gap-3">
-            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
-              <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                <strong>Atenção:</strong> a confirmação abaixo ainda não persiste os pares no banco de dados.
-                Os lançamentos conciliados precisam ser revisados manualmente por enquanto.
-              </p>
-            </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex gap-6 text-sm">
                 <div>
@@ -577,7 +581,7 @@ export function OFXMatchingPane(p: Props) {
               </div>
               <Button onClick={p.onConfirmar} disabled={p.matches.length === 0 || p.confirming} variant="outline">
                 {p.confirming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                {p.confirming ? "Processando..." : "Confirmar Revisão"}
+                {p.confirming ? "Processando..." : "Confirmar Conciliação"}
               </Button>
             </div>
           </div>
