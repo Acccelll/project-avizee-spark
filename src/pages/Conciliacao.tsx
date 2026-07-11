@@ -166,6 +166,7 @@ export default function Conciliacao() {
             onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
             onlyPending={v.showOnlyPendentes}
             lancamentosConciliadosIds={v.lancamentosConciliadosIds}
+            onGerarAjuste={v.handleGerarAjusteBancario}
           />
         )}
 
