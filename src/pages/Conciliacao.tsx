@@ -82,33 +82,6 @@ export default function Conciliacao() {
           onExportar={handleExportar}
         />
 
-        {v.extratoItems.length > 0 && (
-          <OFXMatchingPane
-            extratoItems={v.extratoItems} lancamentos={v.lancamentos} matches={v.matches}
-            showOFXPane={v.showOFXPane} setShowOFXPane={v.setShowOFXPane}
-            getMatch={v.getMatch} usedLancamentoIds={v.usedLancamentoIds}
-            pareados={v.pareados} semParOFX={v.semParOFX}
-            confirming={v.confirming} selectedConta={v.selectedConta}
-            onManualMatch={v.handleManualMatch}
-            onAbrirVincular={(id) => {
-              v.setVincularExtratoId(id);
-              v.setVincularSearch("");
-              v.setVincularOpen(true);
-            }}
-            onCriarInline={v.handleCriarLancamentoInline}
-            onConfirmar={v.handleConfirmarConciliacao}
-            onConfirmarSelecao={v.handleConfirmarSelecao}
-            onDesvincularExtrato={v.handleDesvincularExtrato}
-            onExcluirExtratos={v.handleExcluirExtratosSelecionados}
-            sugestoesPersistidas={v.sugestoesPersistidas}
-            onAceitarSugestao={v.handleAceitarSugestao}
-            onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
-            onRejeitarSugestao={v.handleRejeitarSugestao}
-            conciliadosPersistidos={v.conciliadosPersistidos}
-            onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
-          />
-        )}
-
         {v.selectedConta ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <SummaryCard title="Conciliados" value={v.pareados}
@@ -143,6 +116,33 @@ export default function Conciliacao() {
               ))}
             </div>
           </div>
+        )}
+
+        {v.extratoItems.length > 0 && (
+          <OFXMatchingPane
+            extratoItems={v.extratoItems} lancamentos={v.lancamentos} matches={v.matches}
+            showOFXPane={v.showOFXPane} setShowOFXPane={v.setShowOFXPane}
+            getMatch={v.getMatch} usedLancamentoIds={v.usedLancamentoIds}
+            pareados={v.pareados} semParOFX={v.semParOFX}
+            confirming={v.confirming} selectedConta={v.selectedConta}
+            onManualMatch={v.handleManualMatch}
+            onAbrirVincular={(id) => {
+              v.setVincularExtratoId(id);
+              v.setVincularSearch("");
+              v.setVincularOpen(true);
+            }}
+            onCriarInline={v.handleCriarLancamentoInline}
+            onConfirmar={v.handleConfirmarConciliacao}
+            onConfirmarSelecao={v.handleConfirmarSelecao}
+            onDesvincularExtrato={v.handleDesvincularExtrato}
+            onExcluirExtratos={v.handleExcluirExtratosSelecionados}
+            sugestoesPersistidas={v.sugestoesPersistidas}
+            onAceitarSugestao={v.handleAceitarSugestao}
+            onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
+            onRejeitarSugestao={v.handleRejeitarSugestao}
+            conciliadosPersistidos={v.conciliadosPersistidos}
+            onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
+          />
         )}
 
         {v.selectedConta && (
