@@ -87,17 +87,17 @@ export async function listarLotesImportacao(input?: {
   contaBancariaId?: string;
 }): Promise<LoteResumo[]> {
   let query = supabase
-    .from("financeiro_extrato_lotes")
+    .from("financeiro_extrato_lotes" as never)
     .select(
       "id, conta_bancaria_id, arquivo_nome, arquivo_hash, origem, total_transacoes, inseridas, status, criado_por, created_at, " +
         "contas_bancarias(descricao, bancos(nome))",
     )
     .order("created_at", { ascending: false })
     .limit(200);
-  if (input?.contaBancariaId) query = query.eq("conta_bancaria_id", input.contaBancariaId);
+  if (input?.contaBancariaId) query = (query as { eq: (c: string, v: string) => typeof query }).eq("conta_bancaria_id", input.contaBancariaId);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const lotes = (data ?? []) as Array<LoteImportacao & { contas_bancarias?: { descricao: string; bancos?: { nome: string } | null } | null }>;
+  const lotes = ((data as unknown) ?? []) as Array<LoteImportacao & { contas_bancarias?: { descricao: string; bancos?: { nome: string } | null } | null }>;
   if (lotes.length === 0) return [];
   // Conta conciliadas/pendentes por lote em uma segunda query agregada.
   const ids = lotes.map((l) => l.id);
