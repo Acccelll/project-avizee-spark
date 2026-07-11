@@ -232,6 +232,12 @@ export async function conciliarTransacao(
   contaId: string,
   transacaoExtrato: TransacaoExtrato,
   tituloId?: string,
+  /**
+   * Valor a baixar. Quando omitido, baixa o saldo restante integral do título
+   * (comportamento 1↔1). Para N↔1 e 1↔N informe o valor da parcela para
+   * gerar baixas parciais que somem o total.
+   */
+  valorPagoParcial?: number,
 ): Promise<string | null> {
   if (!tituloId) return null; // Sem par — nada a persistir por ora
 
@@ -255,10 +261,14 @@ export async function conciliarTransacao(
 
   let baixaId: string | null = null;
 
-  if (saldoAtual > 0.009) {
+  const valorParaBaixar = valorPagoParcial != null
+    ? Math.min(Math.abs(valorPagoParcial), saldoAtual)
+    : saldoAtual;
+
+  if (valorParaBaixar > 0.009) {
     baixaId = await registrarBaixaFinanceiraRpc({
       p_lancamento_id: tituloId,
-      p_valor_pago: saldoAtual,
+      p_valor_pago: valorParaBaixar,
       p_data_baixa: transacaoExtrato.data,
       p_forma_pagamento: "extrato_conciliacao",
       p_conta_bancaria_id: contaId,
