@@ -21,8 +21,24 @@ function getLancamentoNome(l: Lancamento): string {
     (l.tipo === "receber"
       ? l.clientes?.nome_razao_social
       : l.fornecedores?.nome_razao_social) ||
-    l.descricao ||
-    "Sem nome"
+    "Sem cliente/fornecedor vinculado"
+  );
+}
+
+function LancamentoResumo({ lancamento }: { lancamento: Lancamento }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium truncate">
+        <span className="text-muted-foreground font-normal">Nome: </span>
+        {getLancamentoNome(lancamento)}
+      </p>
+      <p className="text-xs text-muted-foreground truncate">
+        Descrição: {lancamento.descricao || "—"}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {formatDate(lancamento.data_vencimento)} · {lancamento.tipo === "receber" ? "A Receber" : "A Pagar"}
+      </p>
+    </div>
   );
 }
 
@@ -91,12 +107,7 @@ export function VincularBottomSheet(p: Props) {
                         }}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}{l.descricao ? ` · ${l.descricao}` : ""}
-                            </p>
-                          </div>
+                          <LancamentoResumo lancamento={l} />
                           <span className="text-sm font-mono font-semibold shrink-0">{formatCurrency(l.valor)}</span>
                         </div>
                       </button>
@@ -132,12 +143,7 @@ export function VincularBottomSheet(p: Props) {
                           }}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}{l.descricao ? ` · ${l.descricao}` : ""}
-                              </p>
-                            </div>
+                            <LancamentoResumo lancamento={l} />
                             <span className="text-sm font-mono font-semibold shrink-0">{formatCurrency(l.valor)}</span>
                           </div>
                         </button>

@@ -37,11 +37,26 @@ export async function persistirExtratoOFX(input: {
   arquivoHash?: string | null;
   transacoes: TransacaoExtrato[];
 }): Promise<{ inseridas: number }> {
-  const { contaBancariaId, transacoes, arquivoHash, empresaId } = input;
+  const { contaBancariaId, transacoes, arquivoHash } = input;
   if (!transacoes.length) return { inseridas: 0 };
 
+  let empresaId = input.empresaId ?? null;
+  if (!empresaId) {
+    const { data: conta, error: contaError } = await supabase
+      .from("contas_bancarias")
+      .select("empresa_id")
+      .eq("id", contaBancariaId)
+      .maybeSingle();
+    if (contaError) throw new Error(contaError.message);
+    empresaId = conta?.empresa_id ?? null;
+  }
+
+  if (!empresaId) {
+    throw new Error("Empresa da conta bancária não identificada para persistir o extrato.");
+  }
+
   const rows = transacoes.map((t) => ({
-    ...(empresaId ? { empresa_id: empresaId } : {}),
+    empresa_id: empresaId,
     conta_bancaria_id: contaBancariaId,
     fitid: t.id,
     data: t.data,
@@ -55,7 +70,6 @@ export async function persistirExtratoOFX(input: {
     .from("financeiro_extrato_importacoes")
     .upsert(rows as never, {
       onConflict: "conta_bancaria_id,fitid",
-      ignoreDuplicates: true,
       count: "exact",
     });
   if (error) throw new Error(error.message);
