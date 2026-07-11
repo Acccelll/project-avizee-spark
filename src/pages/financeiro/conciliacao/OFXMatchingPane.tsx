@@ -12,6 +12,7 @@ import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
 import type { ConciliacaoPersistida, Match, SugestaoPersistida } from "./types";
 import { RotateCcw } from "lucide-react";
+import { confirmAsync } from "@/lib/globalConfirm";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
 
@@ -174,11 +175,14 @@ export function OFXMatchingPane(p: Props) {
     : "text-destructive";
 
   const limparSelecao = () => { setSelExtrato(new Set()); setSelLanc(new Set()); };
-  const handleConciliar = () => {
+  const handleConciliar = async () => {
     if (diferencaAbs > TOLERANCIA) {
-      const ok = window.confirm(
-        `Diferença de ${formatCurrency(diferenca)} entre extrato e lançamentos. Conciliar mesmo assim?`,
-      );
+      const ok = await confirmAsync({
+        title: "Conciliar com divergência",
+        description: `Diferença de ${formatCurrency(diferenca)} entre extrato e lançamentos. Conciliar mesmo assim?`,
+        confirmLabel: "Conciliar",
+        confirmVariant: "default",
+      });
       if (!ok) return;
     }
     const ok = p.onConfirmarSelecao(Array.from(selExtrato), Array.from(selLanc));
