@@ -15,6 +15,8 @@ const MatchingAprendizado = lazy(() => import("@/pages/financeiro/MatchingAprend
 const ConciliacaoV2 = lazy(() => import("@/pages/financeiro/ConciliacaoV2"));
 const ConciliacaoRegrasAuto = lazy(() => import("@/pages/financeiro/ConciliacaoRegrasAuto"));
 const ConciliacaoDashboard = lazy(() => import("@/pages/financeiro/ConciliacaoDashboard"));
+const ConciliacaoCartao = lazy(() => import("@/pages/financeiro/ConciliacaoCartao"));
+const ConciliacaoCartaoDashboard = lazy(() => import("@/pages/financeiro/ConciliacaoCartaoDashboard"));
 
 /**
  * Rotas do módulo Financeiro (Financeiro, Budget, Contas, Fluxo de caixa,
@@ -35,6 +37,8 @@ export const financeiroRoutes = (
     <Route path="/financeiro/conciliacao-v2" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoV2 /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/conciliacao/regras" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoRegrasAuto /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/conciliacao/dashboard" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoDashboard /></LazyPage></PermissionRoute>} />
+    <Route path="/financeiro/conciliacao-cartao" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoCartao /></LazyPage></PermissionRoute>} />
+    <Route path="/financeiro/conciliacao-cartao/dashboard" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoCartaoDashboard /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/regras" element={<PermissionRoute resource="financeiro"><LazyPage><FinanceiroRegrasAliases /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/matching-aprendizado" element={<PermissionRoute resource="financeiro"><LazyPage><MatchingAprendizado /></LazyPage></PermissionRoute>} />
   </>

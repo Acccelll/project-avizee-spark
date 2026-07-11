@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
@@ -388,6 +389,11 @@ export default function CartoesCredito() {
         subtitle="Cadastro de cartões com ciclo de fechamento e vencimento para gerar faturas automáticas"
         addLabel="Novo Cartão"
         onAdd={openCreate}
+        headerActions={
+          <Button asChild variant="outline" size="sm">
+            <Link to="/financeiro/conciliacao-cartao">Conciliar faturas</Link>
+          </Button>
+        }
         summaryCards={
           <>
             <SummaryCard title="Total" value={String(cartoes.length)} icon={CreditCard} />
