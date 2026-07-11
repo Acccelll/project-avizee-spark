@@ -15,6 +15,7 @@ import {
   type LoteResumo,
 } from "@/services/financeiro/extratoImportacoes.service";
 import { notifyError } from "@/utils/errorMessages";
+import { confirmAsync } from "@/lib/globalConfirm";
 
 interface Props {
   contaBancariaId?: string;
@@ -44,7 +45,13 @@ export function HistoricoImportacoesTab({ contaBancariaId, onAbrirLote }: Props)
   }, [carregar]);
 
   const excluir = async (id: string) => {
-    if (!window.confirm("Excluir este lote e todas as suas transações pendentes?")) return;
+    const ok = await confirmAsync({
+      title: "Excluir lote",
+      description: "Excluir este lote e todas as suas transações pendentes?",
+      confirmLabel: "Excluir",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     try {
       await excluirLoteImportacao(id);
       toast.success("Lote excluído.");

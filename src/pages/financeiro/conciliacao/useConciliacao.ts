@@ -35,6 +35,7 @@ import {
 import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
 import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
 import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
+import { confirmAsync } from "@/lib/globalConfirm";
 
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
@@ -337,11 +338,14 @@ export function useConciliacao() {
   const handleExcluirExtratosSelecionados = useCallback(async (fitids: string[]): Promise<number> => {
     if (!selectedConta || fitids.length === 0) return 0;
     const conciliadosNoLote = fitids.filter((id) => conciliadosPersistidos.has(id)).length;
-    const confirmar = window.confirm(
-      conciliadosNoLote > 0
+    const confirmar = await confirmAsync({
+      title: "Excluir linhas do extrato",
+      description: conciliadosNoLote > 0
         ? `${conciliadosNoLote} das ${fitids.length} linhas selecionadas já estão conciliadas e serão preservadas. Excluir as demais?`
         : `Excluir ${fitids.length} linha(s) do extrato importado? Esta ação não pode ser desfeita.`,
-    );
+      confirmLabel: "Excluir",
+      confirmVariant: "destructive",
+    });
     if (!confirmar) return 0;
     try {
       const res = await excluirExtratosPorFitids({ contaBancariaId: selectedConta, fitids });
@@ -610,9 +614,12 @@ export function useConciliacao() {
       toast.error("Esta transação não está conciliada.");
       return false;
     }
-    const confirmar = window.confirm(
-      "Desfazer a conciliação irá estornar a baixa financeira vinculada. Continuar?",
-    );
+    const confirmar = await confirmAsync({
+      title: "Desfazer conciliação",
+      description: "Desfazer a conciliação irá estornar a baixa financeira vinculada. Continuar?",
+      confirmLabel: "Desfazer",
+      confirmVariant: "destructive",
+    });
     if (!confirmar) return false;
     try {
       await desfazerConciliacaoExtrato({
