@@ -21,6 +21,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -211,6 +215,8 @@ const Financeiro = () => {
     setPeriod,
     mes,
     setMes,
+    dataEspecifica,
+    setDataEspecifica,
     activeFilters,
     handleRemoveFilter,
     tipoOpts,
@@ -224,13 +230,14 @@ const Financeiro = () => {
 
   // E7.4: Filtros canônicos do servidor (espelhados em RPC de KPIs e listagem).
   const dateRange = useMemo(() => {
+    if (dataEspecifica) return { from: dataEspecifica, to: dataEspecifica };
     const monthRange = monthToRange(mes);
     if (monthRange) return { from: monthRange.from, to: monthRange.to };
     if (period === "todos") return { from: null as string | null, to: null as string | null };
     if (period === "vencidos") return { from: null as string | null, to: hojeStr };
     const { dateFrom, dateTo } = periodToFinancialRange(period);
     return { from: dateFrom, to: dateTo };
-  }, [period, mes, hojeStr]);
+  }, [period, mes, dataEspecifica, hojeStr]);
 
   const formasCanonicas = useMemo(
     () => formaPagamentoFilters.map((f) => normalizeFormaPagamento(f) ?? f),
@@ -254,11 +261,14 @@ const Financeiro = () => {
 
   const [page, setPage] = useState(0);
   useResetPageOnFiltersChange(serverFilters, setPage);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const { data, totalCount, loading, refetch: refetchPaged, isError, error: queryError } = useFinanceiroLancamentosPaged(
     serverFilters,
     page,
     PAGE_SIZE,
+    { key: sortKey, dir: sortDir },
   );
 
   // ── CRUD direto: substitui useSupabaseCrud (que carregava tudo client-side).
@@ -441,7 +451,52 @@ const Financeiro = () => {
             options={financialPeriods}
             direction="future"
           />
-          <MonthFilter value={mes} onChange={setMes} direction="future" />
+          <MonthFilter
+            value={mes}
+            onChange={(v) => { setMes(v); if (v) setDataEspecifica(null); }}
+            direction="future"
+          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0 justify-start",
+                  !dataEspecifica && "text-muted-foreground",
+                )}
+                title="Filtrar por data específica"
+              >
+                <CalendarIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                {dataEspecifica
+                  ? new Date(dataEspecifica + "T00:00:00").toLocaleDateString("pt-BR")
+                  : "Data específica"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dataEspecifica ? new Date(dataEspecifica + "T00:00:00") : undefined}
+                onSelect={(d) => {
+                  if (!d) { setDataEspecifica(null); return; }
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, "0");
+                  const dd = String(d.getDate()).padStart(2, "0");
+                  setDataEspecifica(`${yyyy}-${mm}-${dd}`);
+                }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+              {dataEspecifica && (
+                <div className="border-t p-2 flex justify-end">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs"
+                    onClick={() => setDataEspecifica(null)}>
+                    Limpar
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5" data-help-id="financeiro.viewToggle">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -659,6 +714,9 @@ const Financeiro = () => {
                 totalCount,
                 hasMore: (page + 1) * PAGE_SIZE < (totalCount ?? 0),
               }}
+              serverSortKey={sortKey}
+              serverSortDir={sortDir}
+              onServerSort={(k, d) => { setSortKey(k); setSortDir(d); setPage(0); }}
               pageSize={PAGE_SIZE}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
@@ -795,10 +853,17 @@ const Financeiro = () => {
           setDrawerOpen(false);
           openEdit(l);
         }}
-        onDelete={(id) => {
+        onDelete={async (id, motivo) => {
           const target = data.find((l) => l.id === id) ?? selected;
           setDrawerOpen(false);
-          if (target) {
+          if (!target) return;
+          // Se o drawer já coletou o motivo (via useConfirmDestructive),
+          // cancela direto — evita pedir o motivo duas vezes. Caso contrário,
+          // abre o diálogo padrão que também coleta motivo.
+          if (motivo && motivo.trim().length >= 5) {
+            const ok = await cancelarLancamento(target.id, motivo.trim());
+            if (ok) await fetchData();
+          } else {
             setCancelTarget(target);
             setCancelMotivo("");
           }

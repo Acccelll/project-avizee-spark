@@ -46,14 +46,20 @@ export function useFinanceiroLancamentosPaged(
   filters: FinanceiroPagedFilters,
   page: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
+  sort?: { key: string | null; dir: 'asc' | 'desc' | null },
 ) {
   const qc = useQueryClient();
-  const queryKey = ["financeiro", "lancamentos", "paged", filters, page, pageSize] as const;
+  const queryKey = [
+    "financeiro", "lancamentos", "paged", filters, page, pageSize,
+    sort?.key ?? null, sort?.dir ?? null,
+  ] as const;
 
   const query = useQuery<PageResult>({
     queryKey,
     queryFn: async ({ signal }) => {
       const offset = page * pageSize;
+      const orderBy = sort?.key ?? "data_vencimento";
+      const ascending = sort?.dir === 'asc';
       const { ids, totalCount } = await listarFinanceiroLancamentosIds({
         dateFrom: filters.dateFrom ?? null,
         dateTo: filters.dateTo ?? null,
@@ -64,8 +70,8 @@ export function useFinanceiroLancamentosPaged(
         formas: filters.formas ?? null,
         cartoes: filters.cartoes ?? null,
         search: filters.search ?? null,
-        orderBy: "data_vencimento",
-        ascending: false,
+        orderBy,
+        ascending,
         offset,
         limit: pageSize,
       });
