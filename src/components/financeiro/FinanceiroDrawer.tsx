@@ -56,7 +56,7 @@ interface FinanceiroDrawerProps {
   onBaixa: (l: Lancamento) => void;
   onEstorno: (l: Lancamento) => void;
   onEdit: (l: Lancamento) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, motivo?: string) => void;
 }
 
 export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onBaixa, onEstorno, onEdit, onDelete }: FinanceiroDrawerProps) {
@@ -244,8 +244,8 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     "Se houver baixa registrada, será necessário estornar antes",
                   ],
                 },
-                async () => {
-                  await runAction(async () => { onDelete(selected.id); onClose(); });
+                async (motivo) => {
+                  await runAction(async () => { onDelete(selected.id, motivo); onClose(); });
                 },
               ),
             pending: actionPending,
