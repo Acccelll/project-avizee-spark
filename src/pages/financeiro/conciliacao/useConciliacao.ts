@@ -653,73 +653,26 @@ export function useConciliacao() {
     setMatches([]);
   };
 
-  // Auto-match heurístico + fallback IA
+  /**
+   * Match por valor — pareia pelo mesmo valor absoluto, IGNORANDO a data.
+   * Complementa "Conciliar automaticamente" (que exige data + valor).
+   */
   const handleAutoMatch = async () => {
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
-    const semMatch: typeof extratoItems = [];
-
     for (const extrato of extratoItems) {
       const candidate = lancamentos.find((l) => {
         if (usedLancamentos.has(l.id)) return false;
-        const valorMatch = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
-        if (!valorMatch) return false;
-        const extratoDate = new Date(extrato.data);
-        const lancDate = new Date(l.data_vencimento);
-        const diffDays = Math.abs((extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays <= 3;
+        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
       });
       if (candidate) {
         newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
         usedLancamentos.add(candidate.id);
-      } else {
-        semMatch.push(extrato);
       }
     }
-
-    let iaCount = 0;
-    if (semMatch.length > 0) {
-      const disponiveis = lancamentos
-        .filter((l) => !usedLancamentos.has(l.id))
-        .map((l) => ({
-          id: l.id,
-          descricao: l.descricao ?? null,
-          valor: Math.abs(Number(l.valor)),
-          data_vencimento: l.data_vencimento,
-          data_baixa: (l as unknown as { data_baixa?: string | null }).data_baixa ?? null,
-        }));
-      if (disponiveis.length > 0) {
-        const { sugerirConciliacaoIaRemota } = await import("@/services/ia/sugestao.service");
-        const alvos = semMatch.slice(0, 5);
-        const resultados = await Promise.allSettled(
-          alvos.map((e) =>
-            sugerirConciliacaoIaRemota({
-              transacao: { id: e.id, descricao: e.descricao, valor: e.valor, data: e.data },
-              candidatos: disponiveis,
-            }),
-          ),
-        );
-        for (let i = 0; i < resultados.length; i++) {
-          const r = resultados[i];
-          if (r.status !== "fulfilled" || !r.value.lancamento_id) continue;
-          if (usedLancamentos.has(r.value.lancamento_id)) continue;
-          newMatches.push({
-            extratoId: alvos[i].id,
-            lancamentoId: r.value.lancamento_id,
-            origem: "ia",
-            justificativa: r.value.justificativa,
-          });
-          usedLancamentos.add(r.value.lancamento_id);
-          iaCount++;
-        }
-      }
-    }
-
     setMatches(newMatches);
     toast.success(
-      iaCount > 0
-        ? `${newMatches.length} pares encontrados — ${iaCount} sugerido(s) por IA.`
-        : `${newMatches.length} pares encontrados automaticamente.`,
+      `${newMatches.length} par(es) encontrado(s) por valor. Revise e clique em "Confirmar Conciliação".`,
     );
   };
 
