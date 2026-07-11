@@ -151,6 +151,28 @@ export async function ignorarExtrato(extratoId: string): Promise<void> {
 }
 
 /**
+ * Exclui linhas de extrato importadas (apenas as ainda pendentes) de
+ * uma conta bancária, identificadas pelo fitid natural do OFX.
+ * Linhas já conciliadas (com baixa vinculada) são preservadas para
+ * manter a rastreabilidade contábil — o usuário deve desfazer a
+ * conciliação antes de excluir.
+ */
+export async function excluirExtratosPorFitids(input: {
+  contaBancariaId: string;
+  fitids: string[];
+}): Promise<{ excluidas: number }> {
+  if (!input.fitids.length) return { excluidas: 0 };
+  const { error, count } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .delete({ count: "exact" })
+    .eq("conta_bancaria_id", input.contaBancariaId)
+    .in("fitid", input.fitids)
+    .eq("status", "pendente");
+  if (error) throw new Error(error.message);
+  return { excluidas: count ?? 0 };
+}
+
+/**
  * Onda 10 — Desfaz uma conciliação já persistida: estorna a baixa
  * financeira vinculada e reabre a linha do extrato (status → pendente,
  * baixa_id → null). Se `baixaId` não for informado, apenas reabre o
