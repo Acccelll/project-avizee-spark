@@ -38,6 +38,27 @@ import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/finance
 const AUTO_SCORE_THRESHOLD = 0.9;
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
+const CONCILIACAO_LAST_DATA_INICIO_KEY = "conciliacao:bancaria:lastDataInicio";
+const CONCILIACAO_LAST_DATA_FIM_KEY = "conciliacao:bancaria:lastDataFim";
+
+function getLocalPreference(key: string): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setLocalPreference(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined") return;
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Preferência local indisponível — sem impacto funcional.
+  }
+}
 
 const defaultDataInicio = () => {
   const d = new Date();
@@ -63,12 +84,7 @@ export function useConciliacao() {
   const [selectedConta, setSelectedConta] = useState<string>(() => {
     const urlConta = searchParams.get("conta");
     if (urlConta) return urlConta;
-    try {
-      if (typeof window === "undefined") return "";
-      return window.localStorage.getItem(CONCILIACAO_LAST_CONTA_KEY) ?? "";
-    } catch {
-      return "";
-    }
+    return getLocalPreference(CONCILIACAO_LAST_CONTA_KEY) ?? "";
   });
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
@@ -87,8 +103,12 @@ export function useConciliacao() {
   const [vincularSearch, setVincularSearch] = useState("");
 
   // Period filter state
-  const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
-  const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
+  const [dataInicio, setDataInicio] = useState(
+    searchParams.get("data_inicio") ?? getLocalPreference(CONCILIACAO_LAST_DATA_INICIO_KEY) ?? defaultDataInicio(),
+  );
+  const [dataFim, setDataFim] = useState(
+    searchParams.get("data_fim") ?? getLocalPreference(CONCILIACAO_LAST_DATA_FIM_KEY) ?? defaultDataFim(),
+  );
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
@@ -129,13 +149,13 @@ export function useConciliacao() {
   }, [contasQuery]);
 
   useEffect(() => {
-    try {
-      if (selectedConta) window.localStorage.setItem(CONCILIACAO_LAST_CONTA_KEY, selectedConta);
-      else window.localStorage.removeItem(CONCILIACAO_LAST_CONTA_KEY);
-    } catch {
-      // Preferência local indisponível — sem impacto funcional.
-    }
+    setLocalPreference(CONCILIACAO_LAST_CONTA_KEY, selectedConta);
   }, [selectedConta]);
+
+  useEffect(() => {
+    setLocalPreference(CONCILIACAO_LAST_DATA_INICIO_KEY, dataInicio);
+    setLocalPreference(CONCILIACAO_LAST_DATA_FIM_KEY, dataFim);
+  }, [dataFim, dataInicio]);
 
   // Carga de lançamentos
   const loadLancamentosFromPeriod = useCallback(async (from: string, to: string, contaId: string) => {
