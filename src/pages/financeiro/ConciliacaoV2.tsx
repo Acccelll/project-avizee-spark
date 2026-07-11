@@ -22,6 +22,8 @@ import {
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import type { ConciliacaoMatch } from "@/types/domain";
+import { ImportarExtratoDialog } from "./conciliacao/ImportarExtratoDialog";
+import { Link } from "react-router-dom";
 
 interface ExtratoResumo {
   id: string;
@@ -147,7 +149,15 @@ export default function ConciliacaoV2Page() {
 
   return (
     <div className="container mx-auto space-y-4 p-4">
-      <h1 className="text-2xl font-semibold">Conciliação v2</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">Conciliação v2</h1>
+        <div className="flex flex-wrap gap-2">
+          <ImportarExtratoDialog onImported={() => extratosQuery.refetch()} />
+          <Button asChild size="sm" variant="outline">
+            <Link to="/financeiro/conciliacao/dashboard">Dashboard</Link>
+          </Button>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>
