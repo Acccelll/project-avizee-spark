@@ -19,6 +19,12 @@ export interface SugerirMatchesResult {
   linhas_processadas: number;
 }
 
+export interface AutoAprovarResult {
+  matches_aprovados: number;
+  baixas_aplicadas: number;
+  falhas: number;
+}
+
 export async function sugerirMatches(
   input: SugerirMatchesInput,
 ): Promise<SugerirMatchesResult> {
@@ -119,4 +125,22 @@ export async function decidirMatchesEmLote(
       erro: (x.r as PromiseRejectedResult).reason?.message ?? "erro",
     }));
   return { ok: matchIds.length - falhas.length, falhas };
+}
+
+export async function autoAprovarExtrato(extratoId: string): Promise<AutoAprovarResult> {
+  const { data, error } = await supabase.rpc("conciliacao_auto_aprovar", {
+    p_extrato_id: extratoId,
+  });
+
+  if (error) {
+    logger.error("conciliacao.matching.auto_aprovar_falha", { extratoId, error });
+    throw error;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    matches_aprovados: Number(row?.matches_aprovados ?? 0),
+    baixas_aplicadas: Number(row?.baixas_aplicadas ?? 0),
+    falhas: Number(row?.falhas ?? 0),
+  };
 }

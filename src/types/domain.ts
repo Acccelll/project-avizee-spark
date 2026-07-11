@@ -218,6 +218,10 @@ export type ConciliacaoRegra = TableRow<"conciliacao_regras"> & {
   status: ConciliacaoStatusRegra;
 };
 
+export type ConciliacaoRegraAuto = TableRow<"conciliacao_regras_auto">;
+export type ConciliacaoRegraAutoInsert = TableInsert<"conciliacao_regras_auto">;
+export type ConciliacaoRegraAutoUpdate = TableUpdate<"conciliacao_regras_auto">;
+
 export type ConciliacaoMatch = TableRow<"conciliacao_matches"> & {
   match_tipo: ConciliacaoTipoMatch;
   status: ConciliacaoStatusMatch;

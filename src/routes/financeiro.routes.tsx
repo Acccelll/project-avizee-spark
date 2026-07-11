@@ -13,6 +13,7 @@ const Conciliacao = lazy(() => import("@/pages/Conciliacao"));
 const FinanceiroRegrasAliases = lazy(() => import("@/pages/financeiro/FinanceiroRegrasAliases"));
 const MatchingAprendizado = lazy(() => import("@/pages/financeiro/MatchingAprendizado"));
 const ConciliacaoV2 = lazy(() => import("@/pages/financeiro/ConciliacaoV2"));
+const ConciliacaoRegrasAuto = lazy(() => import("@/pages/financeiro/ConciliacaoRegrasAuto"));
 
 /**
  * Rotas do módulo Financeiro (Financeiro, Budget, Contas, Fluxo de caixa,
@@ -31,6 +32,7 @@ export const financeiroRoutes = (
     <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
     <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/conciliacao-v2" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoV2 /></LazyPage></PermissionRoute>} />
+    <Route path="/financeiro/conciliacao/regras" element={<PermissionRoute resource="financeiro"><LazyPage><ConciliacaoRegrasAuto /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/regras" element={<PermissionRoute resource="financeiro"><LazyPage><FinanceiroRegrasAliases /></LazyPage></PermissionRoute>} />
     <Route path="/financeiro/matching-aprendizado" element={<PermissionRoute resource="financeiro"><LazyPage><MatchingAprendizado /></LazyPage></PermissionRoute>} />
   </>

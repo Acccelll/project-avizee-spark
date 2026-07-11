@@ -4,6 +4,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  autoAprovarExtrato,
   decidirMatchesEmLote,
   listarMatchesDoExtrato,
   sugerirMatchesAgrupados,
@@ -54,5 +55,14 @@ export function useConciliacaoMatches(extratoId: string | undefined) {
     },
   });
 
-  return { ...query, sugerir, sugerirAgrupados, decidir };
+  const autoAprovar = useMutation({
+    mutationFn: () => autoAprovarExtrato(extratoId as string),
+    onSuccess: () => {
+      if (extratoId) {
+        void qc.invalidateQueries({ queryKey: matchesKey(extratoId) });
+      }
+    },
+  });
+
+  return { ...query, sugerir, sugerirAgrupados, decidir, autoAprovar };
 }
