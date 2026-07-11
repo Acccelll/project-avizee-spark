@@ -111,7 +111,8 @@ export function OFXMatchingPane(p: Props) {
   // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
   // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
   const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
-  const hideConciliados = p.onlyPending ?? hideConciliadosLocal;
+  // Toggle externo (Switch da página) OU badge local podem ativar a ocultação.
+  const hideConciliados = !!p.onlyPending || hideConciliadosLocal;
   const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) =>
     setHideConciliadosLocal(typeof v === "function" ? v(hideConciliadosLocal) : v);
   const TOLERANCIA = 0.05;
