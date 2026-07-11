@@ -87,6 +87,9 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
       ...(opts?.clearStatus ? { status: [] } : {}),
     });
   const setMes = (v: string | null) => setFilters({ mes: v ?? "" });
+  /** Data específica (dia único). Grava `from=to=data` e limpa `mes`/`period`. */
+  const setDataEspecifica = (v: string | null) =>
+    setFilters({ from: v ?? "", to: v ?? "", mes: "", period: v ? "" : "" });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
