@@ -1,11 +1,12 @@
 /**
  * Hook da Sprint 2 — expõe as sugestões de conciliação de um extrato
- * e a mutation para (re)gerar o matching determinístico via RPC.
+ * e as mutations para (re)gerar matching 1:1/agrupado via RPC.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   decidirMatchesEmLote,
   listarMatchesDoExtrato,
+  sugerirMatchesAgrupados,
   sugerirMatches,
   type DecisaoMatch,
   type SugerirMatchesInput,
@@ -33,6 +34,16 @@ export function useConciliacaoMatches(extratoId: string | undefined) {
     },
   });
 
+  const sugerirAgrupados = useMutation({
+    mutationFn: (input: Omit<SugerirMatchesInput, "extratoId"> | void) =>
+      sugerirMatchesAgrupados({ extratoId: extratoId as string, ...(input ?? {}) }),
+    onSuccess: () => {
+      if (extratoId) {
+        void qc.invalidateQueries({ queryKey: matchesKey(extratoId) });
+      }
+    },
+  });
+
   const decidir = useMutation({
     mutationFn: (args: { ids: string[]; decisao: DecisaoMatch; motivo?: string }) =>
       decidirMatchesEmLote(args.ids, args.decisao, args.motivo),
@@ -43,5 +54,5 @@ export function useConciliacaoMatches(extratoId: string | undefined) {
     },
   });
 
-  return { ...query, sugerir, decidir };
+  return { ...query, sugerir, sugerirAgrupados, decidir };
 }
