@@ -662,6 +662,9 @@ const Financeiro = () => {
                 totalCount,
                 hasMore: (page + 1) * PAGE_SIZE < (totalCount ?? 0),
               }}
+              serverSortKey={sortKey}
+              serverSortDir={sortDir}
+              onServerSort={(k, d) => { setSortKey(k); setSortDir(d); setPage(0); }}
               pageSize={PAGE_SIZE}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
