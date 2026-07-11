@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
+  Trash2,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -61,6 +62,7 @@ interface Props {
   onConfirmar: () => void;
   onConfirmarSelecao: (extratoIds: string[], lancamentoIds: string[]) => boolean;
   onDesvincularExtrato: (extratoId: string) => void;
+  onExcluirExtratos?: (fitids: string[]) => Promise<number> | number;
   sugestoesPersistidas?: Map<string, SugestaoPersistida>;
   onAceitarSugestao?: (extratoId: string) => boolean;
   onAceitarSugestoesPersistidas?: () => number;
