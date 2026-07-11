@@ -795,10 +795,17 @@ const Financeiro = () => {
           setDrawerOpen(false);
           openEdit(l);
         }}
-        onDelete={(id) => {
+        onDelete={async (id, motivo) => {
           const target = data.find((l) => l.id === id) ?? selected;
           setDrawerOpen(false);
-          if (target) {
+          if (!target) return;
+          // Se o drawer já coletou o motivo (via useConfirmDestructive),
+          // cancela direto — evita pedir o motivo duas vezes. Caso contrário,
+          // abre o diálogo padrão que também coleta motivo.
+          if (motivo && motivo.trim().length >= 5) {
+            const ok = await cancelarLancamento(target.id, motivo.trim());
+            if (ok) await fetchData();
+          } else {
             setCancelTarget(target);
             setCancelMotivo("");
           }
