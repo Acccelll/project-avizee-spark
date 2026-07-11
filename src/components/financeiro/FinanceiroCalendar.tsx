@@ -87,9 +87,8 @@ export function FinanceiroCalendar({ baseFilters, onBaixaSuccess, initialMonth }
     return map;
   }, [data]);
 
-  const selectedDateStr = selectedDate
-    ? selectedDate.toISOString().slice(0, 10)
-    : null;
+  // Usa data local (não UTC) para evitar shift de -1 dia em fusos negativos.
+  const selectedDateStr = selectedDate ? toIso(selectedDate) : null;
   const selectedItems = selectedDateStr
     ? eventsByDate.get(selectedDateStr) || []
     : [];
