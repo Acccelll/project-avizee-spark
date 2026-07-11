@@ -1593,6 +1593,303 @@ export type Database = {
           },
         ]
       }
+      conciliacao_extrato_linhas: {
+        Row: {
+          conta_bancaria_id: string
+          contraparte_documento: string | null
+          contraparte_nome: string | null
+          created_at: string
+          data_movimento: string
+          descricao: string
+          documento: string | null
+          empresa_id: string
+          extrato_id: string
+          fitid: string | null
+          hash_linha: string
+          id: string
+          metadados: Json
+          saldo_apos: number | null
+          status: string
+          tipo_movimento: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          conta_bancaria_id: string
+          contraparte_documento?: string | null
+          contraparte_nome?: string | null
+          created_at?: string
+          data_movimento: string
+          descricao: string
+          documento?: string | null
+          empresa_id: string
+          extrato_id: string
+          fitid?: string | null
+          hash_linha: string
+          id?: string
+          metadados?: Json
+          saldo_apos?: number | null
+          status?: string
+          tipo_movimento: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          conta_bancaria_id?: string
+          contraparte_documento?: string | null
+          contraparte_nome?: string | null
+          created_at?: string
+          data_movimento?: string
+          descricao?: string
+          documento?: string | null
+          empresa_id?: string
+          extrato_id?: string
+          fitid?: string | null
+          hash_linha?: string
+          id?: string
+          metadados?: Json
+          saldo_apos?: number | null
+          status?: string
+          tipo_movimento?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_extrato_linhas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extrato_linhas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extrato_linhas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extrato_linhas_extrato_id_fkey"
+            columns: ["extrato_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacao_extratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacao_extratos: {
+        Row: {
+          arquivo_hash: string
+          arquivo_nome: string | null
+          conta_bancaria_id: string
+          created_at: string
+          empresa_id: string
+          formato: string
+          id: string
+          importado_por: string | null
+          metadados: Json
+          origem: string
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          status: string
+          total_creditos: number
+          total_debitos: number
+          total_linhas: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_hash: string
+          arquivo_nome?: string | null
+          conta_bancaria_id: string
+          created_at?: string
+          empresa_id: string
+          formato?: string
+          id?: string
+          importado_por?: string | null
+          metadados?: Json
+          origem?: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string
+          total_creditos?: number
+          total_debitos?: number
+          total_linhas?: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_hash?: string
+          arquivo_nome?: string | null
+          conta_bancaria_id?: string
+          created_at?: string
+          empresa_id?: string
+          formato?: string
+          id?: string
+          importado_por?: string | null
+          metadados?: Json
+          origem?: string
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string
+          total_creditos?: number
+          total_debitos?: number
+          total_linhas?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_extratos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extratos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacao_matches: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          baixa_id: string | null
+          created_at: string
+          empresa_id: string
+          extrato_linha_id: string
+          id: string
+          lancamento_id: string
+          match_tipo: string
+          motivos: Json
+          observacao: string | null
+          operation_id: string
+          regra_id: string | null
+          rejeitado_em: string | null
+          rejeitado_por: string | null
+          score: number
+          status: string
+          sugerido_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          baixa_id?: string | null
+          created_at?: string
+          empresa_id: string
+          extrato_linha_id: string
+          id?: string
+          lancamento_id: string
+          match_tipo?: string
+          motivos?: Json
+          observacao?: string | null
+          operation_id?: string
+          regra_id?: string | null
+          rejeitado_em?: string | null
+          rejeitado_por?: string | null
+          score?: number
+          status?: string
+          sugerido_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          baixa_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          extrato_linha_id?: string
+          id?: string
+          lancamento_id?: string
+          match_tipo?: string
+          motivos?: Json
+          observacao?: string | null
+          operation_id?: string
+          regra_id?: string | null
+          rejeitado_em?: string | null
+          rejeitado_por?: string | null
+          score?: number
+          status?: string
+          sugerido_por?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_matches_baixa_id_fkey"
+            columns: ["baixa_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_baixas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_baixa_id_fkey"
+            columns: ["baixa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_conciliacao_eventos_financeiros"
+            referencedColumns: ["baixa_id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_extrato_linha_id_fkey"
+            columns: ["extrato_linha_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacao_extrato_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_matches_regra_id_fkey"
+            columns: ["regra_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacao_regras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conciliacao_pares: {
         Row: {
           conciliacao_id: string
@@ -1651,6 +1948,80 @@ export type Database = {
             columns: ["lancamento_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacao_regras: {
+        Row: {
+          acoes: Json
+          ativo: boolean
+          condicoes: Json
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          empresa_id: string
+          escopo: string
+          id: string
+          nome: string
+          prioridade: number
+          published_at: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          acoes?: Json
+          ativo?: boolean
+          condicoes?: Json
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          empresa_id: string
+          escopo?: string
+          id?: string
+          nome: string
+          prioridade?: number
+          published_at?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          acoes?: Json
+          ativo?: boolean
+          condicoes?: Json
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          empresa_id?: string
+          escopo?: string
+          id?: string
+          nome?: string
+          prioridade?: number
+          published_at?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_regras_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]
