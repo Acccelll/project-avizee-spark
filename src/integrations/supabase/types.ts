@@ -10778,6 +10778,17 @@ export type Database = {
         Args: { p_cartao_id: string; p_data: string }
         Returns: string
       }
+      conciliacao_sugerir_matches: {
+        Args: {
+          p_extrato_id: string
+          p_min_score?: number
+          p_tolerancia_dias?: number
+        }
+        Returns: {
+          linhas_processadas: number
+          sugestoes_criadas: number
+        }[]
+      }
       confirmar_cte: { Args: { p_nota_id: string }; Returns: string }
       confirmar_nfse: { Args: { p_nota_id: string }; Returns: string }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
