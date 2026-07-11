@@ -5,7 +5,7 @@ import { AlertCircle, FileText, RefreshCw, CheckCircle2, Check, Loader2 } from "
 import { formatCurrency } from "@/lib/format";
 import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
@@ -38,12 +40,24 @@ function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPa
   const hoje = new Date().toISOString().split("T")[0];
   const [primeiroVenc, setPrimeiroVenc] = useState<string>(dataEmissao || hoje);
   const [saving, setSaving] = useState(false);
+  const [cartaoId, setCartaoId] = useState<string>("");
+  const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
+  const [cartoesLoading, setCartoesLoading] = useState(false);
 
   const isCartao = forma === "cartao_credito";
 
+  useEffect(() => {
+    if (!open || !isCartao || cartoes.length > 0 || cartoesLoading) return;
+    setCartoesLoading(true);
+    listCartoesAtivos()
+      .then((rows) => setCartoes(rows))
+      .catch(notifyError)
+      .finally(() => setCartoesLoading(false));
+  }, [open, isCartao, cartoes.length, cartoesLoading]);
+
   const salvar = async () => {
-    if (isCartao) {
-      toast.info("Cartão de crédito: use a edição completa da NF para selecionar o cartão.");
+    if (isCartao && !cartaoId) {
+      toast.error("Selecione o cartão de crédito.");
       return;
     }
     const total = Number(valorTotal || 0);
@@ -66,10 +80,18 @@ function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPa
     });
     setSaving(true);
     try {
+      if (isCartao) {
+        // Persistimos o cartão escolhido na NF — a RPC lê `cartao_id` da nota.
+        const { error: upErr } = await supabase
+          .from("notas_fiscais")
+          .update({ cartao_id: cartaoId })
+          .eq("id", notaId);
+        if (upErr) throw upErr;
+      }
       await atualizarFinanceiroNota({
         notaId,
         formaPagamento: forma,
-        condicaoPagamento: condicao,
+        condicaoPagamento: isCartao && qtde > 1 ? "a_prazo" : condicao,
         parcelas: parcelas as never,
       });
       toast.success("Pagamento definido e lançamentos gerados.");
@@ -107,14 +129,46 @@ function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPa
               <SelectItem value="pix">PIX</SelectItem>
               <SelectItem value="transferencia">Transferência</SelectItem>
               <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-              <SelectItem value="cartao_credito">Cartão de Crédito…</SelectItem>
+              <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
             </SelectContent>
           </Select>
         </div>
         {isCartao ? (
-          <p className="text-[11px] text-warning">
-            Cartão de crédito exige seleção do cartão — use a edição completa da NF.
-          </p>
+          <>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Cartão *</Label>
+              <Select value={cartaoId} onValueChange={setCartaoId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder={cartoesLoading ? "Carregando…" : "Selecione o cartão"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {cartoes.length === 0 ? (
+                    <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                      Nenhum cartão ativo.
+                    </div>
+                  ) : cartoes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nº Parcelas</Label>
+              <Input
+                type="number"
+                min={1}
+                max={48}
+                value={nParcelas}
+                onChange={(e) => setNParcelas(Math.max(1, Number(e.target.value) || 1))}
+                className="h-8 text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Vencimentos seguirão a fatura do cartão.
+              </p>
+            </div>
+          </>
         ) : (
           <>
             <div className="space-y-1.5">
@@ -157,7 +211,7 @@ function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPa
           size="sm"
           className="w-full h-8 text-xs"
           onClick={salvar}
-          disabled={saving || isCartao}
+          disabled={saving || (isCartao && !cartaoId)}
         >
           {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
           Confirmar
