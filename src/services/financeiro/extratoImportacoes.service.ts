@@ -33,13 +33,15 @@ export interface ExtratoTransacaoPersistida {
 /** Faz upsert de transações OFX (idempotente por (conta, fitid)). */
 export async function persistirExtratoOFX(input: {
   contaBancariaId: string;
+  empresaId?: string | null;
   arquivoHash?: string | null;
   transacoes: TransacaoExtrato[];
 }): Promise<{ inseridas: number }> {
-  const { contaBancariaId, transacoes, arquivoHash } = input;
+  const { contaBancariaId, transacoes, arquivoHash, empresaId } = input;
   if (!transacoes.length) return { inseridas: 0 };
 
   const rows = transacoes.map((t) => ({
+    ...(empresaId ? { empresa_id: empresaId } : {}),
     conta_bancaria_id: contaBancariaId,
     fitid: t.id,
     data: t.data,

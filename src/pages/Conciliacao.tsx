@@ -156,33 +156,6 @@ export default function Conciliacao() {
             onChange={v.setOrigemFilters} placeholder="Origem" className="w-[120px]" />
         </AdvancedFilterBar>
 
-        {v.extratoItems.length > 0 && (
-          <OFXMatchingPane
-            extratoItems={v.extratoItems} lancamentos={v.lancamentos} matches={v.matches}
-            showOFXPane={v.showOFXPane} setShowOFXPane={v.setShowOFXPane}
-            getMatch={v.getMatch} usedLancamentoIds={v.usedLancamentoIds}
-            pareados={v.pareados} semParOFX={v.semParOFX}
-            confirming={v.confirming} selectedConta={v.selectedConta}
-            onManualMatch={v.handleManualMatch}
-            onAbrirVincular={(id) => {
-              v.setVincularExtratoId(id);
-              v.setVincularSearch("");
-              v.setVincularOpen(true);
-            }}
-            onCriarInline={v.handleCriarLancamentoInline}
-            onConfirmar={v.handleConfirmarConciliacao}
-            onConfirmarSelecao={v.handleConfirmarSelecao}
-            onDesvincularExtrato={v.handleDesvincularExtrato}
-            onExcluirExtratos={v.handleExcluirExtratosSelecionados}
-            sugestoesPersistidas={v.sugestoesPersistidas}
-            onAceitarSugestao={v.handleAceitarSugestao}
-            onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
-            onRejeitarSugestao={v.handleRejeitarSugestao}
-            conciliadosPersistidos={v.conciliadosPersistidos}
-            onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
-          />
-        )}
-
         {v.selectedConta && !v.loadingLanc && v.lancamentos.length === 0 ? (
           <div className="bg-card rounded-xl border">
             <EmptyState
@@ -233,6 +206,33 @@ export default function Conciliacao() {
               ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
               : "Tente ajustar o período ou os filtros de busca."}
             mobileStatusKey="statusConciliacao" mobileIdentifierKey="descricao" />
+        )}
+
+        {v.extratoItems.length > 0 && (
+          <OFXMatchingPane
+            extratoItems={v.extratoItems} lancamentos={v.lancamentos} matches={v.matches}
+            showOFXPane={v.showOFXPane} setShowOFXPane={v.setShowOFXPane}
+            getMatch={v.getMatch} usedLancamentoIds={v.usedLancamentoIds}
+            pareados={v.pareados} semParOFX={v.semParOFX}
+            confirming={v.confirming} selectedConta={v.selectedConta}
+            onManualMatch={v.handleManualMatch}
+            onAbrirVincular={(id) => {
+              v.setVincularExtratoId(id);
+              v.setVincularSearch("");
+              v.setVincularOpen(true);
+            }}
+            onCriarInline={v.handleCriarLancamentoInline}
+            onConfirmar={v.handleConfirmarConciliacao}
+            onConfirmarSelecao={v.handleConfirmarSelecao}
+            onDesvincularExtrato={v.handleDesvincularExtrato}
+            onExcluirExtratos={v.handleExcluirExtratosSelecionados}
+            sugestoesPersistidas={v.sugestoesPersistidas}
+            onAceitarSugestao={v.handleAceitarSugestao}
+            onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}
+            onRejeitarSugestao={v.handleRejeitarSugestao}
+            conciliadosPersistidos={v.conciliadosPersistidos}
+            onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
+          />
         )}
 
         {!v.selectedConta && v.extratoItems.length === 0 && (

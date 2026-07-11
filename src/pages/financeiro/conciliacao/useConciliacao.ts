@@ -59,7 +59,7 @@ export function useConciliacao() {
   const isMobile = useIsMobile();
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
-  const [selectedConta, setSelectedConta] = useState<string>("");
+  const [selectedConta, setSelectedConta] = useState<string>(searchParams.get("conta") ?? "");
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -94,6 +94,7 @@ export function useConciliacao() {
   useEffect(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      if (selectedConta) next.set("conta", selectedConta); else next.delete("conta");
       next.set("data_inicio", dataInicio);
       next.set("data_fim", dataFim);
       if (searchTerm) next.set("search", searchTerm); else next.delete("search");
@@ -101,7 +102,7 @@ export function useConciliacao() {
       if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
       return next;
     }, { replace: true });
-  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
+  }, [selectedConta, dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
 
   // Contas bancárias (raramente muda)
   const { data: contasQuery } = useQuery({
@@ -185,6 +186,34 @@ export function useConciliacao() {
     return ue?.empresa_id ? { empresaId: ue.empresa_id, userId } : null;
   }, []);
 
+  const hydrateExtratoPersistido = useCallback(async (input: {
+    contaId: string;
+    from: string;
+    to: string;
+  }): Promise<OFXTransaction[]> => {
+    if (!input.contaId) {
+      setExtratoItems([]);
+      setSugestoesPersistidas(new Map());
+      setConciliadosPersistidos(new Map());
+      return [];
+    }
+    const rows = await listarExtratoPersistido({
+      contaBancariaId: input.contaId,
+      dataInicio: input.from,
+      dataFim: input.to,
+    });
+    const items: OFXTransaction[] = rows.map((r) => ({
+      id: r.fitid,
+      data: r.data,
+      valor: Number(r.valor),
+      descricao: r.descricao ?? "",
+    }));
+    setExtratoItems(items);
+    if (items.length > 0) setShowOFXPane(true);
+    await loadSugestoesPersistidas(items, input.contaId);
+    return items;
+  }, [loadSugestoesPersistidas]);
+
   const registrarFeedbackSugestao = useCallback((input: {
     extratoId: string;
     acao: AcaoFeedback;
@@ -227,26 +256,13 @@ export function useConciliacao() {
     }
     void (async () => {
       try {
-        const rows = await listarExtratoPersistido({
-          contaBancariaId: selectedConta,
-          dataInicio,
-          dataFim,
-        });
-        const items: OFXTransaction[] = rows.map((r) => ({
-          id: r.fitid,
-          data: r.data,
-          valor: Number(r.valor),
-          descricao: r.descricao ?? "",
-        }));
-        setExtratoItems(items);
-        if (items.length > 0) setShowOFXPane(true);
-        await loadSugestoesPersistidas(items, selectedConta);
+        await hydrateExtratoPersistido({ contaId: selectedConta, from: dataInicio, to: dataFim });
       } catch (err) {
         logger.warn("[conciliacao] falha ao hidratar extrato persistido:", err);
         setExtratoItems([]);
       }
     })();
-  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, loadSugestoesPersistidas]);
+  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, hydrateExtratoPersistido]);
 
   const handleExcluirExtratosSelecionados = useCallback(async (fitids: string[]): Promise<number> => {
     if (!selectedConta || fitids.length === 0) return 0;
@@ -297,20 +313,22 @@ export function useConciliacao() {
         setMatches([]);
         setShowOFXPane(true);
         toast.success(`${items.length} transações importadas.`);
+        const dates = items.map((i) => i.data).sort();
+        const importInicio = dates[0];
+        const importFim = dates[dates.length - 1];
+        if (importInicio && importFim && (importInicio !== dataInicio || importFim !== dataFim)) {
+          setDataInicio(importInicio);
+          setDataFim(importFim);
+        }
         if (selectedConta) {
-          const dates = items.map((i) => i.data).sort();
-          await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
+          await loadLancamentosFromPeriod(importInicio, importFim, selectedConta);
         }
         // Onda 7 — também persiste o OFX no Motor Universal para gerar
         // sugestões (best-effort; falha silenciosa não bloqueia a UI).
         if (selectedConta) {
           try {
-            const { data: userRes } = await supabase.auth.getUser();
-            const { data: ue } = await supabase
-              .from("user_empresas")
-              .select("empresa_id")
-              .eq("user_id", userRes?.user?.id ?? "")
-              .maybeSingle();
+            const sessao = await obterSessaoEmpresa();
+            const ue = sessao ? { empresa_id: sessao.empresaId } : null;
             if (ue?.empresa_id) {
               const res = await importarDocumentoUniversal({
                 file,
@@ -326,7 +344,10 @@ export function useConciliacao() {
                   `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
                 );
               }
-              const meta = await loadSugestoesPersistidas(items, selectedConta);
+              const hydrated = await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
+              const meta = hydrated.length > 0
+                ? { conciliados: conciliadosPersistidos.size, sugestoes: sugestoesPersistidas.size }
+                : await loadSugestoesPersistidas(items, selectedConta);
               if (meta && meta.conciliados > 0) {
                 toast.info(
                   `${meta.conciliados} transação(ões) já conciliadas em sessões anteriores foram ocultadas.`,
@@ -342,6 +363,7 @@ export function useConciliacao() {
             try {
               await persistirExtratoOFX({
                 contaBancariaId: selectedConta,
+                empresaId: (await obterSessaoEmpresa())?.empresaId,
                 transacoes: items.map((i) => ({
                   id: i.id,
                   data: i.data,
@@ -350,7 +372,7 @@ export function useConciliacao() {
                   tipo: i.valor >= 0 ? "C" : "D",
                 })),
               });
-              await loadSugestoesPersistidas(items, selectedConta);
+              await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
             } catch (fallbackErr) {
               logger.warn("[conciliacao] fallback persistirExtratoOFX falhou:", fallbackErr);
             }
