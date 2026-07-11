@@ -280,7 +280,7 @@ export async function conciliarTransacao(
     // Título já liquidado: localizar a baixa ativa cuja data e valor
     // correspondam à transação do extrato. Evita conciliar baixa antiga
     // não relacionada quando há múltiplas baixas no histórico.
-    const valorExtrato = Math.abs(transacaoExtrato.valor);
+    const valorReferencia = Math.abs(valorPagoParcial ?? transacaoExtrato.valor);
     const { data: baixasAtivas, error: baixaErr } = await supabase
       .from("financeiro_baixas")
       .select("id, data_baixa, valor_pago, conciliacao_status")
@@ -302,7 +302,7 @@ export async function conciliarTransacao(
     const candidatas = naoConciliadas.length ? naoConciliadas : baixasAtivas;
 
     const matchValor = candidatas.find(
-      (b) => Math.abs(Number(b.valor_pago) - valorExtrato) < 0.01,
+      (b) => Math.abs(Number(b.valor_pago) - valorReferencia) < 0.01,
     );
     if (matchValor) {
       baixaId = matchValor.id;

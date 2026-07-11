@@ -25,6 +25,7 @@ import {
   desfazerConciliacaoExtrato,
   excluirExtratosPorFitids,
   limparSugestaoExtrato,
+  listarBaixasConciliadasPorFitids,
   listarExtratoPersistido,
   mapBaixasParaLancamentos,
   marcarExtratoConciliadoPorFitid,
@@ -41,6 +42,13 @@ const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
 const CONCILIACAO_LAST_DATA_INICIO_KEY = "conciliacao:bancaria:lastDataInicio";
 const CONCILIACAO_LAST_DATA_FIM_KEY = "conciliacao:bancaria:lastDataFim";
+
+function getLancamentoSaldoParaConciliar(lancamento: Lancamento): number {
+  const row = lancamento as Lancamento & { saldo_restante?: number | string | null };
+  const saldo = row.saldo_restante == null ? null : Math.abs(Number(row.saldo_restante));
+  if (saldo != null && Number.isFinite(saldo) && saldo > 0.009) return saldo;
+  return Math.abs(Number(lancamento.valor));
+}
 
 function getLocalPreference(key: string): string | null {
   try {
@@ -217,21 +225,51 @@ export function useConciliacao() {
         }
       });
       setSugestoesPersistidas(next);
-      setConciliadosPersistidos(conciliados);
-      // Cruza baixa_id → lancamento_id para marcar linhas conciliadas na grade ERP.
-      const baixaIds = Array.from(conciliados.values())
+      // Cruza fitid → baixas para marcar TODOS os lançamentos conciliados.
+      // Em 1↔N, `financeiro_extrato_importacoes.baixa_id` guarda só uma baixa
+      // representativa; as demais ficam em `financeiro_baixas.conciliacao_extrato_referencia`.
+      const fitidsConciliados = Array.from(conciliados.keys());
+      let baixaIds = Array.from(conciliados.values())
         .map((c) => c.baixaId)
         .filter((v): v is string => !!v);
+      const lancamentosIds = new Set<string>();
+      const conciliadosHidratados = new Map(conciliados);
+      if (fitidsConciliados.length > 0) {
+        try {
+          const baixasPorFitid = await listarBaixasConciliadasPorFitids({
+            contaBancariaId: contaId,
+            fitids: fitidsConciliados,
+          });
+          baixaIds = Array.from(new Set([
+            ...baixaIds,
+            ...Array.from(baixasPorFitid.values()).flat().map((b) => b.baixaId),
+          ]));
+          baixasPorFitid.forEach((baixas, fitid) => {
+            const atual = conciliadosHidratados.get(fitid);
+            if (!atual) return;
+            conciliadosHidratados.set(fitid, {
+              ...atual,
+              baixaId: atual.baixaId ?? baixas[0]?.baixaId ?? null,
+              baixaIds: baixas.map((b) => b.baixaId),
+            });
+            baixas.forEach((b) => lancamentosIds.add(b.lancamentoId));
+          });
+        } catch (err) {
+          logger.warn("[conciliacao] falha ao carregar baixas por fitid:", err);
+        }
+      }
+      setConciliadosPersistidos(conciliadosHidratados);
       if (baixaIds.length > 0) {
         try {
           const mapa = await mapBaixasParaLancamentos(baixaIds);
-          setLancamentosConciliadosIds(new Set(mapa.values()));
+          mapa.forEach((lancamentoId) => lancamentosIds.add(lancamentoId));
+          setLancamentosConciliadosIds(lancamentosIds);
         } catch (err) {
           logger.warn("[conciliacao] falha ao mapear baixas→lançamentos:", err);
-          setLancamentosConciliadosIds(new Set());
+          setLancamentosConciliadosIds(lancamentosIds);
         }
       } else {
-        setLancamentosConciliadosIds(new Set());
+        setLancamentosConciliadosIds(lancamentosIds);
       }
       return { conciliados: conciliados.size, sugestoes: next.size };
     } catch (err) {
@@ -625,6 +663,7 @@ export function useConciliacao() {
       await desfazerConciliacaoExtrato({
         extratoPersistidoId: conc.extratoPersistidoId,
         baixaId: conc.baixaId,
+        baixaIds: conc.baixaIds,
         motivo: "Conciliação bancária desfeita pelo usuário.",
       });
       void (async () => {
@@ -887,7 +926,7 @@ export function useConciliacao() {
         extratoCount.set(p.extrato_id, (extratoCount.get(p.extrato_id) ?? 0) + 1);
         lancamentoCount.set(p.lancamento_id, (lancamentoCount.get(p.lancamento_id) ?? 0) + 1);
       });
-      const extratosMarcados = new Set<string>();
+      const baixasPorExtrato = new Map<string, string[]>();
       // Executa em série para respeitar saldos parciais sequenciais.
       for (const par of payload.pares) {
         const extrato = extratoItems.find((e) => e.id === par.extrato_id);
@@ -906,9 +945,11 @@ export function useConciliacao() {
           // Cada extrato baixa seu próprio valor no mesmo lançamento.
           valorParcial = Math.abs(extrato.valor);
         } else if (nLanc > 1) {
-          // O extrato é dividido entre vários lançamentos: usa valor do título.
+          // O extrato é dividido entre vários lançamentos: usa o saldo real do título.
+          // Isso evita bloquear o segundo título quando há diferença de 1 centavo
+          // por arredondamento entre valor original e saldo restante.
           const lanc = lancamentos.find((l) => l.id === par.lancamento_id);
-          valorParcial = lanc ? Math.abs(Number(lanc.valor)) : undefined;
+          valorParcial = lanc ? getLancamentoSaldoParaConciliar(lanc) : undefined;
         }
         try {
           const baixaId = await conciliarTransacao(
@@ -917,18 +958,22 @@ export function useConciliacao() {
             par.lancamento_id,
             valorParcial,
           );
-          if (!extratosMarcados.has(extrato.id)) {
-            extratosMarcados.add(extrato.id);
-            await marcarExtratoConciliadoPorFitid({
-              contaBancariaId: selectedConta,
-              fitid: extrato.id,
-              baixaId,
-            });
+          if (baixaId) {
+            const ids = baixasPorExtrato.get(extrato.id) ?? [];
+            ids.push(baixaId);
+            baixasPorExtrato.set(extrato.id, ids);
           }
         } catch (err) {
               logger.warn("[conciliacao] falha ao persistir status do extrato conciliado:", err);
               throw err;
         }
+      }
+      for (const [fitid, baixaIds] of baixasPorExtrato) {
+        await marcarExtratoConciliadoPorFitid({
+          contaBancariaId: selectedConta,
+          fitid,
+          baixaId: baixaIds[0] ?? null,
+        });
       }
       try {
         await confirmarConciliacao({
@@ -940,10 +985,10 @@ export function useConciliacao() {
       } catch {
         // Silently fail if tables don't exist yet
       }
-      const pareados = matches.length;
-      const semPar = extratoItems.length - pareados;
+      const extratosPareados = new Set(matches.map((m) => m.extratoId)).size;
+      const semPar = Math.max(0, extratoItems.length - extratosPareados);
       toast.success(
-        `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
+        `${extratosPareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
       );
       setSugestoesPersistidas((prev) => {
         const next = new Map(prev);
@@ -985,9 +1030,9 @@ export function useConciliacao() {
   const getMatch = (extratoId: string) => matches.find((m) => m.extratoId === extratoId);
   const usedLancamentoIds = new Set(matches.map((m) => m.lancamentoId));
 
-  const pareados = matches.length;
-  const semParOFX = extratoItems.length - pareados;
-  const pendentesERP = lancamentos.length - pareados;
+  const pareados = new Set(matches.map((m) => m.extratoId)).size;
+  const semParOFX = Math.max(0, extratoItems.length - pareados);
+  const pendentesERP = Math.max(0, lancamentos.length - new Set(matches.map((m) => m.lancamentoId)).size);
 
   const lancamentosComStatus = useMemo((): LancamentoComStatus[] => {
     return lancamentos.map((l) => {
