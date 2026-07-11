@@ -20,7 +20,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      position="bottom-right"
+      // Top-right + offset abaixo da topbar (56px). Evita cobrir botões
+      // de ação e barras flutuantes que vivem no rodapé da tela.
+      position="top-right"
+      offset="72px"
       richColors
       closeButton
       containerAriaLabel="Notificações do sistema"

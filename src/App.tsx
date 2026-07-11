@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { QUERY_STALE, QUERY_GC } from "@/lib/queryConfig";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { GlobalConfirmHost } from "@/lib/globalConfirm";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppConfigProvider } from "@/contexts/AppConfigContext";
@@ -54,6 +55,7 @@ const App = () => (
               <RelationalNavigationProvider>
                 <TooltipProvider>
                   <Sonner />
+                  <GlobalConfirmHost />
                   <OfflineBanner />
                   <PwaUpdatePrompt />
                   <InstallPwaButton />
