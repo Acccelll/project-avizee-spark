@@ -4,8 +4,10 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  decidirMatchesEmLote,
   listarMatchesDoExtrato,
   sugerirMatches,
+  type DecisaoMatch,
   type SugerirMatchesInput,
 } from "@/services/conciliacao/matchingService";
 
@@ -31,5 +33,15 @@ export function useConciliacaoMatches(extratoId: string | undefined) {
     },
   });
 
-  return { ...query, sugerir };
+  const decidir = useMutation({
+    mutationFn: (args: { ids: string[]; decisao: DecisaoMatch; motivo?: string }) =>
+      decidirMatchesEmLote(args.ids, args.decisao, args.motivo),
+    onSuccess: () => {
+      if (extratoId) {
+        void qc.invalidateQueries({ queryKey: matchesKey(extratoId) });
+      }
+    },
+  });
+
+  return { ...query, sugerir, decidir };
 }
