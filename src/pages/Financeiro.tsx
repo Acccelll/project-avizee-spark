@@ -956,6 +956,10 @@ const Financeiro = () => {
           setDrawerOpen(false);
           openEdit(l);
         }}
+        onHardDelete={(l) => {
+          setDrawerOpen(false);
+          setHardDeleteTarget(l);
+        }}
         onDelete={async (id, motivo) => {
           const target = data.find((l) => l.id === id) ?? selected;
           setDrawerOpen(false);

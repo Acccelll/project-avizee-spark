@@ -18,6 +18,7 @@ import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useCan } from "@/hooks/useCan";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { useEstornarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import {
@@ -57,9 +58,10 @@ interface FinanceiroDrawerProps {
   onEstorno: (l: Lancamento) => void;
   onEdit: (l: Lancamento) => void;
   onDelete: (id: string, motivo?: string) => void;
+  onHardDelete?: (l: Lancamento) => void;
 }
 
-export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onBaixa, onEstorno, onEdit, onDelete }: FinanceiroDrawerProps) {
+export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onBaixa, onEstorno, onEdit, onDelete, onHardDelete }: FinanceiroDrawerProps) {
   const selectedId = selected?.id ?? null;
 
   // Cancellation-aware fetch — evita que resultado de um lançamento antigo
@@ -104,6 +106,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   // que exige `financeiro:excluir` + admin via gate da própria RPC.
   const canPermCancelar = can("financeiro:cancelar");
   const { canEditAvancado } = useCanEditFinanceiroAvancado();
+  const { canHardDelete } = useCanHardDelete();
   const estornarBaixa = useEstornarBaixa();
   const { confirm: confirmEstorno, dialog: estornoDialog } = useConfirmDestructive({
     verb: "Estornar",
@@ -228,6 +231,13 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               tooltip: "Editar",
               onClick: () => runAction(() => { onEdit(selected); onClose(); }),
               pending: actionPending,
+            }] : []),
+            ...(canHardDelete && onHardDelete ? [{
+              icon: Trash2,
+              tooltip: "Excluir definitivamente (admin)",
+              onClick: () => runAction(() => { onHardDelete(selected); onClose(); }),
+              pending: actionPending,
+              tone: "warning" as const,
             }] : []),
           ]}
           destructive={canPermCancelar ? {
