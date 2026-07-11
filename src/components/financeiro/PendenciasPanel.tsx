@@ -5,7 +5,7 @@ import { AlertCircle, FileText, RefreshCw, CheckCircle2, Check, Loader2 } from "
 import { formatCurrency } from "@/lib/format";
 import { useNotasPendentesForma } from "@/hooks/useNotasPendentesForma";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { atualizarFinanceiroNota } from "@/services/fiscal/lifecycle.service";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
