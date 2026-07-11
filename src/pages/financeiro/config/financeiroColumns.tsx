@@ -75,6 +75,7 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       mobileCard: true,
       label: "Descrição",
       sortable: true,
+      serverSortable: true,
       render: (l: Lancamento) => {
         const hasParcelas = (l.parcela_total ?? 0) > 1 && (l.parcela_numero ?? 0) > 0;
         const sub: string[] = [];
@@ -99,6 +100,7 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       mobileCard: true,
       label: "Vencimento",
       sortable: true,
+      serverSortable: true,
       render: (l: Lancamento) => {
         const es = getLancamentoStatus(l);
         const isOverdue = es === "vencido";
@@ -133,6 +135,7 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       mobileCard: true,
       label: "Valor Total",
       sortable: true,
+      serverSortable: true,
       render: (l: Lancamento) => (
         <span className="font-semibold font-mono text-sm">{formatCurrency(Number(l.valor))}</span>
       ),
