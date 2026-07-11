@@ -81,7 +81,7 @@ export function NovoLancamentoInlineModal({ open, onClose, prefill, onSaved }: P
         ativo: true,
         forma_pagamento_dados:
           form.forma_pagamento_dados && Object.keys(form.forma_pagamento_dados).length
-            ? form.forma_pagamento_dados
+            ? (form.forma_pagamento_dados as unknown as Record<string, string | number | boolean | null>)
             : null,
       };
       const { error } = await supabase.from("financeiro_lancamentos").insert([payload]);
