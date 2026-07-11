@@ -1199,27 +1199,18 @@ export function NotaFiscalEditModal({
                         {contaContabilLabel}
                       </p>
                     ) : (
-                      <Select
-                        value={form.conta_contabil_id || "none"}
-                        onValueChange={(v) =>
-                          setForm({
-                            ...form,
-                            conta_contabil_id: v === "none" ? "" : v,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vincular conta contábil..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {contasContabeis.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.codigo} - {c.descricao}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                       <AutocompleteSearch
+                         options={contasContabeis.map((c) => ({
+                           id: c.id,
+                           label: `${c.codigo} - ${c.descricao}`,
+                           sublabel: c.codigo,
+                         }))}
+                         value={form.conta_contabil_id || ""}
+                         onChange={(v) =>
+                           setForm({ ...form, conta_contabil_id: v || "" })
+                         }
+                         placeholder="Buscar conta contábil por código ou descrição..."
+                       />
                     )}
                   </div>
                 )}
