@@ -77,7 +77,7 @@ export function NovoLancamentoInlineModal({ open, onClose, prefill, onSaved }: P
         conta_contabil_id: form.conta_contabil_id || null,
         data_pagamento: form.data_pagamento || null,
         observacoes: form.observacoes || null,
-        origem: "manual" as const,
+        origem: "manual",
         ativo: true,
         forma_pagamento_dados:
           form.forma_pagamento_dados && Object.keys(form.forma_pagamento_dados).length
