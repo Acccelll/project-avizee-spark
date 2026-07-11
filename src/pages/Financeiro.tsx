@@ -74,6 +74,147 @@ const FORMAS_CARTAO = new Set(["cartao_credito", "cartao_debito"]);
 
 const PAGE_SIZE = 50;
 
+/**
+ * Filtro unificado "Mês ou Dia" — um único trigger que abre um popover com
+ * abas para escolher um mês inteiro **ou** um dia específico. Substitui os
+ * antigos `MonthFilter` + botão de data específica, evitando estados
+ * conflitantes na barra de filtros.
+ */
+const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function MesOuDiaFilter({
+  mes,
+  dataEspecifica,
+  onChangeMes,
+  onChangeDia,
+}: {
+  mes: string | null;
+  dataEspecifica: string | null;
+  onChangeMes: (v: string | null) => void;
+  onChangeDia: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const initialTab: "mes" | "dia" = dataEspecifica ? "dia" : "mes";
+  const [tab, setTab] = useState<"mes" | "dia">(initialTab);
+  const todayKey = currentMonthKey();
+  const [year, setYear] = useState<number>(
+    mes ? Number(mes.slice(0, 4)) : Number(todayKey.slice(0, 4)),
+  );
+  const selectedYear = mes ? Number(mes.slice(0, 4)) : null;
+  const selectedMonth = mes ? Number(mes.slice(5, 7)) : null;
+  const ativo = Boolean(mes || dataEspecifica);
+  const label = mes
+    ? formatMonthKey(mes)
+    : dataEspecifica
+      ? new Date(dataEspecifica + "T00:00:00").toLocaleDateString("pt-BR")
+      : "Mês / Dia";
+
+  const limpar = () => {
+    onChangeMes(null);
+    onChangeDia(null);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setTab(dataEspecifica ? "dia" : "mes");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          size="sm"
+          variant={ativo ? "default" : "outline"}
+          className={cn(
+            "h-9 sm:h-8 gap-1.5 text-xs min-h-[36px] sm:min-h-0",
+            !ativo && "text-muted-foreground",
+          )}
+          title="Filtrar por mês ou dia específico"
+        >
+          <CalendarIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          {label}
+          {ativo && (
+            <X
+              className="h-3 w-3 ml-1 opacity-80 hover:opacity-100"
+              onClick={(e) => { e.stopPropagation(); limpar(); }}
+              aria-label="Limpar filtro"
+            />
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="start">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "mes" | "dia")}>
+          <TabsList className="grid w-full grid-cols-2 rounded-none rounded-t-md">
+            <TabsTrigger value="mes" className="text-xs">Mês</TabsTrigger>
+            <TabsTrigger value="dia" className="text-xs">Dia</TabsTrigger>
+          </TabsList>
+          <TabsContent value="mes" className="p-3 m-0">
+            <div className="flex items-center justify-between mb-2">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setYear((y) => y - 1)}>
+                ‹
+              </Button>
+              <span className="text-sm font-semibold tabular-nums">{year}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setYear((y) => y + 1)}>
+                ›
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {MONTH_NAMES_SHORT.map((name, idx) => {
+                const m = idx + 1;
+                const key = `${year}-${String(m).padStart(2, "0")}`;
+                const isSelected = selectedYear === year && selectedMonth === m;
+                const isCurrent = todayKey === key;
+                return (
+                  <Button
+                    key={m}
+                    variant={isSelected ? "default" : isCurrent ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => { onChangeMes(key); setOpen(false); }}
+                  >
+                    {name}
+                  </Button>
+                );
+              })}
+            </div>
+            {mes && (
+              <div className="mt-3 flex justify-end">
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onChangeMes(null)}>
+                  Limpar mês
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="dia" className="m-0">
+            <Calendar
+              mode="single"
+              selected={dataEspecifica ? new Date(dataEspecifica + "T00:00:00") : undefined}
+              onSelect={(d) => {
+                if (!d) { onChangeDia(null); return; }
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                onChangeDia(`${yyyy}-${mm}-${dd}`);
+                setOpen(false);
+              }}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+            {dataEspecifica && (
+              <div className="border-t p-2 flex justify-end">
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onChangeDia(null)}>
+                  Limpar dia
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
