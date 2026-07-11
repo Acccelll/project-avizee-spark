@@ -161,6 +161,60 @@ export type Recorrencia = TableRow<"financeiro_recorrencias"> & {
   contas_bancarias?: { descricao: string } | null;
 };
 
+// ── Conciliação Financeira v2 ────────────────────────────────────────────────
+
+export type ConciliacaoFormatoExtrato = "ofx" | "csv" | "cnab240" | "cnab400" | "manual";
+export type ConciliacaoOrigemExtrato = "upload" | "api" | "backfill" | "manual";
+export type ConciliacaoStatusExtrato =
+  | "recebido"
+  | "processando"
+  | "processado"
+  | "processado_com_erro"
+  | "cancelado"
+  | "arquivado";
+export type ConciliacaoTipoMovimento = "credito" | "debito";
+export type ConciliacaoStatusLinha =
+  | "pendente"
+  | "normalizada"
+  | "sugerida"
+  | "conciliada"
+  | "ignorada"
+  | "duplicada"
+  | "erro";
+export type ConciliacaoTipoRegra = "classificacao" | "matching" | "normalizacao" | "workflow" | "bloqueio";
+export type ConciliacaoEscopoRegra = "empresa" | "conta_bancaria" | "global";
+export type ConciliacaoStatusRegra = "rascunho" | "ativa" | "inativa" | "arquivada";
+export type ConciliacaoTipoMatch = "manual" | "exato" | "regra" | "heuristico" | "ia";
+export type ConciliacaoStatusMatch = "sugerido" | "em_revisao" | "aprovado" | "rejeitado" | "cancelado" | "aplicado";
+
+export type ConciliacaoExtrato = TableRow<"conciliacao_extratos"> & {
+  formato: ConciliacaoFormatoExtrato;
+  origem: ConciliacaoOrigemExtrato;
+  status: ConciliacaoStatusExtrato;
+};
+
+export type ConciliacaoExtratoInsert = TableInsert<"conciliacao_extratos">;
+export type ConciliacaoExtratoUpdate = TableUpdate<"conciliacao_extratos">;
+
+export type ConciliacaoExtratoLinha = TableRow<"conciliacao_extrato_linhas"> & {
+  tipo_movimento: ConciliacaoTipoMovimento;
+  status: ConciliacaoStatusLinha;
+};
+
+export type ConciliacaoExtratoLinhaInsert = TableInsert<"conciliacao_extrato_linhas">;
+export type ConciliacaoExtratoLinhaUpdate = TableUpdate<"conciliacao_extrato_linhas">;
+
+export type ConciliacaoRegra = TableRow<"conciliacao_regras"> & {
+  tipo: ConciliacaoTipoRegra;
+  escopo: ConciliacaoEscopoRegra;
+  status: ConciliacaoStatusRegra;
+};
+
+export type ConciliacaoMatch = TableRow<"conciliacao_matches"> & {
+  match_tipo: ConciliacaoTipoMatch;
+  status: ConciliacaoStatusMatch;
+};
+
 // ── Estoque ──────────────────────────────────────────────────────────────────
 
 export type MovimentacaoEstoque = TableRow<"estoque_movimentos"> & {
