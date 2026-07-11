@@ -870,29 +870,59 @@ export function useConciliacao() {
 
     setConfirming(true);
     try {
-      await Promise.all(
-        payload.pares.map((par) => {
-          const extrato = extratoItems.find((e) => e.id === par.extrato_id);
-          if (!extrato) return Promise.resolve();
-          const transacao: TransacaoExtrato = {
-            id: extrato.id,
-            data: extrato.data,
-            descricao: extrato.descricao,
-            valor: extrato.valor,
-            tipo: extrato.valor >= 0 ? "C" : "D",
-          };
-          return conciliarTransacao(selectedConta, transacao, par.lancamento_id)
-            .then((baixaId) => marcarExtratoConciliadoPorFitid({
+      // Conta ocorrências para detectar N↔1 (várias linhas de extrato para o
+      // mesmo lançamento) e 1↔N (uma linha de extrato para vários lançamentos).
+      // Em ambos casos gera baixas PARCIAIS proporcionais ao lado múltiplo,
+      // preservando a integridade do saldo do título.
+      const extratoCount = new Map<string, number>();
+      const lancamentoCount = new Map<string, number>();
+      payload.pares.forEach((p) => {
+        extratoCount.set(p.extrato_id, (extratoCount.get(p.extrato_id) ?? 0) + 1);
+        lancamentoCount.set(p.lancamento_id, (lancamentoCount.get(p.lancamento_id) ?? 0) + 1);
+      });
+      const extratosMarcados = new Set<string>();
+      // Executa em série para respeitar saldos parciais sequenciais.
+      for (const par of payload.pares) {
+        const extrato = extratoItems.find((e) => e.id === par.extrato_id);
+        if (!extrato) continue;
+        const transacao: TransacaoExtrato = {
+          id: extrato.id,
+          data: extrato.data,
+          descricao: extrato.descricao,
+          valor: extrato.valor,
+          tipo: extrato.valor >= 0 ? "C" : "D",
+        };
+        const nExtratos = lancamentoCount.get(par.lancamento_id) ?? 1; // N extratos → 1 lanç
+        const nLanc = extratoCount.get(par.extrato_id) ?? 1; // 1 extrato → N lanç
+        let valorParcial: number | undefined;
+        if (nExtratos > 1) {
+          // Cada extrato baixa seu próprio valor no mesmo lançamento.
+          valorParcial = Math.abs(extrato.valor);
+        } else if (nLanc > 1) {
+          // O extrato é dividido entre vários lançamentos: usa valor do título.
+          const lanc = lancamentos.find((l) => l.id === par.lancamento_id);
+          valorParcial = lanc ? Math.abs(Number(lanc.valor)) : undefined;
+        }
+        try {
+          const baixaId = await conciliarTransacao(
+            selectedConta,
+            transacao,
+            par.lancamento_id,
+            valorParcial,
+          );
+          if (!extratosMarcados.has(extrato.id)) {
+            extratosMarcados.add(extrato.id);
+            await marcarExtratoConciliadoPorFitid({
               contaBancariaId: selectedConta,
               fitid: extrato.id,
               baixaId,
-            }))
-            .catch((err) => {
+            });
+          }
+        } catch (err) {
               logger.warn("[conciliacao] falha ao persistir status do extrato conciliado:", err);
               throw err;
-            });
-        }),
-      );
+        }
+      }
       try {
         await confirmarConciliacao({
           conta_bancaria_id: selectedConta,
