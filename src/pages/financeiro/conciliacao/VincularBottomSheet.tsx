@@ -16,6 +16,16 @@ interface Props {
   onManualMatch: (extratoId: string, lancamentoId: string) => void;
 }
 
+function getLancamentoNome(l: Lancamento): string {
+  return (
+    (l.tipo === "receber"
+      ? l.clientes?.nome_razao_social
+      : l.fornecedores?.nome_razao_social) ||
+    l.descricao ||
+    "Sem nome"
+  );
+}
+
 export function VincularBottomSheet(p: Props) {
   return (
     <Sheet open={p.open} onOpenChange={p.onOpenChange}>
@@ -40,7 +50,11 @@ export function VincularBottomSheet(p: Props) {
           });
           const term = p.vincularSearch.trim().toLowerCase();
           const filtrados = term
-            ? candidatos.filter((l) => (l.descricao ?? "").toLowerCase().includes(term))
+            ? candidatos.filter((l) => {
+                const nome = getLancamentoNome(l).toLowerCase();
+                const descricao = (l.descricao ?? "").toLowerCase();
+                return nome.includes(term) || descricao.includes(term);
+              })
             : candidatos;
           const todos = p.lancamentos.filter((l) => !p.usedLancamentoIds.has(l.id));
           return (
@@ -55,7 +69,7 @@ export function VincularBottomSheet(p: Props) {
                 </div>
               </div>
               <Input
-                placeholder="Buscar por descrição..."
+                placeholder="Buscar por nome ou descrição..."
                 value={p.vincularSearch}
                 onChange={(e) => p.setVincularSearch(e.target.value)}
                 className="h-11"
@@ -78,9 +92,9 @@ export function VincularBottomSheet(p: Props) {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{l.descricao}</p>
+                            <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
                             <p className="text-xs text-muted-foreground">
-                              {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                              {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}{l.descricao ? ` · ${l.descricao}` : ""}
                             </p>
                           </div>
                           <span className="text-sm font-mono font-semibold shrink-0">{formatCurrency(l.valor)}</span>
@@ -100,7 +114,12 @@ export function VincularBottomSheet(p: Props) {
                     </p>
                     {todos
                       .filter((l) => !filtrados.find((f) => f.id === l.id))
-                      .filter((l) => !term || (l.descricao ?? "").toLowerCase().includes(term))
+                      .filter((l) => {
+                        if (!term) return true;
+                        const nome = getLancamentoNome(l).toLowerCase();
+                        const descricao = (l.descricao ?? "").toLowerCase();
+                        return nome.includes(term) || descricao.includes(term);
+                      })
                       .slice(0, 50)
                       .map((l) => (
                         <button
@@ -114,9 +133,9 @@ export function VincularBottomSheet(p: Props) {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{l.descricao}</p>
+                              <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
                               <p className="text-xs text-muted-foreground">
-                                {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                                {formatDate(l.data_vencimento)} · {l.tipo === "receber" ? "A Receber" : "A Pagar"}{l.descricao ? ` · ${l.descricao}` : ""}
                               </p>
                             </div>
                             <span className="text-sm font-mono font-semibold shrink-0">{formatCurrency(l.valor)}</span>
