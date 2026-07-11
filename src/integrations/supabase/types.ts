@@ -2026,6 +2026,56 @@ export type Database = {
           },
         ]
       }
+      conciliacao_regras_auto: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          score_minimo: number
+          tolerancia_dias: number
+          tolerancia_valor: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          id?: string
+          nome?: string
+          score_minimo?: number
+          tolerancia_dias?: number
+          tolerancia_valor?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          score_minimo?: number
+          tolerancia_dias?: number
+          tolerancia_valor?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_regras_auto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contas_bancarias: {
         Row: {
           agencia: string | null
@@ -10781,6 +10831,14 @@ export type Database = {
       conciliacao_aplicar_baixa: {
         Args: { p_match_id: string }
         Returns: string
+      }
+      conciliacao_auto_aprovar: {
+        Args: { p_extrato_id: string }
+        Returns: {
+          baixas_aplicadas: number
+          falhas: number
+          matches_aprovados: number
+        }[]
       }
       conciliacao_decidir_match: {
         Args: { p_decisao: string; p_match_id: string; p_motivo?: string }
