@@ -683,14 +683,23 @@ export function useConciliacao() {
         next.delete(extratoId);
         return next;
       });
-      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+      // Reidrata em paralelo o eixo lançamentos + eixo extrato para que a UI
+      // reflita imediatamente o novo saldo/status sem exigir refresh manual.
+      try {
+        await Promise.all([
+          loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta),
+          hydrateExtratoPersistido({ contaId: selectedConta, from: dataInicio, to: dataFim }),
+        ]);
+      } catch (reloadErr) {
+        logger.warn("[conciliacao] falha ao recarregar estado pós-desfazer:", reloadErr);
+      }
       toast.success("Conciliação desfeita. A baixa foi estornada.");
       return true;
     } catch (err) {
       notifyError(err);
       return false;
     }
-  }, [conciliadosPersistidos, dataFim, dataInicio, loadLancamentosFromPeriod, selectedConta]);
+  }, [conciliadosPersistidos, dataFim, dataInicio, hydrateExtratoPersistido, loadLancamentosFromPeriod, selectedConta]);
 
   const handleContaChange = async (contaId: string) => {
     setSelectedConta(contaId);
