@@ -25,4 +25,5 @@ export interface SugestaoPersistida {
 export interface ConciliacaoPersistida {
   extratoPersistidoId: string;
   baixaId: string | null;
+  baixaIds?: string[];
 }

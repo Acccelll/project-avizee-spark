@@ -253,6 +253,52 @@ export async function mapBaixasParaLancamentos(
   return map;
 }
 
+export interface BaixaConciliadaPorFitid {
+  fitid: string;
+  baixaId: string;
+  lancamentoId: string;
+}
+
+/**
+ * Lista todas as baixas ativas conciliadas por fitid.
+ * Necessário para 1↔N: uma linha do extrato pode estar vinculada a várias
+ * baixas/lançamentos, enquanto `financeiro_extrato_importacoes.baixa_id`
+ * guarda apenas uma baixa representativa para compatibilidade.
+ */
+export async function listarBaixasConciliadasPorFitids(input: {
+  contaBancariaId: string;
+  fitids: string[];
+}): Promise<Map<string, BaixaConciliadaPorFitid[]>> {
+  const fitids = Array.from(new Set(input.fitids.filter(Boolean)));
+  if (!input.contaBancariaId || fitids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("financeiro_baixas")
+    .select("id, lancamento_id, conciliacao_extrato_referencia")
+    .eq("conta_bancaria_id", input.contaBancariaId)
+    .eq("conciliacao_status", "conciliado")
+    .is("estornada_em", null)
+    .in("conciliacao_extrato_referencia", fitids as never);
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, BaixaConciliadaPorFitid[]>();
+  ((data ?? []) as Array<{
+    id: string;
+    lancamento_id: string;
+    conciliacao_extrato_referencia: string | null;
+  }>).forEach((row) => {
+    if (!row.conciliacao_extrato_referencia) return;
+    const list = map.get(row.conciliacao_extrato_referencia) ?? [];
+    list.push({
+      fitid: row.conciliacao_extrato_referencia,
+      baixaId: row.id,
+      lancamentoId: row.lancamento_id,
+    });
+    map.set(row.conciliacao_extrato_referencia, list);
+  });
+  return map;
+}
+
 /** Marca uma transação como conciliada (vinculada a uma baixa). */
 export async function marcarExtratoConciliado(input: {
   extratoId: string;
@@ -350,12 +396,18 @@ export async function excluirExtratosPorFitids(input: {
 export async function desfazerConciliacaoExtrato(input: {
   extratoPersistidoId: string;
   baixaId?: string | null;
+  baixaIds?: string[];
   motivo?: string;
 }): Promise<void> {
-  if (input.baixaId) {
+  const baixaIds = Array.from(new Set([
+    ...(input.baixaIds ?? []),
+    ...(input.baixaId ? [input.baixaId] : []),
+  ].filter(Boolean)));
+
+  for (const baixaId of baixaIds) {
     try {
       await estornarBaixaFinanceira({
-        baixaId: input.baixaId,
+        baixaId,
         motivo: input.motivo ?? "Conciliação bancária desfeita pelo usuário.",
       });
     } catch (err) {
