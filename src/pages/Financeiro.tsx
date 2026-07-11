@@ -254,11 +254,14 @@ const Financeiro = () => {
 
   const [page, setPage] = useState(0);
   useResetPageOnFiltersChange(serverFilters, setPage);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
 
   const { data, totalCount, loading, refetch: refetchPaged, isError, error: queryError } = useFinanceiroLancamentosPaged(
     serverFilters,
     page,
     PAGE_SIZE,
+    { key: sortKey, dir: sortDir },
   );
 
   // ── CRUD direto: substitui useSupabaseCrud (que carregava tudo client-side).
