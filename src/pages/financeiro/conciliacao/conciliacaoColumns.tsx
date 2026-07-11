@@ -24,9 +24,9 @@ export const conciliacaoColumns: Column<LancamentoComStatus>[] = [
           : l.fornecedores?.nome_razao_social;
       return (
         <div className="flex flex-col">
-          <span className="text-sm">{nome ?? l.descricao ?? "—"}</span>
-          {nome && l.descricao && (
-            <span className="text-[10px] text-muted-foreground truncate max-w-[280px]">
+          <span className="text-sm font-medium">{nome ?? "—"}</span>
+          {l.descricao && (
+            <span className="text-[11px] text-muted-foreground">
               {l.descricao}
             </span>
           )}
