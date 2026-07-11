@@ -793,7 +793,7 @@ const Financeiro = () => {
 
         {viewMode === "calendario" ? (
           <FinanceiroCalendar
-            data={data}
+            baseFilters={serverFilters}
             onBaixaSuccess={invalidateAfterBaixa}
             initialMonth={dateRange.from ? new Date(dateRange.from + "T00:00:00") : undefined}
           />
