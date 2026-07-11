@@ -278,6 +278,8 @@ export default function Conciliacao() {
             </p>
           </div>
         )}
+        </>
+        )}
       </ModulePage>
 
       <ConfirmFloatingBar
