@@ -61,6 +61,9 @@ import { Sparkles } from "lucide-react";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
 import { displayObservacoes } from "@/lib/displayLancamento";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { Trash2 } from "lucide-react";
 
 const FORMAS_CARTAO = new Set(["cartao_credito", "cartao_debito"]);
 
@@ -101,6 +104,8 @@ const Financeiro = () => {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelProcessing, setCancelProcessing] = useState(false);
   const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<Lancamento | null>(null);
+  const { canHardDelete } = useCanHardDelete();
   const [importIaOpen, setImportIaOpen] = useState(false);
   const [iaFields, setIaFields] = useState<Set<keyof LancamentoForm>>(new Set());
   const [bulkCancelMotivo, setBulkCancelMotivo] = useState("");
@@ -880,8 +885,49 @@ const Financeiro = () => {
           <p className="text-xs text-muted-foreground">
             A exclusão definitiva não é permitida quando há baixas ou origem fora de “manual”. Use o cancelamento para preservar a trilha de auditoria.
           </p>
+          {canHardDelete && cancelTarget && (
+            <div className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-1.5">
+              <p className="text-xs text-destructive font-medium">
+                Administrador: exclusão definitiva disponível
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Remove o lançamento em definitivo do banco (hard delete). Ação
+                irreversível e sujeita às regras do servidor (falha se houver
+                baixas ativas ou vínculos protegidos).
+              </p>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-8 gap-1"
+                onClick={() => {
+                  const alvo = cancelTarget;
+                  setCancelTarget(null);
+                  setCancelMotivo("");
+                  setHardDeleteTarget(alvo);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Excluir definitivamente
+              </Button>
+            </div>
+          )}
         </div>
       </ConfirmDialog>
+
+      {hardDeleteTarget && (
+        <PermanentDeleteDialog
+          open={!!hardDeleteTarget}
+          onClose={() => setHardDeleteTarget(null)}
+          table="financeiro_lancamentos"
+          id={hardDeleteTarget.id}
+          entityLabel="lançamento"
+          recordName={hardDeleteTarget.descricao || hardDeleteTarget.id}
+          warning="Esta operação apaga o registro do banco. Baixas, conciliações e vínculos dependentes podem impedir a exclusão."
+          onDeleted={async () => {
+            setHardDeleteTarget(null);
+            await fetchData();
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={bulkCancelOpen}
