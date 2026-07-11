@@ -95,6 +95,10 @@ interface Props {
   onRejeitarSugestao?: (extratoId: string) => boolean;
   conciliadosPersistidos?: Map<string, ConciliacaoPersistida>;
   onDesfazerConciliacao?: (extratoId: string) => void | Promise<boolean>;
+  /** Sprint 1 — quando true, oculta linhas já conciliadas em ambos os lados. */
+  onlyPending?: boolean;
+  /** IDs de lançamentos ERP já conciliados (via baixa persistida). */
+  lancamentosConciliadosIds?: Set<string>;
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -102,10 +106,12 @@ export function OFXMatchingPane(p: Props) {
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
   const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
-  // Onda 12 — por padrão, itens já conciliados em sessões anteriores
-  // não aparecem nas pendências. Um toggle no cabeçalho permite exibi-los
-  // (necessário para desfazer uma conciliação persistida).
-  const [hideConciliados, setHideConciliados] = useState(true);
+  // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
+  // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
+  const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
+  const hideConciliados = p.onlyPending ?? hideConciliadosLocal;
+  const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) =>
+    setHideConciliadosLocal(typeof v === "function" ? v(hideConciliadosLocal) : v);
   const TOLERANCIA = 0.05;
 
   const extratoOrdenado = useMemo(
@@ -129,6 +135,12 @@ export function OFXMatchingPane(p: Props) {
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
   );
+  const lancamentosVisiveis = useMemo(() => {
+    if (!hideConciliados || !p.lancamentosConciliadosIds || p.lancamentosConciliadosIds.size === 0) {
+      return lancamentosOrdenados;
+    }
+    return lancamentosOrdenados.filter((l) => !p.lancamentosConciliadosIds!.has(l.id));
+  }, [lancamentosOrdenados, hideConciliados, p.lancamentosConciliadosIds]);
 
   const toggle = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
     const next = new Set(set);
