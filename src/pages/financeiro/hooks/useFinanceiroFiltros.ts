@@ -267,6 +267,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getL
     setPeriod,
     mes,
     setMes,
+    dataEspecifica: fromIso && toIso && fromIso === toIso ? fromIso : null,
+    setDataEspecifica,
     filteredData,
     activeFilters,
     handleRemoveFilter,
