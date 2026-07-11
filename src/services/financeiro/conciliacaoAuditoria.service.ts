@@ -25,16 +25,17 @@ export async function registrarAuditoriaConciliacao(input: {
   payload?: Record<string, unknown> | null;
 }): Promise<void> {
   try {
+    const row = {
+      empresa_id: input.empresaId,
+      usuario_id: input.usuarioId ?? undefined,
+      acao: input.acao,
+      entidade: input.entidade,
+      entidade_id: input.entidadeId ?? undefined,
+      payload: (input.payload ?? undefined) as never,
+    };
     const { error } = await supabase
       .from("financeiro_conciliacao_auditoria")
-      .insert({
-        empresa_id: input.empresaId,
-        usuario_id: input.usuarioId,
-        acao: input.acao,
-        entidade: input.entidade,
-        entidade_id: input.entidadeId ?? null,
-        payload: input.payload ?? null,
-      });
+      .insert([row]);
     if (error) throw new Error(error.message);
   } catch (err) {
     logger.warn("[conciliacao/auditoria] falha ao registrar evento:", err);
