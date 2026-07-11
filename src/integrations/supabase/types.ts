@@ -887,6 +887,7 @@ export type Database = {
           empresa_id: string
           id: string
           observacoes: string | null
+          origem: string
           status: string
           updated_at: string
           valor_total: number
@@ -901,6 +902,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           observacoes?: string | null
+          origem?: string
           status?: string
           updated_at?: string
           valor_total?: number
@@ -915,6 +917,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           observacoes?: string | null
+          origem?: string
           status?: string
           updated_at?: string
           valor_total?: number
@@ -10824,9 +10827,30 @@ export type Database = {
         Args: { p_lote_id: string }
         Returns: Json
       }
+      cartao_dashboard_kpis: {
+        Args: {
+          p_cartao_id?: string
+          p_periodo_fim?: string
+          p_periodo_inicio?: string
+        }
+        Returns: Json
+      }
       cartao_fatura_para_data: {
         Args: { p_cartao_id: string; p_data: string }
         Returns: string
+      }
+      cartao_importar_fatura: {
+        Args: {
+          p_cartao_id: string
+          p_competencia: string
+          p_data_fechamento: string
+          p_data_vencimento: string
+          p_empresa_id: string
+          p_linhas: Json
+          p_origem: string
+          p_valor_total: number
+        }
+        Returns: Json
       }
       conciliacao_aplicar_baixa: {
         Args: { p_match_id: string }
