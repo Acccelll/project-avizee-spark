@@ -123,6 +123,35 @@ const Financeiro = () => {
     );
   }, [searchParams, setSearchParams]);
 
+  // Atalho da Conciliação: `/financeiro?novo=1` abre "Novo Lançamento" já
+  // pré-preenchido a partir de `sessionStorage['financeiro:prefill']`.
+  const novoAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (novoAutoOpenedRef.current) return;
+    if (searchParams.get("novo") !== "1") return;
+    novoAutoOpenedRef.current = true;
+    let prefill: Partial<LancamentoForm> = {};
+    try {
+      const raw = sessionStorage.getItem("financeiro:prefill");
+      if (raw) prefill = JSON.parse(raw) as Partial<LancamentoForm>;
+      sessionStorage.removeItem("financeiro:prefill");
+    } catch {
+      /* ignore */
+    }
+    setMode("create");
+    setForm({ ...emptyLancamentoForm, ...prefill });
+    setIaFields(new Set());
+    setModalOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("novo");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
+
   const hoje = useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);

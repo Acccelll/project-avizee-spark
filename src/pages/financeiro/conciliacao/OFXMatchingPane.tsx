@@ -111,7 +111,8 @@ export function OFXMatchingPane(p: Props) {
   // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
   // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
   const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
-  const hideConciliados = p.onlyPending ?? hideConciliadosLocal;
+  // Toggle externo (Switch da página) OU badge local podem ativar a ocultação.
+  const hideConciliados = !!p.onlyPending || hideConciliadosLocal;
   const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) =>
     setHideConciliadosLocal(typeof v === "function" ? v(hideConciliadosLocal) : v);
   const TOLERANCIA = 0.05;
@@ -296,6 +297,19 @@ export function OFXMatchingPane(p: Props) {
                       </span>
                       {isPareado ? (
                         <CheckCircle className="w-4 h-4 text-success" />
+                      ) : p.onExcluirExtratos ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                          title="Excluir esta linha do extrato"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await p.onExcluirExtratos!([item.id]);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                       ) : (
                         <XCircle className="w-4 h-4 text-destructive/70" />
                       )}
@@ -421,6 +435,19 @@ export function OFXMatchingPane(p: Props) {
                           </span>
                           {isPareado || conciliadoPersistido ? (
                             <CheckCircle className="w-4 h-4 text-success" />
+                          ) : p.onExcluirExtratos ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                              title="Excluir esta linha do extrato"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await p.onExcluirExtratos!([item.id]);
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
                           ) : (
                             <XCircle className="w-4 h-4 text-destructive" />
                           )}

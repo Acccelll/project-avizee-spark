@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseOFXFile, type OFXTransaction } from "@/lib/parseOFX";
 import {
-  calcularScoreConciliacao,
   conciliarTransacao,
   confirmarConciliacao,
-  type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import {
@@ -21,7 +19,6 @@ import { getOrigemKey } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
 import type { ConciliacaoPersistida, LancamentoComStatus, Match, SugestaoPersistida } from "./types";
-import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 import {
@@ -39,8 +36,6 @@ import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/finance
 import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
 import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 
-/** Threshold de score para conciliação automática em lote. */
-const AUTO_SCORE_THRESHOLD = 0.9;
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
 const CONCILIACAO_LAST_DATA_INICIO_KEY = "conciliacao:bancaria:lastDataInicio";
@@ -83,6 +78,7 @@ const defaultDataFim = () => {
  */
 export function useConciliacao() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
@@ -652,73 +648,26 @@ export function useConciliacao() {
     setMatches([]);
   };
 
-  // Auto-match heurístico + fallback IA
+  /**
+   * Match por valor — pareia pelo mesmo valor absoluto, IGNORANDO a data.
+   * Complementa "Conciliar automaticamente" (que exige data + valor).
+   */
   const handleAutoMatch = async () => {
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
-    const semMatch: typeof extratoItems = [];
-
     for (const extrato of extratoItems) {
       const candidate = lancamentos.find((l) => {
         if (usedLancamentos.has(l.id)) return false;
-        const valorMatch = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
-        if (!valorMatch) return false;
-        const extratoDate = new Date(extrato.data);
-        const lancDate = new Date(l.data_vencimento);
-        const diffDays = Math.abs((extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays <= 3;
+        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
       });
       if (candidate) {
         newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
         usedLancamentos.add(candidate.id);
-      } else {
-        semMatch.push(extrato);
       }
     }
-
-    let iaCount = 0;
-    if (semMatch.length > 0) {
-      const disponiveis = lancamentos
-        .filter((l) => !usedLancamentos.has(l.id))
-        .map((l) => ({
-          id: l.id,
-          descricao: l.descricao ?? null,
-          valor: Math.abs(Number(l.valor)),
-          data_vencimento: l.data_vencimento,
-          data_baixa: (l as unknown as { data_baixa?: string | null }).data_baixa ?? null,
-        }));
-      if (disponiveis.length > 0) {
-        const { sugerirConciliacaoIaRemota } = await import("@/services/ia/sugestao.service");
-        const alvos = semMatch.slice(0, 5);
-        const resultados = await Promise.allSettled(
-          alvos.map((e) =>
-            sugerirConciliacaoIaRemota({
-              transacao: { id: e.id, descricao: e.descricao, valor: e.valor, data: e.data },
-              candidatos: disponiveis,
-            }),
-          ),
-        );
-        for (let i = 0; i < resultados.length; i++) {
-          const r = resultados[i];
-          if (r.status !== "fulfilled" || !r.value.lancamento_id) continue;
-          if (usedLancamentos.has(r.value.lancamento_id)) continue;
-          newMatches.push({
-            extratoId: alvos[i].id,
-            lancamentoId: r.value.lancamento_id,
-            origem: "ia",
-            justificativa: r.value.justificativa,
-          });
-          usedLancamentos.add(r.value.lancamento_id);
-          iaCount++;
-        }
-      }
-    }
-
     setMatches(newMatches);
     toast.success(
-      iaCount > 0
-        ? `${newMatches.length} pares encontrados — ${iaCount} sugerido(s) por IA.`
-        : `${newMatches.length} pares encontrados automaticamente.`,
+      `${newMatches.length} par(es) encontrado(s) por valor. Revise e clique em "Confirmar Conciliação".`,
     );
   };
 
@@ -845,110 +794,54 @@ export function useConciliacao() {
   }, [dataFim, dataInicio, loadLancamentosFromPeriod, obterSessaoEmpresa, selectedConta]);
 
   /**
-   * Épico D — Cria um lançamento novo diretamente a partir de uma
-   * transação sem par no extrato, já baixado na conta selecionada,
-   * e adiciona o match automaticamente.
+   * Atalho: abre a MESMA tela de "Novo Lançamento" do módulo Financeiro,
+   * apenas pré-preenchida com os dados vindos do extrato OFX. Ao salvar,
+   * gera um lançamento comum — a conciliação NÃO é automática.
    */
-  const handleCriarLancamentoInline = useCallback(async (extratoId: string) => {
+  const handleCriarLancamentoInline = useCallback((extratoId: string) => {
     const extrato = extratoItems.find((e) => e.id === extratoId);
     if (!extrato) return;
-    if (!selectedConta) {
-      toast.error("Selecione uma conta bancária antes de criar o lançamento.");
-      return;
-    }
     try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes?.user?.id;
-      if (!userId) throw new Error("Sessão expirada.");
-      const { data: ue } = await supabase
-        .from("user_empresas")
-        .select("empresa_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const empresaId = ue?.empresa_id;
-      if (!empresaId) throw new Error("Empresa não identificada.");
-      const res = await criarLancamentoInlineDoExtrato({
-        empresa_id: empresaId,
-        conta_bancaria_id: selectedConta,
-        extrato: {
-          id: extrato.id,
-          data: extrato.data,
-          descricao: extrato.descricao ?? "",
-          valor: extrato.valor,
-          tipo: extrato.valor >= 0 ? "C" : "D",
-        },
-      });
-      if (sugestoesPersistidas.has(extratoId)) {
-        registrarFeedbackSugestao({
-          extratoId,
-          acao: "criada_inline",
-          escolhaFinalLancamentoId: res.lancamento_id,
-          motivo: "Lançamento criado inline em vez de aceitar a sugestão persistida.",
-        });
-      }
-      setMatches((prev) => [
-        ...prev.filter((m) => m.extratoId !== extratoId),
-        { extratoId, lancamentoId: res.lancamento_id, origem: "inline" },
-      ]);
-      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
-      toast.success(
-        res.hint_aplicado
-          ? "Lançamento criado e baixado (fornecedor/conta sugeridos por regra)."
-          : "Lançamento criado e baixado automaticamente.",
-      );
+      const prefill = {
+        tipo: extrato.valor >= 0 ? "receber" : "pagar",
+        descricao: extrato.descricao ?? "",
+        valor: Math.abs(extrato.valor),
+        data_vencimento: extrato.data,
+        conta_bancaria_id: selectedConta || "",
+      };
+      sessionStorage.setItem("financeiro:prefill", JSON.stringify(prefill));
+      navigate("/financeiro?novo=1");
     } catch (err) {
       notifyError(err);
     }
-  }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, registrarFeedbackSugestao, sugestoesPersistidas]);
+  }, [extratoItems, selectedConta, navigate]);
 
-  // Conciliação automática em lote (score ≥ AUTO_SCORE_THRESHOLD)
+  /**
+   * Conciliar automaticamente — pareia pelos que batem em DATA + VALOR.
+   * Não confirma sozinho: apenas monta os pares para o usuário revisar
+   * e clicar em "Confirmar Conciliação".
+   */
   const handleConciliacaoAutomatica = useCallback(() => {
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
-
     for (const extrato of extratoItems) {
-      const transacao: TransacaoExtrato = {
-        id: extrato.id,
-        data: extrato.data,
-        descricao: extrato.descricao ?? "",
-        valor: Math.abs(extrato.valor),
-        tipo: extrato.valor >= 0 ? "C" : "D",
-      };
-
-      let melhorScore = -1;
-      let melhorTitulo: Lancamento | null = null;
-
-      for (const l of lancamentos) {
-        if (usedLancamentos.has(l.id)) continue;
-        const titulo: TituloParaConciliacao = {
-          id: l.id,
-          descricao: l.descricao,
-          valor: l.valor,
-          data_vencimento: l.data_vencimento,
-          tipo: l.tipo,
-          status: l.status,
-          data_baixa: (l as Lancamento & { data_baixa?: string | null }).data_baixa ?? null,
-        };
-        const score = calcularScoreConciliacao(transacao, titulo);
-        if (score > melhorScore) {
-          melhorScore = score;
-          melhorTitulo = l;
-        }
-      }
-
-      if (melhorScore >= AUTO_SCORE_THRESHOLD && melhorTitulo) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: melhorTitulo.id });
-        usedLancamentos.add(melhorTitulo.id);
+      const candidate = lancamentos.find((l) => {
+        if (usedLancamentos.has(l.id)) return false;
+        const valorOk = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
+        if (!valorOk) return false;
+        return l.data_vencimento === extrato.data;
+      });
+      if (candidate) {
+        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
+        usedLancamentos.add(candidate.id);
       }
     }
-
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
     });
-
     toast.success(
-      `${newMatches.length} transação(ões) conciliada(s) automaticamente (score ≥ ${AUTO_SCORE_THRESHOLD}).`,
+      `${newMatches.length} par(es) prontos para confirmar (data + valor).`,
     );
   }, [extratoItems, lancamentos]);
 
