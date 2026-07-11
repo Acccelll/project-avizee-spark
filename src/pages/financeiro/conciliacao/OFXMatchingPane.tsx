@@ -329,7 +329,22 @@ export function OFXMatchingPane(p: Props) {
                   Extrato OFX ({extratoVisivel.length}
                   {conciliadosOcultos > 0 && hideConciliados ? ` de ${p.extratoItems.length}` : ""} transações)
                 </h3>
-                <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+                <div className="flex items-center gap-2">
+                  {p.onExcluirExtratos && selExtrato.size > 0 && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 gap-1"
+                      onClick={async () => {
+                        const n = await p.onExcluirExtratos!(Array.from(selExtrato));
+                        if (n > 0) setSelExtrato(new Set());
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir ({selExtrato.size})
+                    </Button>
+                  )}
+                  <SortSelect value={sortExtrato} onChange={setSortExtrato} />
+                </div>
               </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                 {extratoVisivel.map((item) => {
