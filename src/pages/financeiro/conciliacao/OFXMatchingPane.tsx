@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
-  Trash2,
+  Trash2, Wand2,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -99,6 +99,8 @@ interface Props {
   onlyPending?: boolean;
   /** IDs de lançamentos ERP já conciliados (via baixa persistida). */
   lancamentosConciliadosIds?: Set<string>;
+  /** Sprint 3 — gera lançamento de ajuste para uma divergência pequena. */
+  onGerarAjuste?: (input: { diferenca: number; data: string; descricao?: string }) => Promise<boolean>;
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -580,6 +582,26 @@ export function OFXMatchingPane(p: Props) {
                 <Button size="sm" disabled={!podeConciliar} onClick={handleConciliar} className="gap-1">
                   <Link2 className="w-4 h-4" /> Conciliar selecionados
                 </Button>
+                {p.onGerarAjuste && diferencaAbs > 0.005 && diferencaAbs <= TOLERANCIA && selExtrato.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="gap-1"
+                    onClick={async () => {
+                      const primeiroExtrato = extratoOrdenado.find((e) => selExtrato.has(e.id));
+                      if (!primeiroExtrato) return;
+                      const ok = await p.onGerarAjuste!({
+                        diferenca: diferenca,
+                        data: primeiroExtrato.data,
+                        descricao: `Ajuste automático — divergência de ${formatCurrency(diferenca)}`,
+                      });
+                      if (ok) limparSelecao();
+                    }}
+                    title="Gera um lançamento de despesa/receita bancária para zerar a divergência"
+                  >
+                    <Wand2 className="w-4 h-4" /> Gerar ajuste ({formatCurrency(diferenca)})
+                  </Button>
+                )}
               </div>
             </div>
           )}
