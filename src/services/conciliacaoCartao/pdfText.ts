@@ -1,9 +1,8 @@
 // Extrai texto de PDF usando pdfjs-dist (client-side).
 import * as pdfjsLib from "pdfjs-dist";
-// @ts-expect-error - worker via URL Vite
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker as string;
+pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 export async function extractPdfText(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
