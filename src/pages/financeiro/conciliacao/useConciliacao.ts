@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseOFXFile, type OFXTransaction } from "@/lib/parseOFX";
@@ -78,7 +78,6 @@ const defaultDataFim = () => {
  */
 export function useConciliacao() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
