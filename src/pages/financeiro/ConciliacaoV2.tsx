@@ -1,8 +1,7 @@
 /**
- * Conciliação v2 — Sprint 3
- * UI de revisão de sugestões de matching geradas pela RPC
- * `conciliacao_sugerir_matches`. Suporta gerar sugestões, aprovar
- * e rejeitar em lote. Reutiliza serviços das Sprints 1 e 2.
+ * Conciliação v2 — UI de revisão de sugestões de matching.
+ * Suporta sugestões 1:1 e agrupadas, além de aprovação/rejeição
+ * transacional por operação.
  */
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import type { ConciliacaoMatch } from "@/types/domain";
 
 interface ExtratoResumo {
   id: string;
@@ -30,6 +30,15 @@ interface ExtratoResumo {
   periodo_fim: string | null;
   total_linhas: number;
   status: string;
+}
+
+interface MatchGroup {
+  operationId: string;
+  representative: ConciliacaoMatch;
+  ids: string[];
+  linhasCount: number;
+  lancamentosCount: number;
+  score: number;
 }
 
 export default function ConciliacaoV2Page() {
@@ -52,6 +61,25 @@ export default function ConciliacaoV2Page() {
   const matches = useConciliacaoMatches(extratoId);
 
   const idsSelecionados = useMemo(() => Array.from(selecionados), [selecionados]);
+  const grupos = useMemo<MatchGroup[]>(() => {
+    const map = new Map<string, ConciliacaoMatch[]>();
+    for (const match of matches.data ?? []) {
+      const key = match.operation_id ?? match.id;
+      map.set(key, [...(map.get(key) ?? []), match]);
+    }
+
+    return Array.from(map.entries()).map(([operationId, rows]) => {
+      const representative = rows[0];
+      return {
+        operationId,
+        representative,
+        ids: rows.map((row) => row.id),
+        linhasCount: new Set(rows.map((row) => row.extrato_linha_id)).size,
+        lancamentosCount: new Set(rows.map((row) => row.lancamento_id)).size,
+        score: Math.max(...rows.map((row) => Number(row.score ?? 0))),
+      };
+    });
+  }, [matches.data]);
 
   const toggle = (id: string) => {
     setSelecionados((prev) => {
@@ -69,6 +97,16 @@ export default function ConciliacaoV2Page() {
     } catch (err) {
       logger.error("conciliacao.v2.sugerir", { err });
       toast.error("Falha ao gerar sugestões");
+    }
+  };
+
+  const handleSugerirAgrupados = async () => {
+    try {
+      const res = await matches.sugerirAgrupados.mutateAsync();
+      toast.success(`${res.sugestoes_criadas} sugestões agrupadas geradas`);
+    } catch (err) {
+      logger.error("conciliacao.v2.sugerir_agrupados", { err });
+      toast.error("Falha ao gerar sugestões agrupadas");
     }
   };
 
@@ -131,7 +169,7 @@ export default function ConciliacaoV2Page() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Sugestões de matching</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -139,6 +177,14 @@ export default function ConciliacaoV2Page() {
                 disabled={matches.sugerir.isPending}
               >
                 {matches.sugerir.isPending ? "Gerando…" : "Gerar sugestões"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSugerirAgrupados}
+                disabled={matches.sugerirAgrupados.isPending}
+              >
+                {matches.sugerirAgrupados.isPending ? "Agrupando…" : "Gerar agrupadas"}
               </Button>
               <Button
                 size="sm"
@@ -175,10 +221,11 @@ export default function ConciliacaoV2Page() {
                     <TableCell colSpan={6}>Carregando…</TableCell>
                   </TableRow>
                 )}
-                {matches.data?.map((m) => {
+                {grupos.map((grupo) => {
+                  const m = grupo.representative;
                   const disabled = m.status !== "sugerido";
                   return (
-                    <TableRow key={m.id} data-state={disabled ? "muted" : undefined}>
+                    <TableRow key={grupo.operationId} data-state={disabled ? "muted" : undefined}>
                       <TableCell>
                         <Checkbox
                           checked={selecionados.has(m.id)}
@@ -188,24 +235,32 @@ export default function ConciliacaoV2Page() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={Number(m.score) >= 85 ? "default" : "secondary"}>
-                          {Number(m.score).toFixed(0)}
+                        <Badge variant={grupo.score >= 85 ? "default" : "secondary"}>
+                          {grupo.score.toFixed(0)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{m.match_tipo}</TableCell>
+                      <TableCell>
+                        <Badge variant={m.match_tipo === "1:1" ? "outline" : "secondary"}>
+                          {m.match_tipo}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{m.status}</Badge>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {m.extrato_linha_id?.slice(0, 8)}
+                        {grupo.linhasCount > 1
+                          ? `${grupo.linhasCount} linhas`
+                          : m.extrato_linha_id?.slice(0, 8)}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {m.lancamento_id?.slice(0, 8) ?? "—"}
+                        {grupo.lancamentosCount > 1
+                          ? `${grupo.lancamentosCount} lançamentos`
+                          : m.lancamento_id?.slice(0, 8) ?? "—"}
                       </TableCell>
                     </TableRow>
                   );
                 })}
-                {matches.data && matches.data.length === 0 && (
+                {matches.data && grupos.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Nenhuma sugestão. Clique em "Gerar sugestões".

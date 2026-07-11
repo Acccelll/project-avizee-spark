@@ -184,7 +184,15 @@ export type ConciliacaoStatusLinha =
 export type ConciliacaoTipoRegra = "classificacao" | "matching" | "normalizacao" | "workflow" | "bloqueio";
 export type ConciliacaoEscopoRegra = "empresa" | "conta_bancaria" | "global";
 export type ConciliacaoStatusRegra = "rascunho" | "ativa" | "inativa" | "arquivada";
-export type ConciliacaoTipoMatch = "manual" | "exato" | "regra" | "heuristico" | "ia";
+export type ConciliacaoTipoMatch =
+  | "manual"
+  | "exato"
+  | "regra"
+  | "heuristico"
+  | "ia"
+  | "1:1"
+  | "N:1"
+  | "1:N";
 export type ConciliacaoStatusMatch = "sugerido" | "em_revisao" | "aprovado" | "rejeitado" | "cancelado" | "aplicado";
 
 export type ConciliacaoExtrato = TableRow<"conciliacao_extratos"> & {

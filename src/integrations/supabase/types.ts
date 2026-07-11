@@ -10778,6 +10778,10 @@ export type Database = {
         Args: { p_cartao_id: string; p_data: string }
         Returns: string
       }
+      conciliacao_aplicar_baixa: {
+        Args: { p_match_id: string }
+        Returns: string
+      }
       conciliacao_decidir_match: {
         Args: { p_decisao: string; p_match_id: string; p_motivo?: string }
         Returns: {
@@ -10809,6 +10813,17 @@ export type Database = {
         }
       }
       conciliacao_sugerir_matches: {
+        Args: {
+          p_extrato_id: string
+          p_min_score?: number
+          p_tolerancia_dias?: number
+        }
+        Returns: {
+          linhas_processadas: number
+          sugestoes_criadas: number
+        }[]
+      }
+      conciliacao_sugerir_matches_agrupados: {
         Args: {
           p_extrato_id: string
           p_min_score?: number
