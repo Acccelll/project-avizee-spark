@@ -279,7 +279,7 @@ export function OFXMatchingPane(p: Props) {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    {!isPareado && (
+                    {!conciliadoPersistido && (
                       <Checkbox
                         checked={checked}
                         onCheckedChange={() => toggle(selExtrato, setSelExtrato, item.id)}
@@ -420,7 +420,7 @@ export function OFXMatchingPane(p: Props) {
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <Checkbox
                             checked={checked}
-                            disabled={isPareado || !!conciliadoPersistido}
+                            disabled={!!conciliadoPersistido}
                             onCheckedChange={() => toggle(selExtrato, setSelExtrato, item.id)}
                             aria-label="Selecionar extrato"
                           />
@@ -537,7 +537,8 @@ export function OFXMatchingPane(p: Props) {
                 ) : (
                   lancamentosVisiveis.map((l) => {
                     const isConciliadoPersistido = p.lancamentosConciliadosIds?.has(l.id) ?? false;
-                    const isPareado = p.usedLancamentoIds.has(l.id) || isConciliadoPersistido;
+                    const isDraftPareado = p.usedLancamentoIds.has(l.id);
+                    const isPareado = isDraftPareado || isConciliadoPersistido;
                     const checked = selLanc.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
@@ -549,7 +550,7 @@ export function OFXMatchingPane(p: Props) {
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <Checkbox
                               checked={checked}
-                              disabled={isPareado}
+                              disabled={isConciliadoPersistido}
                               onCheckedChange={() => toggle(selLanc, setSelLanc, l.id)}
                               aria-label="Selecionar lançamento"
                             />
