@@ -90,7 +90,7 @@ export default function ConciliacaoDashboardPage() {
   return (
     <ModulePage
       title="Dashboard de Conciliação"
-      description="Visão gerencial de extratos bancários e taxa de conciliação"
+      subtitle="Visão gerencial de extratos bancários e taxa de conciliação"
     >
       <div className="space-y-4">
         <Card>
