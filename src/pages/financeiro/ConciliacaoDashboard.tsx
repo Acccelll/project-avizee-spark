@@ -1,17 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ModulePage } from "@/components/ModulePage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-
-function iso(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
 
 interface KpiRow {
   conta_id: string;
@@ -47,8 +43,15 @@ function fmtMoney(n: number) {
 }
 
 export default function ConciliacaoDashboardPage() {
-  const [inicio, setInicio] = useState<string>(iso(-30));
-  const [fim, setFim] = useState<string>(iso(0));
+  const [params, setParams] = useSearchParams();
+  const [inicio, setInicio] = useState<string>(params.get("inicio") ?? "");
+  const [fim, setFim] = useState<string>(params.get("fim") ?? "");
+
+  const limpar = () => {
+    setInicio("");
+    setFim("");
+    setParams({});
+  };
 
   const empresaQuery = useQuery({
     queryKey: ["empresa", "atual"],
@@ -66,8 +69,8 @@ export default function ConciliacaoDashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("conciliacao_dashboard_kpis", {
         p_empresa_id: empresaQuery.data as string,
-        p_periodo_inicio: inicio,
-        p_periodo_fim: fim,
+        p_periodo_inicio: inicio || null,
+        p_periodo_fim: fim || null,
       });
       if (error) throw error;
       return data as unknown as KpiResult;
@@ -106,6 +109,13 @@ export default function ConciliacaoDashboardPage() {
               <Label htmlFor="fim">Fim</Label>
               <Input id="fim" type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
             </div>
+            {(inicio || fim) && (
+              <div className="flex items-end">
+                <Button variant="ghost" size="sm" onClick={limpar}>
+                  Limpar (todos)
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
