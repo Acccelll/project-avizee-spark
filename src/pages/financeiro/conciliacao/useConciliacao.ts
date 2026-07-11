@@ -855,54 +855,32 @@ export function useConciliacao() {
     }
   }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, registrarFeedbackSugestao, sugestoesPersistidas]);
 
-  // Conciliação automática em lote (score ≥ AUTO_SCORE_THRESHOLD)
+  /**
+   * Conciliar automaticamente — pareia pelos que batem em DATA + VALOR.
+   * Não confirma sozinho: apenas monta os pares para o usuário revisar
+   * e clicar em "Confirmar Conciliação".
+   */
   const handleConciliacaoAutomatica = useCallback(() => {
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
-
     for (const extrato of extratoItems) {
-      const transacao: TransacaoExtrato = {
-        id: extrato.id,
-        data: extrato.data,
-        descricao: extrato.descricao ?? "",
-        valor: Math.abs(extrato.valor),
-        tipo: extrato.valor >= 0 ? "C" : "D",
-      };
-
-      let melhorScore = -1;
-      let melhorTitulo: Lancamento | null = null;
-
-      for (const l of lancamentos) {
-        if (usedLancamentos.has(l.id)) continue;
-        const titulo: TituloParaConciliacao = {
-          id: l.id,
-          descricao: l.descricao,
-          valor: l.valor,
-          data_vencimento: l.data_vencimento,
-          tipo: l.tipo,
-          status: l.status,
-          data_baixa: (l as Lancamento & { data_baixa?: string | null }).data_baixa ?? null,
-        };
-        const score = calcularScoreConciliacao(transacao, titulo);
-        if (score > melhorScore) {
-          melhorScore = score;
-          melhorTitulo = l;
-        }
-      }
-
-      if (melhorScore >= AUTO_SCORE_THRESHOLD && melhorTitulo) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: melhorTitulo.id });
-        usedLancamentos.add(melhorTitulo.id);
+      const candidate = lancamentos.find((l) => {
+        if (usedLancamentos.has(l.id)) return false;
+        const valorOk = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
+        if (!valorOk) return false;
+        return l.data_vencimento === extrato.data;
+      });
+      if (candidate) {
+        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
+        usedLancamentos.add(candidate.id);
       }
     }
-
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
     });
-
     toast.success(
-      `${newMatches.length} transação(ões) conciliada(s) automaticamente (score ≥ ${AUTO_SCORE_THRESHOLD}).`,
+      `${newMatches.length} par(es) prontos para confirmar (data + valor).`,
     );
   }, [extratoItems, lancamentos]);
 
