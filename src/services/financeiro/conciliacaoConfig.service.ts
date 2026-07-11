@@ -21,7 +21,7 @@ export async function carregarToleranciasConciliacao(
     const { data } = await supabase
       .from("empresa_config")
       .select("conciliacao_tolerancias")
-      .eq("empresa_id", empresaId)
+      .eq("id", empresaId)
       .maybeSingle();
     const raw = (data as { conciliacao_tolerancias?: Partial<TolerianciasConciliacao> } | null)
       ?.conciliacao_tolerancias;
