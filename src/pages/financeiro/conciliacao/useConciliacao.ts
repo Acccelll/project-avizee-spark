@@ -621,6 +621,18 @@ export function useConciliacao() {
         baixaId: conc.baixaId,
         motivo: "Conciliação bancária desfeita pelo usuário.",
       });
+      void (async () => {
+        const s = await obterSessaoEmpresa();
+        if (!s) return;
+        registrarAuditoriaConciliacao({
+          empresaId: s.empresaId,
+          usuarioId: s.userId,
+          acao: "estorno",
+          entidade: "financeiro_extrato_importacoes",
+          entidadeId: conc.extratoPersistidoId,
+          payload: { baixa_id: conc.baixaId, fitid: extratoId },
+        });
+      })();
       setConciliadosPersistidos((prev) => {
         const next = new Map(prev);
         next.delete(extratoId);
@@ -963,6 +975,17 @@ export function useConciliacao() {
         return next;
       });
       setMatches([]);
+      void (async () => {
+        const s = await obterSessaoEmpresa();
+        if (!s) return;
+        registrarAuditoriaConciliacao({
+          empresaId: s.empresaId,
+          usuarioId: s.userId,
+          acao: "conciliacao",
+          entidade: "conciliacao_lote",
+          payload: { pares: payload.pares.length, conta_bancaria_id: selectedConta },
+        });
+      })();
       // Reidrata estado após efetivar as baixas para que:
       //  - lançamentos recém-baixados apareçam como conciliados (via eixo baixa);
       //  - extrato importado mantenha as linhas conciliadas visíveis com badge
