@@ -152,14 +152,16 @@ export function OFXMatchingPane(p: Props) {
     setSet(next);
   };
   const totalExtratoSel = useMemo(
-    () => extratoOrdenado.filter((e) => selExtrato.has(e.id)).reduce((s, e) => s + Math.abs(e.valor), 0),
+    () => extratoOrdenado.filter((e) => selExtrato.has(e.id)).reduce((s, e) => s + e.valor, 0),
     [extratoOrdenado, selExtrato],
   );
   const totalLancSel = useMemo(
-    () => lancamentosOrdenados.filter((l) => selLanc.has(l.id)).reduce((s, l) => s + Math.abs(Number(l.valor)), 0),
+    () => lancamentosOrdenados.filter((l) => selLanc.has(l.id)).reduce((s, l) => s + Number(l.valor), 0),
     [lancamentosOrdenados, selLanc],
   );
-  const diferenca = totalExtratoSel - totalLancSel;
+  // Extrato traz débitos como negativos; lançamentos são sempre positivos (o tipo define entrada/saída).
+  // Para comparar magnitudes, usamos os valores absolutos das somas com sinal.
+  const diferenca = Math.abs(totalExtratoSel) - Math.abs(totalLancSel);
   const diferencaAbs = Math.abs(diferenca);
   const podeConciliar = selExtrato.size > 0 && selLanc.size > 0 && !(selExtrato.size > 1 && selLanc.size > 1);
   const sugestoesDisponiveis = useMemo(() => {
