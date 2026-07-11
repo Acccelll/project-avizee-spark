@@ -81,7 +81,7 @@ export default function ConciliacaoCartaoPage() {
     <ModulePage
       title="Conciliação de Cartão de Crédito"
       subtitle="Importe faturas em PDF (C6, Inter, RecargaPay) e concilie contra os lançamentos financeiros"
-      actions={
+      headerActions={
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
             <Link to="/financeiro/conciliacao-cartao/dashboard">
