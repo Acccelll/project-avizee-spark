@@ -26,7 +26,7 @@ export async function listContasBancariasParaConciliacao(): Promise<ContaBancari
 }
 
 const LANC_SELECT =
-  "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
+  "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, cliente_id, fornecedor_id, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))";
 
 /**
  * Carrega lançamentos da conta no período usando o eixo híbrido

@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 import {
   desfazerConciliacaoExtrato,
+  excluirExtratosPorFitids,
   limparSugestaoExtrato,
   listarExtratoPersistido,
   marcarExtratoConciliadoPorFitid,
@@ -216,7 +217,62 @@ export function useConciliacao() {
     setMatches([]);
     setSugestoesPersistidas(new Map());
     setConciliadosPersistidos(new Map());
-  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod]);
+    // Hidrata extrato persistido do banco para a conta/período —
+    // extratos importados permanecem visíveis ao trocar de conta,
+    // filtrar período ou recarregar a página.
+    if (!selectedConta) {
+      setExtratoItems([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const rows = await listarExtratoPersistido({
+          contaBancariaId: selectedConta,
+          dataInicio,
+          dataFim,
+        });
+        const items: OFXTransaction[] = rows.map((r) => ({
+          id: r.fitid,
+          data: r.data,
+          valor: Number(r.valor),
+          descricao: r.descricao ?? "",
+        }));
+        setExtratoItems(items);
+        if (items.length > 0) setShowOFXPane(true);
+        await loadSugestoesPersistidas(items, selectedConta);
+      } catch (err) {
+        logger.warn("[conciliacao] falha ao hidratar extrato persistido:", err);
+        setExtratoItems([]);
+      }
+    })();
+  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, loadSugestoesPersistidas]);
+
+  const handleExcluirExtratosSelecionados = useCallback(async (fitids: string[]): Promise<number> => {
+    if (!selectedConta || fitids.length === 0) return 0;
+    const conciliadosNoLote = fitids.filter((id) => conciliadosPersistidos.has(id)).length;
+    const confirmar = window.confirm(
+      conciliadosNoLote > 0
+        ? `${conciliadosNoLote} das ${fitids.length} linhas selecionadas já estão conciliadas e serão preservadas. Excluir as demais?`
+        : `Excluir ${fitids.length} linha(s) do extrato importado? Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmar) return 0;
+    try {
+      const res = await excluirExtratosPorFitids({ contaBancariaId: selectedConta, fitids });
+      const removidos = new Set(fitids.filter((id) => !conciliadosPersistidos.has(id)));
+      setExtratoItems((prev) => prev.filter((i) => !removidos.has(i.id)));
+      setMatches((prev) => prev.filter((m) => !removidos.has(m.extratoId)));
+      setSugestoesPersistidas((prev) => {
+        const next = new Map(prev);
+        removidos.forEach((id) => next.delete(id));
+        return next;
+      });
+      toast.success(`${res.excluidas} linha(s) excluída(s) do extrato.`);
+      return res.excluidas;
+    } catch (err) {
+      notifyError(err);
+      return 0;
+    }
+  }, [conciliadosPersistidos, selectedConta]);
 
   // OFX upload
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -862,6 +918,7 @@ export function useConciliacao() {
     handleDesfazerConciliacaoPersistida,
     handleCriarLancamentoInline,
     handleConfirmarSelecao, handleDesvincularExtrato,
+    handleExcluirExtratosSelecionados,
     setMatches,
   };
 }

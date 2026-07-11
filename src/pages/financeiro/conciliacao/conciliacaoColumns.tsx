@@ -15,9 +15,24 @@ export const conciliacaoColumns: Column<LancamentoComStatus>[] = [
   {
     key: "descricao",
     mobilePrimary: true,
-    label: "Descrição",
+    label: "Nome",
     sortable: true,
-    render: (l) => <span className="text-sm">{l.descricao}</span>,
+    render: (l) => {
+      const nome =
+        l.tipo === "receber"
+          ? l.clientes?.nome_razao_social
+          : l.fornecedores?.nome_razao_social;
+      return (
+        <div className="flex flex-col">
+          <span className="text-sm">{nome ?? l.descricao ?? "—"}</span>
+          {nome && l.descricao && (
+            <span className="text-[10px] text-muted-foreground truncate max-w-[280px]">
+              {l.descricao}
+            </span>
+          )}
+        </div>
+      );
+    },
   },
   {
     key: "valor",
