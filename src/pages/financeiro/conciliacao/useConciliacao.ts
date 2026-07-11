@@ -821,25 +821,6 @@ export function useConciliacao() {
     }
   }, [extratoItems, selectedConta, navigate]);
 
-  // Referências mantidas para não quebrar imports.
-  void criarLancamentoInlineDoExtrato;
-  const __suppressUnused = () => ({
-    sugestoesPersistidas, registrarFeedbackSugestao, loadLancamentosFromPeriod, dataInicio, dataFim,
-  });
-  void __suppressUnused;
-
-  // Placeholder para manter compat de tipos do bloco removido.
-  const __legacyCriarInlineNoop = async (_id: string) => {
-    toast.info(
-        res.hint_aplicado
-          ? "Lançamento criado e baixado (fornecedor/conta sugeridos por regra)."
-          : "Lançamento criado e baixado automaticamente.",
-      );
-    } catch (err) {
-      notifyError(err);
-    }
-  }, [extratoItems, selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, registrarFeedbackSugestao, sugestoesPersistidas]);
-
   /**
    * Conciliar automaticamente — pareia pelos que batem em DATA + VALOR.
    * Não confirma sozinho: apenas monta os pares para o usuário revisar
