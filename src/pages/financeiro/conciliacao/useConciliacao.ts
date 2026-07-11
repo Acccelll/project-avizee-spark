@@ -1037,6 +1037,10 @@ export function useConciliacao() {
     handleAceitarSugestao, handleAceitarSugestoesPersistidas, handleRejeitarSugestao,
     handleDesfazerConciliacaoPersistida,
     handleCriarLancamentoInline,
+    // Modal inline "Novo Lançamento"
+    novoLancOpen, setNovoLancOpen,
+    novoLancPrefill,
+    handleNovoLancamentoSaved,
     handleConfirmarSelecao, handleDesvincularExtrato,
     handleExcluirExtratosSelecionados,
     setMatches,
