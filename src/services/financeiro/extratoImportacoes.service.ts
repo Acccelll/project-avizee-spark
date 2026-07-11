@@ -101,6 +101,29 @@ export async function listarExtratoPersistido(input: {
   return ((data as unknown) as ExtratoTransacaoPersistida[]) ?? [];
 }
 
+/**
+ * Dada uma lista de baixa_ids, devolve o mapa baixa_id → lancamento_id
+ * para permitir marcar lançamentos como conciliados na grade ERP a
+ * partir das linhas de extrato já conciliadas.
+ */
+export async function mapBaixasParaLancamentos(
+  baixaIds: string[],
+): Promise<Map<string, string>> {
+  const ids = baixaIds.filter((v): v is string => !!v);
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from("financeiro_baixas")
+    .select("id, lancamento_id")
+    .in("id", ids)
+    .is("estornada_em", null);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, string>();
+  ((data ?? []) as Array<{ id: string; lancamento_id: string }>).forEach((r) => {
+    map.set(r.id, r.lancamento_id);
+  });
+  return map;
+}
+
 /** Marca uma transação como conciliada (vinculada a uma baixa). */
 export async function marcarExtratoConciliado(input: {
   extratoId: string;
