@@ -30,6 +30,7 @@ import {
   limparSugestaoExtrato,
   listarExtratoPersistido,
   marcarExtratoConciliadoPorFitid,
+  persistirExtratoOFX,
 } from "@/services/financeiro/extratoImportacoes.service";
 import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
 
@@ -288,6 +289,10 @@ export function useConciliacao() {
           toast.error("Nenhuma transação encontrada no arquivo OFX.");
           return;
         }
+        if (!selectedConta) {
+          toast.error("Selecione uma conta bancária antes de importar o OFX.");
+          return;
+        }
         setExtratoItems(items);
         setMatches([]);
         setShowOFXPane(true);
@@ -330,6 +335,24 @@ export function useConciliacao() {
             }
           } catch (persistErr) {
             logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
+            // Fallback: garante que as linhas do OFX fiquem persistidas
+            // mesmo quando o Motor Universal recusa (ex.: hash duplicado
+            // ou falha em regras/aliases). Sem isso, ao recarregar a
+            // página o extrato desapareceria.
+            try {
+              await persistirExtratoOFX({
+                contaBancariaId: selectedConta,
+                transacoes: items.map((i) => ({
+                  id: i.id,
+                  data: i.data,
+                  valor: i.valor,
+                  descricao: i.descricao,
+                })),
+              });
+              await loadSugestoesPersistidas(items, selectedConta);
+            } catch (fallbackErr) {
+              logger.warn("[conciliacao] fallback persistirExtratoOFX falhou:", fallbackErr);
+            }
           }
         }
       } else {
