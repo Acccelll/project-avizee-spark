@@ -59,3 +59,41 @@ export async function listarMatchesDoExtrato(
 
   return (data ?? []) as unknown as ConciliacaoMatch[];
 }
+
+export type DecisaoMatch = "aprovar" | "rejeitar";
+
+export async function decidirMatch(
+  matchId: string,
+  decisao: DecisaoMatch,
+  motivo?: string,
+): Promise<ConciliacaoMatch> {
+  const { data, error } = await supabase.rpc("conciliacao_decidir_match", {
+    p_match_id: matchId,
+    p_decisao: decisao,
+    p_motivo: motivo ?? null,
+  });
+
+  if (error) {
+    logger.error("conciliacao.matching.decidir_falha", { matchId, decisao, error });
+    throw error;
+  }
+  return data as unknown as ConciliacaoMatch;
+}
+
+export async function decidirMatchesEmLote(
+  matchIds: string[],
+  decisao: DecisaoMatch,
+  motivo?: string,
+): Promise<{ ok: number; falhas: Array<{ id: string; erro: string }> }> {
+  const results = await Promise.allSettled(
+    matchIds.map((id) => decidirMatch(id, decisao, motivo)),
+  );
+  const falhas = results
+    .map((r, i) => ({ r, id: matchIds[i] }))
+    .filter((x) => x.r.status === "rejected")
+    .map((x) => ({
+      id: x.id,
+      erro: (x.r as PromiseRejectedResult).reason?.message ?? "erro",
+    }));
+  return { ok: matchIds.length - falhas.length, falhas };
+}
