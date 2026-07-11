@@ -211,6 +211,8 @@ const Financeiro = () => {
     setPeriod,
     mes,
     setMes,
+    dataEspecifica,
+    setDataEspecifica,
     activeFilters,
     handleRemoveFilter,
     tipoOpts,
@@ -224,13 +226,14 @@ const Financeiro = () => {
 
   // E7.4: Filtros canônicos do servidor (espelhados em RPC de KPIs e listagem).
   const dateRange = useMemo(() => {
+    if (dataEspecifica) return { from: dataEspecifica, to: dataEspecifica };
     const monthRange = monthToRange(mes);
     if (monthRange) return { from: monthRange.from, to: monthRange.to };
     if (period === "todos") return { from: null as string | null, to: null as string | null };
     if (period === "vencidos") return { from: null as string | null, to: hojeStr };
     const { dateFrom, dateTo } = periodToFinancialRange(period);
     return { from: dateFrom, to: dateTo };
-  }, [period, mes, hojeStr]);
+  }, [period, mes, dataEspecifica, hojeStr]);
 
   const formasCanonicas = useMemo(
     () => formaPagamentoFilters.map((f) => normalizeFormaPagamento(f) ?? f),
