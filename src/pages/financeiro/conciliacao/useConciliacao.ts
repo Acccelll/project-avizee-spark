@@ -4,10 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseOFXFile, type OFXTransaction } from "@/lib/parseOFX";
 import {
-  calcularScoreConciliacao,
   conciliarTransacao,
   confirmarConciliacao,
-  type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import {
@@ -21,7 +19,6 @@ import { getOrigemKey } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
 import type { ConciliacaoPersistida, LancamentoComStatus, Match, SugestaoPersistida } from "./types";
-import { criarLancamentoInlineDoExtrato } from "@/services/financeiro/criarLancamentoInline.service";
 import { supabase } from "@/integrations/supabase/client";
 import { importarDocumentoUniversal } from "@/services/financeiro/importacao/importarDocumento.service";
 import {
@@ -39,8 +36,6 @@ import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/finance
 import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
 import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 
-/** Threshold de score para conciliação automática em lote. */
-const AUTO_SCORE_THRESHOLD = 0.9;
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
 const CONCILIACAO_LAST_DATA_INICIO_KEY = "conciliacao:bancaria:lastDataInicio";
