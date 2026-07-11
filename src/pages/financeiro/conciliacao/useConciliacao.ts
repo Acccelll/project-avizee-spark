@@ -64,6 +64,7 @@ export function useConciliacao() {
     const urlConta = searchParams.get("conta");
     if (urlConta) return urlConta;
     try {
+      if (typeof window === "undefined") return "";
       return window.localStorage.getItem(CONCILIACAO_LAST_CONTA_KEY) ?? "";
     } catch {
       return "";
