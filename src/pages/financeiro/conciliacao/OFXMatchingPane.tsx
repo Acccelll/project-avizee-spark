@@ -564,13 +564,6 @@ export function OFXMatchingPane(p: Props) {
           )}
 
           <div className="rounded-lg border border-border/60 bg-muted/10 p-4 flex flex-col gap-3">
-            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
-              <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                <strong>Atenção:</strong> a confirmação abaixo ainda não persiste os pares no banco de dados.
-                Os lançamentos conciliados precisam ser revisados manualmente por enquanto.
-              </p>
-            </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex gap-6 text-sm">
                 <div>
@@ -588,7 +581,7 @@ export function OFXMatchingPane(p: Props) {
               </div>
               <Button onClick={p.onConfirmar} disabled={p.matches.length === 0 || p.confirming} variant="outline">
                 {p.confirming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                {p.confirming ? "Processando..." : "Confirmar Revisão"}
+                {p.confirming ? "Processando..." : "Confirmar Conciliação"}
               </Button>
             </div>
           </div>

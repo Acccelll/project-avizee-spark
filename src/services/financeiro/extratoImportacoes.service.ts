@@ -70,6 +70,7 @@ export async function persistirExtratoOFX(input: {
     .from("financeiro_extrato_importacoes")
     .upsert(rows as never, {
       onConflict: "conta_bancaria_id,fitid",
+      ignoreDuplicates: true,
       count: "exact",
     });
   if (error) throw new Error(error.message);

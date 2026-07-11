@@ -355,7 +355,6 @@ export function useConciliacao() {
         setExtratoItems(items);
         setMatches([]);
         setShowOFXPane(true);
-        toast.success(`${items.length} transações importadas.`);
         const dates = items.map((i) => i.data).sort();
         const importInicio = dates[0];
         const importFim = dates[dates.length - 1];
@@ -366,12 +365,30 @@ export function useConciliacao() {
         if (selectedConta) {
           await loadLancamentosFromPeriod(importInicio, importFim, selectedConta);
         }
+        const sessaoImportacao = await obterSessaoEmpresa();
+        const persistencia = await persistirExtratoOFX({
+          contaBancariaId: selectedConta,
+          empresaId: sessaoImportacao?.empresaId,
+          transacoes: items.map((i) => ({
+            id: i.id,
+            data: i.data,
+            valor: i.valor,
+            descricao: i.descricao,
+            tipo: i.valor >= 0 ? "C" : "D",
+          })),
+        });
+        const duplicadasPersistidas = Math.max(0, items.length - persistencia.inseridas);
+        toast.success(
+          duplicadasPersistidas > 0
+            ? `${persistencia.inseridas} transação(ões) nova(s); ${duplicadasPersistidas} já estavam salvas.`
+            : `${items.length} transações importadas e salvas.`,
+        );
+        await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
         // Onda 7 — também persiste o OFX no Motor Universal para gerar
         // sugestões (best-effort; falha silenciosa não bloqueia a UI).
         if (selectedConta) {
           try {
-            const sessao = await obterSessaoEmpresa();
-            const ue = sessao ? { empresa_id: sessao.empresaId } : null;
+            const ue = sessaoImportacao ? { empresa_id: sessaoImportacao.empresaId } : null;
             if (ue?.empresa_id) {
               const res = await importarDocumentoUniversal({
                 file,
@@ -397,26 +414,6 @@ export function useConciliacao() {
             }
           } catch (persistErr) {
             logger.warn("[conciliacao] motor universal falhou (best-effort):", persistErr);
-            // Fallback: garante que as linhas do OFX fiquem persistidas
-            // mesmo quando o Motor Universal recusa (ex.: hash duplicado
-            // ou falha em regras/aliases). Sem isso, ao recarregar a
-            // página o extrato desapareceria.
-            try {
-              await persistirExtratoOFX({
-                contaBancariaId: selectedConta,
-                empresaId: (await obterSessaoEmpresa())?.empresaId,
-                transacoes: items.map((i) => ({
-                  id: i.id,
-                  data: i.data,
-                  valor: i.valor,
-                  descricao: i.descricao,
-                  tipo: i.valor >= 0 ? "C" : "D",
-                })),
-              });
-              await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
-            } catch (fallbackErr) {
-              logger.warn("[conciliacao] fallback persistirExtratoOFX falhou:", fallbackErr);
-            }
           }
         }
       } else {
