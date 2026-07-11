@@ -237,7 +237,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               tooltip: "Excluir definitivamente (admin)",
               onClick: () => runAction(() => { onHardDelete(selected); onClose(); }),
               pending: actionPending,
-              tone: "destructive" as const,
+              tone: "warning" as const,
             }] : []),
           ]}
           destructive={canPermCancelar ? {
