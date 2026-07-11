@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
-  Trash2,
+  Trash2, Wand2,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -95,6 +95,12 @@ interface Props {
   onRejeitarSugestao?: (extratoId: string) => boolean;
   conciliadosPersistidos?: Map<string, ConciliacaoPersistida>;
   onDesfazerConciliacao?: (extratoId: string) => void | Promise<boolean>;
+  /** Sprint 1 — quando true, oculta linhas já conciliadas em ambos os lados. */
+  onlyPending?: boolean;
+  /** IDs de lançamentos ERP já conciliados (via baixa persistida). */
+  lancamentosConciliadosIds?: Set<string>;
+  /** Sprint 3 — gera lançamento de ajuste para uma divergência pequena. */
+  onGerarAjuste?: (input: { diferenca: number; data: string; descricao?: string }) => Promise<boolean>;
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -102,10 +108,12 @@ export function OFXMatchingPane(p: Props) {
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
   const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
-  // Onda 12 — por padrão, itens já conciliados em sessões anteriores
-  // não aparecem nas pendências. Um toggle no cabeçalho permite exibi-los
-  // (necessário para desfazer uma conciliação persistida).
-  const [hideConciliados, setHideConciliados] = useState(true);
+  // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
+  // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
+  const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
+  const hideConciliados = p.onlyPending ?? hideConciliadosLocal;
+  const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) =>
+    setHideConciliadosLocal(typeof v === "function" ? v(hideConciliadosLocal) : v);
   const TOLERANCIA = 0.05;
 
   const extratoOrdenado = useMemo(
@@ -129,6 +137,12 @@ export function OFXMatchingPane(p: Props) {
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
   );
+  const lancamentosVisiveis = useMemo(() => {
+    if (!hideConciliados || !p.lancamentosConciliadosIds || p.lancamentosConciliadosIds.size === 0) {
+      return lancamentosOrdenados;
+    }
+    return lancamentosOrdenados.filter((l) => !p.lancamentosConciliadosIds!.has(l.id));
+  }, [lancamentosOrdenados, hideConciliados, p.lancamentosConciliadosIds]);
 
   const toggle = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
     const next = new Set(set);
@@ -479,7 +493,10 @@ export function OFXMatchingPane(p: Props) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Lançamentos ERP ({p.lancamentos.length} no período)
+                  Lançamentos ERP ({lancamentosVisiveis.length}
+                  {hideConciliados && p.lancamentosConciliadosIds && p.lancamentosConciliadosIds.size > 0
+                    ? ` de ${p.lancamentos.length}`
+                    : " no período"})
                 </h3>
                 <SortSelect value={sortLanc} onChange={setSortLanc} />
               </div>
@@ -491,8 +508,9 @@ export function OFXMatchingPane(p: Props) {
                       : "Selecione uma conta bancária para carregar lançamentos."}
                   </p>
                 ) : (
-                  lancamentosOrdenados.map((l) => {
-                    const isPareado = p.usedLancamentoIds.has(l.id);
+                  lancamentosVisiveis.map((l) => {
+                    const isConciliadoPersistido = p.lancamentosConciliadosIds?.has(l.id) ?? false;
+                    const isPareado = p.usedLancamentoIds.has(l.id) || isConciliadoPersistido;
                     const checked = selLanc.has(l.id);
                     return (
                       <div key={l.id} className={`rounded-lg border p-3 transition-colors ${
@@ -515,7 +533,12 @@ export function OFXMatchingPane(p: Props) {
                             <Badge variant={l.tipo === "receber" ? "default" : "secondary"} className="text-[10px]">
                               {l.tipo}
                             </Badge>
-                            {isPareado && <CheckCircle className="w-4 h-4 text-success" />}
+                            {isConciliadoPersistido && (
+                              <Badge variant="outline" className="text-[10px] gap-1 border-success/50 text-success bg-success/5">
+                                <CheckCircle className="w-3 h-3" /> Conciliado
+                              </Badge>
+                            )}
+                            {isPareado && !isConciliadoPersistido && <CheckCircle className="w-4 h-4 text-success" />}
                           </div>
                         </div>
                       </div>
@@ -559,6 +582,26 @@ export function OFXMatchingPane(p: Props) {
                 <Button size="sm" disabled={!podeConciliar} onClick={handleConciliar} className="gap-1">
                   <Link2 className="w-4 h-4" /> Conciliar selecionados
                 </Button>
+                {p.onGerarAjuste && diferencaAbs > 0.005 && diferencaAbs <= TOLERANCIA && selExtrato.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="gap-1"
+                    onClick={async () => {
+                      const primeiroExtrato = extratoOrdenado.find((e) => selExtrato.has(e.id));
+                      if (!primeiroExtrato) return;
+                      const ok = await p.onGerarAjuste!({
+                        diferenca: diferenca,
+                        data: primeiroExtrato.data,
+                        descricao: `Ajuste automático — divergência de ${formatCurrency(diferenca)}`,
+                      });
+                      if (ok) limparSelecao();
+                    }}
+                    title="Gera um lançamento de despesa/receita bancária para zerar a divergência"
+                  >
+                    <Wand2 className="w-4 h-4" /> Gerar ajuste ({formatCurrency(diferenca)})
+                  </Button>
+                )}
               </div>
             </div>
           )}

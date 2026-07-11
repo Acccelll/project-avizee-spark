@@ -29,10 +29,15 @@ import {
   excluirExtratosPorFitids,
   limparSugestaoExtrato,
   listarExtratoPersistido,
+  mapBaixasParaLancamentos,
   marcarExtratoConciliadoPorFitid,
   persistirExtratoOFX,
+  criarLoteImportacao,
+  atualizarLoteInseridas,
 } from "@/services/financeiro/extratoImportacoes.service";
 import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
+import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
+import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
@@ -91,6 +96,10 @@ export function useConciliacao() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [sugestoesPersistidas, setSugestoesPersistidas] = useState<Map<string, SugestaoPersistida>>(new Map());
   const [conciliadosPersistidos, setConciliadosPersistidos] = useState<Map<string, ConciliacaoPersistida>>(new Map());
+  // Sprint 1 — lançamentos ERP já conciliados (via baixa persistida)
+  const [lancamentosConciliadosIds, setLancamentosConciliadosIds] = useState<Set<string>>(new Set());
+  // Sprint 1 — filtro "Exibir apenas pendentes" (aplica a grade e ao painel OFX)
+  const [showOnlyPendentes, setShowOnlyPendentes] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [loadingLanc, setLoadingLanc] = useState(false);
@@ -172,6 +181,7 @@ export function useConciliacao() {
     if (!contaId || items.length === 0) {
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return { conciliados: 0, sugestoes: 0 };
     }
     const datas = items.map((i) => i.data).sort();
@@ -208,11 +218,27 @@ export function useConciliacao() {
       });
       setSugestoesPersistidas(next);
       setConciliadosPersistidos(conciliados);
+      // Cruza baixa_id → lancamento_id para marcar linhas conciliadas na grade ERP.
+      const baixaIds = Array.from(conciliados.values())
+        .map((c) => c.baixaId)
+        .filter((v): v is string => !!v);
+      if (baixaIds.length > 0) {
+        try {
+          const mapa = await mapBaixasParaLancamentos(baixaIds);
+          setLancamentosConciliadosIds(new Set(mapa.values()));
+        } catch (err) {
+          logger.warn("[conciliacao] falha ao mapear baixas→lançamentos:", err);
+          setLancamentosConciliadosIds(new Set());
+        }
+      } else {
+        setLancamentosConciliadosIds(new Set());
+      }
       return { conciliados: conciliados.size, sugestoes: next.size };
     } catch (err) {
       logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return { conciliados: 0, sugestoes: 0 };
     }
   }, []);
@@ -238,6 +264,7 @@ export function useConciliacao() {
       setExtratoItems([]);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return [];
     }
     const rows = await listarExtratoPersistido({
@@ -290,6 +317,7 @@ export function useConciliacao() {
     setMatches([]);
     setSugestoesPersistidas(new Map());
     setConciliadosPersistidos(new Map());
+    setLancamentosConciliadosIds(new Set());
     // Hidrata extrato persistido do banco para a conta/período —
     // extratos importados permanecem visíveis ao trocar de conta,
     // filtrar período ou recarregar a página.
@@ -366,9 +394,23 @@ export function useConciliacao() {
           await loadLancamentosFromPeriod(importInicio, importFim, selectedConta);
         }
         const sessaoImportacao = await obterSessaoEmpresa();
+        const loteId = sessaoImportacao?.empresaId
+          ? await criarLoteImportacao({
+              empresaId: sessaoImportacao.empresaId,
+              contaBancariaId: selectedConta,
+              arquivoNome: file.name,
+              origem: "ofx",
+              totalTransacoes: items.length,
+              criadoPor: sessaoImportacao.userId,
+            }).catch((err) => {
+              logger.warn("[conciliacao] falha ao criar lote:", err);
+              return null;
+            })
+          : null;
         const persistencia = await persistirExtratoOFX({
           contaBancariaId: selectedConta,
           empresaId: sessaoImportacao?.empresaId,
+          loteId,
           transacoes: items.map((i) => ({
             id: i.id,
             data: i.data,
@@ -377,6 +419,24 @@ export function useConciliacao() {
             tipo: i.valor >= 0 ? "C" : "D",
           })),
         });
+        if (loteId) {
+          void atualizarLoteInseridas(loteId, persistencia.inseridas).catch(() => undefined);
+        }
+        if (sessaoImportacao) {
+          void registrarAuditoriaConciliacao({
+            empresaId: sessaoImportacao.empresaId,
+            usuarioId: sessaoImportacao.userId,
+            acao: "importacao",
+            entidade: "financeiro_extrato_lotes",
+            entidadeId: loteId,
+            payload: {
+              arquivo: file.name,
+              total: items.length,
+              inseridas: persistencia.inseridas,
+              conta_bancaria_id: selectedConta,
+            },
+          });
+        }
         const duplicadasPersistidas = Math.max(0, items.length - persistencia.inseridas);
         toast.success(
           duplicadasPersistidas > 0
@@ -561,6 +621,18 @@ export function useConciliacao() {
         baixaId: conc.baixaId,
         motivo: "Conciliação bancária desfeita pelo usuário.",
       });
+      void (async () => {
+        const s = await obterSessaoEmpresa();
+        if (!s) return;
+        registrarAuditoriaConciliacao({
+          empresaId: s.empresaId,
+          usuarioId: s.userId,
+          acao: "estorno",
+          entidade: "financeiro_extrato_importacoes",
+          entidadeId: conc.extratoPersistidoId,
+          payload: { baixa_id: conc.baixaId, fitid: extratoId },
+        });
+      })();
       setConciliadosPersistidos((prev) => {
         const next = new Map(prev);
         next.delete(extratoId);
@@ -727,6 +799,50 @@ export function useConciliacao() {
   const handleDesvincularExtrato = useCallback((extratoId: string) => {
     setMatches((prev) => prev.filter((m) => m.extratoId !== extratoId));
   }, []);
+
+  /**
+   * Sprint 3 — Gera um lançamento de ajuste bancário para uma pequena
+   * divergência (dentro da tolerância) e reidrata o estado da tela.
+   */
+  const handleGerarAjusteBancario = useCallback(async (input: {
+    diferenca: number;
+    data: string;
+    descricao?: string;
+  }): Promise<boolean> => {
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de gerar o ajuste.");
+      return false;
+    }
+    if (Math.abs(input.diferenca) < 0.005) {
+      toast.info("Sem divergência para ajustar.");
+      return false;
+    }
+    try {
+      const sessao = await obterSessaoEmpresa();
+      if (!sessao) throw new Error("Sessão expirada.");
+      const res = await gerarLancamentoAjusteBancario({
+        empresa_id: sessao.empresaId,
+        conta_bancaria_id: selectedConta,
+        data: input.data,
+        diferenca: input.diferenca,
+        descricao: input.descricao,
+      });
+      void registrarAuditoriaConciliacao({
+        empresaId: sessao.empresaId,
+        usuarioId: sessao.userId,
+        acao: "ajuste",
+        entidade: "financeiro_lancamentos",
+        entidadeId: res.lancamento_id,
+        payload: { diferenca: input.diferenca, baixa_id: res.baixa_id },
+      });
+      toast.success("Ajuste bancário gerado e baixado.");
+      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+      return true;
+    } catch (err) {
+      notifyError(err);
+      return false;
+    }
+  }, [dataFim, dataInicio, loadLancamentosFromPeriod, obterSessaoEmpresa, selectedConta]);
 
   /**
    * Épico D — Cria um lançamento novo diretamente a partir de uma
@@ -903,6 +1019,17 @@ export function useConciliacao() {
         return next;
       });
       setMatches([]);
+      void (async () => {
+        const s = await obterSessaoEmpresa();
+        if (!s) return;
+        registrarAuditoriaConciliacao({
+          empresaId: s.empresaId,
+          usuarioId: s.userId,
+          acao: "conciliacao",
+          entidade: "conciliacao_lote",
+          payload: { pares: payload.pares.length, conta_bancaria_id: selectedConta },
+        });
+      })();
       // Reidrata estado após efetivar as baixas para que:
       //  - lançamentos recém-baixados apareçam como conciliados (via eixo baixa);
       //  - extrato importado mantenha as linhas conciliadas visíveis com badge
@@ -940,13 +1067,16 @@ export function useConciliacao() {
         const diff = Math.abs(Math.abs(l.valor) - Math.abs(extratoItem.valor));
         if (diff < 0.01) statusConciliacao = "conciliado";
         else { statusConciliacao = "divergente"; divergencia = diff; }
+      } else if (lancamentosConciliadosIds.has(l.id)) {
+        statusConciliacao = "conciliado";
       }
       return { ...l, statusConciliacao, extratoId: match?.extratoId ?? null, divergencia };
     });
-  }, [lancamentos, matches, extratoItems]);
+  }, [lancamentos, matches, extratoItems, lancamentosConciliadosIds]);
 
   const filteredData = useMemo(() => {
     return lancamentosComStatus.filter((l) => {
+      if (showOnlyPendentes && l.statusConciliacao === "conciliado") return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const nome = l.tipo === "receber"
@@ -968,7 +1098,7 @@ export function useConciliacao() {
       }
       return true;
     });
-  }, [lancamentosComStatus, searchTerm, statusConcFilters, tipoFilters, origemFilters]);
+  }, [lancamentosComStatus, searchTerm, statusConcFilters, tipoFilters, origemFilters, showOnlyPendentes]);
 
   const handleRemoveFilter = (key: string) => {
     if (key === "statusConc") setStatusConcFilters([]);
@@ -1014,5 +1144,10 @@ export function useConciliacao() {
     handleConfirmarSelecao, handleDesvincularExtrato,
     handleExcluirExtratosSelecionados,
     setMatches,
+    // Sprint 1
+    showOnlyPendentes, setShowOnlyPendentes,
+    lancamentosConciliadosIds,
+    // Sprint 3
+    handleGerarAjusteBancario,
   };
 }

@@ -7,10 +7,13 @@ import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterB
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCheck, XCircle, GitMerge, Landmark, Info, CalendarPlus, FileUp,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { exportarParaExcel } from "@/services/export.service";
 import { useConciliacao } from "@/pages/financeiro/conciliacao/useConciliacao";
 import { conciliacaoColumns } from "@/pages/financeiro/conciliacao/conciliacaoColumns";
@@ -18,6 +21,7 @@ import { ConciliacaoTopControls } from "@/pages/financeiro/conciliacao/Conciliac
 import { OFXMatchingPane } from "@/pages/financeiro/conciliacao/OFXMatchingPane";
 import { VincularBottomSheet } from "@/pages/financeiro/conciliacao/VincularBottomSheet";
 import { ConfirmFloatingBar } from "@/pages/financeiro/conciliacao/ConfirmFloatingBar";
+import { HistoricoImportacoesTab } from "@/pages/financeiro/conciliacao/HistoricoImportacoesTab";
 
 const statusConciliacaoOptions: MultiSelectOption[] = [
   { value: "pendente", label: "Pendente" },
@@ -36,6 +40,7 @@ const origemOptions: MultiSelectOption[] = [
 
 export default function Conciliacao() {
   const v = useConciliacao();
+  const [aba, setAba] = useState<"conciliacao" | "historico">("conciliacao");
 
   const handleExportar = async () => {
     const rows = v.filteredData.map((l) => ({
@@ -63,6 +68,23 @@ export default function Conciliacao() {
   return (
     <>
       <ModulePage title="Conciliação Bancária" subtitle="Central de conferência financeira entre ERP e movimentação real">
+        <Tabs value={aba} onValueChange={(v) => setAba(v as typeof aba)} className="mb-4">
+          <TabsList>
+            <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
+            <TabsTrigger value="historico">Histórico de Importações</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {aba === "historico" ? (
+          <HistoricoImportacoesTab
+            contaBancariaId={v.selectedConta || undefined}
+            onAbrirLote={(lote) => {
+              v.handleContaChange(lote.conta_bancaria_id);
+              setAba("conciliacao");
+            }}
+          />
+        ) : (
+        <>
         <ConciliacaoTopControls
           isMobile={v.isMobile}
           contasBancarias={v.contasBancarias}
@@ -142,11 +164,14 @@ export default function Conciliacao() {
             onRejeitarSugestao={v.handleRejeitarSugestao}
             conciliadosPersistidos={v.conciliadosPersistidos}
             onDesfazerConciliacao={v.handleDesfazerConciliacaoPersistida}
+            onlyPending={v.showOnlyPendentes}
+            lancamentosConciliadosIds={v.lancamentosConciliadosIds}
+            onGerarAjuste={v.handleGerarAjusteBancario}
           />
         )}
 
         {v.selectedConta && (
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -163,6 +188,16 @@ export default function Conciliacao() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="only-pendentes"
+                checked={v.showOnlyPendentes}
+                onCheckedChange={v.setShowOnlyPendentes}
+              />
+              <Label htmlFor="only-pendentes" className="text-xs cursor-pointer">
+                Exibir apenas pendentes
+              </Label>
+            </div>
           </div>
         )}
 
@@ -243,6 +278,8 @@ export default function Conciliacao() {
               Escolha a conta e o período para ver os lançamentos e iniciar a conciliação
             </p>
           </div>
+        )}
+        </>
         )}
       </ModulePage>
 

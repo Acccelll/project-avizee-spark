@@ -2538,6 +2538,7 @@ export type Database = {
           cnpj: string | null
           codigo_ibge_municipio: string | null
           complemento: string | null
+          conciliacao_tolerancias: Json
           contingencia_inicio: string | null
           contingencia_motivo: string | null
           cor_primaria: string | null
@@ -2579,6 +2580,7 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          conciliacao_tolerancias?: Json
           contingencia_inicio?: string | null
           contingencia_motivo?: string | null
           cor_primaria?: string | null
@@ -2620,6 +2622,7 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          conciliacao_tolerancias?: Json
           contingencia_inicio?: string | null
           contingencia_motivo?: string | null
           cor_primaria?: string | null
@@ -3412,6 +3415,39 @@ export type Database = {
           },
         ]
       }
+      financeiro_conciliacao_auditoria: {
+        Row: {
+          acao: string
+          criado_em: string
+          empresa_id: string
+          entidade: string
+          entidade_id: string | null
+          id: string
+          payload: Json | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          criado_em?: string
+          empresa_id: string
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          payload?: Json | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          criado_em?: string
+          empresa_id?: string
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          payload?: Json | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       financeiro_extrato_importacoes: {
         Row: {
           arquivo_hash: string | null
@@ -3431,6 +3467,7 @@ export type Database = {
           id: string
           importado_por: string | null
           is_transferencia_interna: boolean
+          lote_id: string | null
           natureza: string | null
           origem: string
           origem_padrao: string | null
@@ -3460,6 +3497,7 @@ export type Database = {
           id?: string
           importado_por?: string | null
           is_transferencia_interna?: boolean
+          lote_id?: string | null
           natureza?: string | null
           origem?: string
           origem_padrao?: string | null
@@ -3489,6 +3527,7 @@ export type Database = {
           id?: string
           importado_por?: string | null
           is_transferencia_interna?: boolean
+          lote_id?: string | null
           natureza?: string | null
           origem?: string
           origem_padrao?: string | null
@@ -3537,10 +3576,77 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financeiro_extrato_importacoes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_extrato_lotes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "financeiro_extrato_importacoes_transferencia_par_id_fkey"
             columns: ["transferencia_par_id"]
             isOneToOne: false
             referencedRelation: "financeiro_extrato_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_extrato_lotes: {
+        Row: {
+          arquivo_hash: string | null
+          arquivo_nome: string
+          conta_bancaria_id: string
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          id: string
+          inseridas: number
+          origem: string
+          status: string
+          total_transacoes: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_hash?: string | null
+          arquivo_nome: string
+          conta_bancaria_id: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          id?: string
+          inseridas?: number
+          origem?: string
+          status?: string
+          total_transacoes?: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_hash?: string | null
+          arquivo_nome?: string
+          conta_bancaria_id?: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          inseridas?: number
+          origem?: string
+          status?: string
+          total_transacoes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_extrato_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
         ]

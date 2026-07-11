@@ -11,6 +11,133 @@ import { estornarBaixaFinanceira } from "./baixaRpc";
 
 export type ExtratoStatus = "pendente" | "conciliado" | "ignorado";
 
+/** Sprint 2 — cabeçalho de lote de importação. */
+export interface LoteImportacao {
+  id: string;
+  conta_bancaria_id: string;
+  arquivo_nome: string;
+  arquivo_hash: string | null;
+  origem: string;
+  total_transacoes: number;
+  inseridas: number;
+  status: "ativo" | "arquivado";
+  criado_por: string | null;
+  created_at: string;
+}
+
+/**
+ * Cria (ou reaproveita) um cabeçalho de lote para o arquivo importado.
+ * Estratégia: se já existir um lote com o mesmo hash para a conta,
+ * devolve o existente; caso contrário, insere um novo.
+ */
+export async function criarLoteImportacao(input: {
+  empresaId: string;
+  contaBancariaId: string;
+  arquivoNome: string;
+  arquivoHash?: string | null;
+  origem?: "ofx" | "pdf_cartao" | "csv" | "manual";
+  totalTransacoes: number;
+  criadoPor?: string | null;
+}): Promise<string> {
+  if (input.arquivoHash) {
+    const { data: existente } = await supabase
+      .from("financeiro_extrato_lotes")
+      .select("id")
+      .eq("conta_bancaria_id", input.contaBancariaId)
+      .eq("arquivo_hash", input.arquivoHash)
+      .maybeSingle();
+    if (existente?.id) return existente.id as string;
+  }
+  const { data, error } = await supabase
+    .from("financeiro_extrato_lotes")
+    .insert({
+      empresa_id: input.empresaId,
+      conta_bancaria_id: input.contaBancariaId,
+      arquivo_nome: input.arquivoNome,
+      arquivo_hash: input.arquivoHash ?? null,
+      origem: input.origem ?? "ofx",
+      total_transacoes: input.totalTransacoes,
+      inseridas: 0,
+      criado_por: input.criadoPor ?? null,
+    } as never)
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return (data as { id: string }).id;
+}
+
+/** Atualiza a contagem de inseridas em um lote. */
+export async function atualizarLoteInseridas(loteId: string, inseridas: number): Promise<void> {
+  const { error } = await supabase
+    .from("financeiro_extrato_lotes")
+    .update({ inseridas })
+    .eq("id", loteId);
+  if (error) throw new Error(error.message);
+}
+
+export interface LoteResumo extends LoteImportacao {
+  conta_nome: string | null;
+  banco_nome: string | null;
+  conciliadas: number;
+  pendentes: number;
+}
+
+/** Lista os lotes de importação com resumo de conciliação. */
+export async function listarLotesImportacao(input?: {
+  contaBancariaId?: string;
+}): Promise<LoteResumo[]> {
+  let query = supabase
+    .from("financeiro_extrato_lotes" as never)
+    .select(
+      "id, conta_bancaria_id, arquivo_nome, arquivo_hash, origem, total_transacoes, inseridas, status, criado_por, created_at, " +
+        "contas_bancarias(descricao, bancos(nome))",
+    )
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (input?.contaBancariaId) query = (query as { eq: (c: string, v: string) => typeof query }).eq("conta_bancaria_id", input.contaBancariaId);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const lotes = ((data as unknown) ?? []) as Array<LoteImportacao & { contas_bancarias?: { descricao: string; bancos?: { nome: string } | null } | null }>;
+  if (lotes.length === 0) return [];
+  // Conta conciliadas/pendentes por lote em uma segunda query agregada.
+  const ids = lotes.map((l) => l.id);
+  const { data: rows } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .select("lote_id, status")
+    .in("lote_id", ids as never);
+  const agg = new Map<string, { conc: number; pend: number }>();
+  ((rows ?? []) as Array<{ lote_id: string; status: string }>).forEach((r) => {
+    const cur = agg.get(r.lote_id) ?? { conc: 0, pend: 0 };
+    if (r.status === "conciliado") cur.conc++;
+    else if (r.status === "pendente") cur.pend++;
+    agg.set(r.lote_id, cur);
+  });
+  return lotes.map((l) => ({
+    ...l,
+    conta_nome: l.contas_bancarias?.descricao ?? null,
+    banco_nome: l.contas_bancarias?.bancos?.nome ?? null,
+    conciliadas: agg.get(l.id)?.conc ?? 0,
+    pendentes: agg.get(l.id)?.pend ?? l.total_transacoes,
+  }));
+}
+
+/** Exclui um lote (apenas se não houver linhas conciliadas). */
+export async function excluirLoteImportacao(loteId: string): Promise<void> {
+  const { count, error: cErr } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .select("id", { count: "exact", head: true })
+    .eq("lote_id", loteId)
+    .eq("status", "conciliado");
+  if (cErr) throw new Error(cErr.message);
+  if ((count ?? 0) > 0) {
+    throw new Error("Lote possui transações conciliadas — desfaça as conciliações antes de excluir.");
+  }
+  // Apaga as linhas pendentes do lote e depois o próprio lote.
+  await supabase.from("financeiro_extrato_importacoes").delete().eq("lote_id", loteId);
+  const { error } = await supabase.from("financeiro_extrato_lotes").delete().eq("id", loteId);
+  if (error) throw new Error(error.message);
+}
+
 export interface ExtratoTransacaoPersistida {
   id: string;
   conta_bancaria_id: string;
@@ -35,6 +162,7 @@ export async function persistirExtratoOFX(input: {
   contaBancariaId: string;
   empresaId?: string | null;
   arquivoHash?: string | null;
+  loteId?: string | null;
   transacoes: TransacaoExtrato[];
 }): Promise<{ inseridas: number }> {
   const { contaBancariaId, transacoes, arquivoHash } = input;
@@ -63,6 +191,7 @@ export async function persistirExtratoOFX(input: {
     valor: t.valor,
     descricao: t.descricao,
     arquivo_hash: arquivoHash ?? null,
+    lote_id: input.loteId ?? null,
     status: "pendente" as ExtratoStatus,
   }));
 
@@ -99,6 +228,29 @@ export async function listarExtratoPersistido(input: {
     .order("data", { ascending: true });
   if (error) throw new Error(error.message);
   return ((data as unknown) as ExtratoTransacaoPersistida[]) ?? [];
+}
+
+/**
+ * Dada uma lista de baixa_ids, devolve o mapa baixa_id → lancamento_id
+ * para permitir marcar lançamentos como conciliados na grade ERP a
+ * partir das linhas de extrato já conciliadas.
+ */
+export async function mapBaixasParaLancamentos(
+  baixaIds: string[],
+): Promise<Map<string, string>> {
+  const ids = baixaIds.filter((v): v is string => !!v);
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from("financeiro_baixas")
+    .select("id, lancamento_id")
+    .in("id", ids)
+    .is("estornada_em", null);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, string>();
+  ((data ?? []) as Array<{ id: string; lancamento_id: string }>).forEach((r) => {
+    map.set(r.id, r.lancamento_id);
+  });
+  return map;
 }
 
 /** Marca uma transação como conciliada (vinculada a uma baixa). */
