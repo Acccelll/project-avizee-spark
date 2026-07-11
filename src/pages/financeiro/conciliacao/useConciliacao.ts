@@ -347,6 +347,7 @@ export function useConciliacao() {
                   data: i.data,
                   valor: i.valor,
                   descricao: i.descricao,
+                  tipo: i.valor >= 0 ? "C" : "D",
                 })),
               });
               await loadSugestoesPersistidas(items, selectedConta);
