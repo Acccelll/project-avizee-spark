@@ -32,8 +32,12 @@ import {
   mapBaixasParaLancamentos,
   marcarExtratoConciliadoPorFitid,
   persistirExtratoOFX,
+  criarLoteImportacao,
+  atualizarLoteInseridas,
 } from "@/services/financeiro/extratoImportacoes.service";
 import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/financeiro/matching/feedback.service";
+import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
+import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
@@ -390,9 +394,23 @@ export function useConciliacao() {
           await loadLancamentosFromPeriod(importInicio, importFim, selectedConta);
         }
         const sessaoImportacao = await obterSessaoEmpresa();
+        const loteId = sessaoImportacao?.empresaId
+          ? await criarLoteImportacao({
+              empresaId: sessaoImportacao.empresaId,
+              contaBancariaId: selectedConta,
+              arquivoNome: file.name,
+              origem: "ofx",
+              totalTransacoes: items.length,
+              criadoPor: sessaoImportacao.userId,
+            }).catch((err) => {
+              logger.warn("[conciliacao] falha ao criar lote:", err);
+              return null;
+            })
+          : null;
         const persistencia = await persistirExtratoOFX({
           contaBancariaId: selectedConta,
           empresaId: sessaoImportacao?.empresaId,
+          loteId,
           transacoes: items.map((i) => ({
             id: i.id,
             data: i.data,
@@ -401,6 +419,24 @@ export function useConciliacao() {
             tipo: i.valor >= 0 ? "C" : "D",
           })),
         });
+        if (loteId) {
+          void atualizarLoteInseridas(loteId, persistencia.inseridas).catch(() => undefined);
+        }
+        if (sessaoImportacao) {
+          void registrarAuditoriaConciliacao({
+            empresaId: sessaoImportacao.empresaId,
+            usuarioId: sessaoImportacao.userId,
+            acao: "importacao",
+            entidade: "financeiro_extrato_lotes",
+            entidadeId: loteId,
+            payload: {
+              arquivo: file.name,
+              total: items.length,
+              inseridas: persistencia.inseridas,
+              conta_bancaria_id: selectedConta,
+            },
+          });
+        }
         const duplicadasPersistidas = Math.max(0, items.length - persistencia.inseridas);
         toast.success(
           duplicadasPersistidas > 0
