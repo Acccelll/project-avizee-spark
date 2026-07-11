@@ -84,7 +84,9 @@ export function NovoLancamentoInlineModal({ open, onClose, prefill, onSaved }: P
             ? (form.forma_pagamento_dados as unknown as Record<string, string | number | boolean | null>)
             : null,
       };
-      const { error } = await supabase.from("financeiro_lancamentos").insert([payload]);
+      const { error } = await supabase
+        .from("financeiro_lancamentos")
+        .insert(payload as never);
       if (error) throw error;
       toast.success("Lançamento criado.");
       onSaved();
