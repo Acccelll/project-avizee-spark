@@ -37,6 +37,28 @@ import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/finance
 /** Threshold de score para conciliação automática em lote. */
 const AUTO_SCORE_THRESHOLD = 0.9;
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
+const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
+const CONCILIACAO_LAST_DATA_INICIO_KEY = "conciliacao:bancaria:lastDataInicio";
+const CONCILIACAO_LAST_DATA_FIM_KEY = "conciliacao:bancaria:lastDataFim";
+
+function getLocalPreference(key: string): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setLocalPreference(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined") return;
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Preferência local indisponível — sem impacto funcional.
+  }
+}
 
 const defaultDataInicio = () => {
   const d = new Date();
@@ -59,7 +81,11 @@ export function useConciliacao() {
   const isMobile = useIsMobile();
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
-  const [selectedConta, setSelectedConta] = useState<string>("");
+  const [selectedConta, setSelectedConta] = useState<string>(() => {
+    const urlConta = searchParams.get("conta");
+    if (urlConta) return urlConta;
+    return getLocalPreference(CONCILIACAO_LAST_CONTA_KEY) ?? "";
+  });
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -77,8 +103,12 @@ export function useConciliacao() {
   const [vincularSearch, setVincularSearch] = useState("");
 
   // Period filter state
-  const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
-  const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
+  const [dataInicio, setDataInicio] = useState(
+    searchParams.get("data_inicio") ?? getLocalPreference(CONCILIACAO_LAST_DATA_INICIO_KEY) ?? defaultDataInicio(),
+  );
+  const [dataFim, setDataFim] = useState(
+    searchParams.get("data_fim") ?? getLocalPreference(CONCILIACAO_LAST_DATA_FIM_KEY) ?? defaultDataFim(),
+  );
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
@@ -94,6 +124,7 @@ export function useConciliacao() {
   useEffect(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      if (selectedConta) next.set("conta", selectedConta); else next.delete("conta");
       next.set("data_inicio", dataInicio);
       next.set("data_fim", dataFim);
       if (searchTerm) next.set("search", searchTerm); else next.delete("search");
@@ -101,7 +132,7 @@ export function useConciliacao() {
       if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
       return next;
     }, { replace: true });
-  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
+  }, [selectedConta, dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
 
   // Contas bancárias (raramente muda)
   const { data: contasQuery } = useQuery({
@@ -110,8 +141,21 @@ export function useConciliacao() {
     staleTime: Infinity,
   });
   useEffect(() => {
-    if (contasQuery) setContasBancarias(contasQuery);
+    if (!contasQuery) return;
+    setContasBancarias(contasQuery);
+    if (selectedConta && !contasQuery.some((c) => c.id === selectedConta)) {
+      setSelectedConta("");
+    }
   }, [contasQuery]);
+
+  useEffect(() => {
+    setLocalPreference(CONCILIACAO_LAST_CONTA_KEY, selectedConta);
+  }, [selectedConta]);
+
+  useEffect(() => {
+    setLocalPreference(CONCILIACAO_LAST_DATA_INICIO_KEY, dataInicio);
+    setLocalPreference(CONCILIACAO_LAST_DATA_FIM_KEY, dataFim);
+  }, [dataFim, dataInicio]);
 
   // Carga de lançamentos
   const loadLancamentosFromPeriod = useCallback(async (from: string, to: string, contaId: string) => {
@@ -185,6 +229,34 @@ export function useConciliacao() {
     return ue?.empresa_id ? { empresaId: ue.empresa_id, userId } : null;
   }, []);
 
+  const hydrateExtratoPersistido = useCallback(async (input: {
+    contaId: string;
+    from: string;
+    to: string;
+  }): Promise<OFXTransaction[]> => {
+    if (!input.contaId) {
+      setExtratoItems([]);
+      setSugestoesPersistidas(new Map());
+      setConciliadosPersistidos(new Map());
+      return [];
+    }
+    const rows = await listarExtratoPersistido({
+      contaBancariaId: input.contaId,
+      dataInicio: input.from,
+      dataFim: input.to,
+    });
+    const items: OFXTransaction[] = rows.map((r) => ({
+      id: r.fitid,
+      data: r.data,
+      valor: Number(r.valor),
+      descricao: r.descricao ?? "",
+    }));
+    setExtratoItems(items);
+    if (items.length > 0) setShowOFXPane(true);
+    await loadSugestoesPersistidas(items, input.contaId);
+    return items;
+  }, [loadSugestoesPersistidas]);
+
   const registrarFeedbackSugestao = useCallback((input: {
     extratoId: string;
     acao: AcaoFeedback;
@@ -227,26 +299,13 @@ export function useConciliacao() {
     }
     void (async () => {
       try {
-        const rows = await listarExtratoPersistido({
-          contaBancariaId: selectedConta,
-          dataInicio,
-          dataFim,
-        });
-        const items: OFXTransaction[] = rows.map((r) => ({
-          id: r.fitid,
-          data: r.data,
-          valor: Number(r.valor),
-          descricao: r.descricao ?? "",
-        }));
-        setExtratoItems(items);
-        if (items.length > 0) setShowOFXPane(true);
-        await loadSugestoesPersistidas(items, selectedConta);
+        await hydrateExtratoPersistido({ contaId: selectedConta, from: dataInicio, to: dataFim });
       } catch (err) {
         logger.warn("[conciliacao] falha ao hidratar extrato persistido:", err);
         setExtratoItems([]);
       }
     })();
-  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, loadSugestoesPersistidas]);
+  }, [selectedConta, dataInicio, dataFim, loadLancamentosFromPeriod, hydrateExtratoPersistido]);
 
   const handleExcluirExtratosSelecionados = useCallback(async (fitids: string[]): Promise<number> => {
     if (!selectedConta || fitids.length === 0) return 0;
@@ -297,20 +356,22 @@ export function useConciliacao() {
         setMatches([]);
         setShowOFXPane(true);
         toast.success(`${items.length} transações importadas.`);
+        const dates = items.map((i) => i.data).sort();
+        const importInicio = dates[0];
+        const importFim = dates[dates.length - 1];
+        if (importInicio && importFim && (importInicio !== dataInicio || importFim !== dataFim)) {
+          setDataInicio(importInicio);
+          setDataFim(importFim);
+        }
         if (selectedConta) {
-          const dates = items.map((i) => i.data).sort();
-          await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
+          await loadLancamentosFromPeriod(importInicio, importFim, selectedConta);
         }
         // Onda 7 — também persiste o OFX no Motor Universal para gerar
         // sugestões (best-effort; falha silenciosa não bloqueia a UI).
         if (selectedConta) {
           try {
-            const { data: userRes } = await supabase.auth.getUser();
-            const { data: ue } = await supabase
-              .from("user_empresas")
-              .select("empresa_id")
-              .eq("user_id", userRes?.user?.id ?? "")
-              .maybeSingle();
+            const sessao = await obterSessaoEmpresa();
+            const ue = sessao ? { empresa_id: sessao.empresaId } : null;
             if (ue?.empresa_id) {
               const res = await importarDocumentoUniversal({
                 file,
@@ -326,6 +387,7 @@ export function useConciliacao() {
                   `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
                 );
               }
+              await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
               const meta = await loadSugestoesPersistidas(items, selectedConta);
               if (meta && meta.conciliados > 0) {
                 toast.info(
@@ -342,6 +404,7 @@ export function useConciliacao() {
             try {
               await persistirExtratoOFX({
                 contaBancariaId: selectedConta,
+                empresaId: (await obterSessaoEmpresa())?.empresaId,
                 transacoes: items.map((i) => ({
                   id: i.id,
                   data: i.data,
@@ -350,7 +413,7 @@ export function useConciliacao() {
                   tipo: i.valor >= 0 ? "C" : "D",
                 })),
               });
-              await loadSugestoesPersistidas(items, selectedConta);
+              await hydrateExtratoPersistido({ contaId: selectedConta, from: importInicio, to: importFim });
             } catch (fallbackErr) {
               logger.warn("[conciliacao] fallback persistirExtratoOFX falhou:", fallbackErr);
             }
@@ -362,13 +425,7 @@ export function useConciliacao() {
           toast.error("Selecione uma conta bancária antes de importar PDF/CSV.");
           return;
         }
-        const { data: userRes } = await supabase.auth.getUser();
-        const { data: ue } = await supabase
-          .from("user_empresas")
-          .select("empresa_id")
-          .eq("user_id", userRes?.user?.id ?? "")
-          .maybeSingle();
-        const empresaId = ue?.empresa_id;
+        const empresaId = (await obterSessaoEmpresa())?.empresaId;
         if (!empresaId) throw new Error("Empresa não identificada.");
         const res = await importarDocumentoUniversal({
           file,
@@ -384,7 +441,7 @@ export function useConciliacao() {
             `${duplicadas} transação(ões) já haviam sido importadas anteriormente (ignoradas).`,
           );
         }
-        await loadSugestoesPersistidas([], selectedConta);
+        await hydrateExtratoPersistido({ contaId: selectedConta, from: dataInicio, to: dataFim });
       }
     } catch (err: unknown) {
       logger.error("[conciliacao] erro ao processar OFX:", err);
@@ -883,8 +940,12 @@ export function useConciliacao() {
     return lancamentosComStatus.filter((l) => {
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
+        const nome = l.tipo === "receber"
+          ? l.clientes?.nome_razao_social
+          : l.fornecedores?.nome_razao_social;
         if (
           !l.descricao?.toLowerCase().includes(term) &&
+          !nome?.toLowerCase().includes(term) &&
           !l.tipo?.toLowerCase().includes(term) &&
           !l.status?.toLowerCase().includes(term) &&
           !l.forma_pagamento?.toLowerCase().includes(term)

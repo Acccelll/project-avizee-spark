@@ -15,6 +15,16 @@ import { RotateCcw } from "lucide-react";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
 
+function getLancamentoNome(l: Lancamento): string {
+  return (
+    (l.tipo === "receber"
+      ? l.clientes?.nome_razao_social
+      : l.fornecedores?.nome_razao_social) ||
+    l.descricao ||
+    "Sem nome"
+  );
+}
+
 function SortSelect({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as SortKey)}>
@@ -263,13 +273,13 @@ export function OFXMatchingPane(p: Props) {
                   </div>
                   {linked && (
                     <p className="text-xs text-success bg-success/10 rounded px-2 py-1 truncate">
-                      ↔ {linked.descricao} · {formatCurrency(linked.valor)}
+                      ↔ {getLancamentoNome(linked)} · {formatCurrency(linked.valor)}
                     </p>
                   )}
                   {podeAceitarSugestao && sugestaoLanc && (
                     <div className="text-xs rounded px-2 py-1 border border-info/30 bg-info/5 text-muted-foreground space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate"><Sparkles className="inline w-3 h-3 mr-1 text-info" />{sugestaoLanc.descricao}</span>
+                        <span className="truncate"><Sparkles className="inline w-3 h-3 mr-1 text-info" />{getLancamentoNome(sugestaoLanc)}</span>
                         <Badge variant="outline" className="text-[10px]">{Math.round(sugestao.score * 100)}%</Badge>
                       </div>
                       <p className="truncate">{formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)}</p>
@@ -389,7 +399,7 @@ export function OFXMatchingPane(p: Props) {
                       {isPareado && linked && (
                         <div className="mt-2 flex items-center justify-between gap-2 rounded bg-success/10 px-2 py-1">
                           <p className="text-xs text-success truncate">
-                            ↔ {linked.descricao} · {formatCurrency(linked.valor)}
+                            ↔ {getLancamentoNome(linked)} · {formatCurrency(linked.valor)}
                           </p>
                           <Button size="sm" variant="ghost" className="h-6 text-xs gap-1"
                             onClick={() => p.onDesvincularExtrato(item.id)}>
@@ -411,7 +421,7 @@ export function OFXMatchingPane(p: Props) {
                           <div className="min-w-0 text-xs text-muted-foreground">
                             <p className="truncate font-medium">
                               <Sparkles className="inline w-3 h-3 mr-1 text-info" />
-                              {sugestaoLanc.descricao}
+                              {getLancamentoNome(sugestaoLanc)}
                             </p>
                             <p className="truncate">
                               {formatCurrency(sugestaoLanc.valor)} · {formatDate(sugestaoLanc.data_vencimento)} · {Math.round(sugestao.score * 100)}%
@@ -483,8 +493,10 @@ export function OFXMatchingPane(p: Props) {
                               aria-label="Selecionar lançamento"
                             />
                             <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{l.descricao}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(l.data_vencimento)}</p>
+                            <p className="text-sm font-medium truncate">{getLancamentoNome(l)}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {formatDate(l.data_vencimento)}{l.descricao ? ` · ${l.descricao}` : ""}
+                            </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
