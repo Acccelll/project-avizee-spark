@@ -624,8 +624,8 @@ const Financeiro = () => {
                 setPage,
                 totalCount,
                 hasMore: (page + 1) * PAGE_SIZE < (totalCount ?? 0),
-                pageSize: PAGE_SIZE,
               }}
+              pageSize={PAGE_SIZE}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               emptyTitle="Nenhum lançamento encontrado"
