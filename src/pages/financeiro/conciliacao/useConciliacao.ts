@@ -985,10 +985,10 @@ export function useConciliacao() {
       } catch {
         // Silently fail if tables don't exist yet
       }
-      const pareados = matches.length;
-      const semPar = extratoItems.length - pareados;
+      const extratosPareados = new Set(matches.map((m) => m.extratoId)).size;
+      const semPar = Math.max(0, extratoItems.length - extratosPareados);
       toast.success(
-        `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
+        `${extratosPareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
       );
       setSugestoesPersistidas((prev) => {
         const next = new Map(prev);
@@ -1030,9 +1030,9 @@ export function useConciliacao() {
   const getMatch = (extratoId: string) => matches.find((m) => m.extratoId === extratoId);
   const usedLancamentoIds = new Set(matches.map((m) => m.lancamentoId));
 
-  const pareados = matches.length;
-  const semParOFX = extratoItems.length - pareados;
-  const pendentesERP = lancamentos.length - pareados;
+  const pareados = new Set(matches.map((m) => m.extratoId)).size;
+  const semParOFX = Math.max(0, extratoItems.length - pareados);
+  const pendentesERP = Math.max(0, lancamentos.length - new Set(matches.map((m) => m.lancamentoId)).size);
 
   const lancamentosComStatus = useMemo((): LancamentoComStatus[] => {
     return lancamentos.map((l) => {
