@@ -29,6 +29,7 @@ import {
   excluirExtratosPorFitids,
   limparSugestaoExtrato,
   listarExtratoPersistido,
+  mapBaixasParaLancamentos,
   marcarExtratoConciliadoPorFitid,
   persistirExtratoOFX,
 } from "@/services/financeiro/extratoImportacoes.service";
@@ -91,6 +92,10 @@ export function useConciliacao() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [sugestoesPersistidas, setSugestoesPersistidas] = useState<Map<string, SugestaoPersistida>>(new Map());
   const [conciliadosPersistidos, setConciliadosPersistidos] = useState<Map<string, ConciliacaoPersistida>>(new Map());
+  // Sprint 1 — lançamentos ERP já conciliados (via baixa persistida)
+  const [lancamentosConciliadosIds, setLancamentosConciliadosIds] = useState<Set<string>>(new Set());
+  // Sprint 1 — filtro "Exibir apenas pendentes" (aplica a grade e ao painel OFX)
+  const [showOnlyPendentes, setShowOnlyPendentes] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [loadingLanc, setLoadingLanc] = useState(false);
@@ -172,6 +177,7 @@ export function useConciliacao() {
     if (!contaId || items.length === 0) {
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return { conciliados: 0, sugestoes: 0 };
     }
     const datas = items.map((i) => i.data).sort();
@@ -208,11 +214,27 @@ export function useConciliacao() {
       });
       setSugestoesPersistidas(next);
       setConciliadosPersistidos(conciliados);
+      // Cruza baixa_id → lancamento_id para marcar linhas conciliadas na grade ERP.
+      const baixaIds = Array.from(conciliados.values())
+        .map((c) => c.baixaId)
+        .filter((v): v is string => !!v);
+      if (baixaIds.length > 0) {
+        try {
+          const mapa = await mapBaixasParaLancamentos(baixaIds);
+          setLancamentosConciliadosIds(new Set(mapa.values()));
+        } catch (err) {
+          logger.warn("[conciliacao] falha ao mapear baixas→lançamentos:", err);
+          setLancamentosConciliadosIds(new Set());
+        }
+      } else {
+        setLancamentosConciliadosIds(new Set());
+      }
       return { conciliados: conciliados.size, sugestoes: next.size };
     } catch (err) {
       logger.warn("[conciliacao] falha ao carregar sugestões persistidas:", err);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return { conciliados: 0, sugestoes: 0 };
     }
   }, []);
@@ -238,6 +260,7 @@ export function useConciliacao() {
       setExtratoItems([]);
       setSugestoesPersistidas(new Map());
       setConciliadosPersistidos(new Map());
+      setLancamentosConciliadosIds(new Set());
       return [];
     }
     const rows = await listarExtratoPersistido({
@@ -290,6 +313,7 @@ export function useConciliacao() {
     setMatches([]);
     setSugestoesPersistidas(new Map());
     setConciliadosPersistidos(new Map());
+    setLancamentosConciliadosIds(new Set());
     // Hidrata extrato persistido do banco para a conta/período —
     // extratos importados permanecem visíveis ao trocar de conta,
     // filtrar período ou recarregar a página.
