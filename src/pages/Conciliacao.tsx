@@ -22,6 +22,8 @@ import { OFXMatchingPane } from "@/pages/financeiro/conciliacao/OFXMatchingPane"
 import { VincularBottomSheet } from "@/pages/financeiro/conciliacao/VincularBottomSheet";
 import { ConfirmFloatingBar } from "@/pages/financeiro/conciliacao/ConfirmFloatingBar";
 import { HistoricoImportacoesTab } from "@/pages/financeiro/conciliacao/HistoricoImportacoesTab";
+import { NovoLancamentoInlineModal } from "@/pages/financeiro/conciliacao/NovoLancamentoInlineModal";
+import type { LancamentoForm } from "@/pages/financeiro/types";
 
 const statusConciliacaoOptions: MultiSelectOption[] = [
   { value: "pendente", label: "Pendente" },
@@ -302,6 +304,13 @@ export default function Conciliacao() {
         lancamentos={v.lancamentos}
         usedLancamentoIds={v.usedLancamentoIds}
         onManualMatch={v.handleManualMatch}
+      />
+
+      <NovoLancamentoInlineModal
+        open={v.novoLancOpen}
+        onClose={() => v.setNovoLancOpen(false)}
+        prefill={v.novoLancPrefill as Partial<LancamentoForm> | null}
+        onSaved={() => void v.handleNovoLancamentoSaved()}
       />
     </>
   );
