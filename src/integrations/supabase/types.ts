@@ -10843,8 +10843,8 @@ export type Database = {
       conciliacao_dashboard_kpis: {
         Args: {
           p_empresa_id: string
-          p_periodo_fim: string
-          p_periodo_inicio: string
+          p_periodo_fim?: string
+          p_periodo_inicio?: string
         }
         Returns: Json
       }

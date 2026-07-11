@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
 
 export function ImportarExtratoDialog({ onImported }: { onImported?: () => void }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [contaId, setContaId] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
@@ -114,6 +116,11 @@ export function ImportarExtratoDialog({ onImported }: { onImported?: () => void 
       onImported?.();
       reset();
       setOpen(false);
+      if (periodo.ini && periodo.fim) {
+        navigate(
+          `/financeiro/conciliacao/dashboard?inicio=${periodo.ini}&fim=${periodo.fim}`,
+        );
+      }
     } catch (err) {
       logger.error("conciliacao.importar_dialog", { err });
       toast.error(err instanceof Error ? err.message : "Falha ao importar");
