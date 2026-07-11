@@ -801,6 +801,50 @@ export function useConciliacao() {
   }, []);
 
   /**
+   * Sprint 3 — Gera um lançamento de ajuste bancário para uma pequena
+   * divergência (dentro da tolerância) e reidrata o estado da tela.
+   */
+  const handleGerarAjusteBancario = useCallback(async (input: {
+    diferenca: number;
+    data: string;
+    descricao?: string;
+  }): Promise<boolean> => {
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de gerar o ajuste.");
+      return false;
+    }
+    if (Math.abs(input.diferenca) < 0.005) {
+      toast.info("Sem divergência para ajustar.");
+      return false;
+    }
+    try {
+      const sessao = await obterSessaoEmpresa();
+      if (!sessao) throw new Error("Sessão expirada.");
+      const res = await gerarLancamentoAjusteBancario({
+        empresa_id: sessao.empresaId,
+        conta_bancaria_id: selectedConta,
+        data: input.data,
+        diferenca: input.diferenca,
+        descricao: input.descricao,
+      });
+      void registrarAuditoriaConciliacao({
+        empresaId: sessao.empresaId,
+        usuarioId: sessao.userId,
+        acao: "ajuste",
+        entidade: "financeiro_lancamentos",
+        entidadeId: res.lancamento_id,
+        payload: { diferenca: input.diferenca, baixa_id: res.baixa_id },
+      });
+      toast.success("Ajuste bancário gerado e baixado.");
+      await loadLancamentosFromPeriod(dataInicio, dataFim, selectedConta);
+      return true;
+    } catch (err) {
+      notifyError(err);
+      return false;
+    }
+  }, [dataFim, dataInicio, loadLancamentosFromPeriod, obterSessaoEmpresa, selectedConta]);
+
+  /**
    * Épico D — Cria um lançamento novo diretamente a partir de uma
    * transação sem par no extrato, já baixado na conta selecionada,
    * e adiciona o match automaticamente.
@@ -1103,5 +1147,7 @@ export function useConciliacao() {
     // Sprint 1
     showOnlyPendentes, setShowOnlyPendentes,
     lancamentosConciliadosIds,
+    // Sprint 3
+    handleGerarAjusteBancario,
   };
 }
