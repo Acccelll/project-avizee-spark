@@ -964,13 +964,16 @@ export function useConciliacao() {
         const diff = Math.abs(Math.abs(l.valor) - Math.abs(extratoItem.valor));
         if (diff < 0.01) statusConciliacao = "conciliado";
         else { statusConciliacao = "divergente"; divergencia = diff; }
+      } else if (lancamentosConciliadosIds.has(l.id)) {
+        statusConciliacao = "conciliado";
       }
       return { ...l, statusConciliacao, extratoId: match?.extratoId ?? null, divergencia };
     });
-  }, [lancamentos, matches, extratoItems]);
+  }, [lancamentos, matches, extratoItems, lancamentosConciliadosIds]);
 
   const filteredData = useMemo(() => {
     return lancamentosComStatus.filter((l) => {
+      if (showOnlyPendentes && l.statusConciliacao === "conciliado") return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const nome = l.tipo === "receber"
@@ -992,7 +995,7 @@ export function useConciliacao() {
       }
       return true;
     });
-  }, [lancamentosComStatus, searchTerm, statusConcFilters, tipoFilters, origemFilters]);
+  }, [lancamentosComStatus, searchTerm, statusConcFilters, tipoFilters, origemFilters, showOnlyPendentes]);
 
   const handleRemoveFilter = (key: string) => {
     if (key === "statusConc") setStatusConcFilters([]);
@@ -1038,5 +1041,8 @@ export function useConciliacao() {
     handleConfirmarSelecao, handleDesvincularExtrato,
     handleExcluirExtratosSelecionados,
     setMatches,
+    // Sprint 1
+    showOnlyPendentes, setShowOnlyPendentes,
+    lancamentosConciliadosIds,
   };
 }
