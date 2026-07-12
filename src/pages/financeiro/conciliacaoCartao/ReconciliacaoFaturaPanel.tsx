@@ -466,7 +466,12 @@ export function ReconciliacaoFaturaPanel({
                         onCheckedChange={() => toggle(setSelLanc)(l.id)}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate">{l.descricao ?? "(sem descrição)"}</p>
+                        <p className="truncate font-medium">
+                          {l.fornecedores?.nome_razao_social ?? "Sem fornecedor vinculado"}
+                        </p>
+                        {l.descricao && (
+                          <p className="truncate text-[11px] text-muted-foreground">{l.descricao}</p>
+                        )}
                         <p className="text-[11px] text-muted-foreground">Venc. {fmtDate(l.data_vencimento)}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
