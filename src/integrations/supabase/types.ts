@@ -932,6 +932,45 @@ export type Database = {
           },
         ]
       }
+      cartao_importacao_lotes: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          desfeito_em: string | null
+          empresa_id: string
+          faturas_atualizadas: string[]
+          faturas_criadas: string[]
+          id: string
+          resumo: Json
+          updated_at: string
+          vinculos: Json
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          desfeito_em?: string | null
+          empresa_id?: string
+          faturas_atualizadas?: string[]
+          faturas_criadas?: string[]
+          id?: string
+          resumo?: Json
+          updated_at?: string
+          vinculos?: Json
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          desfeito_em?: string | null
+          empresa_id?: string
+          faturas_atualizadas?: string[]
+          faturas_criadas?: string[]
+          id?: string
+          resumo?: Json
+          updated_at?: string
+          vinculos?: Json
+        }
+        Relationships: []
+      }
       cartoes_credito: {
         Row: {
           ativo: boolean
@@ -10943,6 +10982,16 @@ export type Database = {
       }
       cartao_fatura_para_data: {
         Args: { p_cartao_id: string; p_data: string }
+        Returns: string
+      }
+      cartao_importacao_desfazer: { Args: { p_lote: string }; Returns: Json }
+      cartao_importacao_registrar_lote: {
+        Args: {
+          p_faturas_atualizadas: string[]
+          p_faturas_criadas: string[]
+          p_resumo: Json
+          p_vinculos: Json
+        }
         Returns: string
       }
       cartao_importar_fatura: {
