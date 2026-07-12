@@ -85,7 +85,7 @@ export async function listLancamentosCandidatosDaFatura(params: {
   }
   let q = supabase
     .from("financeiro_lancamentos")
-    .select("id, descricao, valor, data_vencimento, status, fornecedores(nome_razao_social)")
+    .select("id, descricao, valor, data_vencimento, status, parcela_numero, parcela_total, fornecedores(nome_razao_social)")
     .eq("empresa_id", params.empresa_id)
     .eq("tipo", "pagar")
     .eq("ativo", true)
