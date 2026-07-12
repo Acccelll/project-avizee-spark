@@ -52,6 +52,7 @@ export async function buscarCandidatos({
     .eq("tipo", tipoEsperado)
     .eq("ativo", true)
     .is("data_pagamento", null)
+    .is("cartao_fatura_id", null)
     .gte("data_vencimento", dataMin)
     .lte("data_vencimento", dataMax)
     .gte("valor", valorAbs - 5)
@@ -59,6 +60,23 @@ export async function buscarCandidatos({
     .limit(200);
 
   if (error) throw new Error(error.message);
+
+  // Exclui lançamentos já vinculados a linhas de fatura de cartão
+  const ids = (data ?? []).map((r) => (r as { id: string }).id);
+  let excluir = new Set<string>();
+  if (ids.length) {
+    const { data: linhas } = await supabase
+      .from("cartao_fatura_lancamentos")
+      .select("lancamento_id")
+      .in("lancamento_id", ids)
+      .not("lancamento_id", "is", null);
+    excluir = new Set(
+      (linhas ?? [])
+        .map((r) => (r as { lancamento_id: string | null }).lancamento_id)
+        .filter((x): x is string => !!x),
+    );
+  }
+  const filtered = (data ?? []).filter((r) => !excluir.has((r as { id: string }).id));
 
   type Row = {
     id: string;
@@ -72,7 +90,7 @@ export async function buscarCandidatos({
     cliente: { nome_fantasia?: string; razao_social?: string; cpf_cnpj?: string } | null;
   };
 
-  const scored: CandidatoScored[] = (data as unknown as Row[] | null ?? []).map((r) => {
+  const scored: CandidatoScored[] = (filtered as unknown as Row[]).map((r) => {
     const cand: CandidatoInput = {
       id: r.id,
       tipo: r.tipo,
