@@ -1,0 +1,351 @@
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ArrowLeft, Link2, Undo2, EyeOff, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/StatusBadge";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  listLinhasDaFatura,
+  listLancamentosCandidatosDaFatura,
+  vincularLinha,
+  vincularLinhasEmLote,
+  desvincularLinha,
+  setLinhaStatus,
+  criarLancamentoDaLinha,
+  type FaturaLinha,
+  type CandidatoLancamento,
+} from "@/services/conciliacaoCartao/faturaLinhas.service";
+
+function fmt(n: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n ?? 0);
+}
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+export interface ReconciliacaoFaturaPanelProps {
+  faturaId: string;
+  cartaoId: string;
+  competencia: string;
+  cartaoNome: string;
+  dataFechamento: string | null;
+  dataVencimento: string | null;
+  onBack: () => void;
+}
+
+export function ReconciliacaoFaturaPanel({
+  faturaId,
+  cartaoId,
+  competencia,
+  cartaoNome,
+  dataFechamento,
+  dataVencimento,
+  onBack,
+}: ReconciliacaoFaturaPanelProps) {
+  const qc = useQueryClient();
+  const [selLinhas, setSelLinhas] = useState<Set<string>>(new Set());
+  const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
+  const [buscaLinha, setBuscaLinha] = useState("");
+  const [buscaLanc, setBuscaLanc] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const empresa = useQuery({
+    queryKey: ["empresa", "atual"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("current_empresa_id");
+      if (error) throw error;
+      return data as string;
+    },
+  });
+
+  const linhas = useQuery({
+    queryKey: ["cartao-faturas", "linhas", faturaId],
+    queryFn: () => listLinhasDaFatura(faturaId),
+  });
+
+  const candidatos = useQuery({
+    queryKey: ["cartao-faturas", "candidatos-erp", faturaId, empresa.data],
+    enabled: !!empresa.data,
+    queryFn: () =>
+      listLancamentosCandidatosDaFatura({
+        empresa_id: empresa.data as string,
+        cartao_id: cartaoId,
+        data_fechamento: dataFechamento,
+        data_vencimento: dataVencimento,
+      }),
+  });
+
+  const linhasFiltradas = useMemo(() => {
+    const all = linhas.data ?? [];
+    const t = buscaLinha.trim().toLowerCase();
+    return all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
+  }, [linhas.data, buscaLinha]);
+
+  const candidatosFiltrados = useMemo(() => {
+    const all = candidatos.data ?? [];
+    const t = buscaLanc.trim().toLowerCase();
+    return all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
+  }, [candidatos.data, buscaLanc]);
+
+  const somaLinhas = useMemo(
+    () => (linhas.data ?? [])
+      .filter((l) => selLinhas.has(l.id))
+      .reduce((s, l) => s + Math.abs(Number(l.valor || 0)), 0),
+    [linhas.data, selLinhas],
+  );
+  const somaLanc = useMemo(
+    () => (candidatos.data ?? [])
+      .filter((l) => selLanc.has(l.id))
+      .reduce((s, l) => s + Number(l.valor || 0), 0),
+    [candidatos.data, selLanc],
+  );
+  const diff = Math.round((somaLinhas - somaLanc) * 100) / 100;
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaId] });
+    qc.invalidateQueries({ queryKey: ["cartao-faturas", "candidatos-erp", faturaId] });
+    qc.invalidateQueries({ queryKey: ["cartao-faturas", "lancamentos", faturaId] });
+  };
+
+  const toggle = (setter: typeof setSelLinhas) => (id: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const conciliar = async () => {
+    const ln = Array.from(selLinhas);
+    const lc = Array.from(selLanc);
+    if (ln.length === 0 || lc.length === 0) {
+      toast.error("Selecione pelo menos uma linha e um lançamento");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (lc.length === 1) {
+        await vincularLinhasEmLote(ln, lc[0]);
+      } else if (ln.length === lc.length) {
+        // pareamento 1:1 na ordem selecionada
+        for (let i = 0; i < ln.length; i++) {
+          await vincularLinha(ln[i], lc[i]);
+        }
+      } else {
+        toast.error("Para pareamento múltiplo, selecione a mesma quantidade dos dois lados (ou 1 único lançamento).");
+        setBusy(false);
+        return;
+      }
+      toast.success(`${ln.length} linha(s) conciliada(s)`);
+      setSelLinhas(new Set());
+      setSelLanc(new Set());
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao conciliar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const acaoDesvincular = async (id: string) => {
+    setBusy(true);
+    try {
+      await desvincularLinha(id);
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao desvincular");
+    } finally { setBusy(false); }
+  };
+
+  const acaoIgnorar = async (id: string) => {
+    setBusy(true);
+    try {
+      await setLinhaStatus(id, "ignorada");
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao ignorar");
+    } finally { setBusy(false); }
+  };
+
+  const acaoCriarLancDaLinha = async (linha: FaturaLinha) => {
+    if (!empresa.data) return;
+    setBusy(true);
+    try {
+      await criarLancamentoDaLinha({
+        empresa_id: empresa.data,
+        linha_id: linha.id,
+        cartao_id: cartaoId,
+        descricao: linha.descricao ?? "(sem descrição)",
+        valor: Number(linha.valor || 0),
+        data_vencimento: linha.data_compra,
+      });
+      toast.success("Lançamento criado e vinculado");
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao criar lançamento");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={onBack}>
+            <ArrowLeft className="mr-1 h-4 w-4" />Voltar para faturas
+          </Button>
+          <div>
+            <p className="text-sm font-medium">
+              {cartaoNome} · Fatura {competencia}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Fechamento {fmtDate(dataFechamento)} · Vencimento {fmtDate(dataVencimento)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span>Linhas: <strong>{fmt(somaLinhas)}</strong></span>
+          <span>ERP: <strong>{fmt(somaLanc)}</strong></span>
+          <span className={diff === 0 ? "text-emerald-600" : "text-amber-600"}>
+            Diferença: <strong>{fmt(diff)}</strong>
+          </span>
+          <Button size="sm" onClick={conciliar} disabled={busy || selLinhas.size === 0 || selLanc.size === 0}>
+            <Link2 className="mr-1 h-4 w-4" />Conciliar selecionados
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* Coluna esquerda: linhas da fatura */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Linhas da fatura ({linhasFiltradas.length})
+            </CardTitle>
+            <Input
+              placeholder="Buscar linha…"
+              value={buscaLinha}
+              onChange={(e) => setBuscaLinha(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </CardHeader>
+          <CardContent>
+            {linhas.isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : linhasFiltradas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma linha nesta fatura.</p>
+            ) : (
+              <div className="max-h-[560px] space-y-1 overflow-auto pr-1">
+                {linhasFiltradas.map((li) => {
+                  const st = (li.status ?? "pendente") as string;
+                  const vinculada = st === "vinculada" || st === "criada";
+                  const ignorada = st === "ignorada";
+                  const checked = selLinhas.has(li.id);
+                  return (
+                    <div
+                      key={li.id}
+                      className={`flex items-start gap-2 rounded border p-2 text-xs ${ignorada ? "opacity-60" : ""} ${checked ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={checked}
+                        disabled={vinculada || ignorada}
+                        onCheckedChange={() => toggle(setSelLinhas)(li.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{li.descricao ?? "(sem descrição)"}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {fmtDate(li.data_compra)}
+                          {li.parcela_atual && li.parcela_total ? ` · ${li.parcela_atual}/${li.parcela_total}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
+                        <StatusBadge status={st} />
+                        <div className="flex gap-0.5">
+                          {vinculada ? (
+                            <Button size="sm" variant="ghost" className="h-6 px-1" title="Desvincular" disabled={busy} onClick={() => acaoDesvincular(li.id)}>
+                              <Undo2 className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : ignorada ? (
+                            <Button size="sm" variant="ghost" className="h-6 px-1" title="Reabrir" disabled={busy} onClick={() => setLinhaStatus(li.id, "pendente").then(invalidateAll)}>
+                              <Undo2 className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-6 px-1" title="Criar lançamento a pagar" disabled={busy} onClick={() => acaoCriarLancDaLinha(li)}>
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-6 px-1" title="Ignorar" disabled={busy} onClick={() => acaoIgnorar(li.id)}>
+                                <EyeOff className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Coluna direita: lançamentos ERP */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Lançamentos ERP a pagar ({candidatosFiltrados.length})
+            </CardTitle>
+            <Input
+              placeholder="Buscar lançamento…"
+              value={buscaLanc}
+              onChange={(e) => setBuscaLanc(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </CardHeader>
+          <CardContent>
+            {candidatos.isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : candidatosFiltrados.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum lançamento ERP em aberto compatível com a janela desta fatura.
+              </p>
+            ) : (
+              <div className="max-h-[560px] space-y-1 overflow-auto pr-1">
+                {candidatosFiltrados.map((l: CandidatoLancamento) => {
+                  const checked = selLanc.has(l.id);
+                  return (
+                    <div
+                      key={l.id}
+                      className={`flex items-start gap-2 rounded border p-2 text-xs ${checked ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={checked}
+                        onCheckedChange={() => toggle(setSelLanc)(l.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{l.descricao ?? "(sem descrição)"}</p>
+                        <p className="text-[11px] text-muted-foreground">Venc. {fmtDate(l.data_vencimento)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-medium">{fmt(Number(l.valor || 0))}</span>
+                        <StatusBadge status={l.status ?? "aberto"} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
