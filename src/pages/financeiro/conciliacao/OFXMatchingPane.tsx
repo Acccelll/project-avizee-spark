@@ -93,6 +93,8 @@ interface Props {
   onConfirmarSelecao: (extratoIds: string[], lancamentoIds: string[]) => boolean;
   onDesvincularExtrato: (extratoId: string) => void;
   onExcluirExtratos?: (fitids: string[]) => Promise<number> | number;
+  /** Marca todas as linhas pendentes como ignoradas (paridade com Cartão). */
+  onIgnorarPendentes?: () => Promise<number> | number;
   sugestoesPersistidas?: Map<string, SugestaoPersistida>;
   onAceitarSugestao?: (extratoId: string) => boolean;
   onAceitarSugestoesPersistidas?: () => number;
