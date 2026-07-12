@@ -1089,8 +1089,10 @@ export function useConciliacao() {
           pares: payload.pares,
           usuario_id: undefined,
         });
-      } catch {
-        // Silently fail if tables don't exist yet
+      } catch (err) {
+        // Não bloqueia o fluxo (baixas já foram efetivadas), mas registra
+        // para auditoria — antes o erro era silenciosamente engolido.
+        logger.warn("[conciliacao] confirmarConciliacao RPC falhou:", err);
       }
       const idsComErro = new Set(paresComErro.map((p) => p.extratoId));
       const paresOk = payload.pares.filter((p) => !idsComErro.has(p.extrato_id));
