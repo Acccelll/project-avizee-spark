@@ -101,6 +101,21 @@ export default function ConciliacaoCartaoPage() {
     queryFn: () => listLancamentosDaFatura(faturaSelecionadaId as string),
   });
 
+  const linhas = useQuery({
+    queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId],
+    enabled: !!faturaSelecionadaId,
+    queryFn: () => listLinhasDaFatura(faturaSelecionadaId as string),
+  });
+
+  const alterarStatusLinha = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: FaturaLinhaStatus }) =>
+      setLinhaStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao atualizar linha"),
+  });
+
   const fechar = useMutation({
     mutationFn: async (fatura: FaturaRow) => gerarFaturaCartao(fatura.cartao_id, fatura.competencia),
     onSuccess: (res, fatura) => {
