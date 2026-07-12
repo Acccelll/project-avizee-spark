@@ -85,7 +85,7 @@ export async function listLancamentosCandidatosDaFatura(params: {
   }
   let q = supabase
     .from("financeiro_lancamentos")
-    .select("id, descricao, valor, data_vencimento, status, fornecedores(nome_razao_social)")
+    .select("id, descricao, valor, data_vencimento, status, parcela_numero, parcela_total, fornecedores(nome_razao_social)")
     .eq("empresa_id", params.empresa_id)
     .eq("tipo", "pagar")
     .eq("ativo", true)
@@ -105,6 +105,8 @@ export interface CandidatoLancamento {
   valor: number;
   data_vencimento: string;
   status: string | null;
+  parcela_numero?: number | null;
+  parcela_total?: number | null;
   fornecedores?: { nome_razao_social: string | null } | null;
 }
 

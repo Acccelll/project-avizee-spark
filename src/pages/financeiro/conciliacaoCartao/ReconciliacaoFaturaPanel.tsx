@@ -472,7 +472,10 @@ export function ReconciliacaoFaturaPanel({
                         {l.descricao && (
                           <p className="truncate text-[11px] text-muted-foreground">{l.descricao}</p>
                         )}
-                        <p className="text-[11px] text-muted-foreground">Venc. {fmtDate(l.data_vencimento)}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Venc. {fmtDate(l.data_vencimento)}
+                          {l.parcela_numero && l.parcela_total ? ` · ${l.parcela_numero}/${l.parcela_total}` : ""}
+                        </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className="font-medium">{fmt(Number(l.valor || 0))}</span>
