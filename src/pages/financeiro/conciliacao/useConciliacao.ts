@@ -746,36 +746,14 @@ export function useConciliacao() {
       toast.error("Selecione uma conta bancária antes de conciliar.");
       return;
     }
-    const newMatches: Match[] = [];
-    const usedLancamentos = new Set<string>();
-    // Não reutilizar lançamentos já conciliados (persistidos) nem os já pareados
-    // manualmente na sessão.
-    lancamentosConciliadosIds.forEach((id) => usedLancamentos.add(id));
-    matches.forEach((m) => usedLancamentos.add(m.lancamentoId));
-    for (const extrato of extratoItems) {
-      const tipoAlvo = tipoEsperadoPeloSinal(extrato.valor);
-      const compat = lancamentos.filter((l) => {
-        if (usedLancamentos.has(l.id)) return false;
-        if (l.tipo !== tipoAlvo) return false;
-        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < AUTO_TOLERANCIA_VALOR;
-      });
-      if (compat.length === 0) continue;
-      // Desempate por proximidade de data; se houver empate exato, não escolhe (evita match ambíguo).
-      compat.sort(
-        (a, b) =>
-          diasEntreDatas(a.data_vencimento, extrato.data) -
-          diasEntreDatas(b.data_vencimento, extrato.data),
-      );
-      if (
-        compat.length > 1 &&
-        diasEntreDatas(compat[0].data_vencimento, extrato.data) ===
-          diasEntreDatas(compat[1].data_vencimento, extrato.data)
-      ) {
-        continue;
-      }
-      newMatches.push({ extratoId: extrato.id, lancamentoId: compat[0].id, origem: "heuristica" });
-      usedLancamentos.add(compat[0].id);
-    }
+    const bloqueados = new Set<string>([
+      ...lancamentosConciliadosIds,
+      ...matches.map((m) => m.lancamentoId),
+    ]);
+    const newMatches: Match[] = autoMatchBanco(extratoItems, lancamentos, {
+      soValor: true,
+      lancamentosBloqueados: bloqueados,
+    }).map((r) => ({ extratoId: r.extratoId, lancamentoId: r.lancamentoId, origem: "heuristica" }));
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
