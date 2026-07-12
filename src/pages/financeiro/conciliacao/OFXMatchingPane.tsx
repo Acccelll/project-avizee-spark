@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,8 @@ import type { Lancamento } from "@/types/domain";
 import type { ConciliacaoPersistida, Match, SugestaoPersistida } from "./types";
 import { RotateCcw } from "lucide-react";
 import { confirmAsync } from "@/lib/globalConfirm";
+import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
+import { getEffectiveStatus } from "@/services/financeiro.service";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
 
@@ -109,6 +112,8 @@ export function OFXMatchingPane(p: Props) {
   const [sortLanc, setSortLanc] = useState<SortKey>("data-asc");
   const [selExtrato, setSelExtrato] = useState<Set<string>>(new Set());
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
+  const [drawerLanc, setDrawerLanc] = useState<Lancamento | null>(null);
+  const navigate = useNavigate();
   // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
   // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
   const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
@@ -192,6 +197,7 @@ export function OFXMatchingPane(p: Props) {
   };
 
   return (
+    <>
     <div className="mt-6 rounded-lg border border-border/60">
       <button
         type="button"
@@ -553,9 +559,9 @@ export function OFXMatchingPane(p: Props) {
                         : "border-border bg-card"
                       } cursor-pointer`}
                         onDoubleClick={() => {
-                          window.open(`/financeiro/${l.id}`, "_blank", "noopener,noreferrer");
+                          setDrawerLanc(l);
                         }}
-                        title="Duplo clique para abrir o título"
+                        title="Duplo clique para abrir o drawer do lançamento"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -671,5 +677,16 @@ export function OFXMatchingPane(p: Props) {
         </div>
       )}
     </div>
+      <FinanceiroDrawer
+        open={!!drawerLanc}
+        onClose={() => setDrawerLanc(null)}
+        selected={drawerLanc}
+        effectiveStatus={drawerLanc ? getEffectiveStatus(drawerLanc.status, drawerLanc.data_vencimento, new Date()) : ""}
+        onBaixa={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onEstorno={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onEdit={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onDelete={(id) => { setDrawerLanc(null); navigate(`/financeiro/${id}`); }}
+      />
+    </>
   );
 }
