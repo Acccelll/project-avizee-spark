@@ -104,7 +104,7 @@ export async function criarLancamentoDaLinha(params: {
       data_vencimento: params.data_vencimento,
       status: "aberto",
       cartao_id: params.cartao_id,
-      origem_tipo: "cartao_fatura_linha",
+      origem_tipo: "cartao_fatura",
     } as never)
     .select("id")
     .single();
