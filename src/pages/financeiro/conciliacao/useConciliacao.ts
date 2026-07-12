@@ -24,6 +24,7 @@ import { importarDocumentoUniversal } from "@/services/financeiro/importacao/imp
 import {
   desfazerConciliacaoExtrato,
   excluirExtratosPorFitids,
+  ignorarExtratosPorFitids,
   limparSugestaoExtrato,
   listarBaixasConciliadasPorFitids,
   listarExtratoPersistido,
