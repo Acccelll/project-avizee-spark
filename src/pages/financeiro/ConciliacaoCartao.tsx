@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
-import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCredito.service";
+import { gerarFaturaCartao } from "@/services/cartoesCredito.service";
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
 import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { ImportarFaturasLoteDialog } from "./conciliacaoCartao/ImportarFaturasLoteDialog";
@@ -302,122 +302,29 @@ export default function ConciliacaoCartaoPage() {
             </CardContent>
           </Card>
 
-          {/* Coluna direita: lançamentos da fatura */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                {faturaSel
-                  ? `Lançamentos da fatura ${faturaSel.competencia}`
-                  : "Lançamentos da fatura"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!faturaSel ? (
-                <p className="text-sm text-muted-foreground">Selecione uma fatura à esquerda para ver os lançamentos agrupados.</p>
-              ) : lancamentos.isLoading ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : (lancamentos.data ?? []).length === 0 ? (
+          {/* Coluna direita: tela de conciliação */}
+          {faturaSel ? (
+            <ReconciliacaoFaturaPanel
+              faturaId={faturaSel.id}
+              cartaoId={faturaSel.cartao_id}
+              competencia={faturaSel.competencia}
+              cartaoNome={`${faturaSel.cartoes_credito?.nome ?? "Cartão"}${faturaSel.cartoes_credito?.ultimos4 ? ` •••• ${faturaSel.cartoes_credito.ultimos4}` : ""}`}
+              dataFechamento={faturaSel.data_fechamento}
+              dataVencimento={faturaSel.data_vencimento}
+              onBack={() => setFaturaSelecionadaId(null)}
+            />
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Tela de conciliação</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Sem lançamentos vinculados. Importe a fatura ou clique em <strong>Recalcular</strong>.
+                  Selecione uma fatura à esquerda para conciliar suas linhas com os lançamentos ERP.
                 </p>
-              ) : (
-                <div className="max-h-[520px] space-y-1 overflow-auto pr-1">
-                  {(lancamentos.data ?? []).map((l) => (
-                    <div
-                      key={l.id}
-                      className="group flex items-center justify-between gap-2 rounded border p-2 text-sm hover:bg-muted/50"
-                      onDoubleClick={() => window.open(`/financeiro/${l.id}`, "_blank", "noopener,noreferrer")}
-                      title="Duplo clique para abrir o lançamento"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate">{l.descricao ?? "(sem descrição)"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Venc. {fmtDate(l.data_vencimento)}
-                          {l.parcela_numero && l.parcela_total ? ` · ${l.parcela_numero}/${l.parcela_total}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-medium">{fmt(l.valor)}</span>
-                        <StatusBadge status={l.status} />
-                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {faturaSel && (linhas.data ?? []).length > 0 && (
-                <div className="mt-4 border-t pt-3">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">
-                      Linhas do PDF/OFX ({linhas.data?.length}) · pend {contagemLinhas.pendente} · vinc {contagemLinhas.vinculada} · criadas {contagemLinhas.criada} · ign {contagemLinhas.ignorada}
-                    </p>
-                    <Select value={linhaFiltro} onValueChange={(v) => setLinhaFiltro(v as typeof linhaFiltro)}>
-                      <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todas">Todas</SelectItem>
-                        <SelectItem value="pendente">Pendentes</SelectItem>
-                        <SelectItem value="vinculada">Vinculadas</SelectItem>
-                        <SelectItem value="criada">Criadas</SelectItem>
-                        <SelectItem value="ignorada">Ignoradas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="max-h-[320px] space-y-1 overflow-auto pr-1">
-                    {linhasFiltradas.map((li) => {
-                      const ignorada = li.status === "ignorada";
-                      return (
-                        <div
-                          key={li.id}
-                          className={`flex items-center justify-between gap-2 rounded border p-2 text-xs ${ignorada ? "opacity-60" : ""}`}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate">{li.descricao ?? "(sem descrição)"}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {fmtDate(li.data_compra)}
-                              {li.parcela_atual && li.parcela_total
-                                ? ` · ${li.parcela_atual}/${li.parcela_total}`
-                                : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
-                            <StatusBadge status={li.status ?? "pendente"} />
-                            {faturaSel && li.status !== "vinculada" && li.status !== "criada" && !ignorada && (
-                              <VincularLinhaPopover linha={li} cartaoId={faturaSel.cartao_id} />
-                            )}
-                            {ignorada ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-1"
-                                disabled={alterarStatusLinha.isPending}
-                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "pendente" })}
-                                title="Reabrir linha"
-                              >
-                                <Undo2 className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-1"
-                                disabled={alterarStatusLinha.isPending || li.status === "vinculada"}
-                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "ignorada" })}
-                                title="Ignorar linha (não afeta a fatura consolidada)"
-                              >
-                                <EyeOff className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
