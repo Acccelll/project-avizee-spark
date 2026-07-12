@@ -140,11 +140,10 @@ export function ReconciliacaoFaturaPanel({
   }, [linhas.data, buscaLinha, ordLinha, ocultarConciliados]);
 
   const candidatosFiltrados = useMemo(() => {
-    const pend = candidatos.data ?? [];
+    const concSet = new Set((conciliados.data ?? []).map((c) => c.id));
+    const pend = (candidatos.data ?? []).filter((p) => !concSet.has(p.id));
     const conc = conciliados.data ?? [];
-    const merged = ocultarConciliados
-      ? pend
-      : [...pend, ...conc.filter((c) => !pend.some((p) => p.id === c.id))];
+    const merged = ocultarConciliados ? pend : [...pend, ...conc];
     const t = buscaLanc.trim().toLowerCase();
     const filtrado = merged.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
@@ -266,7 +265,8 @@ export function ReconciliacaoFaturaPanel({
   const acaoAutoConciliar = async (opts?: { soValor?: boolean }) => {
     const soValor = opts?.soValor ?? false;
     const linhasPend = (linhas.data ?? []).filter((l) => (l.status ?? "pendente") === "pendente");
-    const cands = candidatos.data ?? [];
+    const concSet = new Set((conciliados.data ?? []).map((c) => c.id));
+    const cands = (candidatos.data ?? []).filter((c) => !concSet.has(c.id));
     if (!linhasPend.length || !cands.length) {
       toast.info("Nada para auto-conciliar");
       return;
