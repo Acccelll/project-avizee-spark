@@ -15,7 +15,7 @@ import type { ConciliacaoPersistida, Match, SugestaoPersistida } from "./types";
 import { RotateCcw } from "lucide-react";
 import { confirmAsync } from "@/lib/globalConfirm";
 import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
-import { getEffectiveStatus } from "@/utils/financeiro/status";
+import { getEffectiveStatus } from "@/services/financeiro.service";
 
 type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
 
