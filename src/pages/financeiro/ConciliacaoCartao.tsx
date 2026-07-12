@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw, EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCredito.service";
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
+import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
+import {
+  listLinhasDaFatura,
+  setLinhaStatus,
+  type FaturaLinhaStatus,
+} from "@/services/conciliacaoCartao/faturaLinhas.service";
 
 interface FaturaRow {
   id: string;
@@ -128,6 +134,7 @@ export default function ConciliacaoCartaoPage() {
               <BarChart3 className="mr-2 h-4 w-4" />Dashboard
             </Link>
           </Button>
+          <ImportarOfxCartaoDialog onImported={() => faturas.refetch()} />
           <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
         </div>
       }
