@@ -412,7 +412,12 @@ export function useConciliacao() {
         removidos.forEach((id) => next.delete(id));
         return next;
       });
-      toast.success(`${res.excluidas} linha(s) excluída(s) do extrato.`);
+      const preservadas = fitids.length - res.excluidas;
+      toast.success(
+        preservadas > 0
+          ? `${res.excluidas} linha(s) excluída(s). ${preservadas} preservada(s) por já estarem conciliadas.`
+          : `${res.excluidas} linha(s) excluída(s) do extrato.`,
+      );
       return res.excluidas;
     } catch (err) {
       notifyError(err);
