@@ -67,44 +67,80 @@ export async function importarDocumentoUniversal(input: {
   // 2) header em financeiro_importacoes_docs
   const arquivoHash = rawTexto ? await hashArquivo(rawTexto) : null;
 
-  // Reimport tolerante (Fase 3): se o mesmo arquivo já foi importado, seguimos
-  // adiante para permitir backfill de linhas que possam ter sido excluídas ou
-  // não persistidas em uma tentativa anterior. O upsert por (conta, fitid)
-  // garante idempotência — linhas já existentes são ignoradas.
-  let reimport = false;
+  // Reimport tolerante: se o mesmo arquivo já foi importado na mesma conta,
+  // reutilizamos o header existente em vez de tentar inserir outro (que
+  // violaria o índice único uq_fid_empresa_arquivo_hash).
+  const datas = staged.map((s) => s.data).sort();
+  const { data: userRes } = await supabase.auth.getUser();
+  const importadoPor = userRes?.user?.id ?? null;
+
+  let docId: string | null = null;
   if (arquivoHash) {
     const { data: existente } = await supabase
       .from("financeiro_importacoes_docs")
       .select("id")
       .eq("empresa_id", input.empresa_id)
       .eq("arquivo_hash", arquivoHash)
+      .eq("conta_bancaria_id", input.conta_bancaria_id)
       .maybeSingle();
-    reimport = !!existente;
+    docId = existente?.id ?? null;
   }
 
-  const datas = staged.map((s) => s.data).sort();
-  const { data: userRes } = await supabase.auth.getUser();
-  const importadoPor = userRes?.user?.id ?? null;
+  if (!docId) {
+    const { data: docRow, error: docErr } = await supabase
+      .from("financeiro_importacoes_docs")
+      .insert({
+        empresa_id: input.empresa_id,
+        origem,
+        arquivo_nome: input.file.name,
+        arquivo_hash: arquivoHash,
+        conta_bancaria_id: input.conta_bancaria_id,
+        cartao_id: input.cartao_id ?? null,
+        total_transacoes: staged.length,
+        periodo_inicio: datas[0] ?? null,
+        periodo_fim: datas[datas.length - 1] ?? null,
+        status: "processando",
+        importado_por: importadoPor,
+        raw_texto: rawTexto,
+      })
+      .select("id")
+      .single();
+    if (docErr) throw new Error(docErr.message);
+    docId = docRow.id;
+  }
 
-  const { data: docRow, error: docErr } = await supabase
-    .from("financeiro_importacoes_docs")
-    .insert({
-      empresa_id: input.empresa_id,
-      origem,
-      arquivo_nome: input.file.name,
-      arquivo_hash: arquivoHash,
-      conta_bancaria_id: input.conta_bancaria_id,
-      cartao_id: input.cartao_id ?? null,
-      total_transacoes: staged.length,
-      periodo_inicio: datas[0] ?? null,
-      periodo_fim: datas[datas.length - 1] ?? null,
-      status: "processando",
-      importado_por: importadoPor,
-      raw_texto: rawTexto,
-    })
-    .select("id")
-    .single();
-  if (docErr) throw new Error(docErr.message);
+  // Detecção de colisão de FITID: se algum FITID do arquivo já existe na
+  // mesma conta com valor/data divergente, é sinal de que o arquivo pertence
+  // a outro banco (o upsert idempotente descartaria silenciosamente). Aborta
+  // com mensagem explícita listando exemplos.
+  const fitids = staged.map((s) => s.id).filter(Boolean);
+  if (fitids.length > 0) {
+    const { data: existentes } = await supabase
+      .from("financeiro_extrato_importacoes")
+      .select("fitid, data, valor, descricao")
+      .eq("conta_bancaria_id", input.conta_bancaria_id)
+      .in("fitid", fitids as never);
+    const mapa = new Map(
+      ((existentes ?? []) as Array<{ fitid: string; data: string; valor: number; descricao: string | null }>).map(
+        (r) => [r.fitid, r],
+      ),
+    );
+    const conflitos = staged.filter((s) => {
+      const e = mapa.get(s.id);
+      if (!e) return false;
+      return Math.abs(Number(e.valor) - Number(s.valor)) > 0.009 || e.data !== s.data;
+    });
+    if (conflitos.length > 0) {
+      const exemplos = conflitos.slice(0, 3).map((c) => {
+        const e = mapa.get(c.id)!;
+        return `FITID ${c.id}: arquivo ${c.data}/${c.valor.toFixed(2)} × existente ${e.data}/${Number(e.valor).toFixed(2)}`;
+      }).join(" · ");
+      throw new Error(
+        `${conflitos.length} FITID(s) do arquivo colidem com registros já existentes nesta conta bancária (arquivo provavelmente é de outro banco). Verifique a conta selecionada. Exemplos: ${exemplos}`,
+      );
+    }
+  }
+  const docRow = { id: docId };
 
   // 3) motor de regras + aliases
   const { aliases, regras } = await carregarRegrasEAliases(input.empresa_id).catch(() => ({
