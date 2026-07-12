@@ -160,7 +160,8 @@ export default function ConciliacaoCartaoPage() {
       }
     >
       <div className="space-y-4">
-        <LotesImportacaoPanel />
+        {!faturaSel && <LotesImportacaoPanel />}
+        {!faturaSel && (
         <Card>
           <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-3">
@@ -207,13 +208,16 @@ export default function ConciliacaoCartaoPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
+        {!faturaSel && (
         <div className="grid gap-3 md:grid-cols-4">
           <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Abertas</p><p className="mt-1 text-2xl font-semibold">{kpis.abertas}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Fechadas</p><p className="mt-1 text-2xl font-semibold">{kpis.fechadas}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Pagas</p><p className="mt-1 text-2xl font-semibold">{kpis.pagas}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Valor a pagar</p><p className="mt-1 text-2xl font-semibold">{fmt(kpis.aPagar)}</p></CardContent></Card>
         </div>
+        )}
 
         <div className={faturaSel ? "" : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"}>
           {/* Lista de faturas — só quando nenhuma está aberta */}
