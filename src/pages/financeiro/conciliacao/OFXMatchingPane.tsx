@@ -197,6 +197,7 @@ export function OFXMatchingPane(p: Props) {
   };
 
   return (
+    <>
     <div className="mt-6 rounded-lg border border-border/60">
       <button
         type="button"
@@ -686,5 +687,6 @@ export function OFXMatchingPane(p: Props) {
         onEdit={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
         onDelete={(id) => { setDrawerLanc(null); navigate(`/financeiro/${id}`); }}
       />
+    </>
   );
 }
