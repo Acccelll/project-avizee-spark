@@ -412,6 +412,31 @@ export function useConciliacao() {
       const nome = file.name.toLowerCase();
       const isOFX = nome.endsWith(".ofx") || nome.endsWith(".qfx") || nome.endsWith(".xml");
       if (isOFX) {
+        // Sanity-check: se o BANKID/ORG do OFX não bater com o banco da conta
+        // selecionada, os FITIDs colidem (bancos que numeram por data + seq)
+        // e o upsert idempotente descarta as linhas silenciosamente. Bloquear
+        // aqui evita perda de dados invisível ao usuário.
+        if (selectedConta) {
+          try {
+            const rawText = await file.text();
+            const org = rawText.match(/<ORG>\s*([^<\r\n]+)/i)?.[1]?.trim() ?? "";
+            const contaSel = contasBancarias.find((c) => c.id === selectedConta);
+            const bancoConta = (contaSel?.banco ?? "").trim();
+            const norm = (s: string) =>
+              s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (org && bancoConta && !norm(org).includes(norm(bancoConta)) && !norm(bancoConta).includes(norm(org))) {
+              const ok = await confirmAsync({
+                title: "Banco do arquivo diferente da conta",
+                description: `O arquivo é do banco "${org}", mas a conta selecionada é "${contaSel?.nome}" (${bancoConta}). Importar assim pode fazer com que várias linhas sejam ignoradas por colisão de FITID. Continuar mesmo assim?`,
+                confirmLabel: "Importar mesmo assim",
+                confirmVariant: "destructive",
+              });
+              if (!ok) return;
+            }
+          } catch {
+            /* leitura best-effort */
+          }
+        }
         const items = await parseOFXFile(file);
         if (items.length === 0) {
           toast.error("Nenhuma transação encontrada no arquivo OFX.");
