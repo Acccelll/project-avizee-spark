@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -64,6 +66,7 @@ export function ReconciliacaoFaturaPanel({
   type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
   const [ordLinha, setOrdLinha] = useState<SortKey>("data-asc");
   const [ordLanc, setOrdLanc] = useState<SortKey>("data-asc");
+  const [ocultarConciliados, setOcultarConciliados] = useState(true);
 
   const empresa = useQuery({
     queryKey: ["empresa", "atual"],
@@ -91,6 +94,33 @@ export function ReconciliacaoFaturaPanel({
       }),
   });
 
+  // Lançamentos ERP já vinculados a linhas desta fatura (conciliados)
+  const conciliados = useQuery({
+    queryKey: ["cartao-faturas", "conciliados-erp", faturaId],
+    queryFn: async () => {
+      const { data: vinc, error: e1 } = await supabase
+        .from("cartao_fatura_lancamentos")
+        .select("lancamento_id")
+        .eq("cartao_fatura_id", faturaId)
+        .not("lancamento_id", "is", null);
+      if (e1) throw e1;
+      const ids = Array.from(
+        new Set(
+          (vinc ?? [])
+            .map((r) => (r as { lancamento_id: string | null }).lancamento_id)
+            .filter((x): x is string => !!x),
+        ),
+      );
+      if (!ids.length) return [] as CandidatoLancamento[];
+      const { data, error } = await supabase
+        .from("financeiro_lancamentos")
+        .select("id, descricao, valor, data_vencimento, status, parcela_numero, parcela_total, fornecedores(nome_razao_social)")
+        .in("id", ids);
+      if (error) throw error;
+      return (data ?? []) as CandidatoLancamento[];
+    },
+  });
+
   const linhasFiltradas = useMemo(() => {
     const all = linhas.data ?? [];
     const t = buscaLinha.trim().toLowerCase();
@@ -106,9 +136,13 @@ export function ReconciliacaoFaturaPanel({
   }, [linhas.data, buscaLinha, ordLinha]);
 
   const candidatosFiltrados = useMemo(() => {
-    const all = candidatos.data ?? [];
+    const pend = candidatos.data ?? [];
+    const conc = conciliados.data ?? [];
+    const merged = ocultarConciliados
+      ? pend
+      : [...pend, ...conc.filter((c) => !pend.some((p) => p.id === c.id))];
     const t = buscaLanc.trim().toLowerCase();
-    const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
+    const filtrado = merged.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
       if (ordLanc === "data-asc") return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
       if (ordLanc === "data-desc") return (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "");
@@ -117,7 +151,12 @@ export function ReconciliacaoFaturaPanel({
       return ordLanc === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
-  }, [candidatos.data, buscaLanc, ordLanc]);
+  }, [candidatos.data, conciliados.data, ocultarConciliados, buscaLanc, ordLanc]);
+
+  const idsConciliadosSet = useMemo(
+    () => new Set((conciliados.data ?? []).map((c) => c.id)),
+    [conciliados.data],
+  );
 
   const somaLinhas = useMemo(
     () => (linhas.data ?? [])
@@ -136,6 +175,7 @@ export function ReconciliacaoFaturaPanel({
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaId] });
     qc.invalidateQueries({ queryKey: ["cartao-faturas", "candidatos-erp", faturaId] });
+    qc.invalidateQueries({ queryKey: ["cartao-faturas", "conciliados-erp", faturaId] });
     qc.invalidateQueries({ queryKey: ["cartao-faturas", "lancamentos", faturaId] });
   };
 
@@ -313,6 +353,10 @@ export function ReconciliacaoFaturaPanel({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <Switch id="ocultar-conc" checked={ocultarConciliados} onCheckedChange={setOcultarConciliados} />
+            <Label htmlFor="ocultar-conc" className="cursor-pointer text-xs">Ocultar conciliados</Label>
+          </div>
           <span>Linhas: <strong>{fmt(somaLinhas)}</strong></span>
           <span>ERP: <strong>{fmt(somaLanc)}</strong></span>
           <span className={diff === 0 ? "text-emerald-600" : "text-amber-600"}>
