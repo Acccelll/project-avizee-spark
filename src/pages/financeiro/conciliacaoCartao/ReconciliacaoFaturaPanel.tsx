@@ -499,14 +499,16 @@ export function ReconciliacaoFaturaPanel({
               <div className="max-h-[560px] space-y-1 overflow-auto pr-1">
                 {candidatosFiltrados.map((l: CandidatoLancamento) => {
                   const checked = selLanc.has(l.id);
+                  const jaConciliado = idsConciliadosSet.has(l.id);
                   return (
                     <div
                       key={l.id}
-                      className={`flex items-start gap-2 rounded border p-2 text-xs ${checked ? "border-primary bg-primary/5" : ""}`}
+                      className={`flex items-start gap-2 rounded border p-2 text-xs ${jaConciliado ? "border-emerald-500/40 bg-emerald-500/5 opacity-80" : ""} ${checked ? "border-primary bg-primary/5" : ""}`}
                     >
                       <Checkbox
                         className="mt-0.5"
                         checked={checked}
+                        disabled={jaConciliado}
                         onCheckedChange={() => toggle(setSelLanc)(l.id)}
                       />
                       <div className="min-w-0 flex-1">
@@ -523,7 +525,7 @@ export function ReconciliacaoFaturaPanel({
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className="font-medium">{fmt(Number(l.valor || 0))}</span>
-                        <StatusBadge status={l.status ?? "aberto"} />
+                        <StatusBadge status={jaConciliado ? "conciliado" : (l.status ?? "aberto")} />
                       </div>
                     </div>
                   );
