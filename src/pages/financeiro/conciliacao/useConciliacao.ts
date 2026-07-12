@@ -740,7 +740,7 @@ export function useConciliacao() {
     }
   }, [conciliadosPersistidos, dataFim, dataInicio, hydrateExtratoPersistido, loadLancamentosFromPeriod, selectedConta]);
 
-  const handleContaChange = async (contaId: string) => {
+  const handleContaChange = (contaId: string) => {
     setSelectedConta(contaId);
     setMatches([]);
   };
