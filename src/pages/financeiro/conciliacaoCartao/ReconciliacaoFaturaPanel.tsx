@@ -421,7 +421,7 @@ export function ReconciliacaoFaturaPanel({
                   return (
                     <div
                       key={li.id}
-                      className={`flex items-start gap-2 rounded border p-2 text-xs ${ignorada ? "opacity-60" : ""} ${checked ? "border-primary bg-primary/5" : ""}`}
+                      className={`flex items-start gap-2 rounded border p-2 text-xs ${vinculada ? "border-emerald-500/40 bg-emerald-500/5 opacity-80" : ""} ${ignorada ? "opacity-60" : ""} ${checked ? "border-primary bg-primary/5" : ""}`}
                     >
                       <Checkbox
                         className="mt-0.5"
