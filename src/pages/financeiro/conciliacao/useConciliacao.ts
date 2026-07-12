@@ -1273,6 +1273,7 @@ export function useConciliacao() {
     handleNovoLancamentoSaved,
     handleConfirmarSelecao, handleDesvincularExtrato,
     handleExcluirExtratosSelecionados,
+   handleIgnorarPendentes,
     setMatches,
     // Sprint 1
     showOnlyPendentes, setShowOnlyPendentes,
