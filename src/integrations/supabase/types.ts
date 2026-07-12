@@ -11217,6 +11217,14 @@ export type Database = {
         Args: { p_apuracao_id: string }
         Returns: undefined
       }
+      financeiro_backfill_importadas_pos_uso: {
+        Args: { p_data_corte?: string }
+        Returns: {
+          out_lancamentos: number
+          out_nota_id: string
+          out_numero: string
+        }[]
+      }
       financeiro_cancelar_lancamento: {
         Args: { p_id: string; p_motivo: string }
         Returns: undefined
@@ -11237,6 +11245,10 @@ export type Database = {
           p_pares: Json
         }
         Returns: string
+      }
+      financeiro_gerar_titulos_de_nota_importada: {
+        Args: { p_nota_id: string }
+        Returns: number
       }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
