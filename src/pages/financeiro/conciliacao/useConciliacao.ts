@@ -936,6 +936,7 @@ export function useConciliacao() {
         lancamentoCount.set(p.lancamento_id, (lancamentoCount.get(p.lancamento_id) ?? 0) + 1);
       });
       const baixasPorExtrato = new Map<string, string[]>();
+      const paresComErro: Array<{ extratoId: string; lancamentoId: string; erro: string }> = [];
       // Executa em série para respeitar saldos parciais sequenciais.
       for (const par of payload.pares) {
         const extrato = extratoItems.find((e) => e.id === par.extrato_id);
@@ -973,8 +974,18 @@ export function useConciliacao() {
             baixasPorExtrato.set(extrato.id, ids);
           }
         } catch (err) {
-              logger.warn("[conciliacao] falha ao persistir status do extrato conciliado:", err);
-              throw err;
+          // Isola falhas por par: não aborta o lote — os demais pares
+          // continuam sendo baixados/conciliados normalmente.
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.warn(
+            `[conciliacao] falha no par extrato=${par.extrato_id} lancamento=${par.lancamento_id}:`,
+            err,
+          );
+          paresComErro.push({
+            extratoId: par.extrato_id,
+            lancamentoId: par.lancamento_id,
+            erro: msg,
+          });
         }
       }
       for (const [fitid, baixaIds] of baixasPorExtrato) {
@@ -994,17 +1005,29 @@ export function useConciliacao() {
       } catch {
         // Silently fail if tables don't exist yet
       }
-      const extratosPareados = new Set(matches.map((m) => m.extratoId)).size;
+      const idsComErro = new Set(paresComErro.map((p) => p.extratoId));
+      const paresOk = payload.pares.filter((p) => !idsComErro.has(p.extrato_id));
+      const extratosPareados = new Set(paresOk.map((p) => p.extrato_id)).size;
       const semPar = Math.max(0, extratoItems.length - extratosPareados);
-      toast.success(
-        `${extratosPareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
-      );
+      if (paresComErro.length > 0) {
+        toast.error(
+          `${paresComErro.length} par(es) não conciliado(s). ${extratosPareados} baixa(s) efetivada(s).`,
+        );
+        paresComErro.slice(0, 3).forEach((e) => {
+          logger.warn(`[conciliacao] erro por par: ${e.erro}`);
+        });
+      } else {
+        toast.success(
+          `${extratosPareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
+        );
+      }
       setSugestoesPersistidas((prev) => {
         const next = new Map(prev);
-        payload.pares.forEach((par) => next.delete(par.extrato_id));
+        paresOk.forEach((par) => next.delete(par.extrato_id));
         return next;
       });
-      setMatches([]);
+      // Mantém em `matches` apenas os pares que falharam, para revisão.
+      setMatches((prev) => prev.filter((m) => idsComErro.has(m.extratoId)));
       void (async () => {
         const s = await obterSessaoEmpresa();
         if (!s) return;
