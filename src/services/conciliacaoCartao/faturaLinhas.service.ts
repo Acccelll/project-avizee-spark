@@ -94,6 +94,17 @@ export async function listLancamentosCandidatosDaFatura(params: {
     .order("data_vencimento", { ascending: true })
     .limit(500);
   if (min && max) q = q.gte("data_vencimento", min).lte("data_vencimento", max);
+  // Exclui lançamentos já conciliados na conciliação bancária
+  const { data: jaConciliados } = await supabase
+    .from("conciliacao_matches")
+    .select("lancamento_id")
+    .eq("empresa_id", params.empresa_id)
+    .in("status", ["aprovado", "aplicado"])
+    .not("lancamento_id", "is", null);
+  const excluir = (jaConciliados ?? [])
+    .map((r) => (r as { lancamento_id: string | null }).lancamento_id)
+    .filter((x): x is string => !!x);
+  if (excluir.length) q = q.not("id", "in", `(${excluir.join(",")})`);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as CandidatoLancamento[];
@@ -140,6 +151,16 @@ export async function buscarLancamentosParaVincular(params: {
   if (params.termo && params.termo.trim()) {
     q = q.ilike("descricao", `%${params.termo.trim()}%`);
   }
+  const { data: jaConciliados } = await supabase
+    .from("conciliacao_matches")
+    .select("lancamento_id")
+    .eq("empresa_id", params.empresa_id)
+    .in("status", ["aprovado", "aplicado"])
+    .not("lancamento_id", "is", null);
+  const excluir = (jaConciliados ?? [])
+    .map((r) => (r as { lancamento_id: string | null }).lancamento_id)
+    .filter((x): x is string => !!x);
+  if (excluir.length) q = q.not("id", "in", `(${excluir.join(",")})`);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as CandidatoLancamento[];
