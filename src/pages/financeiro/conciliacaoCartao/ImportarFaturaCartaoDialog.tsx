@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ import type { FaturaImportInput } from "@/services/conciliacaoCartao/types";
 
 export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => void }) {
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [cartaoId, setCartaoId] = useState("");
   const [parsed, setParsed] = useState<FaturaImportInput | null>(null);
@@ -72,14 +70,10 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
       const res = await importarFaturaCartao({ ...parsed, empresa_id: empresa.data, cartao_id: cartaoId });
       toast.success(`Fatura importada: ${res.inseridas} novas, ${res.duplicadas} duplicadas`);
       await qc.invalidateQueries({ queryKey: ["conciliacao-cartao"] });
+      await qc.invalidateQueries({ queryKey: ["cartao-faturas"] });
       onImported?.();
       reset();
       setOpen(false);
-      // filtra dashboard pelo período da fatura
-      const datas = parsed.lancamentos.map((l) => l.data_compra).sort();
-      if (datas.length) {
-        navigate(`/financeiro/conciliacao-cartao/dashboard?inicio=${datas[0]}&fim=${datas[datas.length - 1]}&cartao=${cartaoId}`);
-      }
     } catch (err) {
       logger.error("conciliacao_cartao.importar", { err });
       toast.error(err instanceof Error ? err.message : "Falha ao importar");
