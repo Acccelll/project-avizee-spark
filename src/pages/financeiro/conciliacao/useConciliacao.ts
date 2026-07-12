@@ -412,7 +412,12 @@ export function useConciliacao() {
         removidos.forEach((id) => next.delete(id));
         return next;
       });
-      toast.success(`${res.excluidas} linha(s) excluída(s) do extrato.`);
+      const preservadas = fitids.length - res.excluidas;
+      toast.success(
+        preservadas > 0
+          ? `${res.excluidas} linha(s) excluída(s). ${preservadas} preservada(s) por já estarem conciliadas.`
+          : `${res.excluidas} linha(s) excluída(s) do extrato.`,
+      );
       return res.excluidas;
     } catch (err) {
       notifyError(err);
@@ -1163,9 +1168,19 @@ export function useConciliacao() {
     ...Array.from(lancamentosConciliadosIds),
   ]);
 
-  const pareados = new Set(matches.map((m) => m.extratoId)).size;
+  // KPI reflete tanto pares confirmados nesta sessão quanto conciliações já
+  // persistidas (baixas), evitando o efeito "recarregou → contador zerou".
+  const extratosPareadosSet = new Set<string>([
+    ...matches.map((m) => m.extratoId),
+    ...Array.from(conciliadosPersistidos.keys()),
+  ]);
+  const lancamentosPareadosSet = new Set<string>([
+    ...matches.map((m) => m.lancamentoId),
+    ...Array.from(lancamentosConciliadosIds),
+  ]);
+  const pareados = extratosPareadosSet.size;
   const semParOFX = Math.max(0, extratoItems.length - pareados);
-  const pendentesERP = Math.max(0, lancamentos.length - new Set(matches.map((m) => m.lancamentoId)).size);
+  const pendentesERP = Math.max(0, lancamentos.length - lancamentosPareadosSet.size);
 
   const lancamentosComStatus = useMemo((): LancamentoComStatus[] => {
     return lancamentos.map((l) => {
