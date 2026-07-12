@@ -413,6 +413,14 @@ export function useConciliacao() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Bug #5 — importar OFX sem conta selecionada leva a fluxos silenciosos
+    // (FITIDs sem escopo, KPIs quebrados). Bloqueia com feedback claro.
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de importar o extrato.");
+      // Limpa o input para permitir re-tentar o mesmo arquivo após escolher a conta.
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const nome = file.name.toLowerCase();
