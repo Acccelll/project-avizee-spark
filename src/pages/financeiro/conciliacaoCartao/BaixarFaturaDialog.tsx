@@ -82,7 +82,7 @@ export function BaixarFaturaDialog({ open, onOpenChange, faturaId, faturaLabel, 
               <SelectContent>
                 {contas.data?.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.nome} {c.agencia ? `— ag ${c.agencia}` : ""} {c.conta ? `cc ${c.conta}` : ""}
+                    {c.descricao} {c.agencia ? `— ag ${c.agencia}` : ""} {c.conta ? `cc ${c.conta}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
