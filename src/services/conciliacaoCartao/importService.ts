@@ -4,6 +4,7 @@ import type { FaturaImportInput } from "./types";
 export interface ImportarFaturaCartaoArgs extends FaturaImportInput {
   empresa_id: string;
   cartao_id: string;
+  origem?: string;
 }
 
 export async function importarFaturaCartao(args: ImportarFaturaCartaoArgs) {
@@ -14,7 +15,7 @@ export async function importarFaturaCartao(args: ImportarFaturaCartaoArgs) {
     p_data_vencimento: args.data_vencimento,
     p_data_fechamento: args.data_fechamento ?? args.data_vencimento,
     p_valor_total: args.valor_total,
-    p_origem: `pdf_${args.emissor}`,
+    p_origem: args.origem ?? `pdf_${args.emissor}`,
     p_linhas: args.lancamentos as unknown as never,
   } as never);
   if (error) throw error;
