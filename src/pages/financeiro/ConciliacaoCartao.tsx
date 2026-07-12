@@ -345,11 +345,23 @@ export default function ConciliacaoCartaoPage() {
 
               {faturaSel && (linhas.data ?? []).length > 0 && (
                 <div className="mt-4 border-t pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                    Linhas do PDF/OFX ({linhas.data?.length})
-                  </p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Linhas do PDF/OFX ({linhas.data?.length}) · pend {contagemLinhas.pendente} · vinc {contagemLinhas.vinculada} · criadas {contagemLinhas.criada} · ign {contagemLinhas.ignorada}
+                    </p>
+                    <Select value={linhaFiltro} onValueChange={(v) => setLinhaFiltro(v as typeof linhaFiltro)}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        <SelectItem value="pendente">Pendentes</SelectItem>
+                        <SelectItem value="vinculada">Vinculadas</SelectItem>
+                        <SelectItem value="criada">Criadas</SelectItem>
+                        <SelectItem value="ignorada">Ignoradas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="max-h-[320px] space-y-1 overflow-auto pr-1">
-                    {(linhas.data ?? []).map((li) => {
+                    {linhasFiltradas.map((li) => {
                       const ignorada = li.status === "ignorada";
                       return (
                         <div
@@ -368,6 +380,9 @@ export default function ConciliacaoCartaoPage() {
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
                             <StatusBadge status={li.status ?? "pendente"} />
+                            {faturaSel && li.status !== "vinculada" && li.status !== "criada" && !ignorada && (
+                              <VincularLinhaPopover linha={li} cartaoId={faturaSel.cartao_id} />
+                            )}
                             {ignorada ? (
                               <Button
                                 size="sm"
