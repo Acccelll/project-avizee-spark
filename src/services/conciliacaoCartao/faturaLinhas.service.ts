@@ -105,6 +105,8 @@ export interface CandidatoLancamento {
   valor: number;
   data_vencimento: string;
   status: string | null;
+  parcela_numero?: number | null;
+  parcela_total?: number | null;
   fornecedores?: { nome_razao_social: string | null } | null;
 }
 
