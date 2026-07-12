@@ -58,6 +58,8 @@ export default function Conciliacao() {
 
   const activeFilterChips = useMemo((): FilterChip[] => {
     const chips: FilterChip[] = [];
+    if (v.searchTerm)
+      chips.push({ key: "search", label: "Busca", value: v.searchTerm, displayValue: v.searchTerm });
     if (v.statusConcFilters.length > 0)
       chips.push({ key: "statusConc", label: "Conciliação", value: v.statusConcFilters, displayValue: v.statusConcFilters.join(", ") });
     if (v.tipoFilters.length > 0)
@@ -65,7 +67,7 @@ export default function Conciliacao() {
     if (v.origemFilters.length > 0)
       chips.push({ key: "origem", label: "Origem", value: v.origemFilters, displayValue: v.origemFilters.join(", ") });
     return chips;
-  }, [v.statusConcFilters, v.tipoFilters, v.origemFilters]);
+  }, [v.searchTerm, v.statusConcFilters, v.tipoFilters, v.origemFilters]);
 
   return (
     <>
@@ -169,6 +171,9 @@ export default function Conciliacao() {
             onlyPending={v.showOnlyPendentes}
             lancamentosConciliadosIds={v.lancamentosConciliadosIds}
             onGerarAjuste={v.handleGerarAjusteBancario}
+            searchTerm={v.searchTerm}
+            statusConcFilters={v.statusConcFilters}
+            tipoFilters={v.tipoFilters}
           />
         )}
 

@@ -1113,12 +1113,14 @@ export function useConciliacao() {
     if (key === "statusConc") setStatusConcFilters([]);
     if (key === "tipo") setTipoFilters([]);
     if (key === "origem") setOrigemFilters([]);
+    if (key === "search") setSearchTerm("");
   };
 
   const handleClearAll = () => {
     setStatusConcFilters([]);
     setTipoFilters([]);
     setOrigemFilters([]);
+    setSearchTerm("");
   };
 
   return {

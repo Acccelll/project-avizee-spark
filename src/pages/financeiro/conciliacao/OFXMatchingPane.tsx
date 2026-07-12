@@ -105,6 +105,10 @@ interface Props {
   lancamentosConciliadosIds?: Set<string>;
   /** Sprint 3 — gera lançamento de ajuste para uma divergência pequena. */
   onGerarAjuste?: (input: { diferenca: number; data: string; descricao?: string }) => Promise<boolean>;
+  /** Filtros visuais propagados da AdvancedFilterBar (não alteram lógica de matching). */
+  searchTerm?: string;
+  statusConcFilters?: string[];
+  tipoFilters?: string[];
 }
 
 export function OFXMatchingPane(p: Props) {
@@ -135,21 +139,53 @@ export function OFXMatchingPane(p: Props) {
     );
   }, [p.extratoItems, p.conciliadosPersistidos]);
   const extratoVisivel = useMemo(() => {
-    if (!hideConciliados || !p.conciliadosPersistidos || p.conciliadosPersistidos.size === 0) {
-      return extratoOrdenado;
-    }
-    return extratoOrdenado.filter((item) => !p.conciliadosPersistidos!.has(item.id));
-  }, [extratoOrdenado, hideConciliados, p.conciliadosPersistidos]);
+    const term = (p.searchTerm ?? "").trim().toLowerCase();
+    const statusFs = p.statusConcFilters ?? [];
+    const tipoFs = p.tipoFilters ?? [];
+    return extratoOrdenado.filter((item) => {
+      if (hideConciliados && p.conciliadosPersistidos?.has(item.id)) return false;
+      if (term && !(item.descricao ?? "").toLowerCase().includes(term)) return false;
+      if (statusFs.length > 0) {
+        const status = p.conciliadosPersistidos?.has(item.id) ? "conciliado" : "pendente";
+        if (!statusFs.includes(status)) return false;
+      }
+      if (tipoFs.length > 0) {
+        const tipo = item.valor >= 0 ? "receber" : "pagar";
+        if (!tipoFs.includes(tipo)) return false;
+      }
+      return true;
+    });
+  }, [extratoOrdenado, hideConciliados, p.conciliadosPersistidos, p.searchTerm, p.statusConcFilters, p.tipoFilters]);
   const lancamentosOrdenados = useMemo(
     () => sortBy(p.lancamentos, sortLanc, (l) => l.data_vencimento, (l) => Number(l.valor)),
     [p.lancamentos, sortLanc],
   );
   const lancamentosVisiveis = useMemo(() => {
-    if (!hideConciliados || !p.lancamentosConciliadosIds || p.lancamentosConciliadosIds.size === 0) {
-      return lancamentosOrdenados;
-    }
-    return lancamentosOrdenados.filter((l) => !p.lancamentosConciliadosIds!.has(l.id));
-  }, [lancamentosOrdenados, hideConciliados, p.lancamentosConciliadosIds]);
+    const term = (p.searchTerm ?? "").trim().toLowerCase();
+    const statusFs = p.statusConcFilters ?? [];
+    const tipoFs = p.tipoFilters ?? [];
+    return lancamentosOrdenados.filter((l) => {
+      if (hideConciliados && p.lancamentosConciliadosIds?.has(l.id)) return false;
+      if (term) {
+        const nome = l.tipo === "receber"
+          ? l.clientes?.nome_razao_social
+          : l.fornecedores?.nome_razao_social;
+        if (
+          !l.descricao?.toLowerCase().includes(term) &&
+          !nome?.toLowerCase().includes(term) &&
+          !l.tipo?.toLowerCase().includes(term) &&
+          !l.status?.toLowerCase().includes(term) &&
+          !l.forma_pagamento?.toLowerCase().includes(term)
+        ) return false;
+      }
+      if (statusFs.length > 0) {
+        const status = p.lancamentosConciliadosIds?.has(l.id) ? "conciliado" : "pendente";
+        if (!statusFs.includes(status)) return false;
+      }
+      if (tipoFs.length > 0 && !tipoFs.includes(l.tipo)) return false;
+      return true;
+    });
+  }, [lancamentosOrdenados, hideConciliados, p.lancamentosConciliadosIds, p.searchTerm, p.statusConcFilters, p.tipoFilters]);
 
   const toggle = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
     const next = new Set(set);
