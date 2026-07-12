@@ -37,6 +37,7 @@ import { registrarFeedbackMatching, type AcaoFeedback } from "@/services/finance
 import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacaoAuditoria.service";
 import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 import { confirmAsync } from "@/lib/globalConfirm";
+import { autoMatchBanco } from "@/services/financeiro/matching/autoMatchBanco";
 
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
@@ -49,23 +50,6 @@ function getLancamentoSaldoParaConciliar(lancamento: Lancamento): number {
   if (saldo != null && Number.isFinite(saldo) && saldo > 0.009) return saldo;
   return Math.abs(Number(lancamento.valor));
 }
-
-/** Distância em dias entre duas datas ISO (YYYY-MM-DD). */
-function diasEntreDatas(a?: string | null, b?: string | null): number {
-  if (!a || !b) return Number.POSITIVE_INFINITY;
-  const da = new Date(a).getTime();
-  const db = new Date(b).getTime();
-  if (Number.isNaN(da) || Number.isNaN(db)) return Number.POSITIVE_INFINITY;
-  return Math.abs(Math.round((da - db) / 86400000));
-}
-
-/** Tipo do lançamento esperado dado o sinal do valor no extrato. */
-function tipoEsperadoPeloSinal(valorExtrato: number): "receber" | "pagar" {
-  return valorExtrato >= 0 ? "receber" : "pagar";
-}
-
-const AUTO_JANELA_DIAS = 3;
-const AUTO_TOLERANCIA_VALOR = 0.02;
 
 function getLocalPreference(key: string): string | null {
   try {
@@ -762,36 +746,14 @@ export function useConciliacao() {
       toast.error("Selecione uma conta bancária antes de conciliar.");
       return;
     }
-    const newMatches: Match[] = [];
-    const usedLancamentos = new Set<string>();
-    // Não reutilizar lançamentos já conciliados (persistidos) nem os já pareados
-    // manualmente na sessão.
-    lancamentosConciliadosIds.forEach((id) => usedLancamentos.add(id));
-    matches.forEach((m) => usedLancamentos.add(m.lancamentoId));
-    for (const extrato of extratoItems) {
-      const tipoAlvo = tipoEsperadoPeloSinal(extrato.valor);
-      const compat = lancamentos.filter((l) => {
-        if (usedLancamentos.has(l.id)) return false;
-        if (l.tipo !== tipoAlvo) return false;
-        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < AUTO_TOLERANCIA_VALOR;
-      });
-      if (compat.length === 0) continue;
-      // Desempate por proximidade de data; se houver empate exato, não escolhe (evita match ambíguo).
-      compat.sort(
-        (a, b) =>
-          diasEntreDatas(a.data_vencimento, extrato.data) -
-          diasEntreDatas(b.data_vencimento, extrato.data),
-      );
-      if (
-        compat.length > 1 &&
-        diasEntreDatas(compat[0].data_vencimento, extrato.data) ===
-          diasEntreDatas(compat[1].data_vencimento, extrato.data)
-      ) {
-        continue;
-      }
-      newMatches.push({ extratoId: extrato.id, lancamentoId: compat[0].id, origem: "heuristica" });
-      usedLancamentos.add(compat[0].id);
-    }
+    const bloqueados = new Set<string>([
+      ...lancamentosConciliadosIds,
+      ...matches.map((m) => m.lancamentoId),
+    ]);
+    const newMatches: Match[] = autoMatchBanco(extratoItems, lancamentos, {
+      soValor: true,
+      lancamentosBloqueados: bloqueados,
+    }).map((r) => ({ extratoId: r.extratoId, lancamentoId: r.lancamentoId, origem: "heuristica" }));
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
@@ -962,42 +924,19 @@ export function useConciliacao() {
       toast.error("Selecione uma conta bancária antes de conciliar.");
       return;
     }
-    const newMatches: Match[] = [];
-    const usedLancamentos = new Set<string>();
-    lancamentosConciliadosIds.forEach((id) => usedLancamentos.add(id));
-    matches.forEach((m) => usedLancamentos.add(m.lancamentoId));
-    for (const extrato of extratoItems) {
-      const tipoAlvo = tipoEsperadoPeloSinal(extrato.valor);
-      const compat = lancamentos.filter((l) => {
-        if (usedLancamentos.has(l.id)) return false;
-        if (l.tipo !== tipoAlvo) return false;
-        const valorOk =
-          Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < AUTO_TOLERANCIA_VALOR;
-        if (!valorOk) return false;
-        return diasEntreDatas(l.data_vencimento, extrato.data) <= AUTO_JANELA_DIAS;
-      });
-      if (compat.length === 0) continue;
-      compat.sort(
-        (a, b) =>
-          diasEntreDatas(a.data_vencimento, extrato.data) -
-          diasEntreDatas(b.data_vencimento, extrato.data),
-      );
-      if (
-        compat.length > 1 &&
-        diasEntreDatas(compat[0].data_vencimento, extrato.data) ===
-          diasEntreDatas(compat[1].data_vencimento, extrato.data)
-      ) {
-        continue;
-      }
-      newMatches.push({ extratoId: extrato.id, lancamentoId: compat[0].id, origem: "heuristica" });
-      usedLancamentos.add(compat[0].id);
-    }
+    const bloqueados = new Set<string>([
+      ...lancamentosConciliadosIds,
+      ...matches.map((m) => m.lancamentoId),
+    ]);
+    const newMatches: Match[] = autoMatchBanco(extratoItems, lancamentos, {
+      lancamentosBloqueados: bloqueados,
+    }).map((r) => ({ extratoId: r.extratoId, lancamentoId: r.lancamentoId, origem: "heuristica" }));
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
     });
     toast.success(
-      `${newMatches.length} par(es) prontos para confirmar (data ±${AUTO_JANELA_DIAS}d + valor).`,
+      `${newMatches.length} par(es) prontos para confirmar (data ±3d + valor).`,
     );
   }, [extratoItems, lancamentos, lancamentosConciliadosIds, matches, selectedConta]);
 
