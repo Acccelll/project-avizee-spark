@@ -101,6 +101,8 @@ interface Props {
   onDesfazerConciliacao?: (extratoId: string) => void | Promise<boolean>;
   /** Sprint 1 — quando true, oculta linhas já conciliadas em ambos os lados. */
   onlyPending?: boolean;
+  /** Setter externo do toggle "Exibir apenas pendentes" (fonte única). */
+  onToggleOnlyPending?: (v: boolean) => void;
   /** IDs de lançamentos ERP já conciliados (via baixa persistida). */
   lancamentosConciliadosIds?: Set<string>;
   /** Sprint 3 — gera lançamento de ajuste para uma divergência pequena. */
@@ -118,13 +120,15 @@ export function OFXMatchingPane(p: Props) {
   const [selLanc, setSelLanc] = useState<Set<string>>(new Set());
   const [drawerLanc, setDrawerLanc] = useState<Lancamento | null>(null);
   const navigate = useNavigate();
-  // Sprint 1 — toggle externo "Exibir apenas pendentes" controla ambos os lados.
-  // Quando não recebido, mantém o comportamento local antigo (default: mostrar todos).
+  // Fonte única: quando o pai controla via onToggleOnlyPending + onlyPending, usamos-os.
+  // Fallback local mantém compatibilidade caso o painel seja usado sem controle externo.
   const [hideConciliadosLocal, setHideConciliadosLocal] = useState(false);
-  // Toggle externo (Switch da página) OU badge local podem ativar a ocultação.
-  const hideConciliados = !!p.onlyPending || hideConciliadosLocal;
-  const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) =>
-    setHideConciliadosLocal(typeof v === "function" ? v(hideConciliadosLocal) : v);
+  const hideConciliados = p.onToggleOnlyPending ? !!p.onlyPending : (!!p.onlyPending || hideConciliadosLocal);
+  const setHideConciliados = (v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(hideConciliados) : v;
+    if (p.onToggleOnlyPending) p.onToggleOnlyPending(next);
+    else setHideConciliadosLocal(next);
+  };
   const TOLERANCIA = 0.05;
 
   const extratoOrdenado = useMemo(
