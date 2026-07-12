@@ -55,7 +55,10 @@ export async function fetchLancamentosParaConciliacao(
     .order("data_vencimento", { ascending: true });
   if (contaId) {
     baixasQ.eq("conta_bancaria_id", contaId);
-    vencQ.eq("conta_bancaria_id", contaId);
+    // Títulos em aberto/parciais vindos do ERP podem ainda não ter conta bancária
+    // definida; nesses casos eles continuam sendo candidatos à conciliação da
+    // conta selecionada, pois a conta só será determinada na baixa.
+    vencQ.or(`conta_bancaria_id.eq.${contaId},conta_bancaria_id.is.null`);
   }
   const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([baixasQ, vencQ]);
 
