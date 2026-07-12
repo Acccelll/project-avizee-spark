@@ -1156,7 +1156,12 @@ export function useConciliacao() {
 
   // Derivados
   const getMatch = (extratoId: string) => matches.find((m) => m.extratoId === extratoId);
-  const usedLancamentoIds = new Set(matches.map((m) => m.lancamentoId));
+  // Bloqueia tanto lançamentos pareados na sessão quanto os já conciliados
+  // (baixa persistida), evitando aceitar sugestão sobre lançamento indisponível.
+  const usedLancamentoIds = new Set<string>([
+    ...matches.map((m) => m.lancamentoId),
+    ...Array.from(lancamentosConciliadosIds),
+  ]);
 
   const pareados = new Set(matches.map((m) => m.extratoId)).size;
   const semParOFX = Math.max(0, extratoItems.length - pareados);
