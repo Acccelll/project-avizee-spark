@@ -975,64 +975,68 @@ export function useConciliacao() {
       });
       const baixasPorExtrato = new Map<string, string[]>();
       const paresComErro: Array<{ extratoId: string; lancamentoId: string; erro: string }> = [];
-      // Executa em série para respeitar saldos parciais sequenciais.
+      // Otimização: agrupa por lancamento_id e executa cada grupo em série
+      // (para preservar dependência de saldo em 1↔N), mas dispara os grupos
+      // em paralelo. Reduz o efeito N+1 para O(G) roundtrips concorrentes.
+      const gruposPorLancamento = new Map<string, typeof payload.pares>();
       for (const par of payload.pares) {
-        const extrato = extratoItems.find((e) => e.id === par.extrato_id);
-        if (!extrato) continue;
-        const transacao: TransacaoExtrato = {
-          id: extrato.id,
-          data: extrato.data,
-          descricao: extrato.descricao,
-          valor: extrato.valor,
-          tipo: extrato.valor >= 0 ? "C" : "D",
-        };
-        const nExtratos = lancamentoCount.get(par.lancamento_id) ?? 1; // N extratos → 1 lanç
-        const nLanc = extratoCount.get(par.extrato_id) ?? 1; // 1 extrato → N lanç
-        let valorParcial: number | undefined;
-        if (nExtratos > 1) {
-          // Cada extrato baixa seu próprio valor no mesmo lançamento.
-          valorParcial = Math.abs(extrato.valor);
-        } else if (nLanc > 1) {
-          // O extrato é dividido entre vários lançamentos: usa o saldo real do título.
-          // Isso evita bloquear o segundo título quando há diferença de 1 centavo
-          // por arredondamento entre valor original e saldo restante.
-          const lanc = lancamentos.find((l) => l.id === par.lancamento_id);
-          valorParcial = lanc ? getLancamentoSaldoParaConciliar(lanc) : undefined;
-        }
-        try {
-          const baixaId = await conciliarTransacao(
-            selectedConta,
-            transacao,
-            par.lancamento_id,
-            valorParcial,
-          );
-          if (baixaId) {
-            const ids = baixasPorExtrato.get(extrato.id) ?? [];
-            ids.push(baixaId);
-            baixasPorExtrato.set(extrato.id, ids);
+        const arr = gruposPorLancamento.get(par.lancamento_id) ?? [];
+        arr.push(par);
+        gruposPorLancamento.set(par.lancamento_id, arr);
+      }
+      await Promise.all(Array.from(gruposPorLancamento.values()).map(async (grupo) => {
+        for (const par of grupo) {
+          const extrato = extratoItems.find((e) => e.id === par.extrato_id);
+          if (!extrato) continue;
+          const transacao: TransacaoExtrato = {
+            id: extrato.id,
+            data: extrato.data,
+            descricao: extrato.descricao,
+            valor: extrato.valor,
+            tipo: extrato.valor >= 0 ? "C" : "D",
+          };
+          const nExtratos = lancamentoCount.get(par.lancamento_id) ?? 1;
+          const nLanc = extratoCount.get(par.extrato_id) ?? 1;
+          let valorParcial: number | undefined;
+          if (nExtratos > 1) {
+            valorParcial = Math.abs(extrato.valor);
+          } else if (nLanc > 1) {
+            const lanc = lancamentos.find((l) => l.id === par.lancamento_id);
+            valorParcial = lanc ? getLancamentoSaldoParaConciliar(lanc) : undefined;
           }
-        } catch (err) {
-          // Isola falhas por par: não aborta o lote — os demais pares
-          // continuam sendo baixados/conciliados normalmente.
-          const msg = err instanceof Error ? err.message : String(err);
-          logger.warn(
-            `[conciliacao] falha no par extrato=${par.extrato_id} lancamento=${par.lancamento_id}:`,
-            err,
-          );
-          paresComErro.push({
-            extratoId: par.extrato_id,
-            lancamentoId: par.lancamento_id,
-            erro: msg,
-          });
+          try {
+            const baixaId = await conciliarTransacao(
+              selectedConta, transacao, par.lancamento_id, valorParcial,
+            );
+            if (baixaId) {
+              const ids = baixasPorExtrato.get(extrato.id) ?? [];
+              ids.push(baixaId);
+              baixasPorExtrato.set(extrato.id, ids);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.warn(
+              `[conciliacao] falha no par extrato=${par.extrato_id} lancamento=${par.lancamento_id}:`,
+              err,
+            );
+            paresComErro.push({
+              extratoId: par.extrato_id,
+              lancamentoId: par.lancamento_id,
+              erro: msg,
+            });
+          }
         }
-      }
-      for (const [fitid, baixaIds] of baixasPorExtrato) {
-        await marcarExtratoConciliadoPorFitid({
-          contaBancariaId: selectedConta,
-          fitid,
-          baixaId: baixaIds[0] ?? null,
-        });
-      }
+      }));
+      // Marca todos os FITIDs em paralelo — independentes entre si.
+      await Promise.all(
+        Array.from(baixasPorExtrato).map(([fitid, baixaIds]) =>
+          marcarExtratoConciliadoPorFitid({
+            contaBancariaId: selectedConta,
+            fitid,
+            baixaId: baixaIds[0] ?? null,
+          }),
+        ),
+      );
       try {
         await confirmarConciliacao({
           conta_bancaria_id: selectedConta,
