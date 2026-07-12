@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw, EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCredito.service";
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
+import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
+import {
+  listLinhasDaFatura,
+  setLinhaStatus,
+  type FaturaLinhaStatus,
+} from "@/services/conciliacaoCartao/faturaLinhas.service";
 
 interface FaturaRow {
   id: string;
@@ -95,6 +101,21 @@ export default function ConciliacaoCartaoPage() {
     queryFn: () => listLancamentosDaFatura(faturaSelecionadaId as string),
   });
 
+  const linhas = useQuery({
+    queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId],
+    enabled: !!faturaSelecionadaId,
+    queryFn: () => listLinhasDaFatura(faturaSelecionadaId as string),
+  });
+
+  const alterarStatusLinha = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: FaturaLinhaStatus }) =>
+      setLinhaStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao atualizar linha"),
+  });
+
   const fechar = useMutation({
     mutationFn: async (fatura: FaturaRow) => gerarFaturaCartao(fatura.cartao_id, fatura.competencia),
     onSuccess: (res, fatura) => {
@@ -128,6 +149,7 @@ export default function ConciliacaoCartaoPage() {
               <BarChart3 className="mr-2 h-4 w-4" />Dashboard
             </Link>
           </Button>
+          <ImportarOfxCartaoDialog onImported={() => faturas.refetch()} />
           <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
         </div>
       }
@@ -303,6 +325,62 @@ export default function ConciliacaoCartaoPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {faturaSel && (linhas.data ?? []).length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                    Linhas do PDF/OFX ({linhas.data?.length})
+                  </p>
+                  <div className="max-h-[320px] space-y-1 overflow-auto pr-1">
+                    {(linhas.data ?? []).map((li) => {
+                      const ignorada = li.status === "ignorada";
+                      return (
+                        <div
+                          key={li.id}
+                          className={`flex items-center justify-between gap-2 rounded border p-2 text-xs ${ignorada ? "opacity-60" : ""}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate">{li.descricao ?? "(sem descrição)"}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {fmtDate(li.data_compra)}
+                              {li.parcela_atual && li.parcela_total
+                                ? ` · ${li.parcela_atual}/${li.parcela_total}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
+                            <StatusBadge status={li.status ?? "pendente"} />
+                            {ignorada ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1"
+                                disabled={alterarStatusLinha.isPending}
+                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "pendente" })}
+                                title="Reabrir linha"
+                              >
+                                <Undo2 className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1"
+                                disabled={alterarStatusLinha.isPending || li.status === "vinculada"}
+                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "ignorada" })}
+                                title="Ignorar linha (não afeta a fatura consolidada)"
+                              >
+                                <EyeOff className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>
