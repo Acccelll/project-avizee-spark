@@ -32,7 +32,8 @@ const LANC_SELECT =
  * Carrega lançamentos da conta no período usando o eixo híbrido
  * `baixa + vencimento`:
  *  1) Títulos com baixa ativa no período (eixo data_baixa).
- *  2) Títulos abertos/parciais pelo vencimento no período (candidatos a nova baixa).
+ *  2) Títulos abertos/parciais com vencimento até `dataFim` (inclui vencidos
+ *     de períodos anteriores — candidatos a nova baixa/conciliação).
  */
 export async function fetchLancamentosParaConciliacao(
   contaId: string | null,
@@ -50,7 +51,6 @@ export async function fetchLancamentosParaConciliacao(
     .select(LANC_SELECT)
     .eq("ativo", true)
     .in("status", ["aberto", "parcial"])
-    .gte("data_vencimento", dataInicio)
     .lte("data_vencimento", dataFim)
     .order("data_vencimento", { ascending: true });
   if (contaId) {
