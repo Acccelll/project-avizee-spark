@@ -62,7 +62,8 @@ export async function buscarCandidatos({
   if (error) throw new Error(error.message);
 
   // Exclui lançamentos já vinculados a linhas de fatura de cartão
-  const ids = (data ?? []).map((r) => (r as { id: string }).id);
+  const rows = (data ?? []) as unknown as Array<{ id: string }>;
+  const ids = rows.map((r) => r.id);
   let excluir = new Set<string>();
   if (ids.length) {
     const { data: linhas } = await supabase
@@ -76,7 +77,7 @@ export async function buscarCandidatos({
         .filter((x): x is string => !!x),
     );
   }
-  const filtered = (data ?? []).filter((r) => !excluir.has((r as { id: string }).id));
+  const filtered = rows.filter((r) => !excluir.has(r.id));
 
   type Row = {
     id: string;
