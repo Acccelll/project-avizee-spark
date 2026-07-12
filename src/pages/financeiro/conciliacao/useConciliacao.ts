@@ -50,6 +50,23 @@ function getLancamentoSaldoParaConciliar(lancamento: Lancamento): number {
   return Math.abs(Number(lancamento.valor));
 }
 
+/** Distância em dias entre duas datas ISO (YYYY-MM-DD). */
+function diasEntreDatas(a?: string | null, b?: string | null): number {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  const da = new Date(a).getTime();
+  const db = new Date(b).getTime();
+  if (Number.isNaN(da) || Number.isNaN(db)) return Number.POSITIVE_INFINITY;
+  return Math.abs(Math.round((da - db) / 86400000));
+}
+
+/** Tipo do lançamento esperado dado o sinal do valor no extrato. */
+function tipoEsperadoPeloSinal(valorExtrato: number): "receber" | "pagar" {
+  return valorExtrato >= 0 ? "receber" : "pagar";
+}
+
+const AUTO_JANELA_DIAS = 3;
+const AUTO_TOLERANCIA_VALOR = 0.02;
+
 function getLocalPreference(key: string): string | null {
   try {
     if (typeof window === "undefined") return null;
