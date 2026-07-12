@@ -275,12 +275,30 @@ export function ReconciliacaoFaturaPanel({
     const pares: Array<{ linhaId: string; lancId: string }> = [];
     for (const li of linhasPend) {
       const valor = Math.abs(Number(li.valor || 0));
-      const compat = cands.filter(
+      let compat = cands.filter(
         (c) =>
           !usados.has(c.id) &&
           Math.abs(Number(c.valor) - valor) <= 0.02 &&
           (soValor || diasEntre(c.data_vencimento, li.data_compra) <= 7),
       );
+      // Desempate por parcela (linha traz parcela_atual/parcela_total)
+      if (compat.length > 1 && li.parcela_atual && li.parcela_total) {
+        const porParcela = compat.filter(
+          (c) => c.parcela_numero === li.parcela_atual && c.parcela_total === li.parcela_total,
+        );
+        if (porParcela.length) compat = porParcela;
+      }
+      // Desempate por proximidade de data
+      if (compat.length > 1) {
+        compat = [...compat].sort(
+          (a, b) => diasEntre(a.data_vencimento, li.data_compra) - diasEntre(b.data_vencimento, li.data_compra),
+        );
+        // só aceita se o melhor for estritamente melhor que o segundo
+        if (diasEntre(compat[0].data_vencimento, li.data_compra) === diasEntre(compat[1].data_vencimento, li.data_compra)) {
+          continue;
+        }
+        compat = [compat[0]];
+      }
       if (compat.length === 1) {
         pares.push({ linhaId: li.id, lancId: compat[0].id });
         usados.add(compat[0].id);
