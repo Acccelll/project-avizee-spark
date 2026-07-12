@@ -162,6 +162,7 @@ export default function Conciliacao() {
             onConfirmarSelecao={v.handleConfirmarSelecao}
             onDesvincularExtrato={v.handleDesvincularExtrato}
             onExcluirExtratos={v.handleExcluirExtratosSelecionados}
+            onIgnorarPendentes={v.handleIgnorarPendentes}
             sugestoesPersistidas={v.sugestoesPersistidas}
             onAceitarSugestao={v.handleAceitarSugestao}
             onAceitarSugestoesPersistidas={v.handleAceitarSugestoesPersistidas}

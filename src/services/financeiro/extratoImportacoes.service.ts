@@ -225,6 +225,7 @@ export async function listarExtratoPersistido(input: {
     .eq("conta_bancaria_id", contaBancariaId)
     .gte("data", dataInicio)
     .lte("data", dataFim)
+    .neq("status", "ignorado")
     .order("data", { ascending: true });
   if (error) throw new Error(error.message);
   return ((data as unknown) as ExtratoTransacaoPersistida[]) ?? [];
@@ -363,6 +364,35 @@ export async function ignorarExtrato(extratoId: string): Promise<void> {
     })
     .eq("id", extratoId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Marca em lote linhas pendentes do extrato como ignoradas (paridade com
+ * a Conciliação de Cartão — "Ignorar pendentes"). Linhas já conciliadas
+ * são preservadas.
+ */
+export async function ignorarExtratosPorFitids(input: {
+  contaBancariaId: string;
+  fitids: string[];
+}): Promise<{ ignoradas: number }> {
+  if (!input.fitids.length) return { ignoradas: 0 };
+  const { error, count } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .update(
+      {
+        status: "ignorado",
+        baixa_id: null,
+        sugestao_lancamento_id: null,
+        sugestao_score: null,
+        sugestao_motivos: null,
+      },
+      { count: "exact" },
+    )
+    .eq("conta_bancaria_id", input.contaBancariaId)
+    .in("fitid", input.fitids)
+    .eq("status", "pendente");
+  if (error) throw new Error(error.message);
+  return { ignoradas: count ?? 0 };
 }
 
 /**
