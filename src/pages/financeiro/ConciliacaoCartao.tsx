@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw, EyeOff, Undo2, Trash2 } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,8 @@ import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDi
 import { ImportarFaturasLoteDialog } from "./conciliacaoCartao/ImportarFaturasLoteDialog";
 import { LotesImportacaoPanel } from "./conciliacaoCartao/LotesImportacaoPanel";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
-import { VincularLinhaPopover } from "./conciliacaoCartao/VincularLinhaPopover";
-import {
-  listLinhasDaFatura,
-  setLinhaStatus,
-  excluirFatura,
-  type FaturaLinhaStatus,
-} from "@/services/conciliacaoCartao/faturaLinhas.service";
+import { ReconciliacaoFaturaPanel } from "./conciliacaoCartao/ReconciliacaoFaturaPanel";
+import { excluirFatura } from "@/services/conciliacaoCartao/faturaLinhas.service";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 
 interface FaturaRow {
@@ -100,41 +95,6 @@ export default function ConciliacaoCartaoPage() {
   }, [rows]);
 
   const faturaSel = rows.find((r) => r.id === faturaSelecionadaId) ?? null;
-
-  const lancamentos = useQuery({
-    queryKey: ["cartao-faturas", "lancamentos", faturaSelecionadaId],
-    enabled: !!faturaSelecionadaId,
-    queryFn: () => listLancamentosDaFatura(faturaSelecionadaId as string),
-  });
-
-  const linhas = useQuery({
-    queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId],
-    enabled: !!faturaSelecionadaId,
-    queryFn: () => listLinhasDaFatura(faturaSelecionadaId as string),
-  });
-
-  const alterarStatusLinha = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: FaturaLinhaStatus }) =>
-      setLinhaStatus(id, status),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaSelecionadaId] });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao atualizar linha"),
-  });
-
-  const [linhaFiltro, setLinhaFiltro] = useState<"todas" | FaturaLinhaStatus>("todas");
-  const linhasFiltradas = useMemo(() => {
-    const all = linhas.data ?? [];
-    return linhaFiltro === "todas" ? all : all.filter((l) => (l.status ?? "pendente") === linhaFiltro);
-  }, [linhas.data, linhaFiltro]);
-  const contagemLinhas = useMemo(() => {
-    const c = { pendente: 0, vinculada: 0, criada: 0, ignorada: 0 } as Record<FaturaLinhaStatus, number>;
-    (linhas.data ?? []).forEach((l) => {
-      const s = (l.status ?? "pendente") as FaturaLinhaStatus;
-      if (s in c) c[s]++;
-    });
-    return c;
-  }, [linhas.data]);
 
   const fechar = useMutation({
     mutationFn: async (fatura: FaturaRow) => gerarFaturaCartao(fatura.cartao_id, fatura.competencia),
