@@ -61,8 +61,9 @@ export function ReconciliacaoFaturaPanel({
   const [buscaLinha, setBuscaLinha] = useState("");
   const [buscaLanc, setBuscaLanc] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ordLinha, setOrdLinha] = useState<"data_asc" | "data_desc" | "valor_asc" | "valor_desc">("data_asc");
-  const [ordLanc, setOrdLanc] = useState<"data_asc" | "data_desc" | "valor_asc" | "valor_desc">("data_asc");
+  type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
+  const [ordLinha, setOrdLinha] = useState<SortKey>("data-asc");
+  const [ordLanc, setOrdLanc] = useState<SortKey>("data-asc");
 
   const empresa = useQuery({
     queryKey: ["empresa", "atual"],
@@ -95,11 +96,11 @@ export function ReconciliacaoFaturaPanel({
     const t = buscaLinha.trim().toLowerCase();
     const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
-      if (ordLinha === "data_asc") return (a.data_compra ?? "").localeCompare(b.data_compra ?? "");
-      if (ordLinha === "data_desc") return (b.data_compra ?? "").localeCompare(a.data_compra ?? "");
+      if (ordLinha === "data-asc") return (a.data_compra ?? "").localeCompare(b.data_compra ?? "");
+      if (ordLinha === "data-desc") return (b.data_compra ?? "").localeCompare(a.data_compra ?? "");
       const va = Math.abs(Number(a.valor || 0));
       const vb = Math.abs(Number(b.valor || 0));
-      return ordLinha === "valor_asc" ? va - vb : vb - va;
+      return ordLinha === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
   }, [linhas.data, buscaLinha, ordLinha]);
@@ -109,11 +110,11 @@ export function ReconciliacaoFaturaPanel({
     const t = buscaLanc.trim().toLowerCase();
     const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
-      if (ordLanc === "data_asc") return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
-      if (ordLanc === "data_desc") return (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "");
+      if (ordLanc === "data-asc") return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
+      if (ordLanc === "data-desc") return (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "");
       const va = Number(a.valor || 0);
       const vb = Number(b.valor || 0);
-      return ordLanc === "valor_asc" ? va - vb : vb - va;
+      return ordLanc === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
   }, [candidatos.data, buscaLanc, ordLanc]);
