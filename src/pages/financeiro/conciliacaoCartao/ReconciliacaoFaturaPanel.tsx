@@ -233,7 +233,7 @@ export function ReconciliacaoFaturaPanel({
       const compat = cands.filter(
         (c) =>
           !usados.has(c.id) &&
-          Math.abs(Number(c.valor) - valor) < 0.01 &&
+          Math.abs(Number(c.valor) - valor) <= 0.02 &&
           diasEntre(c.data_vencimento, li.data_compra) <= 7,
       );
       if (compat.length === 1) {
