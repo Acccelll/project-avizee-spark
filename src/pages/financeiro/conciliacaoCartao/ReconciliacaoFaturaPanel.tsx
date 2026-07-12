@@ -124,7 +124,11 @@ export function ReconciliacaoFaturaPanel({
   const linhasFiltradas = useMemo(() => {
     const all = linhas.data ?? [];
     const t = buscaLinha.trim().toLowerCase();
-    const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
+    const filtrado = all.filter((l) => {
+      const st = (l.status ?? "pendente") as string;
+      if (ocultarConciliados && (st === "vinculada" || st === "criada")) return false;
+      return t ? (l.descricao ?? "").toLowerCase().includes(t) : true;
+    });
     const sorted = [...filtrado].sort((a, b) => {
       if (ordLinha === "data-asc") return (a.data_compra ?? "").localeCompare(b.data_compra ?? "");
       if (ordLinha === "data-desc") return (b.data_compra ?? "").localeCompare(a.data_compra ?? "");
@@ -133,7 +137,7 @@ export function ReconciliacaoFaturaPanel({
       return ordLinha === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
-  }, [linhas.data, buscaLinha, ordLinha]);
+  }, [linhas.data, buscaLinha, ordLinha, ocultarConciliados]);
 
   const candidatosFiltrados = useMemo(() => {
     const pend = candidatos.data ?? [];
