@@ -16,6 +16,7 @@ import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCr
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
 import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
+import { VincularLinhaPopover } from "./conciliacaoCartao/VincularLinhaPopover";
 import {
   listLinhasDaFatura,
   setLinhaStatus,
@@ -115,6 +116,20 @@ export default function ConciliacaoCartaoPage() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao atualizar linha"),
   });
+
+  const [linhaFiltro, setLinhaFiltro] = useState<"todas" | FaturaLinhaStatus>("todas");
+  const linhasFiltradas = useMemo(() => {
+    const all = linhas.data ?? [];
+    return linhaFiltro === "todas" ? all : all.filter((l) => (l.status ?? "pendente") === linhaFiltro);
+  }, [linhas.data, linhaFiltro]);
+  const contagemLinhas = useMemo(() => {
+    const c = { pendente: 0, vinculada: 0, criada: 0, ignorada: 0 } as Record<FaturaLinhaStatus, number>;
+    (linhas.data ?? []).forEach((l) => {
+      const s = (l.status ?? "pendente") as FaturaLinhaStatus;
+      if (s in c) c[s]++;
+    });
+    return c;
+  }, [linhas.data]);
 
   const fechar = useMutation({
     mutationFn: async (fatura: FaturaRow) => gerarFaturaCartao(fatura.cartao_id, fatura.competencia),
@@ -330,11 +345,23 @@ export default function ConciliacaoCartaoPage() {
 
               {faturaSel && (linhas.data ?? []).length > 0 && (
                 <div className="mt-4 border-t pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                    Linhas do PDF/OFX ({linhas.data?.length})
-                  </p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Linhas do PDF/OFX ({linhas.data?.length}) · pend {contagemLinhas.pendente} · vinc {contagemLinhas.vinculada} · criadas {contagemLinhas.criada} · ign {contagemLinhas.ignorada}
+                    </p>
+                    <Select value={linhaFiltro} onValueChange={(v) => setLinhaFiltro(v as typeof linhaFiltro)}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        <SelectItem value="pendente">Pendentes</SelectItem>
+                        <SelectItem value="vinculada">Vinculadas</SelectItem>
+                        <SelectItem value="criada">Criadas</SelectItem>
+                        <SelectItem value="ignorada">Ignoradas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="max-h-[320px] space-y-1 overflow-auto pr-1">
-                    {(linhas.data ?? []).map((li) => {
+                    {linhasFiltradas.map((li) => {
                       const ignorada = li.status === "ignorada";
                       return (
                         <div
@@ -353,6 +380,9 @@ export default function ConciliacaoCartaoPage() {
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
                             <StatusBadge status={li.status ?? "pendente"} />
+                            {faturaSel && li.status !== "vinculada" && li.status !== "criada" && !ignorada && (
+                              <VincularLinhaPopover linha={li} cartaoId={faturaSel.cartao_id} />
+                            )}
                             {ignorada ? (
                               <Button
                                 size="sm"
