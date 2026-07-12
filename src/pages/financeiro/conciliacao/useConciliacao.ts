@@ -50,6 +50,23 @@ function getLancamentoSaldoParaConciliar(lancamento: Lancamento): number {
   return Math.abs(Number(lancamento.valor));
 }
 
+/** Distância em dias entre duas datas ISO (YYYY-MM-DD). */
+function diasEntreDatas(a?: string | null, b?: string | null): number {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  const da = new Date(a).getTime();
+  const db = new Date(b).getTime();
+  if (Number.isNaN(da) || Number.isNaN(db)) return Number.POSITIVE_INFINITY;
+  return Math.abs(Math.round((da - db) / 86400000));
+}
+
+/** Tipo do lançamento esperado dado o sinal do valor no extrato. */
+function tipoEsperadoPeloSinal(valorExtrato: number): "receber" | "pagar" {
+  return valorExtrato >= 0 ? "receber" : "pagar";
+}
+
+const AUTO_JANELA_DIAS = 3;
+const AUTO_TOLERANCIA_VALOR = 0.02;
+
 function getLocalPreference(key: string): string | null {
   try {
     if (typeof window === "undefined") return null;
@@ -736,19 +753,44 @@ export function useConciliacao() {
    * Complementa "Conciliar automaticamente" (que exige data + valor).
    */
   const handleAutoMatch = async () => {
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de conciliar.");
+      return;
+    }
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
+    // Não reutilizar lançamentos já conciliados (persistidos) nem os já pareados
+    // manualmente na sessão.
+    lancamentosConciliadosIds.forEach((id) => usedLancamentos.add(id));
+    matches.forEach((m) => usedLancamentos.add(m.lancamentoId));
     for (const extrato of extratoItems) {
-      const candidate = lancamentos.find((l) => {
+      const tipoAlvo = tipoEsperadoPeloSinal(extrato.valor);
+      const compat = lancamentos.filter((l) => {
         if (usedLancamentos.has(l.id)) return false;
-        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
+        if (l.tipo !== tipoAlvo) return false;
+        return Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < AUTO_TOLERANCIA_VALOR;
       });
-      if (candidate) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
-        usedLancamentos.add(candidate.id);
+      if (compat.length === 0) continue;
+      // Desempate por proximidade de data; se houver empate exato, não escolhe (evita match ambíguo).
+      compat.sort(
+        (a, b) =>
+          diasEntreDatas(a.data_vencimento, extrato.data) -
+          diasEntreDatas(b.data_vencimento, extrato.data),
+      );
+      if (
+        compat.length > 1 &&
+        diasEntreDatas(compat[0].data_vencimento, extrato.data) ===
+          diasEntreDatas(compat[1].data_vencimento, extrato.data)
+      ) {
+        continue;
       }
+      newMatches.push({ extratoId: extrato.id, lancamentoId: compat[0].id, origem: "heuristica" });
+      usedLancamentos.add(compat[0].id);
     }
-    setMatches(newMatches);
+    setMatches((prev) => {
+      const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
+      return [...manual, ...newMatches];
+    });
     toast.success(
       `${newMatches.length} par(es) encontrado(s) por valor. Revise e clique em "Confirmar Conciliação".`,
     );
@@ -787,14 +829,21 @@ export function useConciliacao() {
         toast.error("Selecione ao menos uma linha em cada lado.");
         return false;
       }
-      if (extratoIds.length > 1 && lancamentoIds.length > 1) {
-        toast.error(
-          "Seleção N↔N não é permitida. Marque apenas um lado com múltiplas linhas.",
-        );
-        return false;
-      }
       const novos: Match[] = [];
-      if (extratoIds.length === 1) {
+      if (extratoIds.length > 1 && lancamentoIds.length > 1) {
+        // N↔N: só é aceito quando os dois lados têm a MESMA quantidade —
+        // fazemos pareamento posicional (linha a linha). Qualquer outro caso
+        // é ambíguo e o usuário deve conciliar em passos.
+        if (extratoIds.length !== lancamentoIds.length) {
+          toast.error(
+            "Seleção N↔N só é aceita quando os dois lados têm o mesmo número de linhas.",
+          );
+          return false;
+        }
+        for (let i = 0; i < extratoIds.length; i += 1) {
+          novos.push({ extratoId: extratoIds[i], lancamentoId: lancamentoIds[i], origem: "manual" });
+        }
+      } else if (extratoIds.length === 1) {
         const eid = extratoIds[0];
         for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
       } else {
@@ -904,28 +953,48 @@ export function useConciliacao() {
    * e clicar em "Confirmar Conciliação".
    */
   const handleConciliacaoAutomatica = useCallback(() => {
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária antes de conciliar.");
+      return;
+    }
     const newMatches: Match[] = [];
     const usedLancamentos = new Set<string>();
+    lancamentosConciliadosIds.forEach((id) => usedLancamentos.add(id));
+    matches.forEach((m) => usedLancamentos.add(m.lancamentoId));
     for (const extrato of extratoItems) {
-      const candidate = lancamentos.find((l) => {
+      const tipoAlvo = tipoEsperadoPeloSinal(extrato.valor);
+      const compat = lancamentos.filter((l) => {
         if (usedLancamentos.has(l.id)) return false;
-        const valorOk = Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < 0.01;
+        if (l.tipo !== tipoAlvo) return false;
+        const valorOk =
+          Math.abs(Math.abs(l.valor) - Math.abs(extrato.valor)) < AUTO_TOLERANCIA_VALOR;
         if (!valorOk) return false;
-        return l.data_vencimento === extrato.data;
+        return diasEntreDatas(l.data_vencimento, extrato.data) <= AUTO_JANELA_DIAS;
       });
-      if (candidate) {
-        newMatches.push({ extratoId: extrato.id, lancamentoId: candidate.id, origem: "heuristica" });
-        usedLancamentos.add(candidate.id);
+      if (compat.length === 0) continue;
+      compat.sort(
+        (a, b) =>
+          diasEntreDatas(a.data_vencimento, extrato.data) -
+          diasEntreDatas(b.data_vencimento, extrato.data),
+      );
+      if (
+        compat.length > 1 &&
+        diasEntreDatas(compat[0].data_vencimento, extrato.data) ===
+          diasEntreDatas(compat[1].data_vencimento, extrato.data)
+      ) {
+        continue;
       }
+      newMatches.push({ extratoId: extrato.id, lancamentoId: compat[0].id, origem: "heuristica" });
+      usedLancamentos.add(compat[0].id);
     }
     setMatches((prev) => {
       const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
       return [...manual, ...newMatches];
     });
     toast.success(
-      `${newMatches.length} par(es) prontos para confirmar (data + valor).`,
+      `${newMatches.length} par(es) prontos para confirmar (data ±${AUTO_JANELA_DIAS}d + valor).`,
     );
-  }, [extratoItems, lancamentos]);
+  }, [extratoItems, lancamentos, lancamentosConciliadosIds, matches, selectedConta]);
 
   // Confirmar
   const handleConfirmarConciliacao = async () => {
@@ -1027,8 +1096,10 @@ export function useConciliacao() {
           pares: payload.pares,
           usuario_id: undefined,
         });
-      } catch {
-        // Silently fail if tables don't exist yet
+      } catch (err) {
+        // Não bloqueia o fluxo (baixas já foram efetivadas), mas registra
+        // para auditoria — antes o erro era silenciosamente engolido.
+        logger.warn("[conciliacao] confirmarConciliacao RPC falhou:", err);
       }
       const idsComErro = new Set(paresComErro.map((p) => p.extratoId));
       const paresOk = payload.pares.filter((p) => !idsComErro.has(p.extrato_id));
@@ -1085,7 +1156,12 @@ export function useConciliacao() {
 
   // Derivados
   const getMatch = (extratoId: string) => matches.find((m) => m.extratoId === extratoId);
-  const usedLancamentoIds = new Set(matches.map((m) => m.lancamentoId));
+  // Bloqueia tanto lançamentos pareados na sessão quanto os já conciliados
+  // (baixa persistida), evitando aceitar sugestão sobre lançamento indisponível.
+  const usedLancamentoIds = new Set<string>([
+    ...matches.map((m) => m.lancamentoId),
+    ...Array.from(lancamentosConciliadosIds),
+  ]);
 
   const pareados = new Set(matches.map((m) => m.extratoId)).size;
   const semParOFX = Math.max(0, extratoItems.length - pareados);
