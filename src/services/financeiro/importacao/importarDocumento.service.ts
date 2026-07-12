@@ -67,7 +67,11 @@ export async function importarDocumentoUniversal(input: {
   // 2) header em financeiro_importacoes_docs
   const arquivoHash = rawTexto ? await hashArquivo(rawTexto) : null;
 
-  // Prevenção de reimport (Fase 3): mesmo arquivo já processado pela empresa.
+  // Reimport tolerante (Fase 3): se o mesmo arquivo já foi importado, seguimos
+  // adiante para permitir backfill de linhas que possam ter sido excluídas ou
+  // não persistidas em uma tentativa anterior. O upsert por (conta, fitid)
+  // garante idempotência — linhas já existentes são ignoradas.
+  let reimport = false;
   if (arquivoHash) {
     const { data: existente } = await supabase
       .from("financeiro_importacoes_docs")
@@ -75,11 +79,7 @@ export async function importarDocumentoUniversal(input: {
       .eq("empresa_id", input.empresa_id)
       .eq("arquivo_hash", arquivoHash)
       .maybeSingle();
-    if (existente) {
-      throw new Error(
-        "Arquivo já importado anteriormente para esta empresa (hash idêntico).",
-      );
-    }
+    reimport = !!existente;
   }
 
   const datas = staged.map((s) => s.data).sort();
