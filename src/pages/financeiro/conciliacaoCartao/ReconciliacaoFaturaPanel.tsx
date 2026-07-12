@@ -61,8 +61,9 @@ export function ReconciliacaoFaturaPanel({
   const [buscaLinha, setBuscaLinha] = useState("");
   const [buscaLanc, setBuscaLanc] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ordLinha, setOrdLinha] = useState<"data_asc" | "data_desc" | "valor_asc" | "valor_desc">("data_asc");
-  const [ordLanc, setOrdLanc] = useState<"data_asc" | "data_desc" | "valor_asc" | "valor_desc">("data_asc");
+  type SortKey = "data-asc" | "data-desc" | "valor-asc" | "valor-desc";
+  const [ordLinha, setOrdLinha] = useState<SortKey>("data-asc");
+  const [ordLanc, setOrdLanc] = useState<SortKey>("data-asc");
 
   const empresa = useQuery({
     queryKey: ["empresa", "atual"],
@@ -95,11 +96,11 @@ export function ReconciliacaoFaturaPanel({
     const t = buscaLinha.trim().toLowerCase();
     const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
-      if (ordLinha === "data_asc") return (a.data_compra ?? "").localeCompare(b.data_compra ?? "");
-      if (ordLinha === "data_desc") return (b.data_compra ?? "").localeCompare(a.data_compra ?? "");
+      if (ordLinha === "data-asc") return (a.data_compra ?? "").localeCompare(b.data_compra ?? "");
+      if (ordLinha === "data-desc") return (b.data_compra ?? "").localeCompare(a.data_compra ?? "");
       const va = Math.abs(Number(a.valor || 0));
       const vb = Math.abs(Number(b.valor || 0));
-      return ordLinha === "valor_asc" ? va - vb : vb - va;
+      return ordLinha === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
   }, [linhas.data, buscaLinha, ordLinha]);
@@ -109,11 +110,11 @@ export function ReconciliacaoFaturaPanel({
     const t = buscaLanc.trim().toLowerCase();
     const filtrado = all.filter((l) => (t ? (l.descricao ?? "").toLowerCase().includes(t) : true));
     const sorted = [...filtrado].sort((a, b) => {
-      if (ordLanc === "data_asc") return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
-      if (ordLanc === "data_desc") return (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "");
+      if (ordLanc === "data-asc") return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
+      if (ordLanc === "data-desc") return (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "");
       const va = Number(a.valor || 0);
       const vb = Number(b.valor || 0);
-      return ordLanc === "valor_asc" ? va - vb : vb - va;
+      return ordLanc === "valor-asc" ? va - vb : vb - va;
     });
     return sorted;
   }, [candidatos.data, buscaLanc, ordLanc]);
@@ -336,24 +337,26 @@ export function ReconciliacaoFaturaPanel({
         {/* Coluna esquerda: linhas da fatura */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Linhas da fatura ({linhasFiltradas.length})
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                Linhas da fatura ({linhasFiltradas.length})
+              </CardTitle>
+              <Select value={ordLinha} onValueChange={(v) => setOrdLinha(v as SortKey)}>
+                <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="data-asc">Data ↑</SelectItem>
+                  <SelectItem value="data-desc">Data ↓</SelectItem>
+                  <SelectItem value="valor-asc">Valor ↑</SelectItem>
+                  <SelectItem value="valor-desc">Valor ↓</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Input
               placeholder="Buscar linha…"
               value={buscaLinha}
               onChange={(e) => setBuscaLinha(e.target.value)}
-              className="h-8 text-xs"
+              className="mt-2 h-8 text-xs"
             />
-            <Select value={ordLinha} onValueChange={(v) => setOrdLinha(v as typeof ordLinha)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Ordenar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="data_asc">Data ↑</SelectItem>
-                <SelectItem value="data_desc">Data ↓</SelectItem>
-                <SelectItem value="valor_asc">Valor ↑</SelectItem>
-                <SelectItem value="valor_desc">Valor ↓</SelectItem>
-              </SelectContent>
-            </Select>
           </CardHeader>
           <CardContent>
             {linhas.isLoading ? (
@@ -420,24 +423,26 @@ export function ReconciliacaoFaturaPanel({
         {/* Coluna direita: lançamentos ERP */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Lançamentos ERP a pagar ({candidatosFiltrados.length})
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                Lançamentos ERP a pagar ({candidatosFiltrados.length})
+              </CardTitle>
+              <Select value={ordLanc} onValueChange={(v) => setOrdLanc(v as SortKey)}>
+                <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="data-asc">Data ↑</SelectItem>
+                  <SelectItem value="data-desc">Data ↓</SelectItem>
+                  <SelectItem value="valor-asc">Valor ↑</SelectItem>
+                  <SelectItem value="valor-desc">Valor ↓</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Input
               placeholder="Buscar lançamento…"
               value={buscaLanc}
               onChange={(e) => setBuscaLanc(e.target.value)}
-              className="h-8 text-xs"
+              className="mt-2 h-8 text-xs"
             />
-            <Select value={ordLanc} onValueChange={(v) => setOrdLanc(v as typeof ordLanc)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Ordenar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="data_asc">Data ↑</SelectItem>
-                <SelectItem value="data_desc">Data ↓</SelectItem>
-                <SelectItem value="valor_asc">Valor ↑</SelectItem>
-                <SelectItem value="valor_desc">Valor ↓</SelectItem>
-              </SelectContent>
-            </Select>
           </CardHeader>
           <CardContent>
             {candidatos.isLoading ? (
