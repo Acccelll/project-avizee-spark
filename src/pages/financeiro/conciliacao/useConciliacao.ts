@@ -829,14 +829,21 @@ export function useConciliacao() {
         toast.error("Selecione ao menos uma linha em cada lado.");
         return false;
       }
-      if (extratoIds.length > 1 && lancamentoIds.length > 1) {
-        toast.error(
-          "Seleção N↔N não é permitida. Marque apenas um lado com múltiplas linhas.",
-        );
-        return false;
-      }
       const novos: Match[] = [];
-      if (extratoIds.length === 1) {
+      if (extratoIds.length > 1 && lancamentoIds.length > 1) {
+        // N↔N: só é aceito quando os dois lados têm a MESMA quantidade —
+        // fazemos pareamento posicional (linha a linha). Qualquer outro caso
+        // é ambíguo e o usuário deve conciliar em passos.
+        if (extratoIds.length !== lancamentoIds.length) {
+          toast.error(
+            "Seleção N↔N só é aceita quando os dois lados têm o mesmo número de linhas.",
+          );
+          return false;
+        }
+        for (let i = 0; i < extratoIds.length; i += 1) {
+          novos.push({ extratoId: extratoIds[i], lancamentoId: lancamentoIds[i], origem: "manual" });
+        }
+      } else if (extratoIds.length === 1) {
         const eid = extratoIds[0];
         for (const lid of lancamentoIds) novos.push({ extratoId: eid, lancamentoId: lid, origem: "manual" });
       } else {
