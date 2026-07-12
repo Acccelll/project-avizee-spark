@@ -171,6 +171,9 @@ export default function Conciliacao() {
             onlyPending={v.showOnlyPendentes}
             lancamentosConciliadosIds={v.lancamentosConciliadosIds}
             onGerarAjuste={v.handleGerarAjusteBancario}
+            searchTerm={v.searchTerm}
+            statusConcFilters={v.statusConcFilters}
+            tipoFilters={v.tipoFilters}
           />
         )}
 
