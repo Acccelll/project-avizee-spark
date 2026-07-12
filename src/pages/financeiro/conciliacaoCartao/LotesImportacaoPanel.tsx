@@ -12,7 +12,7 @@ function fmtDate(iso: string) {
 
 export function LotesImportacaoPanel() {
   const qc = useQueryClient();
-  const { confirm, dialog } = useConfirmDestructive({ verb: "Desfazer" });
+  const { confirm, dialog } = useConfirmDestructive({ verb: "Cancelar" });
 
   const q = useQuery({
     queryKey: ["cartao-importacao-lotes"],
@@ -32,8 +32,8 @@ export function LotesImportacaoPanel() {
   const pedir = (id: string) => {
     void confirm(
       {
-        verb: "Desfazer",
-        entity: "lote de importação de faturas",
+        verb: "Cancelar",
+        entity: "importação de faturas (desfazer)",
         sideEffects: [
           "Faturas criadas por este lote serão removidas",
           "Linhas auto‑vinculadas voltarão a ficar pendentes",
