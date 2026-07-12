@@ -88,6 +88,17 @@ export function buildFiscalColumns(opts: BuildFiscalColumnsOpts) {
       render: (n: NotaFiscal) => (n.data_emissao ? formatDate(n.data_emissao) : "—"),
     },
     {
+      key: "data_vencimento",
+      label: "Vencimento",
+      sortable: true,
+      render: (n: NotaFiscal) =>
+        n.data_vencimento ? (
+          formatDate(n.data_vencimento)
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: "status",
       label: "Status ERP",
       render: (n: NotaFiscal) => renderFiscalStatus(n, isMobile),
