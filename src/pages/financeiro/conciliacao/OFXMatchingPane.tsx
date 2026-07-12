@@ -105,6 +105,10 @@ interface Props {
   lancamentosConciliadosIds?: Set<string>;
   /** Sprint 3 — gera lançamento de ajuste para uma divergência pequena. */
   onGerarAjuste?: (input: { diferenca: number; data: string; descricao?: string }) => Promise<boolean>;
+  /** Filtros visuais propagados da AdvancedFilterBar (não alteram lógica de matching). */
+  searchTerm?: string;
+  statusConcFilters?: string[];
+  tipoFilters?: string[];
 }
 
 export function OFXMatchingPane(p: Props) {
