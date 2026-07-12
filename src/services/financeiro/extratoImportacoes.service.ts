@@ -366,6 +366,35 @@ export async function ignorarExtrato(extratoId: string): Promise<void> {
 }
 
 /**
+ * Marca em lote linhas pendentes do extrato como ignoradas (paridade com
+ * a Conciliação de Cartão — "Ignorar pendentes"). Linhas já conciliadas
+ * são preservadas.
+ */
+export async function ignorarExtratosPorFitids(input: {
+  contaBancariaId: string;
+  fitids: string[];
+}): Promise<{ ignoradas: number }> {
+  if (!input.fitids.length) return { ignoradas: 0 };
+  const { error, count } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .update(
+      {
+        status: "ignorado",
+        baixa_id: null,
+        sugestao_lancamento_id: null,
+        sugestao_score: null,
+        sugestao_motivos: null,
+      },
+      { count: "exact" },
+    )
+    .eq("conta_bancaria_id", input.contaBancariaId)
+    .in("fitid", input.fitids)
+    .eq("status", "pendente");
+  if (error) throw new Error(error.message);
+  return { ignoradas: count ?? 0 };
+}
+
+/**
  * Exclui linhas de extrato importadas (apenas as ainda pendentes) de
  * uma conta bancária, identificadas pelo fitid natural do OFX.
  * Linhas já conciliadas (com baixa vinculada) são preservadas para
