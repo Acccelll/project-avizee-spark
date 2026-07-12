@@ -113,3 +113,23 @@ export async function criarLancamentoDaLinha(params: {
   await vincularLinha(params.linha_id, lancId);
   return lancId;
 }
+
+/**
+ * Exclui uma fatura de cartão. Bloqueia se estiver paga.
+ * `cartao_fatura_lancamentos` cascateia; `financeiro_lancamentos.cartao_fatura_id`
+ * fica `NULL` (o título permanece para não perder rastro contábil).
+ */
+export async function excluirFatura(faturaId: string): Promise<void> {
+  const { data: fatura, error: err1 } = await supabase
+    .from("cartao_faturas")
+    .select("id, status")
+    .eq("id", faturaId)
+    .maybeSingle();
+  if (err1) throw err1;
+  if (!fatura) throw new Error("Fatura não encontrada");
+  if (fatura.status === "paga") {
+    throw new Error("Fatura já paga — estorne a baixa antes de excluir");
+  }
+  const { error } = await supabase.from("cartao_faturas").delete().eq("id", faturaId);
+  if (error) throw error;
+}
