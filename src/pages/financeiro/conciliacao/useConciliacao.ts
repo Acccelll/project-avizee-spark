@@ -410,6 +410,53 @@ export function useConciliacao() {
     }
   }, [conciliadosPersistidos, selectedConta]);
 
+  /**
+   * Paridade com Cartão — marca em lote todas as linhas do extrato ainda
+   * pendentes (não conciliadas nem pareadas na sessão) como "ignoradas".
+   * As linhas ficam persistidas com status='ignorado' e são omitidas nas
+   * próximas hidratações, sem apagar histórico.
+   */
+  const handleIgnorarPendentes = useCallback(async (): Promise<number> => {
+    if (!selectedConta) {
+      toast.error("Selecione uma conta bancária.");
+      return 0;
+    }
+    const pareadosSet = new Set(matches.map((m) => m.extratoId));
+    const pendentes = extratoItems.filter(
+      (item) => !pareadosSet.has(item.id) && !conciliadosPersistidos.has(item.id),
+    );
+    if (pendentes.length === 0) {
+      toast.info("Nenhuma linha pendente para ignorar.");
+      return 0;
+    }
+    const ok = await confirmAsync({
+      title: "Ignorar pendentes",
+      description: `${pendentes.length} linha(s) do extrato serão marcadas como ignoradas e ocultadas. É possível reimportar o OFX para reverter.`,
+      confirmLabel: "Ignorar",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return 0;
+    try {
+      const res = await ignorarExtratosPorFitids({
+        contaBancariaId: selectedConta,
+        fitids: pendentes.map((p) => p.id),
+      });
+      const removidos = new Set(pendentes.map((p) => p.id));
+      setExtratoItems((prev) => prev.filter((i) => !removidos.has(i.id)));
+      setMatches((prev) => prev.filter((m) => !removidos.has(m.extratoId)));
+      setSugestoesPersistidas((prev) => {
+        const next = new Map(prev);
+        removidos.forEach((id) => next.delete(id));
+        return next;
+      });
+      toast.success(`${res.ignoradas} linha(s) ignorada(s).`);
+      return res.ignoradas;
+    } catch (err) {
+      notifyError(err);
+      return 0;
+    }
+  }, [conciliadosPersistidos, extratoItems, matches, selectedConta]);
+
   // OFX upload
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
