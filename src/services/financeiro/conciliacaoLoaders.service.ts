@@ -60,7 +60,11 @@ export async function fetchLancamentosParaConciliacao(
     // conta selecionada, pois a conta só será determinada na baixa.
     vencQ.or(`conta_bancaria_id.eq.${contaId},conta_bancaria_id.is.null`);
   }
-  const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([baixasQ, vencQ]);
+  const [porBaixaRes, porVencimentoRes] = await Promise.all([baixasQ, vencQ]);
+  if (porBaixaRes.error) throw porBaixaRes.error;
+  if (porVencimentoRes.error) throw porVencimentoRes.error;
+  const porBaixa = porBaixaRes.data;
+  const porVencimento = porVencimentoRes.data;
 
   const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
   ((porBaixa as Array<{
@@ -75,5 +79,11 @@ export async function fetchLancamentosParaConciliacao(
     if (!merged.has(l.id)) merged.set(l.id, l);
   });
 
-  return Array.from(merged.values());
+  // Ordena por vencimento asc para que títulos antigos/vencidos apareçam
+  // no topo (evita "sumirem" no meio da lista virtualizada).
+  return Array.from(merged.values()).sort((a, b) => {
+    const da = a.data_vencimento ?? "";
+    const db = b.data_vencimento ?? "";
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
 }
