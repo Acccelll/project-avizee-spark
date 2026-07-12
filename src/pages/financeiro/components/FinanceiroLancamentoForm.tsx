@@ -460,13 +460,17 @@ export function FinanceiroLancamentoForm({
               Sugerir (IA)
             </Button>
           </div>
-          <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => updateField("conta_contabil_id", v === "none" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nenhuma</SelectItem>
-              {contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
-            </SelectContent>
-          </Select>
+          <AutocompleteSearch
+            options={contasContabeis.map((c) => ({
+              id: c.id,
+              label: `${c.codigo} - ${c.descricao}`,
+              searchTerms: [c.codigo, c.descricao],
+            }))}
+            value={form.conta_contabil_id}
+            onChange={(v) => updateField("conta_contabil_id", v)}
+            placeholder="Buscar conta contábil por código ou descrição..."
+            dropdownMinWidth="min-w-[420px]"
+          />
           {iaJustificativa && (
             <p className="text-[11px] text-muted-foreground italic">
               <Sparkles className="inline h-3 w-3 mr-0.5" /> {iaJustificativa}
