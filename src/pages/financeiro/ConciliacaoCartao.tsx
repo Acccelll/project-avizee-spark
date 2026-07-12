@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw, EyeOff, Undo2 } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, ExternalLink, RefreshCw, EyeOff, Undo2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,10 @@ import { VincularLinhaPopover } from "./conciliacaoCartao/VincularLinhaPopover";
 import {
   listLinhasDaFatura,
   setLinhaStatus,
+  excluirFatura,
   type FaturaLinhaStatus,
 } from "@/services/conciliacaoCartao/faturaLinhas.service";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 
 interface FaturaRow {
   id: string;
@@ -46,6 +48,7 @@ function fmtDate(iso: string | null | undefined) {
 
 export default function ConciliacaoCartaoPage() {
   const qc = useQueryClient();
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive({ verb: "Excluir" });
   const [cartaoId, setCartaoId] = useState<string>("");
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
@@ -151,6 +154,30 @@ export default function ConciliacaoCartaoPage() {
   const abrirBaixar = (fatura: FaturaRow) => {
     setFaturaSelecionadaId(fatura.id);
     setBaixarOpen(true);
+  };
+
+  const excluir = useMutation({
+    mutationFn: (id: string) => excluirFatura(id),
+    onSuccess: (_res, id) => {
+      toast.success("Fatura excluída");
+      if (id === faturaSelecionadaId) setFaturaSelecionadaId(null);
+      qc.invalidateQueries({ queryKey: ["cartao-faturas"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao excluir fatura"),
+  });
+
+  const pedirExcluir = (fatura: FaturaRow) => {
+    void confirmDestructive(
+      {
+        verb: "Excluir",
+        entity: `fatura ${fatura.competencia} · ${fatura.cartoes_credito?.nome ?? ""}`,
+        sideEffects: [
+          "Linhas importadas do PDF/OFX serão removidas",
+          "Lançamentos financeiros vinculados perdem a referência à fatura (não são excluídos)",
+        ],
+      },
+      async () => { await excluir.mutateAsync(fatura.id); },
+    );
   };
 
   return (
@@ -292,6 +319,18 @@ export default function ConciliacaoCartaoPage() {
                           <CircleDollarSign className="mr-1 h-3.5 w-3.5" />Baixar
                         </Button>
                       )}
+                      {r.status !== "paga" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={excluir.isPending}
+                          onClick={(e) => { e.stopPropagation(); pedirExcluir(r); }}
+                          title="Excluir fatura"
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />Excluir
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -426,6 +465,7 @@ export default function ConciliacaoCartaoPage() {
         valorTotal={faturaSel ? Number(faturaSel.valor_total || 0) : undefined}
         dataVencimento={faturaSel?.data_vencimento ?? undefined}
       />
+      {destructiveDialog}
     </ModulePage>
   );
 }
