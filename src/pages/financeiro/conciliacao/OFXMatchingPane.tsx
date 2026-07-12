@@ -676,5 +676,15 @@ export function OFXMatchingPane(p: Props) {
         </div>
       )}
     </div>
+      <FinanceiroDrawer
+        open={!!drawerLanc}
+        onClose={() => setDrawerLanc(null)}
+        selected={drawerLanc}
+        effectiveStatus={drawerLanc ? getEffectiveStatus(drawerLanc.status, drawerLanc.data_vencimento, new Date()) : ""}
+        onBaixa={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onEstorno={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onEdit={(l) => { setDrawerLanc(null); navigate(`/financeiro/${l.id}`); }}
+        onDelete={(id) => { setDrawerLanc(null); navigate(`/financeiro/${id}`); }}
+      />
   );
 }
