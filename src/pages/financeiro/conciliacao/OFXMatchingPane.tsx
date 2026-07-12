@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
-  Trash2, Wand2,
+  Trash2, Wand2, EyeOff,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -281,6 +281,19 @@ export function OFXMatchingPane(p: Props) {
 
       {p.showOFXPane && (
         <div className="p-4 border-t border-border/60">
+          {p.onIgnorarPendentes && (
+            <div className="mb-3 flex justify-end">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1 text-muted-foreground"
+                onClick={() => void p.onIgnorarPendentes!()}
+                title="Marca todas as linhas do extrato ainda pendentes como ignoradas"
+              >
+                <EyeOff className="w-4 h-4" /> Ignorar pendentes
+              </Button>
+            </div>
+          )}
           {sugestoesDisponiveis > 0 && p.onAceitarSugestoesPersistidas && (
             <div className="mb-4 rounded-lg border border-info/40 bg-info/5 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm">
