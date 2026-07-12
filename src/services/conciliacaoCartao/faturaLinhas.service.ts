@@ -42,6 +42,63 @@ export async function vincularLinha(id: string, lancamentoId: string): Promise<v
   if (error) throw error;
 }
 
+/** Vincula várias linhas ao mesmo lançamento (N:1). */
+export async function vincularLinhasEmLote(ids: string[], lancamentoId: string): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await supabase
+    .from("cartao_fatura_lancamentos")
+    .update({ lancamento_id: lancamentoId, status: "vinculada" } as never)
+    .in("id", ids);
+  if (error) throw error;
+}
+
+/** Desfaz a vinculação de uma linha (volta a "pendente"). */
+export async function desvincularLinha(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("cartao_fatura_lancamentos")
+    .update({ lancamento_id: null, status: "pendente" } as never)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Candidatos ERP para conciliação de uma fatura: lançamentos "a pagar" abertos
+ * (ou parciais) do mesmo cartão OU dentro da janela de vencimento da fatura.
+ */
+export async function listLancamentosCandidatosDaFatura(params: {
+  empresa_id: string;
+  cartao_id: string;
+  data_fechamento: string | null;
+  data_vencimento: string | null;
+  janelaDias?: number;
+}): Promise<CandidatoLancamento[]> {
+  const janela = params.janelaDias ?? 45;
+  const ref = params.data_vencimento ?? params.data_fechamento;
+  let min: string | null = null;
+  let max: string | null = null;
+  if (ref) {
+    const d = new Date(`${ref}T00:00:00Z`);
+    const dMin = new Date(d); dMin.setUTCDate(dMin.getUTCDate() - janela);
+    const dMax = new Date(d); dMax.setUTCDate(dMax.getUTCDate() + janela);
+    min = dMin.toISOString().slice(0, 10);
+    max = dMax.toISOString().slice(0, 10);
+  }
+  let q = supabase
+    .from("financeiro_lancamentos")
+    .select("id, descricao, valor, data_vencimento, status")
+    .eq("empresa_id", params.empresa_id)
+    .eq("tipo", "pagar")
+    .eq("ativo", true)
+    .is("cartao_fatura_id", null)
+    .in("status", ["aberto", "parcial"])
+    .order("data_vencimento", { ascending: true })
+    .limit(500);
+  if (min && max) q = q.gte("data_vencimento", min).lte("data_vencimento", max);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as CandidatoLancamento[];
+}
+
 export interface CandidatoLancamento {
   id: string;
   descricao: string | null;
