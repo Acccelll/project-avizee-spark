@@ -263,7 +263,8 @@ export function ReconciliacaoFaturaPanel({
   };
 
   /** Auto-concilia linhas pendentes com match ÚNICO por valor exato (janela ±7d). */
-  const acaoAutoConciliar = async () => {
+  const acaoAutoConciliar = async (opts?: { soValor?: boolean }) => {
+    const soValor = opts?.soValor ?? false;
     const linhasPend = (linhas.data ?? []).filter((l) => (l.status ?? "pendente") === "pendente");
     const cands = candidatos.data ?? [];
     if (!linhasPend.length || !cands.length) {
@@ -278,7 +279,7 @@ export function ReconciliacaoFaturaPanel({
         (c) =>
           !usados.has(c.id) &&
           Math.abs(Number(c.valor) - valor) <= 0.02 &&
-          diasEntre(c.data_vencimento, li.data_compra) <= 7,
+          (soValor || diasEntre(c.data_vencimento, li.data_compra) <= 7),
       );
       if (compat.length === 1) {
         pares.push({ linhaId: li.id, lancId: compat[0].id });
@@ -286,7 +287,7 @@ export function ReconciliacaoFaturaPanel({
       }
     }
     if (!pares.length) {
-      toast.info("Nenhum match único encontrado (valor exato ±7d)");
+      toast.info(soValor ? "Nenhum match único por valor" : "Nenhum match único encontrado (valor exato ±7d)");
       return;
     }
     setBusy(true);
@@ -366,8 +367,11 @@ export function ReconciliacaoFaturaPanel({
           <span className={diff === 0 ? "text-emerald-600" : "text-amber-600"}>
             Diferença: <strong>{fmt(diff)}</strong>
           </span>
-          <Button size="sm" variant="outline" onClick={acaoAutoConciliar} disabled={busy} title="Match único por valor exato ±7 dias">
+          <Button size="sm" variant="outline" onClick={() => acaoAutoConciliar()} disabled={busy} title="Match único por valor exato ±7 dias">
             <Wand2 className="mr-1 h-4 w-4" />Auto-conciliar
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => acaoAutoConciliar({ soValor: true })} disabled={busy} title="Match único apenas por valor (ignora data)">
+            <Wand2 className="mr-1 h-4 w-4" />Só valor
           </Button>
           <Button size="sm" variant="outline" onClick={acaoCriarPendentes} disabled={busy} title="Cria lançamentos a pagar para todas as linhas pendentes">
             <Sparkles className="mr-1 h-4 w-4" />Criar pendentes
