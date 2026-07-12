@@ -145,6 +145,21 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
                 {parsed.lancamentos.length} lançamentos
               </p>
             )}
+            {ultimos4Divergente && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs">
+                <p className="font-medium text-destructive">
+                  Cartão diverge: PDF é •••• {ultimos4Pdf}, selecionado é •••• {ultimos4Cartao}.
+                </p>
+                <label className="mt-1 flex items-center gap-2 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={ignorarUltimos4}
+                    onChange={(e) => setIgnorarUltimos4(e.target.checked)}
+                  />
+                  Importar mesmo assim
+                </label>
+              </div>
+            )}
           </div>
           {parsed && parsed.lancamentos.length > 0 && (
             <div className="max-h-64 overflow-auto rounded border">
