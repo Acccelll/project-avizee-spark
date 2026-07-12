@@ -327,6 +327,62 @@ export default function ConciliacaoCartaoPage() {
                   ))}
                 </div>
               )}
+
+              {faturaSel && (linhas.data ?? []).length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                    Linhas do PDF/OFX ({linhas.data?.length})
+                  </p>
+                  <div className="max-h-[320px] space-y-1 overflow-auto pr-1">
+                    {(linhas.data ?? []).map((li) => {
+                      const ignorada = li.status === "ignorada";
+                      return (
+                        <div
+                          key={li.id}
+                          className={`flex items-center justify-between gap-2 rounded border p-2 text-xs ${ignorada ? "opacity-60" : ""}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate">{li.descricao ?? "(sem descrição)"}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {fmtDate(li.data_compra)}
+                              {li.parcela_atual && li.parcela_total
+                                ? ` · ${li.parcela_atual}/${li.parcela_total}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-medium">{fmt(Number(li.valor || 0))}</span>
+                            <StatusBadge status={li.status ?? "pendente"} />
+                            {ignorada ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1"
+                                disabled={alterarStatusLinha.isPending}
+                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "pendente" })}
+                                title="Reabrir linha"
+                              >
+                                <Undo2 className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1"
+                                disabled={alterarStatusLinha.isPending || li.status === "vinculada"}
+                                onClick={() => alterarStatusLinha.mutate({ id: li.id, status: "ignorada" })}
+                                title="Ignorar linha (não afeta a fatura consolidada)"
+                              >
+                                <EyeOff className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
