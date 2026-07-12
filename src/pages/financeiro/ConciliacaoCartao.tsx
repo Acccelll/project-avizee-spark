@@ -16,6 +16,7 @@ import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCr
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
 import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
+import { VincularLinhaPopover } from "./conciliacaoCartao/VincularLinhaPopover";
 import {
   listLinhasDaFatura,
   setLinhaStatus,
@@ -115,6 +116,20 @@ export default function ConciliacaoCartaoPage() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao atualizar linha"),
   });
+
+  const [linhaFiltro, setLinhaFiltro] = useState<"todas" | FaturaLinhaStatus>("todas");
+  const linhasFiltradas = useMemo(() => {
+    const all = linhas.data ?? [];
+    return linhaFiltro === "todas" ? all : all.filter((l) => (l.status ?? "pendente") === linhaFiltro);
+  }, [linhas.data, linhaFiltro]);
+  const contagemLinhas = useMemo(() => {
+    const c = { pendente: 0, vinculada: 0, criada: 0, ignorada: 0 } as Record<FaturaLinhaStatus, number>;
+    (linhas.data ?? []).forEach((l) => {
+      const s = (l.status ?? "pendente") as FaturaLinhaStatus;
+      if (s in c) c[s]++;
+    });
+    return c;
+  }, [linhas.data]);
 
   const fechar = useMutation({
     mutationFn: async (fatura: FaturaRow) => gerarFaturaCartao(fatura.cartao_id, fatura.competencia),
