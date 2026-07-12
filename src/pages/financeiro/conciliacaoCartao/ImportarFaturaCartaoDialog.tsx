@@ -21,6 +21,7 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
   const [parsed, setParsed] = useState<FaturaImportInput | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ignorarUltimos4, setIgnorarUltimos4] = useState(false);
 
   const cartoes = useQuery({
     queryKey: ["cartoes-credito", "ativos"],
@@ -36,6 +37,26 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
     },
   });
 
+  /** Retorna o `ultimos4` predominante nos lançamentos do PDF (moda). */
+  const ultimos4Pdf = (() => {
+    if (!parsed) return null;
+    const contagem = new Map<string, number>();
+    parsed.lancamentos.forEach((l) => {
+      if (!l.ultimos4) return;
+      contagem.set(l.ultimos4, (contagem.get(l.ultimos4) ?? 0) + 1);
+    });
+    let melhor: string | null = null;
+    let max = 0;
+    contagem.forEach((v, k) => { if (v > max) { max = v; melhor = k; } });
+    return melhor;
+  })();
+
+  const cartaoSelecionado = cartoes.data?.find((c) => c.id === cartaoId) ?? null;
+  const ultimos4Cartao = cartaoSelecionado?.ultimos4 ?? null;
+  const ultimos4Divergente = Boolean(
+    ultimos4Pdf && ultimos4Cartao && ultimos4Pdf !== ultimos4Cartao,
+  );
+
   const empresa = useQuery({
     queryKey: ["empresa", "atual"],
     enabled: open,
@@ -46,7 +67,7 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
     },
   });
 
-  const reset = () => { setFile(null); setParsed(null); };
+  const reset = () => { setFile(null); setParsed(null); setIgnorarUltimos4(false); };
 
   const handleFile = async (f: File) => {
     setFile(f);
@@ -63,6 +84,12 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
   const confirmar = async () => {
     if (!parsed || !cartaoId || !empresa.data) {
       toast.error("Selecione cartão e um PDF válido");
+      return;
+    }
+    if (ultimos4Divergente && !ignorarUltimos4) {
+      toast.error(
+        `Cartão selecionado (•••• ${ultimos4Cartao}) diverge do PDF (•••• ${ultimos4Pdf}). Marque "Importar mesmo assim" para continuar.`,
+      );
       return;
     }
     setBusy(true);
@@ -117,6 +144,21 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
                 Venc. {parsed.data_vencimento} · Total R$ {parsed.valor_total.toFixed(2)} ·
                 {parsed.lancamentos.length} lançamentos
               </p>
+            )}
+            {ultimos4Divergente && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs">
+                <p className="font-medium text-destructive">
+                  Cartão diverge: PDF é •••• {ultimos4Pdf}, selecionado é •••• {ultimos4Cartao}.
+                </p>
+                <label className="mt-1 flex items-center gap-2 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={ignorarUltimos4}
+                    onChange={(e) => setIgnorarUltimos4(e.target.checked)}
+                  />
+                  Importar mesmo assim
+                </label>
+              </div>
             )}
           </div>
           {parsed && parsed.lancamentos.length > 0 && (

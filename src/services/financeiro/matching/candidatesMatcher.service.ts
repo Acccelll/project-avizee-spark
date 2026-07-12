@@ -44,7 +44,7 @@ export async function buscarCandidatos({
   const { data, error } = await supabase
     .from("financeiro_lancamentos")
     .select(
-      "id, tipo, valor, data_vencimento, forma_pagamento, titulo, " +
+      "id, tipo, valor, data_vencimento, forma_pagamento, titulo, origem_tipo, " +
         "fornecedor:fornecedores(nome_fantasia, razao_social, cpf_cnpj), " +
         "cliente:clientes(nome_fantasia, razao_social, cpf_cnpj)",
     )
@@ -67,6 +67,7 @@ export async function buscarCandidatos({
     data_vencimento: string;
     forma_pagamento: string | null;
     titulo: string | null;
+    origem_tipo: string | null;
     fornecedor: { nome_fantasia?: string; razao_social?: string; cpf_cnpj?: string } | null;
     cliente: { nome_fantasia?: string; razao_social?: string; cpf_cnpj?: string } | null;
   };
@@ -79,6 +80,7 @@ export async function buscarCandidatos({
       data_vencimento: r.data_vencimento,
       forma_pagamento: r.forma_pagamento,
       titulo: r.titulo,
+      origem_tipo: r.origem_tipo,
       fornecedor_nome: r.fornecedor?.nome_fantasia ?? r.fornecedor?.razao_social ?? null,
       fornecedor_documento: r.fornecedor?.cpf_cnpj ?? null,
       cliente_nome: r.cliente?.nome_fantasia ?? r.cliente?.razao_social ?? null,

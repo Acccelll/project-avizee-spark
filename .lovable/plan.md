@@ -1,98 +1,40 @@
-# Plano — Conciliação Bancária padrão TOTVS RM
+## Backlog de Conciliação de Cartão — plano de execução
 
-Objetivo: entregar em 4 sprints a evolução completa da tela `/financeiro/conciliacao`, cobrindo layout, persistência por lote, tolerâncias configuráveis, ajustes automáticos, estorno de conciliação e trilha de auditoria.
+Do backlog de 5 itens levantado, um já está parcialmente coberto pelo backend (idempotência de linha via `cartao_fatura_lancamentos.hash` — a RPC `cartao_importar_fatura` já retorna `duplicadas`). Sobram 4 frentes; proponho executá-las em **3 fases** por afinidade técnica.
 
-O que já foi feito na sessão anterior e será mantido:
-- Extrato OFX persistido em `financeiro_extrato_importacoes` (idempotente por `conta+fitid`).
-- Reidratação automática ao trocar conta/período/recarregar.
-- Reordenação parcial de layout (dash acima do painel OFX).
-- Nome de cliente/fornecedor no painel de conciliação.
+### Fase 1 — Guard-rails do import (rápido, sem migração)
 
----
+**Item 4 — Validação de cartão errado no PDF**
+- No `ImportarFaturaCartaoDialog`, comparar os `ultimos4` extraídos do PDF com o `ultimos4` do cartão selecionado. Se divergirem, exibir aviso bloqueante com opção "Importar mesmo assim" (mesmo padrão do FITID no OFX).
+- Extrair `ultimos4` predominante do `FaturaImportInput.lancamentos[].ultimos4` (moda) e comparar com `cartoes_credito.ultimos4`.
 
-## Sprint 1 — Layout final e fim do sumiço pós-conciliação
+**Item 3 — Reimport idempotente do header**
+- Adicionar coluna `arquivo_hash text` em `cartao_faturas` (migração).
+- No frontend, calcular SHA-256 do PDF antes de chamar a RPC e passar como novo parâmetro `p_arquivo_hash`.
+- Ajustar `cartao_importar_fatura` para reutilizar `cartao_faturas` existente quando `(cartao_id, arquivo_hash)` já existe (em vez de criar segunda fatura para o mesmo arquivo).
 
-Escopo:
-- Confirmar a ordem vertical: Filtros → Mini-dash → Painel OFX × ERP → Filtros de lançamentos → Tabela.
-- Corrigir o desaparecimento: após conciliar, o lançamento permanece na lista com badge verde "Conciliado" + ícone check; o extrato permanece com mesma marca visual.
-- Novo filtro rápido "Exibir apenas pendentes" (toggle no cabeçalho da grade e do painel OFX). Padrão: desligado.
-- Ampliar `fetchLancamentosParaConciliacao` para trazer também os títulos pagos vinculados a baixas do período (já ok via eixo baixa) e marcar `statusConciliacao = "conciliado"` quando existir baixa ativa correspondente ao extrato.
+### Fase 2 — Fechar o ciclo com a conciliação bancária
 
-Aceite:
-- Após confirmar 1 par, a linha do ERP e do OFX continuam visíveis, verdes, com badge "Conciliado".
-- Toggle "Apenas pendentes" oculta linhas conciliadas em ambos os lados.
+**Item 1 — Pareamento automático baixa da fatura ↔ linha OFX**
+- Hoje `baixar_fatura_cartao` cria um `financeiro_baixas` com `grupo_baixa_id`; o débito aparece no extrato mas o pareamento na tela de conciliação bancária depende do matcher genérico.
+- Reforçar o matcher (`scoreExtratoPendentes.service` / `rulesEngine`) para priorizar baixas de fatura de cartão: match forte por (`data_baixa` ± 3d, `valor` exato, `conta_bancaria_id`). Score >= 0.9.
+- Exibir badge "Fatura de cartão" na `OFXMatchingPane` quando o candidato vier de `grupo_baixa_id` de fatura.
 
----
+### Fase 3 — Conciliação linha-a-linha e OFX de cartão
 
-## Sprint 2 — Lotes de importação e retomada de trabalho
+**Item 2 — UI de conciliação linha-a-linha da fatura**
+- Nova aba/dialog "Conciliar lançamentos" na `ConciliacaoCartao.tsx`, listando `cartao_fatura_lancamentos` (via nova RPC `cartao_fatura_listar_linhas`).
+- Cada linha pode ser: (a) vinculada a um `financeiro_lancamentos` existente (compras parceladas), (b) transformada em novo lançamento a pagar, (c) marcada como pessoal/desconsiderar.
+- Persistir vínculo em `cartao_fatura_lancamentos.lancamento_id` e `status` (`pendente|vinculada|criada|ignorada`).
 
-Backend (migration):
-- Nova tabela `financeiro_extrato_lotes` (id, empresa_id, conta_bancaria_id, arquivo_nome, arquivo_hash, total_transacoes, inseridas, criado_por, criado_em, status).
-- Coluna `lote_id uuid` em `financeiro_extrato_importacoes` referenciando o lote.
-- GRANTs e RLS por `empresa_id` (padrão do projeto).
+**Item 5 — Adapter OFX para faturas de cartão**
+- Reaproveitar `adaptOFX` e adicionar detecção pelo header OFX (`<CCSTMTRS>` = cartão vs `<STMTRS>` = conta corrente).
+- Novo diálogo unificado ou botão adicional "Importar OFX de cartão" chamando a mesma RPC `cartao_importar_fatura` com origem `ofx_cartao`.
 
-Serviço:
-- `criarLoteImportacao` cria o cabeçalho antes do upsert das transações e devolve `lote_id`.
-- `persistirExtratoOFX` recebe `lote_id` e grava em cada linha.
-- `listarLotesImportacao(contaId, periodo?)` para a nova aba.
+### Ordem de execução
 
-UI:
-- Nova aba "Histórico de Importações" dentro da própria página (Tabs: "Conciliação" | "Histórico"), listando lotes com colunas: Data, Arquivo, Conta, Transações, Conciliadas, Pendentes, Usuário, Ações (Abrir / Excluir se 0 conciliadas).
-- Ao clicar "Abrir": aplica filtros de conta/período do lote e rola até o painel OFX.
-- Progresso persistido: como o status vive no banco (`pendente|conciliado|ignorado`), fechar a aba e voltar mantém o trabalho — apenas garantir que a UI hidrate `matches` a partir das linhas já `conciliado` do lote ativo.
+1. Fase 1 (Itens 4 + 3) — entrega imediata, baixo risco.
+2. Fase 2 (Item 1) — depende de migração leve (nenhuma), só matcher.
+3. Fase 3 (Itens 2 + 5) — maior escopo, entregar por último.
 
-Aceite:
-- Cada upload gera um registro em `financeiro_extrato_lotes`.
-- Aba Histórico lista os lotes e permite retomar.
-
----
-
-## Sprint 3 — Tolerâncias e ajuste automático
-
-Backend:
-- Coluna JSON `conciliacao_tolerancias` em `empresa_config` (default `{ dias: 3, valor_centavos: 10 }`).
-
-Serviço:
-- `calcularScoreConciliacao` passa a considerar as tolerâncias configuradas para elevar o score em vez de zerá-lo.
-- Novo `gerarLancamentoAjusteBancario({ diferenca, conta, data, descricao })` que cria um lançamento tipo despesa/receita bancária e sua baixa, no mesmo dia do extrato.
-
-UI:
-- Ao confirmar par com divergência ≤ tolerância: banner "Divergência de R$ x,xx" com botão "Gerar ajuste bancário automático".
-- Configuração das tolerâncias em `Configurações → Financeiro` (form simples).
-
-Aceite:
-- Match automático encontra pares com até 3 dias e R$ 0,10 de diferença.
-- Botão de ajuste cria lançamento e baixa vinculada, zerando a divergência.
-
----
-
-## Sprint 4 — Estorno e auditoria
-
-Estorno:
-- Botão "Desfazer vínculo" já existe para conciliação persistida; estender para pares recém-confirmados na sessão (usa `desfazerConciliacaoExtrato` + estorno da baixa) e para a nova grade de lançamentos conciliados.
-- Confirmação com motivo obrigatório (dialog).
-
-Auditoria (backend):
-- Nova tabela `financeiro_conciliacao_auditoria` (id, empresa_id, usuario_id, acao ENUM: importacao|conciliacao|estorno|ajuste|exclusao, entidade, entidade_id, payload jsonb, criado_em).
-- GRANTs, RLS por empresa, índice por (empresa, criado_em desc).
-- Serviço `registrarAuditoriaConciliacao` chamado em cada handler crítico.
-- Não exposta na UI nesta sprint (tabela "oculta"), mas consultável via SQL/relatórios futuros.
-
-Aceite:
-- Toda importação, conciliação, estorno, ajuste e exclusão gera um registro com usuário e timestamp.
-- Desfazer vínculo retorna extrato e lançamento ao status "pendente" e estorna a baixa.
-
----
-
-## Detalhes técnicos
-
-Arquivos principais a tocar:
-- `src/pages/Conciliacao.tsx` (layout + aba Histórico + toggle "apenas pendentes").
-- `src/pages/financeiro/conciliacao/OFXMatchingPane.tsx` (badge verde, toggle, estorno inline).
-- `src/pages/financeiro/conciliacao/useConciliacao.ts` (hidratação de conciliados no ERP, lote ativo, ajuste automático, auditoria).
-- `src/services/financeiro/extratoImportacoes.service.ts` (lote_id em upsert, `criarLoteImportacao`, `listarLotesImportacao`).
-- `src/services/financeiro/conciliacao.service.ts` (tolerâncias + `gerarLancamentoAjusteBancario`).
-- Novo `src/services/financeiro/conciliacaoAuditoria.service.ts`.
-- Migrations: `financeiro_extrato_lotes`, coluna `lote_id`, `conciliacao_tolerancias`, `financeiro_conciliacao_auditoria` (com GRANTs e RLS conforme padrão do projeto).
-
-Execução: entrego uma sprint por vez. Ao final de cada sprint faço `tsgo` + validação visual quando aplicável e sigo para a próxima ao seu "seguir".
+Cada fase será verificada com build limpo antes de seguir para a próxima. Sem alteração de outros módulos além dos arquivos de conciliação de cartão, matcher financeiro e uma migração SQL de coluna.
