@@ -551,13 +551,19 @@ export function OFXMatchingPane(p: Props) {
                         isPareado ? "border-success/40 bg-success/5"
                         : checked ? "border-primary bg-primary/5"
                         : "border-border bg-card"
-                      }`}>
+                      } cursor-pointer`}
+                        onDoubleClick={() => {
+                          window.open(`/financeiro/${l.id}`, "_blank", "noopener,noreferrer");
+                        }}
+                        title="Duplo clique para abrir o título"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <Checkbox
                               checked={checked}
                               disabled={isConciliadoPersistido}
                               onCheckedChange={() => toggle(selLanc, setSelLanc, l.id)}
+                              onClick={(e) => e.stopPropagation()}
                               aria-label="Selecionar lançamento"
                             />
                             <LancamentoResumo lancamento={l} />
