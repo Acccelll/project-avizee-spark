@@ -32,6 +32,7 @@ export interface CandidatoInput {
   cliente_documento?: string | null;
   forma_pagamento?: string | null;
   titulo?: string | null;
+  origem_tipo?: string | null;    // ex.: 'cartao_fatura' → boost dedicado
 }
 
 export interface MatchScore {
@@ -125,6 +126,14 @@ export function scoreMatch(extrato: ExtratoInput, candidato: CandidatoInput): Ma
   const sp = scoreForma(extrato.forma_pagamento, candidato.forma_pagamento);
   if (sp) motivos.push("mesma forma de pagamento");
 
-  const score = sv * 0.4 + sd * 0.25 + sf.score * 0.25 + sp * 0.1;
+  let score = sv * 0.4 + sd * 0.25 + sf.score * 0.25 + sp * 0.1;
+
+  // Boost: baixa consolidada de fatura de cartão com valor exato e data próxima
+  // — sinaliza alta confiança porque foi originada por `baixar_fatura_cartao`.
+  if (candidato.origem_tipo === "cartao_fatura" && sv >= 1 && sd >= 1) {
+    score = Math.min(1, score + 0.15);
+    motivos.push("baixa de fatura de cartão");
+  }
+
   return { score: Number(score.toFixed(3)), motivos };
 }
