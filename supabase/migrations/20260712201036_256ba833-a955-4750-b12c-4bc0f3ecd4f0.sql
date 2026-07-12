@@ -1,0 +1,2 @@
+ALTER TABLE public.cartao_fatura_lancamentos DROP CONSTRAINT IF EXISTS chk_cartao_fatura_lanc_status;
+ALTER TABLE public.cartao_fatura_lancamentos ADD CONSTRAINT chk_cartao_fatura_lanc_status CHECK (status = ANY (ARRAY['pendente'::text,'vinculada'::text,'criada'::text,'ignorada'::text,'aceito'::text,'ignorado'::text]));
