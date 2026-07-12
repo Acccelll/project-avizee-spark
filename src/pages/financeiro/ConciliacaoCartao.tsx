@@ -15,6 +15,8 @@ import { logger } from "@/lib/logger";
 import { gerarFaturaCartao, listLancamentosDaFatura } from "@/services/cartoesCredito.service";
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
 import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
+import { ImportarFaturasLoteDialog } from "./conciliacaoCartao/ImportarFaturasLoteDialog";
+import { LotesImportacaoPanel } from "./conciliacaoCartao/LotesImportacaoPanel";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
 import { VincularLinhaPopover } from "./conciliacaoCartao/VincularLinhaPopover";
 import {
@@ -191,12 +193,14 @@ export default function ConciliacaoCartaoPage() {
               <BarChart3 className="mr-2 h-4 w-4" />Dashboard
             </Link>
           </Button>
+          <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
           <ImportarOfxCartaoDialog onImported={() => faturas.refetch()} />
           <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
         </div>
       }
     >
       <div className="space-y-4">
+        <LotesImportacaoPanel />
         <Card>
           <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-3">
