@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Link2, Undo2, EyeOff, Plus } from "lucide-react";
+import { ArrowLeft, Link2, Undo2, EyeOff, Plus, Wand2, Sparkles, EyeOff as EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +19,12 @@ import {
   type FaturaLinha,
   type CandidatoLancamento,
 } from "@/services/conciliacaoCartao/faturaLinhas.service";
+
+function diasEntre(a: string, b: string): number {
+  const da = new Date(`${a}T00:00:00Z`).getTime();
+  const db = new Date(`${b}T00:00:00Z`).getTime();
+  return Math.abs(Math.round((da - db) / 86_400_000));
+}
 
 function fmt(n: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n ?? 0);
@@ -192,6 +198,84 @@ export function ReconciliacaoFaturaPanel({
     } finally { setBusy(false); }
   };
 
+  /** Auto-concilia linhas pendentes com match ÚNICO por valor exato (janela ±7d). */
+  const acaoAutoConciliar = async () => {
+    const linhasPend = (linhas.data ?? []).filter((l) => (l.status ?? "pendente") === "pendente");
+    const cands = candidatos.data ?? [];
+    if (!linhasPend.length || !cands.length) {
+      toast.info("Nada para auto-conciliar");
+      return;
+    }
+    const usados = new Set<string>();
+    const pares: Array<{ linhaId: string; lancId: string }> = [];
+    for (const li of linhasPend) {
+      const valor = Math.abs(Number(li.valor || 0));
+      const compat = cands.filter(
+        (c) =>
+          !usados.has(c.id) &&
+          Math.abs(Number(c.valor) - valor) < 0.01 &&
+          diasEntre(c.data_vencimento, li.data_compra) <= 7,
+      );
+      if (compat.length === 1) {
+        pares.push({ linhaId: li.id, lancId: compat[0].id });
+        usados.add(compat[0].id);
+      }
+    }
+    if (!pares.length) {
+      toast.info("Nenhum match único encontrado (valor exato ±7d)");
+      return;
+    }
+    setBusy(true);
+    try {
+      for (const p of pares) await vincularLinha(p.linhaId, p.lancId);
+      toast.success(`${pares.length} linha(s) auto-conciliada(s)`);
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha na auto-conciliação");
+    } finally { setBusy(false); }
+  };
+
+  /** Cria lançamentos para todas as linhas pendentes de uma vez. */
+  const acaoCriarPendentes = async () => {
+    if (!empresa.data) return;
+    const pend = (linhas.data ?? []).filter((l) => (l.status ?? "pendente") === "pendente");
+    if (!pend.length) { toast.info("Sem linhas pendentes"); return; }
+    setBusy(true);
+    let ok = 0;
+    try {
+      for (const li of pend) {
+        await criarLancamentoDaLinha({
+          empresa_id: empresa.data,
+          linha_id: li.id,
+          cartao_id: cartaoId,
+          descricao: li.descricao ?? "(sem descrição)",
+          valor: Number(li.valor || 0),
+          data_vencimento: li.data_compra,
+        });
+        ok++;
+      }
+      toast.success(`${ok} lançamento(s) criado(s)`);
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Falha após criar ${ok}`);
+      invalidateAll();
+    } finally { setBusy(false); }
+  };
+
+  /** Marca todas as linhas pendentes como ignoradas. */
+  const acaoIgnorarPendentes = async () => {
+    const pend = (linhas.data ?? []).filter((l) => (l.status ?? "pendente") === "pendente");
+    if (!pend.length) { toast.info("Sem linhas pendentes"); return; }
+    setBusy(true);
+    try {
+      for (const li of pend) await setLinhaStatus(li.id, "ignorada");
+      toast.success(`${pend.length} linha(s) ignorada(s)`);
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao ignorar");
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -208,12 +292,21 @@ export function ReconciliacaoFaturaPanel({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span>Linhas: <strong>{fmt(somaLinhas)}</strong></span>
           <span>ERP: <strong>{fmt(somaLanc)}</strong></span>
           <span className={diff === 0 ? "text-emerald-600" : "text-amber-600"}>
             Diferença: <strong>{fmt(diff)}</strong>
           </span>
+          <Button size="sm" variant="outline" onClick={acaoAutoConciliar} disabled={busy} title="Match único por valor exato ±7 dias">
+            <Wand2 className="mr-1 h-4 w-4" />Auto-conciliar
+          </Button>
+          <Button size="sm" variant="outline" onClick={acaoCriarPendentes} disabled={busy} title="Cria lançamentos a pagar para todas as linhas pendentes">
+            <Sparkles className="mr-1 h-4 w-4" />Criar pendentes
+          </Button>
+          <Button size="sm" variant="ghost" onClick={acaoIgnorarPendentes} disabled={busy} title="Marca todas as linhas pendentes como ignoradas">
+            <EyeOffIcon className="mr-1 h-4 w-4" />Ignorar pendentes
+          </Button>
           <Button size="sm" onClick={conciliar} disabled={busy || selLinhas.size === 0 || selLanc.size === 0}>
             <Link2 className="mr-1 h-4 w-4" />Conciliar selecionados
           </Button>
