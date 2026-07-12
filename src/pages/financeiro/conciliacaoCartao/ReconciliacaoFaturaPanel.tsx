@@ -337,24 +337,26 @@ export function ReconciliacaoFaturaPanel({
         {/* Coluna esquerda: linhas da fatura */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Linhas da fatura ({linhasFiltradas.length})
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                Linhas da fatura ({linhasFiltradas.length})
+              </CardTitle>
+              <Select value={ordLinha} onValueChange={(v) => setOrdLinha(v as SortKey)}>
+                <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="data-asc">Data ↑</SelectItem>
+                  <SelectItem value="data-desc">Data ↓</SelectItem>
+                  <SelectItem value="valor-asc">Valor ↑</SelectItem>
+                  <SelectItem value="valor-desc">Valor ↓</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Input
               placeholder="Buscar linha…"
               value={buscaLinha}
               onChange={(e) => setBuscaLinha(e.target.value)}
-              className="h-8 text-xs"
+              className="mt-2 h-8 text-xs"
             />
-            <Select value={ordLinha} onValueChange={(v) => setOrdLinha(v as typeof ordLinha)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Ordenar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="data_asc">Data ↑</SelectItem>
-                <SelectItem value="data_desc">Data ↓</SelectItem>
-                <SelectItem value="valor_asc">Valor ↑</SelectItem>
-                <SelectItem value="valor_desc">Valor ↓</SelectItem>
-              </SelectContent>
-            </Select>
           </CardHeader>
           <CardContent>
             {linhas.isLoading ? (
