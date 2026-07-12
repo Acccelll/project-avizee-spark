@@ -225,6 +225,7 @@ export async function listarExtratoPersistido(input: {
     .eq("conta_bancaria_id", contaBancariaId)
     .gte("data", dataInicio)
     .lte("data", dataFim)
+    .neq("status", "ignorado")
     .order("data", { ascending: true });
   if (error) throw new Error(error.message);
   return ((data as unknown) as ExtratoTransacaoPersistida[]) ?? [];
