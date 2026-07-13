@@ -511,6 +511,21 @@ const Estoque = () => {
       const custo = Number(p.preco_custo ?? p.preco_venda ?? 0);
       return <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * custo)}</span>;
     }, hidden: true },
+    { key: "acoes", label: "Ações", render: (p: ProdutoPosicao) => (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5"
+        disabled={!canAjustar}
+        onClick={(e) => {
+          e.stopPropagation();
+          abrirAjusteRapido(p.id, "ajuste");
+        }}
+        title={canAjustar ? "Ajustar saldo deste item" : "Sem permissão para ajustar estoque"}
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" /> Ajustar
+      </Button>
+    ) },
   ];
 
   // Preview do ajuste para o produto selecionado
