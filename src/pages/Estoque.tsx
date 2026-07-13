@@ -723,16 +723,17 @@ const Estoque = () => {
                 return null;
               }}
               mobilePrimaryAction={(p) => {
+                if (!canAjustar) return null;
                 const sit = getSituacao(p as ProdutoPosicao);
-                if (sit !== "critico" && sit !== "zerado") return null;
+                const critico = sit === "critico" || sit === "zerado";
                 return (
                   <Button
                     size="lg"
-                    variant="default"
+                    variant={critico ? "default" : "outline"}
                     className="h-11 w-full gap-2 text-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      abrirAjusteRapido(p.id, "entrada");
+                      abrirAjusteRapido(p.id, critico ? "entrada" : "ajuste");
                     }}
                   >
                     <SlidersHorizontal className="h-4 w-4" /> Ajustar saldo
