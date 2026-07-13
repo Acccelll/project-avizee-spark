@@ -80,7 +80,7 @@ export async function preverFatura(file: File): Promise<LotePreviewItem> {
 }
 
 /** Busca um único candidato exato (valor ±0.01, data ±5d) para auto-vincular. */
-async function autoCandidato(params: {
+export async function autoCandidato(params: {
   empresa_id: string;
   cartao_id: string;
   valor: number;

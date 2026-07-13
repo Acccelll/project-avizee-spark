@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2 } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2, FileText, CheckCheck, Upload, MoreHorizontal, Shuffle, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
+import { SummaryCard } from "@/components/SummaryCard";
+import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterBar";
+import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { gerarFaturaCartao } from "@/services/cartoesCredito.service";
@@ -20,6 +27,8 @@ import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
 import { ReconciliacaoFaturaPanel } from "./conciliacaoCartao/ReconciliacaoFaturaPanel";
 import { excluirFatura } from "@/services/conciliacaoCartao/faturaLinhas.service";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
+import { autoConciliarFaturas } from "@/services/conciliacaoCartao/autoConciliarService";
+import { exportarParaExcel } from "@/services/export.service";
 
 interface FaturaRow {
   id: string;
@@ -42,15 +51,24 @@ function fmtDate(iso: string | null | undefined) {
   return `${d}/${m}/${y}`;
 }
 
+const statusOptions: MultiSelectOption[] = [
+  { value: "aberta", label: "Abertas" },
+  { value: "fechada", label: "Fechadas" },
+  { value: "paga", label: "Pagas" },
+];
+
 export default function ConciliacaoCartaoPage() {
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
   const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive({ verb: "Excluir" });
-  const [cartaoId, setCartaoId] = useState<string>("");
+  const [cartaoFilters, setCartaoFilters] = useState<string[]>([]);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
-  const [statusFiltro, setStatusFiltro] = useState<string>("todos");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [faturaSelecionadaId, setFaturaSelecionadaId] = useState<string | null>(null);
   const [baixarOpen, setBaixarOpen] = useState(false);
+  const [aba, setAba] = useState<"faturas" | "historico">("faturas");
 
   const cartoes = useQuery({
     queryKey: ["cartoes-credito", "ativos"],
@@ -66,24 +84,37 @@ export default function ConciliacaoCartaoPage() {
   });
 
   const faturas = useQuery({
-    queryKey: ["cartao-faturas", "conciliacao-cartao", cartaoId, inicio, fim, statusFiltro],
+    queryKey: ["cartao-faturas", "conciliacao-cartao", cartaoFilters, inicio, fim, statusFilters],
     queryFn: async () => {
       let q = supabase
         .from("cartao_faturas")
         .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
         .order("data_vencimento", { ascending: false })
         .limit(200);
-      if (cartaoId) q = q.eq("cartao_id", cartaoId);
+      if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
       if (inicio) q = q.gte("data_vencimento", inicio);
       if (fim) q = q.lte("data_vencimento", fim);
-      if (statusFiltro !== "todos") q = q.eq("status", statusFiltro);
+      if (statusFilters.length > 0) q = q.in("status", statusFilters);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as FaturaRow[];
     },
   });
 
-  const rows = faturas.data ?? [];
+  const rawRows = faturas.data ?? [];
+  const rows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return rawRows;
+    return rawRows.filter((r) => {
+      const nome = r.cartoes_credito?.nome?.toLowerCase() ?? "";
+      const ult = r.cartoes_credito?.ultimos4 ?? "";
+      return (
+        r.competencia.toLowerCase().includes(q) ||
+        nome.includes(q) ||
+        ult.includes(q)
+      );
+    });
+  }, [rawRows, searchTerm]);
 
   const kpis = useMemo(() => {
     const abertas = rows.filter((r) => r.status === "aberta");
@@ -176,90 +207,211 @@ export default function ConciliacaoCartaoPage() {
     );
   };
 
+  const activeFilterChips = useMemo((): FilterChip[] => {
+    const chips: FilterChip[] = [];
+    if (searchTerm)
+      chips.push({ key: "search", label: "Busca", value: searchTerm, displayValue: searchTerm });
+    if (cartaoFilters.length > 0) {
+      const nomes = cartaoFilters
+        .map((id) => cartoes.data?.find((c) => c.id === id)?.nome ?? id)
+        .join(", ");
+      chips.push({ key: "cartao", label: "Cartão", value: cartaoFilters, displayValue: nomes });
+    }
+    if (statusFilters.length > 0)
+      chips.push({ key: "status", label: "Status", value: statusFilters, displayValue: statusFilters.join(", ") });
+    if (inicio || fim)
+      chips.push({ key: "periodo", label: "Vencimento", value: `${inicio}|${fim}`, displayValue: `${inicio || "…"} → ${fim || "…"}` });
+    return chips;
+  }, [searchTerm, cartaoFilters, statusFilters, inicio, fim, cartoes.data]);
+
+  const removeFilter = (key: string) => {
+    if (key === "search") setSearchTerm("");
+    else if (key === "cartao") setCartaoFilters([]);
+    else if (key === "status") setStatusFilters([]);
+    else if (key === "periodo") { setInicio(""); setFim(""); }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setCartaoFilters([]);
+    setStatusFilters([]);
+    setInicio("");
+    setFim("");
+  };
+
+  const cartaoOptions: MultiSelectOption[] = useMemo(
+    () => (cartoes.data ?? []).map((c) => ({
+      value: c.id,
+      label: `${c.nome}${c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}`,
+    })),
+    [cartoes.data],
+  );
+
+  const autoConciliar = useMutation({
+    mutationFn: async () => {
+      const { data: empresaId, error } = await supabase.rpc("current_empresa_id");
+      if (error || !empresaId) throw new Error("Empresa não identificada");
+      const faturasAlvo = rows
+        .filter((r) => r.status === "aberta" || r.status === "fechada")
+        .map((r) => ({ id: r.id, cartao_id: r.cartao_id }));
+      if (faturasAlvo.length === 0) return { linhasAvaliadas: 0, vinculadas: 0, faturas: 0 };
+      return autoConciliarFaturas({ empresa_id: empresaId as string, faturas: faturasAlvo });
+    },
+    onSuccess: (res) => {
+      if (res.faturas === 0) {
+        toast.info("Nenhuma fatura aberta/fechada no filtro atual");
+        return;
+      }
+      toast.success(`Auto-conciliação: ${res.vinculadas}/${res.linhasAvaliadas} linhas vinculadas em ${res.faturas} faturas`);
+      qc.invalidateQueries({ queryKey: ["cartao-faturas"] });
+      qc.invalidateQueries({ queryKey: ["cartao-fatura-linhas"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha na auto-conciliação"),
+  });
+
+  const exportar = async () => {
+    const excelRows = rows.map((r) => ({
+      Competência: r.competencia,
+      Cartão: r.cartoes_credito?.nome ?? "",
+      "Últimos 4": r.cartoes_credito?.ultimos4 ?? "",
+      Fechamento: r.data_fechamento ?? "",
+      Vencimento: r.data_vencimento ?? "",
+      "Valor total (R$)": Number(r.valor_total || 0),
+      Status: r.status,
+    }));
+    await exportarParaExcel({ titulo: "Faturas de Cartão", rows: excelRows });
+  };
+
   return (
     <ModulePage
       title="Conciliação de Cartão de Crédito"
       subtitle="Importe faturas em PDF, feche a competência e baixe o pagamento para conciliar no banco"
       headerActions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button asChild variant="outline" size="sm">
             <Link to="/financeiro/conciliacao-cartao/dashboard">
               <BarChart3 className="mr-2 h-4 w-4" />Dashboard
             </Link>
           </Button>
-          <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
-          <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={pedirLimparTudo}
-            disabled={limparTudo.isPending}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {limparTudo.isPending ? "Limpando…" : "Limpar tudo"}
-          </Button>
+          {!isMobile ? (
+            <>
+              <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
+              <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => autoConciliar.mutate()}
+                disabled={autoConciliar.isPending || rows.length === 0}
+              >
+                <Shuffle className="mr-2 h-4 w-4" />
+                {autoConciliar.isPending ? "Conciliando…" : "Conciliar automaticamente"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportar} disabled={rows.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" />Exportar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                onClick={pedirLimparTudo}
+                disabled={limparTudo.isPending}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {limparTudo.isPending ? "Limpando…" : "Limpar tudo"}
+              </Button>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Mais ações">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => autoConciliar.mutate()} disabled={autoConciliar.isPending || rows.length === 0}>
+                  <Shuffle className="w-4 h-4 mr-2" />Conciliar automaticamente
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportar()} disabled={rows.length === 0}>
+                  <FileDown className="w-4 h-4 mr-2" />Exportar Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={pedirLimparTudo} disabled={limparTudo.isPending} className="text-destructive">
+                  <Trash2 className="w-4 h-4 mr-2" />Limpar tudo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       }
     >
       <div className="space-y-4">
-        {!faturaSel && <LotesImportacaoPanel />}
         {!faturaSel && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <div className="grid gap-1 min-w-[220px]">
-              <Label>Cartão</Label>
-              <Select value={cartaoId || "todos"} onValueChange={(v) => setCartaoId(v === "todos" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os cartões</SelectItem>
-                  {cartoes.data?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome} {c.ultimos4 ? `•••• ${c.ultimos4}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Vencimento de</Label>
-              <Input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-            </div>
-            <div className="grid gap-1">
-              <Label>Vencimento até</Label>
-              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
-            </div>
-            <div className="grid gap-1 min-w-[160px]">
-              <Label>Status</Label>
-              <Select value={statusFiltro} onValueChange={setStatusFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="aberta">Abertas</SelectItem>
-                  <SelectItem value="fechada">Fechadas</SelectItem>
-                  <SelectItem value="paga">Pagas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {(cartaoId || inicio || fim || statusFiltro !== "todos") && (
-              <div className="flex items-end">
-                <Button variant="ghost" size="sm" onClick={() => { setCartaoId(""); setInicio(""); setFim(""); setStatusFiltro("todos"); }}>
-                  Limpar filtros
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          <Tabs value={aba} onValueChange={(v) => setAba(v as typeof aba)}>
+            <TabsList>
+              <TabsTrigger value="faturas">Faturas</TabsTrigger>
+              <TabsTrigger value="historico">Histórico de Importações</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        {!faturaSel && aba === "historico" ? (
+          <LotesImportacaoPanel />
+        ) : (
+        <>
+        {!faturaSel && (
+          <div className="grid gap-3 md:grid-cols-4">
+            <SummaryCard title="Abertas" value={kpis.abertas} subtitle="faturas em aberto" variant="warning" icon={FileText} />
+            <SummaryCard title="Fechadas" value={kpis.fechadas} subtitle="prontas para baixa" variant="info" icon={Lock} />
+            <SummaryCard title="Pagas" value={kpis.pagas} subtitle="já baixadas" variant="success" icon={CheckCheck} />
+            <SummaryCard title="Valor a pagar" value={fmt(kpis.aPagar)} subtitle="abertas + fechadas" variant="default" icon={CircleDollarSign} />
+          </div>
         )}
 
         {!faturaSel && (
-        <div className="grid gap-3 md:grid-cols-4">
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Abertas</p><p className="mt-1 text-2xl font-semibold">{kpis.abertas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Fechadas</p><p className="mt-1 text-2xl font-semibold">{kpis.fechadas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Pagas</p><p className="mt-1 text-2xl font-semibold">{kpis.pagas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Valor a pagar</p><p className="mt-1 text-2xl font-semibold">{fmt(kpis.aPagar)}</p></CardContent></Card>
-        </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <PeriodFilter
+              mode="both"
+              value={{ preset: null, from: inicio || null, to: fim || null }}
+              onChange={(next: PeriodValue) => {
+                if (next.preset) {
+                  const from = periodToDateFrom(next.preset as Period);
+                  const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                  setInicio(from);
+                  setFim(to);
+                  return;
+                }
+                setInicio(next.from || "");
+                setFim(next.to || "");
+              }}
+              direction="past"
+            />
+          </div>
+        )}
+
+        {!faturaSel && (
+          <AdvancedFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por competência, cartão ou últimos 4..."
+            activeFilters={activeFilterChips}
+            onRemoveFilter={removeFilter}
+            onClearAll={clearAllFilters}
+            count={rows.length}
+          >
+            <MultiSelect
+              options={cartaoOptions}
+              selected={cartaoFilters}
+              onChange={setCartaoFilters}
+              placeholder="Cartão"
+              className="w-[180px]"
+            />
+            <MultiSelect
+              options={statusOptions}
+              selected={statusFilters}
+              onChange={setStatusFilters}
+              placeholder="Status"
+              className="w-[140px]"
+            />
+          </AdvancedFilterBar>
         )}
 
         <div className={faturaSel ? "" : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"}>
@@ -273,9 +425,26 @@ export default function ConciliacaoCartaoPage() {
               {faturas.isLoading ? (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               ) : rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma fatura encontrada. Importe uma fatura em PDF para começar.
-                </p>
+                <EmptyState
+                  variant={activeFilterChips.length > 0 ? "noResults" : "firstUse"}
+                  icon={Upload}
+                  title={activeFilterChips.length > 0 ? "Nenhuma fatura encontrada" : "Nenhuma fatura importada"}
+                  description={
+                    activeFilterChips.length > 0
+                      ? "Ajuste os filtros ou limpe-os para ver todas as faturas."
+                      : "Importe uma fatura em PDF ou um lote para começar a conciliar."
+                  }
+                  action={
+                    activeFilterChips.length > 0 ? (
+                      <Button size="sm" variant="outline" onClick={clearAllFilters}>Limpar filtros</Button>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
+                        <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
+                      </div>
+                    )
+                  }
+                />
               ) : rows.map((r) => {
                 const isSel = r.id === faturaSelecionadaId;
                 const podeFechar = r.status === "aberta";
@@ -375,6 +544,8 @@ export default function ConciliacaoCartaoPage() {
             </Card>
           )}
         </div>
+        </>
+        )}
       </div>
 
       <BaixarFaturaDialog
