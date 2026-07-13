@@ -14,7 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { gerarFaturaCartao } from "@/services/cartoesCredito.service";
 import { ImportarFaturaCartaoDialog } from "./conciliacaoCartao/ImportarFaturaCartaoDialog";
-import { ImportarOfxCartaoDialog } from "./conciliacaoCartao/ImportarOfxCartaoDialog";
 import { ImportarFaturasLoteDialog } from "./conciliacaoCartao/ImportarFaturasLoteDialog";
 import { LotesImportacaoPanel } from "./conciliacaoCartao/LotesImportacaoPanel";
 import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
@@ -128,6 +127,41 @@ export default function ConciliacaoCartaoPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao excluir fatura"),
   });
 
+  const limparTudo = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.from("cartao_faturas").select("id");
+      if (error) throw error;
+      let ok = 0;
+      for (const f of data ?? []) {
+        try { await excluirFatura(f.id); ok++; } catch (err) { logger.error("conciliacao_cartao.limpar", { err, id: f.id }); }
+      }
+      return { total: data?.length ?? 0, ok };
+    },
+    onSuccess: ({ total, ok }) => {
+      toast.success(`Conciliação de cartão limpa (${ok}/${total} faturas removidas)`);
+      setFaturaSelecionadaId(null);
+      qc.invalidateQueries({ queryKey: ["cartao-faturas"] });
+      qc.invalidateQueries({ queryKey: ["cartao-importacao-lotes"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao-cartao"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao limpar"),
+  });
+
+  const pedirLimparTudo = () => {
+    void confirmDestructive(
+      {
+        verb: "Excluir",
+        entity: "TODAS as faturas e vínculos da conciliação de cartão",
+        sideEffects: [
+          "Todas as faturas importadas (PDF/OFX/lote) serão removidas",
+          "Todos os vínculos com lançamentos financeiros serão desfeitos",
+          "Operação não pode ser revertida",
+        ],
+      },
+      async () => { await limparTudo.mutateAsync(); },
+    );
+  };
+
   const pedirExcluir = (fatura: FaturaRow) => {
     void confirmDestructive(
       {
@@ -154,8 +188,17 @@ export default function ConciliacaoCartaoPage() {
             </Link>
           </Button>
           <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
-          <ImportarOfxCartaoDialog onImported={() => faturas.refetch()} />
           <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive"
+            onClick={pedirLimparTudo}
+            disabled={limparTudo.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {limparTudo.isPending ? "Limpando…" : "Limpar tudo"}
+          </Button>
         </div>
       }
     >
