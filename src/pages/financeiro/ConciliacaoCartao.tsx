@@ -203,90 +203,146 @@ export default function ConciliacaoCartaoPage() {
     );
   };
 
+  const activeFilterChips = useMemo((): FilterChip[] => {
+    const chips: FilterChip[] = [];
+    if (searchTerm)
+      chips.push({ key: "search", label: "Busca", value: searchTerm, displayValue: searchTerm });
+    if (cartaoFilters.length > 0) {
+      const nomes = cartaoFilters
+        .map((id) => cartoes.data?.find((c) => c.id === id)?.nome ?? id)
+        .join(", ");
+      chips.push({ key: "cartao", label: "Cartão", value: cartaoFilters, displayValue: nomes });
+    }
+    if (statusFilters.length > 0)
+      chips.push({ key: "status", label: "Status", value: statusFilters, displayValue: statusFilters.join(", ") });
+    if (inicio || fim)
+      chips.push({ key: "periodo", label: "Vencimento", value: `${inicio}|${fim}`, displayValue: `${inicio || "…"} → ${fim || "…"}` });
+    return chips;
+  }, [searchTerm, cartaoFilters, statusFilters, inicio, fim, cartoes.data]);
+
+  const removeFilter = (key: string) => {
+    if (key === "search") setSearchTerm("");
+    else if (key === "cartao") setCartaoFilters([]);
+    else if (key === "status") setStatusFilters([]);
+    else if (key === "periodo") { setInicio(""); setFim(""); }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setCartaoFilters([]);
+    setStatusFilters([]);
+    setInicio("");
+    setFim("");
+  };
+
+  const cartaoOptions: MultiSelectOption[] = useMemo(
+    () => (cartoes.data ?? []).map((c) => ({
+      value: c.id,
+      label: `${c.nome}${c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}`,
+    })),
+    [cartoes.data],
+  );
+
   return (
     <ModulePage
       title="Conciliação de Cartão de Crédito"
       subtitle="Importe faturas em PDF, feche a competência e baixe o pagamento para conciliar no banco"
       headerActions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button asChild variant="outline" size="sm">
             <Link to="/financeiro/conciliacao-cartao/dashboard">
               <BarChart3 className="mr-2 h-4 w-4" />Dashboard
             </Link>
           </Button>
-          <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
-          <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={pedirLimparTudo}
-            disabled={limparTudo.isPending}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {limparTudo.isPending ? "Limpando…" : "Limpar tudo"}
-          </Button>
+          {!isMobile ? (
+            <>
+              <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
+              <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                onClick={pedirLimparTudo}
+                disabled={limparTudo.isPending}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {limparTudo.isPending ? "Limpando…" : "Limpar tudo"}
+              </Button>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Mais ações">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={pedirLimparTudo} disabled={limparTudo.isPending} className="text-destructive">
+                  <Trash2 className="w-4 h-4 mr-2" />Limpar tudo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       }
     >
       <div className="space-y-4">
         {!faturaSel && <LotesImportacaoPanel />}
         {!faturaSel && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <div className="grid gap-1 min-w-[220px]">
-              <Label>Cartão</Label>
-              <Select value={cartaoId || "todos"} onValueChange={(v) => setCartaoId(v === "todos" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os cartões</SelectItem>
-                  {cartoes.data?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome} {c.ultimos4 ? `•••• ${c.ultimos4}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Vencimento de</Label>
-              <Input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-            </div>
-            <div className="grid gap-1">
-              <Label>Vencimento até</Label>
-              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
-            </div>
-            <div className="grid gap-1 min-w-[160px]">
-              <Label>Status</Label>
-              <Select value={statusFiltro} onValueChange={setStatusFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="aberta">Abertas</SelectItem>
-                  <SelectItem value="fechada">Fechadas</SelectItem>
-                  <SelectItem value="paga">Pagas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {(cartaoId || inicio || fim || statusFiltro !== "todos") && (
-              <div className="flex items-end">
-                <Button variant="ghost" size="sm" onClick={() => { setCartaoId(""); setInicio(""); setFim(""); setStatusFiltro("todos"); }}>
-                  Limpar filtros
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          <div className="grid gap-3 md:grid-cols-4">
+            <SummaryCard title="Abertas" value={kpis.abertas} subtitle="faturas em aberto" variant="warning" icon={FileText} />
+            <SummaryCard title="Fechadas" value={kpis.fechadas} subtitle="prontas para baixa" variant="info" icon={Lock} />
+            <SummaryCard title="Pagas" value={kpis.pagas} subtitle="já baixadas" variant="success" icon={CheckCheck} />
+            <SummaryCard title="Valor a pagar" value={fmt(kpis.aPagar)} subtitle="abertas + fechadas" variant="default" icon={CircleDollarSign} />
+          </div>
         )}
 
         {!faturaSel && (
-        <div className="grid gap-3 md:grid-cols-4">
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Abertas</p><p className="mt-1 text-2xl font-semibold">{kpis.abertas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Fechadas</p><p className="mt-1 text-2xl font-semibold">{kpis.fechadas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Pagas</p><p className="mt-1 text-2xl font-semibold">{kpis.pagas}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs uppercase text-muted-foreground">Valor a pagar</p><p className="mt-1 text-2xl font-semibold">{fmt(kpis.aPagar)}</p></CardContent></Card>
-        </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <PeriodFilter
+              mode="both"
+              value={{ preset: null, from: inicio || null, to: fim || null }}
+              onChange={(next: PeriodValue) => {
+                if (next.preset) {
+                  const from = periodToDateFrom(next.preset as Period);
+                  const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                  setInicio(from);
+                  setFim(to);
+                  return;
+                }
+                setInicio(next.from || "");
+                setFim(next.to || "");
+              }}
+              direction="past"
+            />
+          </div>
+        )}
+
+        {!faturaSel && (
+          <AdvancedFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar por competência, cartão ou últimos 4..."
+            activeFilters={activeFilterChips}
+            onRemoveFilter={removeFilter}
+            onClearAll={clearAllFilters}
+            count={rows.length}
+          >
+            <MultiSelect
+              options={cartaoOptions}
+              selected={cartaoFilters}
+              onChange={setCartaoFilters}
+              placeholder="Cartão"
+              className="w-[180px]"
+            />
+            <MultiSelect
+              options={statusOptions}
+              selected={statusFilters}
+              onChange={setStatusFilters}
+              placeholder="Status"
+              className="w-[140px]"
+            />
+          </AdvancedFilterBar>
         )}
 
         <div className={faturaSel ? "" : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"}>
