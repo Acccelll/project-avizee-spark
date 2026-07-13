@@ -52,6 +52,13 @@ A Etapa 2 aprofunda e consolida a arquitetura. Índice completo em
 [`15-adr/`](15-adr/). Continua sem código, sem migrations, sem alteração
 de funcionalidade existente.
 
+## Etapa 3 · Especificação técnica e funcional
+
+A Etapa 3 transforma a arquitetura em especificação exaustiva pronta para
+implementação. Índice completo em [`etapa-3/00-INDEX.md`](etapa-3/00-INDEX.md).
+Novo ADR-017 (nomenclatura de eventos). Continua sem código, sem migrations,
+sem alteração de funcionalidade.
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
