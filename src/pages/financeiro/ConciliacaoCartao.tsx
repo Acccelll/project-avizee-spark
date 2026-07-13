@@ -529,6 +529,7 @@ export default function ConciliacaoCartaoPage() {
               cartaoNome={`${faturaSel.cartoes_credito?.nome ?? "Cartão"}${faturaSel.cartoes_credito?.ultimos4 ? ` •••• ${faturaSel.cartoes_credito.ultimos4}` : ""}`}
               dataFechamento={faturaSel.data_fechamento}
               dataVencimento={faturaSel.data_vencimento}
+              valorTotalFatura={Number(faturaSel.valor_total || 0)}
               onBack={() => setFaturaSelecionadaId(null)}
             />
           ) : (
