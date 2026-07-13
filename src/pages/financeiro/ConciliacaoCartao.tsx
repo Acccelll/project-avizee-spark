@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2, FileText, CheckCheck, Upload, MoreHorizontal } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2, FileText, CheckCheck, Upload, MoreHorizontal, Shuffle, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterBar";
@@ -26,6 +27,8 @@ import { BaixarFaturaDialog } from "./conciliacaoCartao/BaixarFaturaDialog";
 import { ReconciliacaoFaturaPanel } from "./conciliacaoCartao/ReconciliacaoFaturaPanel";
 import { excluirFatura } from "@/services/conciliacaoCartao/faturaLinhas.service";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
+import { autoConciliarFaturas } from "@/services/conciliacaoCartao/autoConciliarService";
+import { exportarParaExcel } from "@/services/export.service";
 
 interface FaturaRow {
   id: string;
@@ -65,6 +68,7 @@ export default function ConciliacaoCartaoPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [faturaSelecionadaId, setFaturaSelecionadaId] = useState<string | null>(null);
   const [baixarOpen, setBaixarOpen] = useState(false);
+  const [aba, setAba] = useState<"faturas" | "historico">("faturas");
 
   const cartoes = useQuery({
     queryKey: ["cartoes-credito", "ativos"],
