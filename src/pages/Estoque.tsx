@@ -687,19 +687,34 @@ const Estoque = () => {
               mobileStatusKey="situacao"
               mobileIdentifierKey="estoque_atual"
               mobileInlineActions={(p: ProdutoPosicao) => (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPosicao(p);
-                    setPosicaoDrawerOpen(true);
-                  }}
-                  aria-label="Ver posição e histórico do produto"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    disabled={!canAjustar}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirAjusteRapido(p.id, "ajuste");
+                    }}
+                    aria-label="Ajustar saldo"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPosicao(p);
+                      setPosicaoDrawerOpen(true);
+                    }}
+                    aria-label="Ver posição e histórico do produto"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </>
               )}
               rowAccent={(p) => {
                 const sit = getSituacao(p as ProdutoPosicao);
