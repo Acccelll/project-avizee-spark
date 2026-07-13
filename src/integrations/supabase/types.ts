@@ -4294,6 +4294,332 @@ export type Database = {
           },
         ]
       }
+      fiscal_auditoria: {
+        Row: {
+          ator: string | null
+          chave_acesso: string | null
+          correlation_id: string | null
+          cstat: string | null
+          documento: string | null
+          duracao_ms: number | null
+          empresa_id: string | null
+          endpoint_url: string | null
+          id: string
+          operacao: string
+          payload_extra: Json | null
+          request_hash: string | null
+          response_status: number | null
+          retryable: boolean | null
+          tentativa: number | null
+          timestamp: string
+          xmotivo: string | null
+        }
+        Insert: {
+          ator?: string | null
+          chave_acesso?: string | null
+          correlation_id?: string | null
+          cstat?: string | null
+          documento?: string | null
+          duracao_ms?: number | null
+          empresa_id?: string | null
+          endpoint_url?: string | null
+          id?: string
+          operacao: string
+          payload_extra?: Json | null
+          request_hash?: string | null
+          response_status?: number | null
+          retryable?: boolean | null
+          tentativa?: number | null
+          timestamp?: string
+          xmotivo?: string | null
+        }
+        Update: {
+          ator?: string | null
+          chave_acesso?: string | null
+          correlation_id?: string | null
+          cstat?: string | null
+          documento?: string | null
+          duracao_ms?: number | null
+          empresa_id?: string | null
+          endpoint_url?: string | null
+          id?: string
+          operacao?: string
+          payload_extra?: Json | null
+          request_hash?: string | null
+          response_status?: number | null
+          retryable?: boolean | null
+          tentativa?: number | null
+          timestamp?: string
+          xmotivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_auditoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_certificado_metadata: {
+        Row: {
+          atualizado_em: string
+          cnpj: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          razao_social: string | null
+          serial: string | null
+          storage_path: string | null
+          subject_cn: string | null
+          updated_at: string
+          validade_fim: string | null
+          validade_inicio: string | null
+          vault_secret_name: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cnpj?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          razao_social?: string | null
+          serial?: string | null
+          storage_path?: string | null
+          subject_cn?: string | null
+          updated_at?: string
+          validade_fim?: string | null
+          validade_inicio?: string | null
+          vault_secret_name?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cnpj?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          razao_social?: string | null
+          serial?: string | null
+          storage_path?: string | null
+          subject_cn?: string | null
+          updated_at?: string
+          validade_fim?: string | null
+          validade_inicio?: string | null
+          vault_secret_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_certificado_metadata_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_circuit_state: {
+        Row: {
+          aberto_desde: string | null
+          ambiente: number
+          estado: string
+          falhas_seguidas: number
+          id: string
+          servico: string
+          uf: string
+          ultima_verificacao: string
+          updated_at: string
+        }
+        Insert: {
+          aberto_desde?: string | null
+          ambiente: number
+          estado?: string
+          falhas_seguidas?: number
+          id?: string
+          servico: string
+          uf: string
+          ultima_verificacao?: string
+          updated_at?: string
+        }
+        Update: {
+          aberto_desde?: string | null
+          ambiente?: number
+          estado?: string
+          falhas_seguidas?: number
+          id?: string
+          servico?: string
+          uf?: string
+          ultima_verificacao?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fiscal_endpoints: {
+        Row: {
+          ambiente: number
+          atualizado_em: string
+          created_at: string
+          deleted_at: string | null
+          documento: string
+          fonte: string | null
+          id: string
+          servico: string
+          uf: string
+          updated_at: string
+          url: string
+          versao: string
+        }
+        Insert: {
+          ambiente: number
+          atualizado_em?: string
+          created_at?: string
+          deleted_at?: string | null
+          documento: string
+          fonte?: string | null
+          id?: string
+          servico: string
+          uf: string
+          updated_at?: string
+          url: string
+          versao: string
+        }
+        Update: {
+          ambiente?: number
+          atualizado_em?: string
+          created_at?: string
+          deleted_at?: string | null
+          documento?: string
+          fonte?: string | null
+          id?: string
+          servico?: string
+          uf?: string
+          updated_at?: string
+          url?: string
+          versao?: string
+        }
+        Relationships: []
+      }
+      fiscal_idempotency: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          expira_em: string
+          id: string
+          key: string
+          response_hash: string | null
+          response_status: number | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          expira_em?: string
+          id?: string
+          key: string
+          response_hash?: string | null
+          response_status?: number | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          expira_em?: string
+          id?: string
+          key?: string
+          response_hash?: string | null
+          response_status?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_idempotency_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_runtime_config: {
+        Row: {
+          contingencia_habilitada: boolean
+          created_at: string
+          empresa_id: string | null
+          id: string
+          parallelism: Json
+          politica_retry: Json
+          sync_auto_ciencia: boolean
+          timeout_autorizacao_ms: number
+          timeout_status_ms: number
+          updated_at: string
+        }
+        Insert: {
+          contingencia_habilitada?: boolean
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          parallelism?: Json
+          politica_retry?: Json
+          sync_auto_ciencia?: boolean
+          timeout_autorizacao_ms?: number
+          timeout_status_ms?: number
+          updated_at?: string
+        }
+        Update: {
+          contingencia_habilitada?: boolean
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          parallelism?: Json
+          politica_retry?: Json
+          sync_auto_ciencia?: boolean
+          timeout_autorizacao_ms?: number
+          timeout_status_ms?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_runtime_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_schemas_pl: {
+        Row: {
+          created_at: string
+          documento: string
+          id: string
+          notas: string | null
+          storage_prefix: string
+          updated_at: string
+          versao_pl: string
+          vigente_ate: string | null
+          vigente_de: string
+        }
+        Insert: {
+          created_at?: string
+          documento: string
+          id?: string
+          notas?: string | null
+          storage_prefix: string
+          updated_at?: string
+          versao_pl: string
+          vigente_ate?: string | null
+          vigente_de: string
+        }
+        Update: {
+          created_at?: string
+          documento?: string
+          id?: string
+          notas?: string | null
+          storage_prefix?: string
+          updated_at?: string
+          versao_pl?: string
+          vigente_ate?: string | null
+          vigente_de?: string
+        }
+        Relationships: []
+      }
       fiscal_telemetria: {
         Row: {
           action: string
