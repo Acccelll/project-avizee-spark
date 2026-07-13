@@ -20,6 +20,13 @@ import { AlertTriangle, ArrowRight, ChevronsUpDown, ShieldAlert, CircleAlert } f
 import type { TableRow } from "@/types/domain";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
 import { logger } from "@/lib/logger";
+import { Badge } from "@/components/ui/badge";
+
+function TipoItemBadge({ tipo }: { tipo?: string }) {
+  if (tipo === "insumo") return <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">Insumo</Badge>;
+  if (tipo === "servico") return <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">Serviço</Badge>;
+  return null;
+}
 
 type ProdutoRow = TableRow<"produtos">;
 
