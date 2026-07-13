@@ -1,15 +1,21 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2 } from "lucide-react";
+import { BarChart3, Lock, CircleDollarSign, RefreshCw, Trash2, FileText, CheckCheck, Upload, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
+import { SummaryCard } from "@/components/SummaryCard";
+import { AdvancedFilterBar, type FilterChip } from "@/components/AdvancedFilterBar";
+import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { gerarFaturaCartao } from "@/services/cartoesCredito.service";
@@ -42,13 +48,21 @@ function fmtDate(iso: string | null | undefined) {
   return `${d}/${m}/${y}`;
 }
 
+const statusOptions: MultiSelectOption[] = [
+  { value: "aberta", label: "Abertas" },
+  { value: "fechada", label: "Fechadas" },
+  { value: "paga", label: "Pagas" },
+];
+
 export default function ConciliacaoCartaoPage() {
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
   const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive({ verb: "Excluir" });
-  const [cartaoId, setCartaoId] = useState<string>("");
+  const [cartaoFilters, setCartaoFilters] = useState<string[]>([]);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
-  const [statusFiltro, setStatusFiltro] = useState<string>("todos");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [faturaSelecionadaId, setFaturaSelecionadaId] = useState<string | null>(null);
   const [baixarOpen, setBaixarOpen] = useState(false);
 
