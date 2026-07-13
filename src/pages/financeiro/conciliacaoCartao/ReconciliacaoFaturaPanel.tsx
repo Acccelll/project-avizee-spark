@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Link2, Undo2, EyeOff, Plus, Wand2, Sparkles, EyeOff as EyeOffIcon } from "lucide-react";
+import { ArrowLeft, Link2, Undo2, EyeOff, Plus, Wand2, Sparkles, EyeOff as EyeOffIcon, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,7 @@ import {
   type FaturaLinha,
   type CandidatoLancamento,
 } from "@/services/conciliacaoCartao/faturaLinhas.service";
+import { gerarAjusteFatura } from "@/services/conciliacaoCartao/gerarAjusteFatura.service";
 
 function diasEntre(a: string, b: string): number {
   const da = new Date(`${a}T00:00:00Z`).getTime();
@@ -45,6 +46,7 @@ export interface ReconciliacaoFaturaPanelProps {
   cartaoNome: string;
   dataFechamento: string | null;
   dataVencimento: string | null;
+  valorTotalFatura?: number;
   onBack: () => void;
 }
 
@@ -55,6 +57,7 @@ export function ReconciliacaoFaturaPanel({
   cartaoNome,
   dataFechamento,
   dataVencimento,
+  valorTotalFatura,
   onBack,
 }: ReconciliacaoFaturaPanelProps) {
   const qc = useQueryClient();
@@ -174,6 +177,39 @@ export function ReconciliacaoFaturaPanel({
     [candidatos.data, selLanc],
   );
   const diff = Math.round((somaLinhas - somaLanc) * 100) / 100;
+
+  // Fase 3 — diferença entre o valor total da fatura e a soma de TODAS as
+  // linhas importadas (não apenas as selecionadas). Se ≠ 0, o usuário pode
+  // gerar uma linha de ajuste para fechar a conciliação.
+  const somaTodasLinhas = useMemo(
+    () => (linhas.data ?? []).reduce((s, l) => s + Number(l.valor || 0), 0),
+    [linhas.data],
+  );
+  const diffFatura = useMemo(() => {
+    if (typeof valorTotalFatura !== "number") return 0;
+    return Math.round((valorTotalFatura - somaTodasLinhas) * 100) / 100;
+  }, [valorTotalFatura, somaTodasLinhas]);
+
+  const acaoGerarAjuste = async () => {
+    if (!empresa.data) return;
+    if (Math.abs(diffFatura) < 0.005) {
+      toast.info("Fatura já está fechada — sem diferença.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await gerarAjusteFatura({
+        cartao_fatura_id: faturaId,
+        empresa_id: empresa.data,
+        diferenca: diffFatura,
+        data: dataFechamento ?? new Date().toISOString().slice(0, 10),
+      });
+      toast.success(`Ajuste de ${fmt(diffFatura)} inserido — concilie a linha para fechar`);
+      invalidateAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao gerar ajuste");
+    } finally { setBusy(false); }
+  };
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["cartao-faturas", "linhas", faturaId] });
@@ -400,6 +436,17 @@ export function ReconciliacaoFaturaPanel({
           <Button size="sm" onClick={conciliar} disabled={busy || selLinhas.size === 0 || selLanc.size === 0}>
             <Link2 className="mr-1 h-4 w-4" />Conciliar selecionados
           </Button>
+          {typeof valorTotalFatura === "number" && Math.abs(diffFatura) >= 0.005 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={acaoGerarAjuste}
+              disabled={busy}
+              title={`Valor total da fatura difere da soma das linhas em ${fmt(diffFatura)}`}
+            >
+              <Scale className="mr-1 h-4 w-4" />Gerar ajuste ({fmt(diffFatura)})
+            </Button>
+          )}
         </div>
       </div>
 
