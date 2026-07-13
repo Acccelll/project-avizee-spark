@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertTriangle, Search, Loader2, Plus, Link2, Link2Off, X, Sparkles,
-  Trash2, Wand2, EyeOff,
+  Trash2, Wand2, EyeOff, CreditCard,
 } from "lucide-react";
 import type { OFXTransaction } from "@/lib/parseOFX";
 import type { Lancamento } from "@/types/domain";
@@ -634,6 +634,15 @@ export function OFXMatchingPane(p: Props) {
                             <Badge variant={l.tipo === "receber" ? "default" : "secondary"} className="text-[10px]">
                               {l.tipo}
                             </Badge>
+                            {l.origem_tipo === "cartao_fatura" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] gap-1 border-primary/40 text-primary bg-primary/5"
+                                title="Lançamento gerado pela baixa de uma fatura de cartão"
+                              >
+                                <CreditCard className="w-3 h-3" /> Fatura de cartão
+                              </Badge>
+                            )}
                             {isConciliadoPersistido && (
                               <Badge variant="outline" className="text-[10px] gap-1 border-success/50 text-success bg-success/5">
                                 <CheckCircle className="w-3 h-3" /> Conciliado
