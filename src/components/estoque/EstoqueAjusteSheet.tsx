@@ -196,7 +196,10 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                                   className={cn("gap-2 cursor-pointer py-3", form.produto_id === p.id && "bg-primary/5")}
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm leading-snug break-words line-clamp-2">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
+                                    <p className="font-medium text-sm leading-snug break-words line-clamp-2 inline-flex items-center gap-1.5">
+                                      <span>{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>
+                                      <TipoItemBadge tipo={(p as { tipo_item?: string }).tipo_item} />
+                                    </p>
                                     <div className="flex items-center gap-2 mt-0.5">
                                       {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
                                       <span className="text-[11px] text-muted-foreground">{p.unidade_medida || "UN"}</span>
@@ -260,7 +263,10 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                             className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm leading-snug break-words line-clamp-2">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
+                              <p className="font-medium text-sm leading-snug break-words line-clamp-2 inline-flex items-center gap-1.5">
+                                <span>{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>
+                                <TipoItemBadge tipo={(p as { tipo_item?: string }).tipo_item} />
+                              </p>
                               {p.sku && (
                                 <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>
                               )}
