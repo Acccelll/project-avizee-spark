@@ -247,6 +247,41 @@ export default function ConciliacaoCartaoPage() {
     [cartoes.data],
   );
 
+  const autoConciliar = useMutation({
+    mutationFn: async () => {
+      const { data: empresaId, error } = await supabase.rpc("current_empresa_id");
+      if (error || !empresaId) throw new Error("Empresa não identificada");
+      const faturasAlvo = rows
+        .filter((r) => r.status === "aberta" || r.status === "fechada")
+        .map((r) => ({ id: r.id, cartao_id: r.cartao_id }));
+      if (faturasAlvo.length === 0) return { linhasAvaliadas: 0, vinculadas: 0, faturas: 0 };
+      return autoConciliarFaturas({ empresa_id: empresaId as string, faturas: faturasAlvo });
+    },
+    onSuccess: (res) => {
+      if (res.faturas === 0) {
+        toast.info("Nenhuma fatura aberta/fechada no filtro atual");
+        return;
+      }
+      toast.success(`Auto-conciliação: ${res.vinculadas}/${res.linhasAvaliadas} linhas vinculadas em ${res.faturas} faturas`);
+      qc.invalidateQueries({ queryKey: ["cartao-faturas"] });
+      qc.invalidateQueries({ queryKey: ["cartao-fatura-linhas"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha na auto-conciliação"),
+  });
+
+  const exportar = async () => {
+    const excelRows = rows.map((r) => ({
+      Competência: r.competencia,
+      Cartão: r.cartoes_credito?.nome ?? "",
+      "Últimos 4": r.cartoes_credito?.ultimos4 ?? "",
+      Fechamento: r.data_fechamento ?? "",
+      Vencimento: r.data_vencimento ?? "",
+      "Valor total (R$)": Number(r.valor_total || 0),
+      Status: r.status,
+    }));
+    await exportarParaExcel({ titulo: "Faturas de Cartão", rows: excelRows });
+  };
+
   return (
     <ModulePage
       title="Conciliação de Cartão de Crédito"
