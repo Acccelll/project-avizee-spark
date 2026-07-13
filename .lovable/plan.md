@@ -1,40 +1,67 @@
-## Backlog de Conciliação de Cartão — plano de execução
+# Paridade Conciliação de Cartão × Conciliação Bancária
 
-Do backlog de 5 itens levantado, um já está parcialmente coberto pelo backend (idempotência de linha via `cartao_fatura_lancamentos.hash` — a RPC `cartao_importar_fatura` já retorna `duplicadas`). Sobram 4 frentes; proponho executá-las em **3 fases** por afinidade técnica.
+Objetivo: alinhar a tela **`/financeiro/conciliacao-cartao`** aos padrões visuais e funcionais já consolidados em **`/financeiro/conciliacao`** (bancária), reaproveitando wrappers canônicos do ERP e sem quebrar o fluxo atual de fatura (importar → fechar → baixar).
 
-### Fase 1 — Guard-rails do import (rápido, sem migração)
+## Fase 1 — Coerência visual (sem mudança de negócio)
 
-**Item 4 — Validação de cartão errado no PDF**
-- No `ImportarFaturaCartaoDialog`, comparar os `ultimos4` extraídos do PDF com o `ultimos4` do cartão selecionado. Se divergirem, exibir aviso bloqueante com opção "Importar mesmo assim" (mesmo padrão do FITID no OFX).
-- Extrair `ultimos4` predominante do `FaturaImportInput.lancamentos[].ultimos4` (moda) e comparar com `cartoes_credito.ultimos4`.
+Refatorar apenas `ConciliacaoCartao.tsx` para trocar wrappers "crus" pelos canônicos.
 
-**Item 3 — Reimport idempotente do header**
-- Adicionar coluna `arquivo_hash text` em `cartao_faturas` (migração).
-- No frontend, calcular SHA-256 do PDF antes de chamar a RPC e passar como novo parâmetro `p_arquivo_hash`.
-- Ajustar `cartao_importar_fatura` para reutilizar `cartao_faturas` existente quando `(cartao_id, arquivo_hash)` já existe (em vez de criar segunda fatura para o mesmo arquivo).
+- **KPIs**: trocar os 4 `<Card>` por `SummaryCard` com `variant` semântico e ícones
+  (`Abertas` → warning `FileText`, `Fechadas` → info `Lock`, `Pagas` → success `CheckCheck`, `Valor a pagar` → default `CircleDollarSign`).
+- **Filtros**: substituir o Card "Filtros" por `AdvancedFilterBar` + `MultiSelect`
+  (Cartão, Status) com chips ativos e botão "Limpar tudo" nativos.
+- **Período**: trocar os dois `<input type=date>` por `PeriodFilter` (preset + range),
+  padrão `mem://produto/contrato-de-periodos`.
+- **Busca textual**: adicionar `searchTerm` filtrando por competência, cartão, últimos 4.
+- **Empty state**: quando `rows.length === 0`, usar `EmptyState`
+  (variant `firstUse`, icon `Upload`, CTA "Importar fatura (PDF)" / "Importar em lote").
+- **Header actions no mobile**: agrupar `ImportarFaturasLoteDialog` + `ImportarFaturaCartaoDialog` + `Limpar tudo`
+  em `DropdownMenu` "Mais ações" (como o `ConciliacaoTopControls`).
+- **Lista de faturas**: manter estrutura master-detail, mas envolver cada item em
+  padrão consistente com bancária (badges e tipografia iguais); `StatusBadge` já usado.
 
-### Fase 2 — Fechar o ciclo com a conciliação bancária
+Entregável: build limpo, sem alteração de RPC. Verificação com `tsgo`.
 
-**Item 1 — Pareamento automático baixa da fatura ↔ linha OFX**
-- Hoje `baixar_fatura_cartao` cria um `financeiro_baixas` com `grupo_baixa_id`; o débito aparece no extrato mas o pareamento na tela de conciliação bancária depende do matcher genérico.
-- Reforçar o matcher (`scoreExtratoPendentes.service` / `rulesEngine`) para priorizar baixas de fatura de cartão: match forte por (`data_baixa` ± 3d, `valor` exato, `conta_bancaria_id`). Score >= 0.9.
-- Exibir badge "Fatura de cartão" na `OFXMatchingPane` quando o candidato vier de `grupo_baixa_id` de fatura.
+## Fase 2 — Paridade funcional
 
-### Fase 3 — Conciliação linha-a-linha e OFX de cartão
+- **Abas superiores** `Faturas` / `Histórico de importações`, movendo o
+  `LotesImportacaoPanel` para a segunda aba.
+- **Exportar Excel** das faturas visíveis (colunas: Competência, Cartão, Fechamento,
+  Vencimento, Total, Status), via `exportarParaExcel` (mesmo serviço da bancária).
+- **Conciliar automaticamente (global)**: botão no header que executa
+  `autoCandidato` para todas as linhas pendentes de todas as faturas fechadas do
+  filtro atual (extração do laço interno de `executarLote`).
+- **Toggle "Exibir apenas pendentes"** dentro do `ReconciliacaoFaturaPanel`.
+- **Barra flutuante de confirmação** (`ConfirmFloatingBar`) ao selecionar múltiplas
+  linhas dentro do painel de reconciliação (aceitar/rejeitar em lote).
 
-**Item 2 — UI de conciliação linha-a-linha da fatura**
-- Nova aba/dialog "Conciliar lançamentos" na `ConciliacaoCartao.tsx`, listando `cartao_fatura_lancamentos` (via nova RPC `cartao_fatura_listar_linhas`).
-- Cada linha pode ser: (a) vinculada a um `financeiro_lancamentos` existente (compras parceladas), (b) transformada em novo lançamento a pagar, (c) marcada como pessoal/desconsiderar.
-- Persistir vínculo em `cartao_fatura_lancamentos.lancamento_id` e `status` (`pendente|vinculada|criada|ignorada`).
+Entregável: mesmas capacidades de conferência em lote da bancária.
 
-**Item 5 — Adapter OFX para faturas de cartão**
-- Reaproveitar `adaptOFX` e adicionar detecção pelo header OFX (`<CCSTMTRS>` = cartão vs `<STMTRS>` = conta corrente).
-- Novo diálogo unificado ou botão adicional "Importar OFX de cartão" chamando a mesma RPC `cartao_importar_fatura` com origem `ofx_cartao`.
+## Fase 3 — Fechamento do ciclo com o banco
 
-### Ordem de execução
+- **Ajuste de diferença**: quando `Σ(linhas vinculadas) ≠ valor_total` da fatura,
+  botão "Gerar ajuste" cria lançamento avulso (equivalente ao `handleGerarAjusteBancario`).
+- **Onboarding em passos** no estado vazio: "1. Selecione um cartão · 2. Importe
+  PDF/OFX · 3. Feche a fatura · 4. Baixe · 5. Concilie no banco".
+- **Badge "Fatura de cartão"** na `OFXMatchingPane` bancária quando o candidato
+  vier de `grupo_baixa_id` de fatura (já previsto em `.lovable/plan.md` Fase 2).
 
-1. Fase 1 (Itens 4 + 3) — entrega imediata, baixo risco.
-2. Fase 2 (Item 1) — depende de migração leve (nenhuma), só matcher.
-3. Fase 3 (Itens 2 + 5) — maior escopo, entregar por último.
+Entregável: ciclo cartão ↔ banco fechado, sem lacunas de reconciliação.
 
-Cada fase será verificada com build limpo antes de seguir para a próxima. Sem alteração de outros módulos além dos arquivos de conciliação de cartão, matcher financeiro e uma migração SQL de coluna.
+## Ordem e riscos
+
+```text
+Fase 1  (visual, ~1 PR)  → risco baixo, só UI
+Fase 2  (funcional)      → risco médio, reuso de services existentes
+Fase 3  (integrações)    → risco médio, toca matcher e RPC de baixa
+```
+
+Cada fase termina com `tsgo` limpo e verificação manual da rota
+`/financeiro/conciliacao-cartao`. Sem migração SQL nas Fases 1‑2; Fase 3 pode
+exigir ajuste no matcher (`scoreExtratoPendentes.service`) — sem alterar schema.
+
+## Fora de escopo
+
+- Reescrever `ReconciliacaoFaturaPanel` do zero.
+- Unificar as duas rotas em uma única página.
+- Alterar RPCs `cartao_importar_fatura`, `baixar_fatura_cartao`, `cartao_importacao_desfazer`.
