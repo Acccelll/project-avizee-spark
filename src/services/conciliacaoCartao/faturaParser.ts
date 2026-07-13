@@ -13,6 +13,11 @@ export function detectarEmissor(texto: string): EmissorCartao | null {
 
 export async function parseFaturaPdf(file: File): Promise<FaturaImportInput> {
   const texto = await extractPdfText(file);
+  if (texto.trim().length < 200) {
+    throw new Error(
+      "PDF sem texto extraível — reexporte a fatura original a partir do app/portal do emissor ou importe o OFX correspondente.",
+    );
+  }
   const emissor = detectarEmissor(texto);
   if (!emissor) throw new Error("Emissor não reconhecido. Suportados: C6, Inter, RecargaPay.");
   if (emissor === "c6") return parseC6(texto);

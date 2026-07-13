@@ -17,4 +17,6 @@ export interface FaturaImportInput {
   data_fechamento?: string;
   valor_total: number;
   lancamentos: LancamentoImport[];
+  /** Aviso não-bloqueante (ex.: Σ(linhas) ≠ valor_total). */
+  aviso?: string;
 }
