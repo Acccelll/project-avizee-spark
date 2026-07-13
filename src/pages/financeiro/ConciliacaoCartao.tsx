@@ -356,9 +356,26 @@ export default function ConciliacaoCartaoPage() {
               {faturas.isLoading ? (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               ) : rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma fatura encontrada. Importe uma fatura em PDF para começar.
-                </p>
+                <EmptyState
+                  variant={activeFilterChips.length > 0 ? "noResults" : "firstUse"}
+                  icon={Upload}
+                  title={activeFilterChips.length > 0 ? "Nenhuma fatura encontrada" : "Nenhuma fatura importada"}
+                  description={
+                    activeFilterChips.length > 0
+                      ? "Ajuste os filtros ou limpe-os para ver todas as faturas."
+                      : "Importe uma fatura em PDF ou um lote para começar a conciliar."
+                  }
+                  action={
+                    activeFilterChips.length > 0 ? (
+                      <Button size="sm" variant="outline" onClick={clearAllFilters}>Limpar filtros</Button>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
+                        <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
+                      </div>
+                    )
+                  }
+                />
               ) : rows.map((r) => {
                 const isSel = r.id === faturaSelecionadaId;
                 const podeFechar = r.status === "aberta";
