@@ -25,3 +25,5 @@
 - [Framework Fiscal — endpoints são dados](mem://fiscal-framework/endpoint-registry) — Regra absoluta: URLs SEFAZ em tabela fiscal_endpoints; nunca hardcoded (ADR-003)
 - [Framework Fiscal — segurança](mem://fiscal-framework/seguranca) — Certificado no bucket, senha no Vault, mTLS obrigatório, ambiente sem default, RLS por empresa
 - [Framework Fiscal — decisões (ADRs)](mem://fiscal-framework/decisoes) — Sumário dos 8 ADRs aceitos na Etapa 1
+- [Framework Fiscal — arquitetura definitiva](mem://fiscal-framework/arquitetura) — Etapa 2: 6 camadas, 9 bounded contexts, 5 edges canônicas, envelope padrão, ADRs 009–016
+- [Framework Fiscal — roadmap oficial](mem://fiscal-framework/roadmap) — Etapa 2: ordem das etapas 3–16 de implementação com regras de coexistência

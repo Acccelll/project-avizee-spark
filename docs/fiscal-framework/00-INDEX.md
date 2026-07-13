@@ -45,6 +45,13 @@ de worker externo em .NET.
 A memória do Lovable (`mem/fiscal-framework/*`) resume as regras de aplicação
 contínua; esta pasta é a referência longa.
 
+## Etapa 2 · Projeto arquitetural definitivo
+
+A Etapa 2 aprofunda e consolida a arquitetura. Índice completo em
+[`etapa-2/00-INDEX.md`](etapa-2/00-INDEX.md). Novos ADRs 009–016 em
+[`15-adr/`](15-adr/). Continua sem código, sem migrations, sem alteração
+de funcionalidade existente.
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
