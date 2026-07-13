@@ -19,3 +19,9 @@
 - [Funcionários Basic View](mem://security/funcionarios-basico-view) — funcionarios é admin-only; roles operacionais usam funcionarios_basico (sem salário/CPF)
 - [Portal Fiscal](mem://features/fiscal-portal) — /fiscal/portal estilo TOTVS, view v_nfe_portal + RPC buscar_nfe_portal; busca retroativa via NFeConsultaDest removida
 - [Transporte mTLS SEFAZ](mem://tech/sefaz-mtls-transporte) — Deno/rustls não fala com o AN (renegociação TLS não suportada); transporte só via proxy externo (Worker mTLS)
+- [Framework Fiscal — visão geral](mem://fiscal-framework/overview) — Core: consultar docs/fiscal-framework antes de qualquer tarefa fiscal; runtime TS nativo em edges Deno; migração gradual por flag fiscal:v2:*
+- [Framework Fiscal — módulos canônicos](mem://fiscal-framework/modulos) — Camadas Modules → Engines → Foundation; edges fiscal-nfe/events/dfe/cert/cron
+- [Framework Fiscal — contratos](mem://fiscal-framework/contratos) — Interfaces obrigatórias em fiscal-core (equivalente TS de Contracts.cs); FiscalResult<T>, SignatureSuite ágil, plugin por documento
+- [Framework Fiscal — endpoints são dados](mem://fiscal-framework/endpoint-registry) — Regra absoluta: URLs SEFAZ em tabela fiscal_endpoints; nunca hardcoded (ADR-003)
+- [Framework Fiscal — segurança](mem://fiscal-framework/seguranca) — Certificado no bucket, senha no Vault, mTLS obrigatório, ambiente sem default, RLS por empresa
+- [Framework Fiscal — decisões (ADRs)](mem://fiscal-framework/decisoes) — Sumário dos 8 ADRs aceitos na Etapa 1
