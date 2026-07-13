@@ -511,6 +511,21 @@ const Estoque = () => {
       const custo = Number(p.preco_custo ?? p.preco_venda ?? 0);
       return <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * custo)}</span>;
     }, hidden: true },
+    { key: "acoes", label: "Ações", render: (p: ProdutoPosicao) => (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5"
+        disabled={!canAjustar}
+        onClick={(e) => {
+          e.stopPropagation();
+          abrirAjusteRapido(p.id, "ajuste");
+        }}
+        title={canAjustar ? "Ajustar saldo deste item" : "Sem permissão para ajustar estoque"}
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" /> Ajustar
+      </Button>
+    ) },
   ];
 
   // Preview do ajuste para o produto selecionado
@@ -672,19 +687,34 @@ const Estoque = () => {
               mobileStatusKey="situacao"
               mobileIdentifierKey="estoque_atual"
               mobileInlineActions={(p: ProdutoPosicao) => (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPosicao(p);
-                    setPosicaoDrawerOpen(true);
-                  }}
-                  aria-label="Ver posição e histórico do produto"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    disabled={!canAjustar}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirAjusteRapido(p.id, "ajuste");
+                    }}
+                    aria-label="Ajustar saldo"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPosicao(p);
+                      setPosicaoDrawerOpen(true);
+                    }}
+                    aria-label="Ver posição e histórico do produto"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </>
               )}
               rowAccent={(p) => {
                 const sit = getSituacao(p as ProdutoPosicao);
@@ -693,16 +723,17 @@ const Estoque = () => {
                 return null;
               }}
               mobilePrimaryAction={(p) => {
+                if (!canAjustar) return null;
                 const sit = getSituacao(p as ProdutoPosicao);
-                if (sit !== "critico" && sit !== "zerado") return null;
+                const critico = sit === "critico" || sit === "zerado";
                 return (
                   <Button
                     size="lg"
-                    variant="default"
+                    variant={critico ? "default" : "outline"}
                     className="h-11 w-full gap-2 text-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      abrirAjusteRapido(p.id, "entrada");
+                      abrirAjusteRapido(p.id, critico ? "entrada" : "ajuste");
                     }}
                   >
                     <SlidersHorizontal className="h-4 w-4" /> Ajustar saldo
