@@ -1,5 +1,13 @@
 import type { FaturaImportInput, LancamentoImport } from "./types";
-import { parseBrDate, parseBrNumber, parseDataExtenso } from "./parseHelpers";
+import {
+  parseBrDate,
+  parseBrNumber,
+  parseDataExtenso,
+  competenciaDoFechamento,
+  ehLinhaPagamentoFatura,
+  extrairFechamentoDoPeriodo,
+  validarFatura,
+} from "./parseHelpers";
 
 // Inter: "VENCIMENTO 07/05/2025", "VALOR TOTAL R$ 1.366,11", "CARTÃO 5497****6692"
 // Linhas: "07 de abr. 2025  PAGAMENTO ON LINE  -  + R$ 3.061,21"
@@ -8,8 +16,9 @@ export function parseInter(text: string): FaturaImportInput {
   const mVenc = clean.match(/VENCIMENTO\s+(\d{2}\/\d{2}\/\d{4})/i);
   const mValor = clean.match(/VALOR TOTAL\s+R\$\s*([\d.,]+)/i);
   const data_vencimento = mVenc ? parseBrDate(mVenc[1])! : "";
-  const [ano, mes] = (data_vencimento || "").split("-");
-  const competencia = ano && mes ? `${ano}-${mes}` : "";
+  const [ano] = (data_vencimento || "").split("-");
+  const data_fechamento = extrairFechamentoDoPeriodo(clean) ?? undefined;
+  const competencia = competenciaDoFechamento(data_fechamento, data_vencimento);
   const valor_total = mValor ? parseBrNumber(mValor[1]) : 0;
   const anoRef = ano ? parseInt(ano, 10) : new Date().getFullYear();
 
@@ -30,6 +39,7 @@ export function parseInter(text: string): FaturaImportInput {
     const dataISO = parseDataExtenso(m[1], anoRef);
     if (!dataISO) continue;
     const desc = m[2].replace(/\s+-\s*$/, "").trim();
+    if (ehLinhaPagamentoFatura(desc)) continue;
     const sinal = m[3] === "+" ? -1 : 1;
     const valor = sinal * parseBrNumber(m[4]);
     const par = desc.match(reParcela);
@@ -43,5 +53,14 @@ export function parseInter(text: string): FaturaImportInput {
     });
   }
 
-  return { emissor: "inter", competencia, data_vencimento, valor_total, lancamentos };
+  const val = validarFatura(valor_total, lancamentos);
+  return {
+    emissor: "inter",
+    competencia,
+    data_vencimento,
+    data_fechamento,
+    valor_total,
+    lancamentos,
+    aviso: val.aviso,
+  };
 }

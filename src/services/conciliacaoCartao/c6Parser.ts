@@ -1,5 +1,12 @@
 import type { FaturaImportInput, LancamentoImport } from "./types";
-import { parseBrNumber, parseMesAbrev } from "./parseHelpers";
+import {
+  parseBrNumber,
+  parseMesAbrev,
+  competenciaDoFechamento,
+  ehLinhaPagamentoFatura,
+  ajustarAnoLinha,
+  validarFatura,
+} from "./parseHelpers";
 
 // C6: vencimento "10 de Maio", valor "R$ 1.018,69", transações "26 dez  DESCRIÇÃO ...  15,05"
 export function parseC6(text: string): FaturaImportInput {
@@ -17,11 +24,17 @@ export function parseC6(text: string): FaturaImportInput {
   const mesVenc = mVenc ? MESES[mVenc[2].toLowerCase()] ?? 1 : 1;
   const diaVenc = mVenc ? parseInt(mVenc[1], 10) : 1;
   const data_vencimento = `${anoRef}-${String(mesVenc).padStart(2, "0")}-${String(diaVenc).padStart(2, "0")}`;
-  const competencia = `${anoRef}-${String(mesVenc).padStart(2, "0")}`;
   const valor_total = mValor ? parseBrNumber(mValor[1]) : 0;
   const data_fechamento = mFech
     ? `${mFech[3].length === 2 ? "20" + mFech[3] : mFech[3]}-${mFech[2]}-${mFech[1]}`
     : undefined;
+  const competencia = competenciaDoFechamento(data_fechamento, data_vencimento);
+  const mesFechamento = data_fechamento
+    ? parseInt(data_fechamento.slice(5, 7), 10)
+    : mesVenc; // fallback: mês do vencimento
+  const anoFechamento = data_fechamento
+    ? parseInt(data_fechamento.slice(0, 4), 10)
+    : anoRef;
 
   const lancamentos: LancamentoImport[] = [];
   // Divide por linhas originais
@@ -38,9 +51,17 @@ export function parseC6(text: string): FaturaImportInput {
     if (c) cartaoAtual = c[1];
     const m = l.match(reLinha);
     if (!m) continue;
-    const dataISO = parseMesAbrev(m[1], m[2], anoRef);
-    if (!dataISO) continue;
     const desc = m[3].trim();
+    if (ehLinhaPagamentoFatura(desc)) continue;
+    const mesKey = m[2].toLowerCase().slice(0, 3);
+    const MES_NUM: Record<string, number> = {
+      jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
+      jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
+    };
+    const mesLinha = MES_NUM[mesKey] ?? 0;
+    const anoLinha = ajustarAnoLinha(mesLinha, mesFechamento, anoFechamento);
+    const dataISO = parseMesAbrev(m[1], m[2], anoLinha);
+    if (!dataISO) continue;
     const par = desc.match(reParcela);
     lancamentos.push({
       data_compra: dataISO,
@@ -52,5 +73,14 @@ export function parseC6(text: string): FaturaImportInput {
     });
   }
 
-  return { emissor: "c6", competencia, data_vencimento, data_fechamento, valor_total, lancamentos };
+  const val = validarFatura(valor_total, lancamentos);
+  return {
+    emissor: "c6",
+    competencia,
+    data_vencimento,
+    data_fechamento,
+    valor_total,
+    lancamentos,
+    aviso: val.aviso,
+  };
 }
