@@ -80,24 +80,37 @@ export default function ConciliacaoCartaoPage() {
   });
 
   const faturas = useQuery({
-    queryKey: ["cartao-faturas", "conciliacao-cartao", cartaoId, inicio, fim, statusFiltro],
+    queryKey: ["cartao-faturas", "conciliacao-cartao", cartaoFilters, inicio, fim, statusFilters],
     queryFn: async () => {
       let q = supabase
         .from("cartao_faturas")
         .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
         .order("data_vencimento", { ascending: false })
         .limit(200);
-      if (cartaoId) q = q.eq("cartao_id", cartaoId);
+      if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
       if (inicio) q = q.gte("data_vencimento", inicio);
       if (fim) q = q.lte("data_vencimento", fim);
-      if (statusFiltro !== "todos") q = q.eq("status", statusFiltro);
+      if (statusFilters.length > 0) q = q.in("status", statusFilters);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as FaturaRow[];
     },
   });
 
-  const rows = faturas.data ?? [];
+  const rawRows = faturas.data ?? [];
+  const rows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return rawRows;
+    return rawRows.filter((r) => {
+      const nome = r.cartoes_credito?.nome?.toLowerCase() ?? "";
+      const ult = r.cartoes_credito?.ultimos4 ?? "";
+      return (
+        r.competencia.toLowerCase().includes(q) ||
+        nome.includes(q) ||
+        ult.includes(q)
+      );
+    });
+  }, [rawRows, searchTerm]);
 
   const kpis = useMemo(() => {
     const abertas = rows.filter((r) => r.status === "aberta");
