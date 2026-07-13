@@ -145,6 +145,11 @@ export function ImportarFaturaCartaoDialog({ onImported }: { onImported?: () => 
                 {parsed.lancamentos.length} lançamentos
               </p>
             )}
+            {parsed?.aviso && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                <strong>Atenção:</strong> {parsed.aviso}
+              </div>
+            )}
             {ultimos4Divergente && (
               <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs">
                 <p className="font-medium text-destructive">

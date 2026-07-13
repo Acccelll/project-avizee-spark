@@ -118,6 +118,7 @@ export function ImportarFaturasLoteDialog({ onDone }: { onDone?: () => void }) {
                       <th className="p-1 text-right">Total</th>
                       <th className="p-1 text-right">Linhas</th>
                       <th className="p-1 text-left">Situação</th>
+                      <th className="p-1 text-left">Aviso</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -136,6 +137,16 @@ export function ImportarFaturasLoteDialog({ onDone }: { onDone?: () => void }) {
                             <span className="text-amber-600">Atualiza {it.cartao_nome}</span>
                           ) : (
                             <span className="text-emerald-600">Cria em {it.cartao_nome}</span>
+                          )}
+                        </td>
+                        <td className="p-1">
+                          {it.parsed?.aviso ? (
+                            <span className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-800">
+                              <AlertCircle className="h-3 w-3" />
+                              {it.parsed.aviso}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                       </tr>
