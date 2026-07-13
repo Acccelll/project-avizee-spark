@@ -872,7 +872,15 @@ const Estoque = () => {
                                 className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
+                                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                                    <span className="truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>
+                                    {(p as { tipo_item?: string }).tipo_item === "insumo" && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">Insumo</Badge>
+                                    )}
+                                    {(p as { tipo_item?: string }).tipo_item === "servico" && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">Serviço</Badge>
+                                    )}
+                                  </p>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
                                     {p.codigo_interno && p.codigo_interno !== p.sku && <span className="text-[11px] text-muted-foreground font-mono">CI: {p.codigo_interno}</span>}
