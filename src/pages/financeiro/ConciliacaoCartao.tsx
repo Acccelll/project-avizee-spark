@@ -298,6 +298,18 @@ export default function ConciliacaoCartaoPage() {
               <ImportarFaturasLoteDialog onDone={() => faturas.refetch()} />
               <ImportarFaturaCartaoDialog onImported={() => faturas.refetch()} />
               <Button
+                variant="default"
+                size="sm"
+                onClick={() => autoConciliar.mutate()}
+                disabled={autoConciliar.isPending || rows.length === 0}
+              >
+                <Shuffle className="mr-2 h-4 w-4" />
+                {autoConciliar.isPending ? "Conciliando…" : "Conciliar automaticamente"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportar} disabled={rows.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" />Exportar
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 className="text-destructive"
@@ -316,6 +328,12 @@ export default function ConciliacaoCartaoPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => autoConciliar.mutate()} disabled={autoConciliar.isPending || rows.length === 0}>
+                  <Shuffle className="w-4 h-4 mr-2" />Conciliar automaticamente
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportar()} disabled={rows.length === 0}>
+                  <FileDown className="w-4 h-4 mr-2" />Exportar Excel
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={pedirLimparTudo} disabled={limparTudo.isPending} className="text-destructive">
                   <Trash2 className="w-4 h-4 mr-2" />Limpar tudo
                 </DropdownMenuItem>
@@ -326,7 +344,19 @@ export default function ConciliacaoCartaoPage() {
       }
     >
       <div className="space-y-4">
-        {!faturaSel && <LotesImportacaoPanel />}
+        {!faturaSel && (
+          <Tabs value={aba} onValueChange={(v) => setAba(v as typeof aba)}>
+            <TabsList>
+              <TabsTrigger value="faturas">Faturas</TabsTrigger>
+              <TabsTrigger value="historico">Histórico de Importações</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        {!faturaSel && aba === "historico" ? (
+          <LotesImportacaoPanel />
+        ) : (
+        <>
         {!faturaSel && (
           <div className="grid gap-3 md:grid-cols-4">
             <SummaryCard title="Abertas" value={kpis.abertas} subtitle="faturas em aberto" variant="warning" icon={FileText} />
