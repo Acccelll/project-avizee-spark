@@ -8,7 +8,6 @@ import type { CertificadoDigital } from '../../domain/entities';
 
 export class CertificadoMetadataRepository implements ICertificadoMetadataRepository {
   async getByEmpresa(empresaId: string): Promise<CertificadoDigital | null> {
-    // @ts-expect-error tabela fiscal_certificado_metadata — tipos regenerados em outra tarefa
     const { data, error } = await supabase.from('fiscal_certificado_metadata')
       .select('*').eq('empresa_id', empresaId).maybeSingle();
     if (error || !data) return null;
@@ -25,7 +24,6 @@ export class CertificadoMetadataRepository implements ICertificadoMetadataReposi
   }
 
   async upsert(cert: CertificadoDigital): Promise<void> {
-    // @ts-expect-error tabela fiscal_certificado_metadata — tipos regenerados em outra tarefa
     const { error } = await supabase.from('fiscal_certificado_metadata').upsert({
       empresa_id: cert.empresaId,
       cnpj: cert.cnpj,
@@ -36,7 +34,7 @@ export class CertificadoMetadataRepository implements ICertificadoMetadataReposi
       storage_path: cert.storagePath,
       vault_secret_name: cert.vaultSecretName,
       atualizado_em: new Date().toISOString(),
-    }, { onConflict: 'empresa_id' });
+    } as never, { onConflict: 'empresa_id' });
     if (error) throw error;
   }
 }
