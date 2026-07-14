@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -19,8 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryCard } from "@/components/SummaryCard";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
-import { fetchDashboardFiscal } from "@/services/fiscal/dashboardFiscal.service";
 import { useFiscalRuntime } from "@/contexts/FiscalRuntimeContext";
+import { useFiscalCentral } from "@/hooks/useFiscalCentral";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -50,46 +49,7 @@ export default function CentralFiscal() {
     [period],
   );
 
-  const query = useQuery({
-    queryKey: ["fiscal", "central", periodo.from, periodo.to],
-    queryFn: () => fetchDashboardFiscal(periodo),
-    staleTime: 60_000,
-  });
-
-  const resumo = useMemo(() => {
-    const d = query.data;
-    if (!d) return null;
-    return runtime.operacional.dashboard.resumir({
-      documentos: {
-        emitidos:
-          d.saida.autorizadas + d.saida.rejeitadas + d.saida.canceladas + d.saida.pendentes,
-        recebidos: d.entrada.total,
-        autorizadas: d.saida.autorizadas,
-        rejeitadas: d.saida.rejeitadas,
-        canceladas: d.saida.canceladas,
-      },
-      distDFe: { pendentes: d.entrada.semManifestacao },
-      escrituracao: { inconsistencias: 0 },
-      processamento: { pendentes: d.saida.pendentes },
-    });
-  }, [query.data, runtime]);
-
-  const taxaAutorizacao = useMemo(() => {
-    const d = query.data;
-    if (!d) return 0;
-    return runtime.operacional.dashboard.taxaAutorizacao({
-      documentos: {
-        emitidos: 0,
-        recebidos: 0,
-        autorizadas: d.saida.autorizadas,
-        rejeitadas: d.saida.rejeitadas,
-        canceladas: 0,
-      },
-      distDFe: { pendentes: 0 },
-      escrituracao: { inconsistencias: 0 },
-      processamento: { pendentes: 0 },
-    });
-  }, [query.data, runtime]);
+  const { query, resumo, taxaAutorizacao } = useFiscalCentral(periodo);
 
   return (
     <div className="container mx-auto space-y-6 p-4 md:p-6">

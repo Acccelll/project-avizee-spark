@@ -125,6 +125,9 @@ export default function FiscalDashboard() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <PeriodFilter value={period} onChange={(p) => setPeriod(p as Period)} />
+          <Button asChild variant="ghost" size="sm" className="max-sm:h-11">
+            <Link to="/fiscal/central">Central Fiscal</Link>
+          </Button>
           <Button
             variant="outline"
             size="sm"
