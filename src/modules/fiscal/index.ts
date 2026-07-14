@@ -32,3 +32,6 @@ export * as recebimento from './recebimento';
 
 // Etapa 9 — Módulo de Escrituração Fiscal
 export * as escrituracao from './escrituracao';
+
+// Etapa 10 — Camada operacional (Central Fiscal, monitores, notificações, prontidão)
+export * as operacional from './operacional';
