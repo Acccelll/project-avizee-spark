@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useNfeEntradaToast } from "@/hooks/useNfeEntradaToast";
 import { useAutoCienciaDistDFe } from "@/hooks/useAutoCienciaDistDFe";
+import { FiscalRuntimeProvider } from "@/contexts/FiscalRuntimeContext";
 
 /**
  * Shell condicional do módulo Fiscal.
@@ -16,7 +17,11 @@ import { useAutoCienciaDistDFe } from "@/hooks/useAutoCienciaDistDFe";
 export function FiscalShell() {
   useNfeEntradaToast();
   useAutoCienciaDistDFe();
-  return <Outlet />;
+  return (
+    <FiscalRuntimeProvider>
+      <Outlet />
+    </FiscalRuntimeProvider>
+  );
 }
 
 export default FiscalShell;
