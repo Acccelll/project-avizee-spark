@@ -107,3 +107,7 @@ monitor fiscal e auditoria completa. Índice em
 ## Etapa 10
 
 - Camada operacional, monitores, notificações e prontidão para produção → [etapa-10](./etapa-10/00-INDEX.md)
+
+## Etapa 11
+
+- Homologação técnica, E2E, hardening e certificação → [etapa-11](./etapa-11/00-INDEX.md)
