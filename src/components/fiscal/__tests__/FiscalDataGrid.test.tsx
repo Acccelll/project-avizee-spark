@@ -3,9 +3,11 @@ import { render } from "@testing-library/react";
 
 // Mock do DataTable para inspecionar os defaults aplicados pelo wrapper fiscal
 // sem depender dos providers (permissões, rotas, virtualização) do DS.
-const dataTableSpy = vi.fn(() => <div data-testid="dt-mock" />);
+const dataTableSpy = vi.fn((_props: Record<string, unknown>) => (
+  <div data-testid="dt-mock" />
+));
 vi.mock("@/components/DataTable", () => ({
-  DataTable: (props: unknown) => dataTableSpy(props),
+  DataTable: (props: Record<string, unknown>) => dataTableSpy(props),
 }));
 
 import { FiscalDataGrid } from "../FiscalDataGrid";
