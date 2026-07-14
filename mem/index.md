@@ -35,3 +35,4 @@
 - [Framework Fiscal — recebimento](mem://fiscal-framework/recebimento) — Etapa 8: src/modules/fiscal/recebimento (parser universal, dedup, conciliação, workflow, integração ERP via portas)
 - [Framework Fiscal — escrituração](mem://fiscal-framework/escrituracao) — Etapa 9: src/modules/fiscal/escrituracao (motor tributário parametrizável, apuração, livros, fechamento versionado, SPED base)
 - [Framework Fiscal — operacional](mem://fiscal-framework/operacional) — Etapa 10: src/modules/fiscal/operacional (dashboard, monitor SEFAZ, pendências, notificações, certificados, busca global, observabilidade, prontidão)
+- [Framework Fiscal — homologação](mem://fiscal-framework/homologacao) — Etapa 11: E2E runner, carga, recuperação, hardening checklist, auditoria arquitetural, relatório de homologação (83/83 testes)

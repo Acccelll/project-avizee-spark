@@ -35,3 +35,6 @@ export * as escrituracao from './escrituracao';
 
 // Etapa 10 — Camada operacional (Central Fiscal, monitores, notificações, prontidão)
 export * as operacional from './operacional';
+
+// Etapa 11 — Homologação técnica, testes E2E, hardening e certificação
+export * as homologacao from './homologacao';
