@@ -20,8 +20,7 @@ import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { useFiscalRuntime } from "@/contexts/FiscalRuntimeContext";
 import { useFiscalCentral } from "@/hooks/useFiscalCentral";
-import { deriveFiscalAlerts } from "@/lib/fiscal/deriveAlerts";
-import { Bell } from "lucide-react";
+import { FiscalNotificationCenter } from "@/components/fiscal/FiscalNotificationCenter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -63,6 +62,7 @@ export default function CentralFiscal() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <FiscalNotificationCenter kpis={query.data} />
           <Button variant="outline" size="sm" onClick={() => query.refetch()}>
             <Loader2 className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : "hidden"}`} />
             Atualizar
@@ -173,37 +173,6 @@ export default function CentralFiscal() {
               Consolidado em {format(new Date(resumo.atualizadoEm), "Pp", { locale: ptBR })}
             </p>
 
-            {query.data && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Alertas fiscais</CardTitle>
-                  <Bell className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {(() => {
-                    const alerts = deriveFiscalAlerts(query.data);
-                    if (alerts.length === 0) {
-                      return (
-                        <p className="text-xs text-muted-foreground">
-                          Nenhum alerta contextual no período.
-                        </p>
-                      );
-                    }
-                    return alerts.map((a) => (
-                      <div key={a.id} className="flex items-start gap-2 text-sm">
-                        <Badge variant={a.severidade === "critica" ? "destructive" : "outline"}>
-                          {a.severidade}
-                        </Badge>
-                        <div>
-                          <p className="font-medium">{a.titulo}</p>
-                          <p className="text-xs text-muted-foreground">{a.mensagem}</p>
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </CardContent>
-              </Card>
-            )}
           </>
         )
       )}
