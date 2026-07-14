@@ -21,7 +21,7 @@ export interface IXsdValidator {
 export class ClientSideXsdValidator implements IXsdValidator {
   async validate(xml: string, spec: XsdSpec): Promise<Result<true>> {
     const parsed = parseXml(xml);
-    if (!parsed.ok) return parsed as Result<true>;
+    if (!parsed.ok) return fail(parsed.error!);
     const root = parsed.data!.documentElement;
     if (root.localName !== spec.rootElement) {
       return fail(
