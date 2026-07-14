@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { useNfeEntradaToast } from "@/hooks/useNfeEntradaToast";
 import { useAutoCienciaDistDFe } from "@/hooks/useAutoCienciaDistDFe";
 import { FiscalRuntimeProvider } from "@/contexts/FiscalRuntimeContext";
+import { FiscalOfflineStrip } from "@/components/fiscal/FiscalOfflineStrip";
 
 /**
  * Shell condicional do módulo Fiscal.
@@ -19,6 +20,7 @@ export function FiscalShell() {
   useAutoCienciaDistDFe();
   return (
     <FiscalRuntimeProvider>
+      <FiscalOfflineStrip />
       <Outlet />
     </FiscalRuntimeProvider>
   );
