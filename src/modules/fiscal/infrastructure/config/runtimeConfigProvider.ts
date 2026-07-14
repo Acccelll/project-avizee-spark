@@ -25,19 +25,19 @@ export class RuntimeConfigProvider implements IRuntimeConfigProvider {
     const cached = this.cache.get<ConfiguracaoFiscal>(key);
     if (cached) return cached;
 
-    // @ts-expect-error tabela fiscal_runtime_config — tipos regenerados em outra tarefa
     const q = supabase.from('fiscal_runtime_config').select('*').limit(1);
     const query = empresaId ? q.eq('empresa_id', empresaId) : q.is('empresa_id', null);
     const { data } = await query.maybeSingle();
 
+    const retryJson = (data?.politica_retry ?? {}) as { max?: number; backoff_ms?: number[] };
     const cfg: ConfiguracaoFiscal = data
       ? {
           empresaId,
           timeoutAutorizacaoMs: data.timeout_autorizacao_ms,
           timeoutStatusMs: data.timeout_status_ms,
           politicaRetry: {
-            max: data.politica_retry?.max ?? DEFAULT.politicaRetry.max,
-            backoffMs: data.politica_retry?.backoff_ms ?? DEFAULT.politicaRetry.backoffMs,
+            max: retryJson.max ?? DEFAULT.politicaRetry.max,
+            backoffMs: retryJson.backoff_ms ?? DEFAULT.politicaRetry.backoffMs,
           },
           contingenciaHabilitada: !!data.contingencia_habilitada,
           syncAutoCiencia: !!data.sync_auto_ciencia,

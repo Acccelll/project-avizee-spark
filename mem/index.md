@@ -28,4 +28,5 @@
 - [Framework Fiscal — arquitetura definitiva](mem://fiscal-framework/arquitetura) — Etapa 2: 6 camadas, 9 bounded contexts, 5 edges canônicas, envelope padrão, ADRs 009–016
 - [Framework Fiscal — roadmap oficial](mem://fiscal-framework/roadmap) — Etapa 2: ordem das etapas 3–16 de implementação com regras de coexistência
 - [Framework Fiscal — spec técnica oficial](mem://fiscal-framework/especificacao) — Etapa 3: F/UC/RN/CA/API/eventos/filas/cache/testes/riscos/backlog; consultar antes de implementar
+- [Framework Fiscal — núcleo de comunicação](mem://fiscal-framework/comunicacao) — Etapa 5: XML/XSD/Signature/Transport/SOAP/Retry/Breaker em src/modules/fiscal; canal único via sefaz-proxy
 - [Fiscal Framework — Infra Base](mem://fiscal-framework/infraestrutura) — src/modules/fiscal + tabelas fiscal_* (Etapa 4)

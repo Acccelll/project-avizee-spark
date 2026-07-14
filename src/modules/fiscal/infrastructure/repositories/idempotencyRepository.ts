@@ -6,7 +6,6 @@ import type { IIdempotencyRepository } from '../../application/contracts';
 
 export class IdempotencyRepository implements IIdempotencyRepository {
   async register(empresaId: string, key: string): Promise<'new' | 'duplicate'> {
-    // @ts-expect-error tabela fiscal_idempotency — tipos regenerados em outra tarefa
     const { error } = await supabase.from('fiscal_idempotency').insert({
       empresa_id: empresaId, key,
     });
@@ -17,7 +16,6 @@ export class IdempotencyRepository implements IIdempotencyRepository {
   }
 
   async complete(empresaId: string, key: string, hash: string, status: number): Promise<void> {
-    // @ts-expect-error tabela fiscal_idempotency — tipos regenerados em outra tarefa
     const { error } = await supabase.from('fiscal_idempotency')
       .update({ response_hash: hash, response_status: status })
       .eq('empresa_id', empresaId).eq('key', key);
