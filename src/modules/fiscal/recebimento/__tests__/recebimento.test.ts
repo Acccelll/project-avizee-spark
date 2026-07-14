@@ -244,9 +244,9 @@ describe('Recebimento — Conciliação + Workflow', () => {
       auditoria: memAudit, events: bus,
     });
     const eventos: string[] = [];
-    bus.on('fiscal.recebimento.integrado.compras', () => eventos.push('compras'));
-    bus.on('fiscal.recebimento.integrado.estoque', () => eventos.push('estoque'));
-    bus.on('fiscal.recebimento.integrado.financeiro', () => eventos.push('financeiro'));
+    bus.on('fiscal.recebimento.integrado.compras', () => { eventos.push('compras'); });
+    bus.on('fiscal.recebimento.integrado.estoque', () => { eventos.push('estoque'); });
+    bus.on('fiscal.recebimento.integrado.financeiro', () => { eventos.push('financeiro'); });
     const ap = await wf.aprovar({
       empresaId: 'emp-1', correlationId: 'c-ap', documentoRecebidoId: docId,
       parsed: parsed(), conciliacao: c.data!,
