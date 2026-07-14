@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History, Search, Sparkles, Terminal } from 'lucide-react';
+import { FileSearch } from 'lucide-react';
+import { BuscaGlobalFiscalService } from '@/modules/fiscal/operacional';
 import {
   CommandDialog,
   CommandEmpty,
@@ -51,6 +53,27 @@ const CATEGORY_PERMISSION: Record<string, string> = {
 };
 
 const RECENT_KEY = 'erp:global-search:recent';
+
+/** Etapa 15 — instância única do classificador fiscal (stateless). */
+const buscaFiscal = new BuscaGlobalFiscalService();
+
+/** Sugere destino fiscal a partir do termo digitado (chave 44d, CNPJ, CPF, NSU, protocolo). */
+function detectFiscalSuggestion(term: string): { titulo: string; descricao: string; path: string } | null {
+  const digits = term.replace(/\D/g, '');
+  if (digits.length < 11) return null;
+  const tipo = buscaFiscal.classificar(digits);
+  if (tipo === 'numero') return null;
+  const href = buscaFiscal.sugerirHref({ tipo, valor: digits, descricao: '' });
+  if (!href) return null;
+  const rotulos: Record<string, string> = {
+    chave: 'Chave de acesso NF-e',
+    cnpj: 'CNPJ',
+    cpf: 'CPF',
+    nsu: 'NSU DF-e',
+    protocolo: 'Protocolo SEFAZ',
+  };
+  return { titulo: `Abrir ${rotulos[tipo] ?? tipo}`, descricao: digits, path: href };
+}
 
 /**
  * Comandos por prefixo. Acionados quando o input começa com `/`.
@@ -272,6 +295,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     }).slice(0, 6);
   }, [search, can, disabledPaths]);
 
+  const fiscalSuggestion = useMemo(
+    () => (search.trim() ? detectFiscalSuggestion(search) : null),
+    [search],
+  );
+
   const persistRecent = (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) return;
@@ -334,6 +362,21 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               </CommandItem>
             ))}
           </CommandGroup>
+        )}
+
+        {fiscalSuggestion && can('faturamento_fiscal:visualizar' as never) && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Fiscal">
+              <CommandItem onSelect={() => handleSelect(fiscalSuggestion.path)}>
+                <FileSearch className="mr-2 h-4 w-4 text-primary" />
+                <div className="flex flex-col">
+                  <span>{fiscalSuggestion.titulo}</span>
+                  <span className="text-xs text-muted-foreground">{fiscalSuggestion.descricao}</span>
+                </div>
+              </CommandItem>
+            </CommandGroup>
+          </>
         )}
 
         {allowedActions.length > 0 && (
