@@ -13,6 +13,10 @@ O Framework Fiscal é consumido pela UI via `FiscalRuntimeProvider`
 - Provider escopado a `/fiscal/*` (via `FiscalShell`) para evitar custo em perfis sem permissão.
 - Design System exclusivamente (Card, Badge, SummaryCard, PeriodFilter).
 - Rotas fiscais sempre com `PermissionRoute resource="faturamento_fiscal"`.
+- Grids fiscais usam `FiscalDataGrid` (wrapper do DataTable) — não instanciar DataTable direto em `/fiscal/*`.
+- Período/empresa de `/fiscal/*` vêm de `useFiscalWorkspace` (persistido em localStorage).
+- Alertas contextuais derivam de `deriveFiscalAlerts(kpis)` e são exibidos via `FiscalNotificationCenter`.
+- Shell provê a11y (skip link + `<main id="fiscal-main">`), breadcrumb e strip de recuperação de conexão.
 
 ## Vitrine
 `/fiscal/central` consome `fetchDashboardFiscal` + `runtime.operacional.dashboard` + `runtime.operacional.prontidao.gerar()`.
