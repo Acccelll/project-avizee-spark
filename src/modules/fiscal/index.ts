@@ -38,3 +38,6 @@ export * as operacional from './operacional';
 
 // Etapa 11 — Homologação técnica, testes E2E, hardening e certificação
 export * as homologacao from './homologacao';
+
+// Etapa 12 — Compliance Engine, versionamento legal, Reforma Tributária, roadmap
+export * as compliance from './compliance';
