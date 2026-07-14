@@ -45,3 +45,6 @@ export * as compliance from './compliance';
 // Etapa 13 — Fiscal Platform (plugin architecture, registries, SDK e template)
 export * as platform from './platform';
 export { NFePlugin } from './nfe/plugin';
+
+// Etapa 14 — Consolidação, certificação interna e Release 1.0
+export * as release from './release';
