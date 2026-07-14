@@ -76,6 +76,7 @@ const SEARCH_COMMANDS: SearchCommand[] = [
   { keywords: ['prod', 'produto'], title: 'Abrir produtos', description: '/prod', path: '/produtos', requires: 'produtos:visualizar' },
   { keywords: ['nf', 'nota'], arg: 'novo', title: 'Nova nota fiscal de saída', description: '/nf novo', path: '/fiscal?tipo=saida&new=1', requires: 'faturamento_fiscal:editar' },
   { keywords: ['nf', 'nota', 'fiscal'], title: 'Abrir Fiscal', description: '/nf', path: '/fiscal', requires: 'faturamento_fiscal:visualizar' },
+  { keywords: ['central', 'fiscal'], title: 'Central Fiscal (runtime unificado)', description: '/fiscal/central', path: '/fiscal/central', requires: 'faturamento_fiscal:visualizar' },
   { keywords: ['ped', 'pedido'], title: 'Abrir pedidos', description: '/ped', path: '/pedidos', requires: 'pedidos:visualizar' },
   { keywords: ['fin', 'financeiro'], title: 'Abrir financeiro', description: '/fin', path: '/financeiro', requires: 'financeiro:visualizar' },
   { keywords: ['baixa', 'pag'], title: 'Baixa financeira em lote', description: '/baixa', path: '/financeiro?baixa=lote', requires: 'financeiro:baixar' },
