@@ -20,8 +20,7 @@ import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { useFiscalRuntime } from "@/contexts/FiscalRuntimeContext";
 import { useFiscalCentral } from "@/hooks/useFiscalCentral";
-import { deriveFiscalAlerts } from "@/lib/fiscal/deriveAlerts";
-import { Bell } from "lucide-react";
+import { FiscalNotificationCenter } from "@/components/fiscal/FiscalNotificationCenter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -63,6 +62,7 @@ export default function CentralFiscal() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <FiscalNotificationCenter kpis={query.data} />
           <Button variant="outline" size="sm" onClick={() => query.refetch()}>
             <Loader2 className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : "hidden"}`} />
             Atualizar
