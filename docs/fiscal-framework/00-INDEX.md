@@ -84,6 +84,17 @@ recibo, Distribuição DF-e incremental, download idempotente de XML e
 sincronização de status. Reuso 100% da infra da Etapa 5 via helper
 `assinarEEnviar`. Índice em [`etapa-7/00-INDEX.md`](etapa-7/00-INDEX.md).
 
+## Etapa 8 · Recebimento Fiscal, Importação de XML e Integração ERP
+
+A Etapa 8 implementa o módulo de entrada de documentos fiscais em
+`src/modules/fiscal/recebimento/`: parser universal extensível
+(NF-e/NFC-e/CT-e/MDF-e/NFS-e/eventos/protocolos), importação individual
+e em lote com deduplicação por hash+chave, motor de conciliação
+(fornecedor/pedido/produtos/CFOP/NCM/valores), workflow de aprovação/
+rejeição, integração automática com Compras/Estoque/Financeiro via portas,
+monitor fiscal e auditoria completa. Índice em
+[`etapa-8/00-INDEX.md`](etapa-8/00-INDEX.md).
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
