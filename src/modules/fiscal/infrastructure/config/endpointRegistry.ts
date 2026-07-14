@@ -24,7 +24,6 @@ export class EndpointRegistry implements IEndpointRegistry {
     const cached = this.cache.get<FiscalEndpoint>(key);
     if (cached) return cached;
 
-    // @ts-expect-error tabela fiscal_endpoints — tipos regenerados em outra tarefa
     let query = supabase.from('fiscal_endpoints').select('*')
       .eq('documento', input.documento)
       .eq('uf', input.uf)
@@ -39,9 +38,9 @@ export class EndpointRegistry implements IEndpointRegistry {
     if (error || !data) return null;
 
     const ep: FiscalEndpoint = {
-      documento: data.documento,
-      uf: data.uf,
-      ambiente: data.ambiente,
+      documento: data.documento as DocumentoFiscalTipo,
+      uf: data.uf as UF,
+      ambiente: data.ambiente as Ambiente,
       servico: data.servico,
       versao: data.versao,
       url: data.url,
