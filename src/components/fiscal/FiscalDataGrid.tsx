@@ -19,7 +19,7 @@ export function FiscalDataGrid<T extends Record<string, any>>(
 ) {
   return (
     <DataTable
-      exportPermission="faturamento_fiscal:exportar"
+      exportPermission="relatorios:exportar"
       virtualizeThreshold={50}
       maxHeight={640}
       emptyTitle="Nenhum documento fiscal encontrado"
