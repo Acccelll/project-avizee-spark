@@ -10,7 +10,7 @@ import { makeError, FISCAL_ERROR_CODES } from '../../core/errors';
 const TRANSICOES: Record<StatusRecebimento, StatusRecebimento[]> = {
   recebido: ['em_validacao', 'duplicado', 'invalido', 'arquivado'],
   em_validacao: ['validado', 'invalido', 'duplicado'],
-  validado: ['em_conciliacao', 'pendente_aprovacao', 'integrado', 'arquivado'],
+  validado: ['em_conciliacao', 'pendente_aprovacao', 'integrado', 'rejeitado', 'arquivado'],
   invalido: ['reprocessando', 'arquivado'],
   duplicado: ['arquivado'],
   em_conciliacao: ['pendente_aprovacao', 'integrado', 'rejeitado'],
