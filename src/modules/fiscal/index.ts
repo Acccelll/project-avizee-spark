@@ -23,3 +23,6 @@ export * from './infrastructure/transport/retryPolicy';
 export * from './infrastructure/transport/circuitBreaker';
 export * from './infrastructure/transport/httpTransport';
 export * from './infrastructure/soap/soapClient';
+
+// Etapa 6 — Módulo NF-e (documento base)
+export * as nfe from './nfe';
