@@ -9,8 +9,7 @@ import { fiscalLogger } from '../logging/fiscalLogger';
 export class AuditoriaRepository implements IAuditoriaRepository {
   async record(entry: AuditoriaEntry): Promise<void> {
     try {
-      // @ts-expect-error tabela fiscal_auditoria — tipos regenerados em outra tarefa
-      const { error } = await supabase.from('fiscal_auditoria').insert({
+      const payload = {
         empresa_id: entry.empresaId ?? null,
         correlation_id: entry.correlationId,
         operacao: entry.operacao,
@@ -25,8 +24,9 @@ export class AuditoriaRepository implements IAuditoriaRepository {
         endpoint_url: entry.endpointUrl ?? null,
         retryable: entry.retryable ?? null,
         tentativa: entry.tentativa ?? null,
-        payload_extra: entry.payloadExtra ?? null,
-      });
+        payload_extra: (entry.payloadExtra ?? null) as never,
+      };
+      const { error } = await supabase.from('fiscal_auditoria').insert(payload as never);
       if (error) fiscalLogger.warn('auditoria.insert.falhou', { error: error.message });
     } catch (err) {
       fiscalLogger.warn('auditoria.insert.exception', { err: String(err) });
