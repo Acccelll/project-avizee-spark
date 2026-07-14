@@ -32,3 +32,4 @@
 - [Framework Fiscal — módulo NF-e](mem://fiscal-framework/nfe) — Etapa 6: NFe em src/modules/fiscal/nfe (domain/application/infra); AuthorizeNFeUseCase orquestra fluxo síncrono via infra da Etapa 5
 - [Fiscal Framework — Infra Base](mem://fiscal-framework/infraestrutura) — src/modules/fiscal + tabelas fiscal_* (Etapa 4)
 - [Framework Fiscal — eventos & ciclo NF-e](mem://fiscal-framework/eventos-ciclo-vida) — Etapa 7: cancelamento/CC-e/inutilização/manif/DF-e/sync em src/modules/fiscal/nfe/eventos
+- [Framework Fiscal — recebimento](mem://fiscal-framework/recebimento) — Etapa 8: src/modules/fiscal/recebimento (parser universal, dedup, conciliação, workflow, integração ERP via portas)

@@ -26,3 +26,6 @@ export * from './infrastructure/soap/soapClient';
 
 // Etapa 6 — Módulo NF-e (documento base)
 export * as nfe from './nfe';
+
+// Etapa 8 — Módulo de Recebimento Fiscal
+export * as recebimento from './recebimento';
