@@ -41,3 +41,7 @@ export * as homologacao from './homologacao';
 
 // Etapa 12 — Compliance Engine, versionamento legal, Reforma Tributária, roadmap
 export * as compliance from './compliance';
+
+// Etapa 13 — Fiscal Platform (plugin architecture, registries, SDK e template)
+export * as platform from './platform';
+export { NFePlugin } from './nfe/plugin';

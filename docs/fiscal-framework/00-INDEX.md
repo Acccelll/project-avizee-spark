@@ -115,3 +115,7 @@ monitor fiscal e auditoria completa. Índice em
 ## Etapa 12
 
 - Compliance Engine, versionamento legal, Reforma Tributária e roadmap → [etapa-12](./etapa-12/00-INDEX.md)
+
+## Etapa 13
+
+- Fiscal Platform (plugins, registries, SDK, template para novos documentos) → [etapa-13](./etapa-13/00-INDEX.md)

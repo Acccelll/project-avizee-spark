@@ -37,3 +37,4 @@
 - [Framework Fiscal — operacional](mem://fiscal-framework/operacional) — Etapa 10: src/modules/fiscal/operacional (dashboard, monitor SEFAZ, pendências, notificações, certificados, busca global, observabilidade, prontidão)
 - [Framework Fiscal — homologação](mem://fiscal-framework/homologacao) — Etapa 11: E2E runner, carga, recuperação, hardening checklist, auditoria arquitetural, relatório de homologação (83/83 testes)
 - [Framework Fiscal — compliance & Reforma Tributária](mem://fiscal-framework/compliance) — Etapa 12: src/modules/fiscal/compliance (Compliance Engine, versionamento legal, registries de layouts/tributos, motor tributário abstrato, coexistência IBS/CBS/IS × ICMS/IPI/PIS/COFINS/ISS, roadmap)
+- [Framework Fiscal — plataforma de plugins](mem://fiscal-framework/platform) — Etapa 13: src/modules/fiscal/platform (núcleo agnóstico, registries de documento/layout/serviço/validador/builder/evento/integração/workflow, SDK, template, adapter NF-e)
