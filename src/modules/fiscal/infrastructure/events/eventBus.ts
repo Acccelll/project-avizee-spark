@@ -20,7 +20,25 @@ export type FiscalEventName =
   | 'fiscal.nfe.denegada'
   | 'fiscal.nfe.persistida'
   | 'fiscal.nfe.atualizada'
-  | 'fiscal.nfe.consultada';
+  | 'fiscal.nfe.consultada'
+  // Etapa 7 — eventos, DF-e, manifestação, sincronização
+  | 'fiscal.nfe.cancelamento.solicitado'
+  | 'fiscal.nfe.cancelamento.homologado'
+  | 'fiscal.nfe.cancelamento.rejeitado'
+  | 'fiscal.nfe.cce.transmitida'
+  | 'fiscal.nfe.cce.homologada'
+  | 'fiscal.nfe.cce.rejeitada'
+  | 'fiscal.nfe.inutilizacao.solicitada'
+  | 'fiscal.nfe.inutilizacao.homologada'
+  | 'fiscal.nfe.inutilizacao.rejeitada'
+  | 'fiscal.nfe.manifestacao.transmitida'
+  | 'fiscal.nfe.manifestacao.homologada'
+  | 'fiscal.nfe.recibo.consultado'
+  | 'fiscal.nfe.protocolo.consultado'
+  | 'fiscal.nfe.distdfe.consultado'
+  | 'fiscal.nfe.distdfe.documento_recebido'
+  | 'fiscal.nfe.xml.baixado'
+  | 'fiscal.nfe.status.sincronizado';
 
 export interface FiscalEvent<T = unknown> {
   name: FiscalEventName;

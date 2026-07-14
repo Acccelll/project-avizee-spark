@@ -75,6 +75,15 @@ demais. Índice em [`etapa-6/00-INDEX.md`](etapa-6/00-INDEX.md). Consome
 integralmente a infra da Etapa 5 e coexiste com o legado
 `src/services/fiscal/*` (ADR-016 · strangler).
 
+## Etapa 7 · Eventos Fiscais, Ciclo de Vida da NF-e e DF-e
+
+A Etapa 7 fecha o ciclo de vida operacional da NF-e em
+`src/modules/fiscal/nfe/eventos/`: cancelamento (110111), CC-e (110110),
+inutilização de numeração, manifestação do destinatário, consulta de
+recibo, Distribuição DF-e incremental, download idempotente de XML e
+sincronização de status. Reuso 100% da infra da Etapa 5 via helper
+`assinarEEnviar`. Índice em [`etapa-7/00-INDEX.md`](etapa-7/00-INDEX.md).
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
