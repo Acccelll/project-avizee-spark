@@ -13,3 +13,13 @@ export type {
   IAuditoriaRepository,
   AuditoriaEntry,
 } from './application/contracts';
+
+// Etapa 5 — Núcleo de comunicação fiscal
+export * from './core/errors';
+export * from './infrastructure/xml/xmlEngine';
+export * from './infrastructure/xml/xsdValidator';
+export * from './infrastructure/signature/signatureEngine';
+export * from './infrastructure/transport/retryPolicy';
+export * from './infrastructure/transport/circuitBreaker';
+export * from './infrastructure/transport/httpTransport';
+export * from './infrastructure/soap/soapClient';
