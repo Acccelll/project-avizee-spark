@@ -9,7 +9,18 @@ export type FiscalEventName =
   | 'fiscal.certificado.expira_em_breve'
   | 'fiscal.auditoria.registrada'
   | 'fiscal.queue.job_enqueued'
-  | 'fiscal.queue.job_failed';
+  | 'fiscal.queue.job_failed'
+  // Etapa 6 — eventos NF-e (fato passado, ADR-017)
+  | 'fiscal.nfe.criada'
+  | 'fiscal.nfe.validada'
+  | 'fiscal.nfe.assinada'
+  | 'fiscal.nfe.transmitida'
+  | 'fiscal.nfe.autorizada'
+  | 'fiscal.nfe.rejeitada'
+  | 'fiscal.nfe.denegada'
+  | 'fiscal.nfe.persistida'
+  | 'fiscal.nfe.atualizada'
+  | 'fiscal.nfe.consultada';
 
 export interface FiscalEvent<T = unknown> {
   name: FiscalEventName;
