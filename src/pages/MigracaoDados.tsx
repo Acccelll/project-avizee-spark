@@ -270,12 +270,17 @@ export default function MigracaoDados() {
         toast.error("Sessão inválida. Faça login novamente.", { id: toastId });
         return;
       }
-      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/export-database-csv?format=${format}`;
+      // Deriva URL e anon key do client — evita depender de VITE_SUPABASE_PROJECT_ID,
+      // que pode ficar vazio no bundle (a client.ts tem fallback via <meta>, aqui não).
+      // Sintoma: fetch para "https://.supabase.co/..." → "Failed to fetch".
+      const supabaseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+      const anonKey = (supabase as unknown as { supabaseKey: string }).supabaseKey;
+      const url = `${supabaseUrl}/functions/v1/export-database-csv?format=${format}`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: anonKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ format }),
