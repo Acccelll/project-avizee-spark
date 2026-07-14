@@ -3,13 +3,9 @@ import { bootstrapFiscal, type FiscalContainer } from "@/modules/fiscal";
 import {
   FiscalDashboardService,
   SefazMonitorService,
-  PendenciasService,
-  ProcessamentoService,
-  NotificacoesService,
-  CertificadoService,
-  BuscaGlobalService,
   ObservabilidadeService,
   ProntidaoProducaoService,
+  BuscaGlobalFiscalService,
 } from "@/modules/fiscal/operacional";
 import { bootstrapComplianceEngine, type ComplianceEngineContainer } from "@/modules/fiscal/compliance";
 
@@ -30,13 +26,9 @@ export interface FiscalRuntime {
   operacional: {
     dashboard: FiscalDashboardService;
     sefazMonitor: SefazMonitorService;
-    pendencias: PendenciasService;
-    processamento: ProcessamentoService;
-    notificacoes: NotificacoesService;
-    certificado: CertificadoService;
-    buscaGlobal: BuscaGlobalService;
     observabilidade: ObservabilidadeService;
     prontidao: ProntidaoProducaoService;
+    buscaGlobal: BuscaGlobalFiscalService;
   };
 }
 
@@ -52,13 +44,9 @@ export function FiscalRuntimeProvider({ children }: { children: ReactNode }) {
       operacional: {
         dashboard: new FiscalDashboardService(),
         sefazMonitor: new SefazMonitorService(),
-        pendencias: new PendenciasService(),
-        processamento: new ProcessamentoService(),
-        notificacoes: new NotificacoesService(),
-        certificado: new CertificadoService(),
-        buscaGlobal: new BuscaGlobalService(),
         observabilidade: new ObservabilidadeService(),
         prontidao: new ProntidaoProducaoService(),
+        buscaGlobal: new BuscaGlobalFiscalService(),
       },
     };
   }, []);
