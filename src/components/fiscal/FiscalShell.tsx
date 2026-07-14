@@ -3,6 +3,7 @@ import { useNfeEntradaToast } from "@/hooks/useNfeEntradaToast";
 import { useAutoCienciaDistDFe } from "@/hooks/useAutoCienciaDistDFe";
 import { FiscalRuntimeProvider } from "@/contexts/FiscalRuntimeContext";
 import { FiscalOfflineStrip } from "@/components/fiscal/FiscalOfflineStrip";
+import { FiscalBreadcrumb } from "@/components/fiscal/FiscalBreadcrumb";
 
 /**
  * Shell condicional do módulo Fiscal.
@@ -20,8 +21,17 @@ export function FiscalShell() {
   useAutoCienciaDistDFe();
   return (
     <FiscalRuntimeProvider>
+      <a
+        href="#fiscal-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-background focus:px-3 focus:py-1 focus:text-sm focus:shadow"
+      >
+        Pular para o conteúdo fiscal
+      </a>
       <FiscalOfflineStrip />
-      <Outlet />
+      <FiscalBreadcrumb />
+      <main id="fiscal-main">
+        <Outlet />
+      </main>
     </FiscalRuntimeProvider>
   );
 }
