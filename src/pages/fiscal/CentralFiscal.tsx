@@ -173,37 +173,6 @@ export default function CentralFiscal() {
               Consolidado em {format(new Date(resumo.atualizadoEm), "Pp", { locale: ptBR })}
             </p>
 
-            {query.data && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Alertas fiscais</CardTitle>
-                  <Bell className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {(() => {
-                    const alerts = deriveFiscalAlerts(query.data);
-                    if (alerts.length === 0) {
-                      return (
-                        <p className="text-xs text-muted-foreground">
-                          Nenhum alerta contextual no período.
-                        </p>
-                      );
-                    }
-                    return alerts.map((a) => (
-                      <div key={a.id} className="flex items-start gap-2 text-sm">
-                        <Badge variant={a.severidade === "critica" ? "destructive" : "outline"}>
-                          {a.severidade}
-                        </Badge>
-                        <div>
-                          <p className="font-medium">{a.titulo}</p>
-                          <p className="text-xs text-muted-foreground">{a.mensagem}</p>
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </CardContent>
-              </Card>
-            )}
           </>
         )
       )}
