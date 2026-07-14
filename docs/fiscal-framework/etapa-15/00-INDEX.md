@@ -17,6 +17,7 @@ fiscal nova — apenas composição, UX e observabilidade sobre serviços existe
 | Workspace multi-contexto (empresa + período) | `src/hooks/useFiscalWorkspace.ts` |
 | Conectividade / recuperação | `src/hooks/useFiscalConnectivity.ts` + `FiscalOfflineStrip.tsx` |
 | Breadcrumb + skip link | `src/components/fiscal/FiscalBreadcrumb.tsx` |
+| Mini widget de runtime | `src/components/fiscal/FiscalRuntimeMiniWidget.tsx` |
 | Rota `/fiscal/central` | `src/routes/fiscal.routes.tsx` |
 | Navegação + busca global | `src/lib/navigation.ts`, `src/components/navigation/GlobalSearch.tsx` |
 
