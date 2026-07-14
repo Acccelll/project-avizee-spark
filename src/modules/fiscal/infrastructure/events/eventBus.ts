@@ -54,7 +54,19 @@ export type FiscalEventName =
   | 'fiscal.recebimento.integrado.financeiro'
   | 'fiscal.recebimento.aprovado'
   | 'fiscal.recebimento.rejeitado'
-  | 'fiscal.recebimento.reprocessado';
+  | 'fiscal.recebimento.reprocessado'
+  // Etapa 9 — escrituração fiscal
+  | 'fiscal.escrituracao.periodo.aberto'
+  | 'fiscal.escrituracao.periodo.em_apuracao'
+  | 'fiscal.escrituracao.periodo.apurado'
+  | 'fiscal.escrituracao.periodo.fechado'
+  | 'fiscal.escrituracao.periodo.reaberto'
+  | 'fiscal.escrituracao.consolidacao.executada'
+  | 'fiscal.escrituracao.apuracao.executada'
+  | 'fiscal.escrituracao.livro.gerado'
+  | 'fiscal.escrituracao.inconsistencia.detectada'
+  | 'fiscal.escrituracao.parametro.atualizado'
+  | 'fiscal.escrituracao.sped.preparado';
 
 export interface FiscalEvent<T = unknown> {
   name: FiscalEventName;
