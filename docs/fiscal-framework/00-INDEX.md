@@ -103,3 +103,7 @@ monitor fiscal e auditoria completa. Índice em
 ## Etapa 9
 
 - Escrituração fiscal, apuração tributária e SPED base → [etapa-9](./etapa-9/00-INDEX.md)
+
+## Etapa 10
+
+- Camada operacional, monitores, notificações e prontidão para produção → [etapa-10](./etapa-10/00-INDEX.md)
