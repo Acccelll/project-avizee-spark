@@ -66,7 +66,18 @@ export type FiscalEventName =
   | 'fiscal.escrituracao.livro.gerado'
   | 'fiscal.escrituracao.inconsistencia.detectada'
   | 'fiscal.escrituracao.parametro.atualizado'
-  | 'fiscal.escrituracao.sped.preparado';
+  | 'fiscal.escrituracao.sped.preparado'
+  // Etapa 12 — Compliance Engine
+  | 'fiscal.compliance.norma.registrada'
+  | 'fiscal.compliance.artefato.versionado'
+  | 'fiscal.compliance.tributo.registrado'
+  | 'fiscal.compliance.configuracao.versionada'
+  | 'fiscal.compliance.mudanca.registrada'
+  | 'fiscal.compliance.mudanca.status_atualizado'
+  | 'fiscal.compliance.alerta.emitido'
+  | 'fiscal.compliance.migracao.aplicada'
+  | 'fiscal.compliance.migracao.revertida'
+  | 'fiscal.compliance.roadmap.atualizado';
 
 export interface FiscalEvent<T = unknown> {
   name: FiscalEventName;

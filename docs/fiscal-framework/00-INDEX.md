@@ -111,3 +111,7 @@ monitor fiscal e auditoria completa. Índice em
 ## Etapa 11
 
 - Homologação técnica, E2E, hardening e certificação → [etapa-11](./etapa-11/00-INDEX.md)
+
+## Etapa 12
+
+- Compliance Engine, versionamento legal, Reforma Tributária e roadmap → [etapa-12](./etapa-12/00-INDEX.md)
