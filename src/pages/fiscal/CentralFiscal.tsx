@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -17,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryCard } from "@/components/SummaryCard";
 import { periodToDateFrom } from "@/lib/periodFilter";
-import type { Period } from "@/components/filters/periodTypes";
+import { PeriodFilter } from "@/components/filters/PeriodFilter";
 import { useFiscalRuntime } from "@/contexts/FiscalRuntimeContext";
 import { useFiscalCentral } from "@/hooks/useFiscalCentral";
+import { useFiscalWorkspace } from "@/hooks/useFiscalWorkspace";
 import { FiscalNotificationCenter } from "@/components/fiscal/FiscalNotificationCenter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -44,7 +45,7 @@ function todayIso() {
  */
 export default function CentralFiscal() {
   const runtime = useFiscalRuntime();
-  const [period] = useState<Period>("30d");
+  const { period, setPeriod } = useFiscalWorkspace();
   const periodo = useMemo(
     () => ({ from: periodToDateFrom(period), to: todayIso() }),
     [period],
@@ -62,6 +63,7 @@ export default function CentralFiscal() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <PeriodFilter value={period} onChange={setPeriod} />
           <FiscalNotificationCenter kpis={query.data} />
           <Button variant="outline" size="sm" onClick={() => query.refetch()}>
             <Loader2 className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : "hidden"}`} />
