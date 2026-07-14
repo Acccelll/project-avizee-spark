@@ -100,3 +100,6 @@ monitor fiscal e auditoria completa. Índice em
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
 - Nenhum arquivo em `src/`, `supabase/functions/` ou `supabase/migrations/` foi tocado.
 - O framework .NET não foi copiado; apenas citado como referência.
+## Etapa 9
+
+- Escrituração fiscal, apuração tributária e SPED base → [etapa-9](./etapa-9/00-INDEX.md)
