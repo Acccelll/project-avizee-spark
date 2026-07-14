@@ -8,12 +8,12 @@ import { ok, fail } from '../../core/types';
 import { makeError, FISCAL_ERROR_CODES } from '../../core/errors';
 
 const TRANSICOES: Record<NFeStatus, NFeStatus[]> = {
-  rascunho: ['validada', 'rascunho'],
+  rascunho: ['validada', 'rascunho', 'inutilizada'],
   validada: ['assinada', 'rascunho'],
   assinada: ['transmitida', 'rascunho'],
   transmitida: ['em_processamento', 'rejeitada', 'denegada', 'autorizada'],
   em_processamento: ['autorizada', 'denegada', 'rejeitada'],
-  autorizada: ['cancelada', 'arquivada'],
+  autorizada: ['cancelada', 'arquivada', 'autorizada'],
   denegada: ['arquivada'],
   rejeitada: ['rascunho', 'arquivada'],
   cancelada: ['arquivada'],
