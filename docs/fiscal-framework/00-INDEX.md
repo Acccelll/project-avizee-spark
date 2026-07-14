@@ -59,6 +59,14 @@ implementação. Índice completo em [`etapa-3/00-INDEX.md`](etapa-3/00-INDEX.md
 Novo ADR-017 (nomenclatura de eventos). Continua sem código, sem migrations,
 sem alteração de funcionalidade.
 
+## Etapa 5 · Núcleo de comunicação fiscal
+
+A Etapa 5 implementa a fundação técnica de comunicação (XML/XSD/Signature/
+Transport/SOAP/Retry/Breaker) em `src/modules/fiscal/`, sem incluir regras
+específicas de nenhum documento fiscal. Índice em
+[`etapa-5/00-INDEX.md`](etapa-5/00-INDEX.md). Canal único de saída
+continua sendo o Edge `sefaz-proxy`.
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.
