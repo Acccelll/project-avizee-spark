@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -15,15 +15,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryCard } from "@/components/SummaryCard";
-import { QueryState } from "@/components/QueryState";
-import { PeriodFilter } from "@/components/filters/PeriodFilter";
-import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 import { periodToDateFrom } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
 import { fetchDashboardFiscal } from "@/services/fiscal/dashboardFiscal.service";
 import { useFiscalRuntime } from "@/contexts/FiscalRuntimeContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /**
  * Etapa 15 — Central Fiscal.
@@ -40,8 +44,11 @@ import { ptBR } from "date-fns/locale";
  */
 export default function CentralFiscal() {
   const runtime = useFiscalRuntime();
-  const { period } = useGlobalPeriod();
-  const periodo = useMemo(() => periodToDateFrom(period), [period]);
+  const [period] = useState<Period>("30d");
+  const periodo = useMemo(
+    () => ({ from: periodToDateFrom(period), to: todayIso() }),
+    [period],
+  );
 
   const query = useQuery({
     queryKey: ["fiscal", "central", periodo.from, periodo.to],
@@ -94,7 +101,6 @@ export default function CentralFiscal() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <PeriodFilter />
           <Button variant="outline" size="sm" onClick={() => query.refetch()}>
             <Loader2 className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : "hidden"}`} />
             Atualizar
@@ -102,33 +108,45 @@ export default function CentralFiscal() {
         </div>
       </header>
 
-      <QueryState query={query}>
-        {resumo && (
+      {query.isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+      ) : query.isError ? (
+        <Card>
+          <CardContent className="p-6 text-sm text-destructive">
+            Falha ao carregar dados fiscais. Tente novamente.
+          </CardContent>
+        </Card>
+      ) : (
+        resumo && (
           <>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard
                 title="Emitidas"
                 value={resumo.emitidos}
                 icon={FileText}
-                description={`${resumo.autorizadas} autorizadas`}
+                subtitle={`${resumo.autorizadas} autorizadas`}
               />
               <SummaryCard
                 title="Recebidas (DF-e)"
                 value={resumo.recebidos}
                 icon={Inbox}
-                description={`${resumo.distDFePendentes} sem manifestação`}
+                subtitle={`${resumo.distDFePendentes} sem manifestação`}
               />
               <SummaryCard
                 title="Rejeitadas"
                 value={resumo.rejeitadas}
                 icon={AlertTriangle}
-                description={`Taxa autorização ${(taxaAutorizacao * 100).toFixed(1)}%`}
+                subtitle={`Taxa autorização ${(taxaAutorizacao * 100).toFixed(1)}%`}
               />
               <SummaryCard
                 title="Processamento"
                 value={resumo.processamentoPendente}
                 icon={Activity}
-                description="Pendentes na fila"
+                subtitle="Pendentes na fila"
               />
             </section>
 
@@ -193,8 +211,8 @@ export default function CentralFiscal() {
               Consolidado em {format(new Date(resumo.atualizadoEm), "Pp", { locale: ptBR })}
             </p>
           </>
-        )}
-      </QueryState>
+        )
+      )}
     </div>
   );
 }
@@ -202,13 +220,20 @@ export default function CentralFiscal() {
 function ProntidaoBadge({ runtime }: { runtime: ReturnType<typeof useFiscalRuntime> }) {
   const relatorio = useMemo(
     () =>
-      runtime.operacional.prontidao.avaliar({
-        certificadoAtivo: true,
-        endpointsCadastrados: true,
-        rlsHabilitado: true,
-        backupsAtivos: true,
-        monitoramentoAtivo: true,
-        contingenciaTestada: true,
+      runtime.operacional.prontidao.gerar({
+        arquiteturaOk: true,
+        segurancaOk: true,
+        desempenhoOk: true,
+        observabilidadeOk: true,
+        cobertura: 1,
+        documentacaoOk: true,
+        integracoesOk: true,
+        bancoOk: true,
+        migracoesOk: true,
+        filasOk: true,
+        cacheOk: true,
+        logsOk: true,
+        permissoesOk: true,
       }),
     [runtime],
   );
