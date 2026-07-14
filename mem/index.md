@@ -29,4 +29,5 @@
 - [Framework Fiscal — roadmap oficial](mem://fiscal-framework/roadmap) — Etapa 2: ordem das etapas 3–16 de implementação com regras de coexistência
 - [Framework Fiscal — spec técnica oficial](mem://fiscal-framework/especificacao) — Etapa 3: F/UC/RN/CA/API/eventos/filas/cache/testes/riscos/backlog; consultar antes de implementar
 - [Framework Fiscal — núcleo de comunicação](mem://fiscal-framework/comunicacao) — Etapa 5: XML/XSD/Signature/Transport/SOAP/Retry/Breaker em src/modules/fiscal; canal único via sefaz-proxy
+- [Framework Fiscal — módulo NF-e](mem://fiscal-framework/nfe) — Etapa 6: NFe em src/modules/fiscal/nfe (domain/application/infra); AuthorizeNFeUseCase orquestra fluxo síncrono via infra da Etapa 5
 - [Fiscal Framework — Infra Base](mem://fiscal-framework/infraestrutura) — src/modules/fiscal + tabelas fiscal_* (Etapa 4)

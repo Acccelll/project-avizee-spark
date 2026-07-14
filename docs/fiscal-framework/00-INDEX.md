@@ -67,6 +67,14 @@ específicas de nenhum documento fiscal. Índice em
 [`etapa-5/00-INDEX.md`](etapa-5/00-INDEX.md). Canal único de saída
 continua sendo o Edge `sefaz-proxy`.
 
+## Etapa 6 · Módulo NF-e (documento base)
+
+A Etapa 6 implementa o primeiro documento fiscal do Framework em
+`src/modules/fiscal/nfe/`, servindo de referência arquitetural para os
+demais. Índice em [`etapa-6/00-INDEX.md`](etapa-6/00-INDEX.md). Consome
+integralmente a infra da Etapa 5 e coexiste com o legado
+`src/services/fiscal/*` (ADR-016 · strangler).
+
 ## Restrições da Etapa 1 (reafirmadas)
 
 - Nenhum arquivo `.ts`, `.sql`, migration, edge function, componente ou dependência foi criado/alterado.

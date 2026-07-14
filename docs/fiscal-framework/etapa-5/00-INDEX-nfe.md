@@ -1,0 +1,1 @@
+> Ver [`../etapa-6/00-INDEX.md`](../etapa-6/00-INDEX.md).
