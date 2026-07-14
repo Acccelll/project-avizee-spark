@@ -26,9 +26,10 @@ export const FDocPlugin: PluginDocumentoFiscal = definePlugin({
       id: 'fdoc.basico',
       documento: 'fdoc',
       run: (i) => {
-        if (!i.id) return fail('FD001', 'id obrigatório', 'id');
-        if (i.total === undefined || i.total < 0) return fail('FD002', 'total inválido', 'total');
-        return ok();
+        const erros: Array<{ codigo: string; mensagem: string; campo?: string }> = [];
+        if (!i.id) erros.push({ codigo: 'FD001', mensagem: 'id obrigatório', campo: 'id' });
+        if (i.total === undefined || i.total < 0) erros.push({ codigo: 'FD002', mensagem: 'total inválido', campo: 'total' });
+        return erros.length === 0 ? ok() : { ok: false, erros };
       },
     }),
   ],
