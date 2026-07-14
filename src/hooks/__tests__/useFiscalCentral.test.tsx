@@ -9,8 +9,8 @@ vi.mock("@/services/fiscal/dashboardFiscal.service", () => ({
   fetchDashboardFiscal: (p: unknown) => fetchMock(p),
 }));
 
-const resumirMock = vi.fn((s: unknown) => ({ ok: true, s }));
-const taxaMock = vi.fn(() => 0.9);
+const resumirMock = vi.fn((_s: unknown) => ({ ok: true, s: _s }));
+const taxaMock = vi.fn((_s: unknown) => 0.9);
 vi.mock("@/contexts/FiscalRuntimeContext", () => ({
   useFiscalRuntime: () => ({
     operacional: {
