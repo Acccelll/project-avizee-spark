@@ -210,6 +210,7 @@ export const navSections: NavSection[] = [
       {
         title: 'Gestão e consulta',
         items: [
+          { title: 'Central Fiscal', path: '/fiscal/central', icon: Receipt, keywords: ['central', 'runtime', 'resumo', 'framework', 'operacional', 'prontidao'] },
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
           { title: 'Portal NF-e', path: '/fiscal/portal', icon: FileSearch, keywords: ['portal', 'consulta', 'nfe', 'chave', 'totvs', 'destinatario'] },
           { title: 'Consulta de Documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
