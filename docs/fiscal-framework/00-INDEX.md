@@ -119,3 +119,7 @@ monitor fiscal e auditoria completa. Índice em
 ## Etapa 13
 
 - Fiscal Platform (plugins, registries, SDK, template para novos documentos) → [etapa-13](./etapa-13/00-INDEX.md)
+
+## Etapa 14
+
+- Consolidação final, auditoria estratégica, ADR index, inventários, manuais, Release 1.0, roadmap e relatório executivo → [etapa-14](./etapa-14/00-INDEX.md)
