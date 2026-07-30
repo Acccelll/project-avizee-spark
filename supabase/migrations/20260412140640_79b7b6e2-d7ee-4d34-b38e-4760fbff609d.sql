@@ -56,6 +56,27 @@ CREATE POLICY "ffr_insert" ON public.fechamento_fopag_resumo FOR INSERT TO authe
 
 -- Analytical views for workbook generation
 
+-- Quatro destas views já existem desde 20260411210000_workbook_gerencial.sql com
+-- assinatura diferente, e CREATE OR REPLACE VIEW não consegue remover, renomear
+-- nem trocar o tipo de colunas — a chain quebrava aqui com
+-- "cannot drop columns from view" (SQLSTATE 42P16), impedindo qualquer
+-- reconstrução do banco a partir do zero.
+--
+--   vw_workbook_receita_mensal  6 colunas → 4, competencia date → text
+--   vw_workbook_despesa_mensal  6 colunas → 4, competencia date → text
+--   vw_workbook_aging_cr        8ª coluna faixa_aging → descricao
+--   vw_workbook_aging_cp        8ª coluna faixa_aging → descricao
+--
+-- DROP sem CASCADE de propósito: neste ponto da chain as views dependentes
+-- (vw_apresentacao_capital_giro, vw_apresentacao_highlights,
+-- vw_apresentacao_confronto_trimestral) ainda não foram criadas — elas vêm de
+-- migrations posteriores. Num banco onde já existam, o DROP falha de forma
+-- visível em vez de destruí-las silenciosamente.
+DROP VIEW IF EXISTS public.vw_workbook_receita_mensal;
+DROP VIEW IF EXISTS public.vw_workbook_despesa_mensal;
+DROP VIEW IF EXISTS public.vw_workbook_aging_cr;
+DROP VIEW IF EXISTS public.vw_workbook_aging_cp;
+
 CREATE OR REPLACE VIEW public.vw_workbook_receita_mensal AS
 SELECT
   to_char(data_vencimento, 'YYYY-MM') AS competencia,
