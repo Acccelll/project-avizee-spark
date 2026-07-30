@@ -104,6 +104,10 @@ export async function getContaInUseCounts(contaId: string): Promise<ContaInUseCo
       .select("id", { count: "exact", head: true })
       .eq("conta_bancaria_id", contaId)
       .eq("ativo", true),
+    // Conta TODAS as baixas, inclusive estornadas: espelha a trava
+    // prevent_delete_conta_bancaria_em_uso, que bloqueia a exclusão por
+    // "histórico de baixas" sem filtrar estornada_em. Filtrar aqui faria a
+    // UI prometer uma exclusão que o banco recusa.
     supabase
       .from("financeiro_baixas")
       .select("id", { count: "exact", head: true })

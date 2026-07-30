@@ -43,7 +43,10 @@ beforeEach(() => {
 
 describe("processarEstorno", () => {
   it("usa a RPC consolidada quando disponível", async () => {
-    rpcMock.mockResolvedValueOnce({ error: null });
+    rpcMock.mockResolvedValueOnce({
+      data: { success: true, baixas_estornadas: 2 },
+      error: null,
+    });
 
     const ok = await processarEstorno("lanc-1", "motivo válido");
 
@@ -100,6 +103,46 @@ describe("processarEstorno", () => {
 
     expect(ok).toBe(false);
     expect(fromMock).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledOnce();
+  });
+
+  // Regressão: a RPC gravava status='estornado', recusado por
+  // chk_financeiro_lancamentos_status desde 20/04/2026. O erro 23514 não
+  // casava com o guard de "função ausente", então o fallback nunca rodava e
+  // o botão "Estornar" falhava. O contrato é falhar visivelmente, não cair
+  // em fallback silencioso — este teste trava esse comportamento.
+  it("não faz fallback quando a RPC viola constraint (23514)", async () => {
+    rpcMock.mockResolvedValueOnce({
+      error: {
+        code: "23514",
+        message:
+          'new row for relation "financeiro_lancamentos" violates check constraint "chk_financeiro_lancamentos_status"',
+      },
+    });
+
+    const ok = await processarEstorno("lanc-1");
+
+    expect(ok).toBe(false);
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledOnce();
+  });
+
+  // A RPC sinaliza recusa de regra de negócio pelo payload, não por `error`.
+  // Ignorar o retorno fazia a UI exibir sucesso sem ter estornado nada.
+  it("falha quando a RPC retorna success:false no payload", async () => {
+    rpcMock.mockResolvedValueOnce({
+      data: {
+        success: false,
+        error: "Só é possível estornar lançamentos pago ou parcial. Status: aberto",
+      },
+      error: null,
+    });
+
+    const ok = await processarEstorno("lanc-1");
+
+    expect(ok).toBe(false);
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledOnce();
   });
 });
