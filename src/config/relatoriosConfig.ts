@@ -157,6 +157,7 @@ const estoqueConfig: ReportConfig = {
   columns: [
     { key: 'codigo', label: 'Código' },
     { key: 'produto', label: 'Produto' },
+    { key: 'variacoes', label: 'Variações' },
     { key: 'grupo', label: 'Grupo' },
     { key: 'unidade', label: 'UN', align: 'center' },
     { key: 'estoqueAtual', label: 'Estoque Atual', format: 'quantity', align: 'right', footerTotal: true },
