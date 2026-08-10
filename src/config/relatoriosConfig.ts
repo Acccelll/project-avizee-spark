@@ -925,6 +925,7 @@ const cadastroProdutosConfig: ReportConfig = {
     { key: 'sku', label: 'SKU' },
     { key: 'codigo', label: 'Cód. Interno' },
     { key: 'produto', label: 'Produto' },
+    { key: 'variacoes', label: 'Variações' },
     { key: 'grupo', label: 'Grupo' },
     { key: 'unidade', label: 'UN', align: 'center' },
     { key: 'tipo', label: 'Tipo', format: 'badge' },
