@@ -16,6 +16,7 @@ import type {
   RelatorioResultado,
 } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
+import { parseVariacoes } from "@/utils/cadastros";
 
 const isLegacySku = (sku: string | null | undefined): boolean =>
   !!sku && /^0+[A-Z0-9]+$/i.test(sku);
@@ -38,7 +39,7 @@ export async function loadCadastroProdutos(
     let q = supabase
       .from("produtos")
       .select(
-        "id, sku, codigo_interno, nome, ncm, origem, unidade_medida, tipo_item, preco_custo, preco_venda, estoque_atual, estoque_minimo, ativo, deleted_at, descontinuado_em, grupo_id, grupos_produto(nome)",
+        "id, sku, codigo_interno, nome, variacoes, ncm, origem, unidade_medida, tipo_item, preco_custo, preco_venda, estoque_atual, estoque_minimo, ativo, deleted_at, descontinuado_em, grupo_id, grupos_produto(nome)",
       )
       .order("nome", { ascending: true });
     if (filtros.grupoProdutoIds?.length) q = q.in("grupo_id", filtros.grupoProdutoIds);
@@ -58,6 +59,7 @@ export async function loadCadastroProdutos(
         sku: p.sku ?? "-",
         codigo: p.codigo_interno ?? "-",
         produto: p.nome,
+        variacoes: parseVariacoes(p.variacoes).join(", ") || "—",
         grupo:
           (p.grupos_produto as { nome?: string } | null)?.nome ?? "—",
         unidade: p.unidade_medida ?? "-",
