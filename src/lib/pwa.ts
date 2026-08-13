@@ -41,6 +41,25 @@ export async function registerPwa(): Promise<void> {
       dispatchUpdateReady,
     );
 
+    // Com `skipWaiting: true` no SW gerado, o evento "waiting" acima
+    // praticamente nunca dispara — o SW novo ativa sozinho sem passar pelo
+    // estado de espera, então o toast manual não é uma defesa confiável.
+    // Isso deixa uma aba já carregada sob o SW antigo (típico em navegação
+    // vinda de um link externo, como e-mail, aberta enquanto uma atualização
+    // estava em andamento) presa servindo chunks JS antigos que não batem
+    // mais com o bundle principal — telas de erro sem motivo aparente.
+    //
+    // Padrão recomendado pelo workbox-window para esse caso: recarregar uma
+    // única vez quando o controlador da página TROCAR durante a vida da aba
+    // (não na primeira ativação, que não representa mismatch de versão).
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+
     await wb.register();
   } catch (e) {
     // Falha de registro é não-fatal — o app segue funcionando online normal.
