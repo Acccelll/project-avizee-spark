@@ -21,6 +21,16 @@ const LEGACY_ROLES = new Set(["moderator", "user"]);
 const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 15_000;
 
+function isInvalidRefreshTokenError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const authError = error as { code?: string; message?: string };
+  const code = authError.code?.toLowerCase() ?? "";
+  const message = authError.message?.toLowerCase() ?? "";
+  return code === "refresh_token_not_found"
+    || message.includes("refresh token not found")
+    || message.includes("invalid refresh token");
+}
+
 interface ResolvedPermissions {
   roles: AppRole[];
   allowed: PermissionKey[];
@@ -242,6 +252,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await hydrateUserState(data.session.user.id);
       } catch (err) {
         logger.error("[auth] Failed to restore session", err);
+        if (isInvalidRefreshTokenError(err)) {
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch (cleanupError) {
+            logger.warn("[auth] Failed to clear invalid local session", cleanupError);
+          }
+        }
         if (!mountedRef.current) return;
         resetAuthState();
         setLoading(false);
