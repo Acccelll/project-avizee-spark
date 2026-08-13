@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -113,7 +113,6 @@ export type Database = {
         Row: {
           comentario_automatico: string | null
           comentario_editado: string | null
-          comentario_manual: string | null
           comentario_status: string
           created_at: string
           geracao_id: string
@@ -129,7 +128,6 @@ export type Database = {
         Insert: {
           comentario_automatico?: string | null
           comentario_editado?: string | null
-          comentario_manual?: string | null
           comentario_status?: string
           created_at?: string
           geracao_id: string
@@ -145,7 +143,6 @@ export type Database = {
         Update: {
           comentario_automatico?: string | null
           comentario_editado?: string | null
-          comentario_manual?: string | null
           comentario_status?: string
           created_at?: string
           geracao_id?: string
@@ -186,14 +183,14 @@ export type Database = {
           hash_geracao: string | null
           id: string
           is_final: boolean
-          modo_geracao: string
+          modo_geracao: string | null
           observacoes: string | null
           parametros_json: Json | null
           slide_config_json: Json | null
           slides_json: Json | null
           status: string
-          status_editorial: string | null
-          template_id: string | null
+          status_editorial: string
+          template_id: string
           total_slides: number | null
           updated_at: string
         }
@@ -214,14 +211,14 @@ export type Database = {
           hash_geracao?: string | null
           id?: string
           is_final?: boolean
-          modo_geracao?: string
+          modo_geracao?: string | null
           observacoes?: string | null
           parametros_json?: Json | null
           slide_config_json?: Json | null
           slides_json?: Json | null
           status?: string
-          status_editorial?: string | null
-          template_id?: string | null
+          status_editorial?: string
+          template_id: string
           total_slides?: number | null
           updated_at?: string
         }
@@ -242,14 +239,14 @@ export type Database = {
           hash_geracao?: string | null
           id?: string
           is_final?: boolean
-          modo_geracao?: string
+          modo_geracao?: string | null
           observacoes?: string | null
           parametros_json?: Json | null
           slide_config_json?: Json | null
           slides_json?: Json | null
           status?: string
-          status_editorial?: string | null
-          template_id?: string | null
+          status_editorial?: string
+          template_id?: string
           total_slides?: number | null
           updated_at?: string
         }
@@ -367,7 +364,7 @@ export type Database = {
           id?: string
           nome: string
           updated_at?: string
-          versao?: string
+          versao: string
         }
         Update: {
           arquivo_path?: string | null
@@ -768,6 +765,13 @@ export type Database = {
             foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
             columns: ["conta_bancaria_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
@@ -1076,7 +1080,7 @@ export type Database = {
           responsavel_id: string | null
           responsavel_nome: string | null
           retorno_previsto: string | null
-          status: string | null
+          status: string
           tipo: string | null
         }
         Insert: {
@@ -1090,7 +1094,7 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome?: string | null
           retorno_previsto?: string | null
-          status?: string | null
+          status?: string
           tipo?: string | null
         }
         Update: {
@@ -1104,7 +1108,7 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome?: string | null
           retorno_previsto?: string | null
-          status?: string | null
+          status?: string
           tipo?: string | null
         }
         Relationships: [
@@ -1312,61 +1316,61 @@ export type Database = {
       }
       clientes_enderecos_entrega: {
         Row: {
-          ativo: boolean | null
+          ativo: boolean
           bairro: string | null
           cep: string | null
           cidade: string | null
           cliente_id: string
           complemento: string | null
           contato: string | null
-          created_at: string | null
-          descricao: string | null
+          created_at: string
           id: string
-          identificacao: string | null
+          identificacao: string
           logradouro: string | null
           numero: string | null
           observacoes: string | null
-          principal: boolean | null
+          principal: boolean
           telefone: string | null
           uf: string | null
+          updated_at: string
         }
         Insert: {
-          ativo?: boolean | null
+          ativo?: boolean
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cliente_id: string
           complemento?: string | null
           contato?: string | null
-          created_at?: string | null
-          descricao?: string | null
+          created_at?: string
           id?: string
-          identificacao?: string | null
+          identificacao?: string
           logradouro?: string | null
           numero?: string | null
           observacoes?: string | null
-          principal?: boolean | null
+          principal?: boolean
           telefone?: string | null
           uf?: string | null
+          updated_at?: string
         }
         Update: {
-          ativo?: boolean | null
+          ativo?: boolean
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cliente_id?: string
           complemento?: string | null
           contato?: string | null
-          created_at?: string | null
-          descricao?: string | null
+          created_at?: string
           id?: string
-          identificacao?: string | null
+          identificacao?: string
           logradouro?: string | null
           numero?: string | null
           observacoes?: string | null
-          principal?: boolean | null
+          principal?: boolean
           telefone?: string | null
           uf?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1568,6 +1572,13 @@ export type Database = {
             foreignKeyName: "compras_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "compras_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -1624,6 +1635,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_bancaria_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -1702,6 +1720,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extrato_linhas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -1791,6 +1816,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_extratos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -2371,6 +2403,13 @@ export type Database = {
             foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -2607,6 +2646,7 @@ export type Database = {
           telefone: string | null
           uf: string | null
           updated_at: string
+          updated_by: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -2649,6 +2689,7 @@ export type Database = {
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          updated_by?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -2691,6 +2732,7 @@ export type Database = {
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          updated_by?: string | null
           whatsapp?: string | null
         }
         Relationships: []
@@ -2793,6 +2835,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -2916,44 +2965,33 @@ export type Database = {
       }
       fechamento_caixa_saldos: {
         Row: {
-          competencia: string
           conta_bancaria_id: string | null
-          created_at: string
-          fechamento_id: string | null
+          created_at: string | null
+          fechamento_id: string
           id: string
-          saldo: number
+          saldo_final: number
+          total_entradas: number
+          total_saidas: number
         }
         Insert: {
-          competencia: string
           conta_bancaria_id?: string | null
-          created_at?: string
-          fechamento_id?: string | null
+          created_at?: string | null
+          fechamento_id: string
           id?: string
-          saldo?: number
+          saldo_final?: number
+          total_entradas?: number
+          total_saidas?: number
         }
         Update: {
-          competencia?: string
           conta_bancaria_id?: string | null
-          created_at?: string
-          fechamento_id?: string | null
+          created_at?: string | null
+          fechamento_id?: string
           id?: string
-          saldo?: number
+          saldo_final?: number
+          total_entradas?: number
+          total_saidas?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "fechamento_caixa_saldos_conta_bancaria_id_fkey"
-            columns: ["conta_bancaria_id"]
-            isOneToOne: false
-            referencedRelation: "contas_bancarias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fechamento_caixa_saldos_conta_bancaria_id_fkey"
-            columns: ["conta_bancaria_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_bancos_saldo"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fechamento_caixa_saldos_fechamento_id_fkey"
             columns: ["fechamento_id"]
@@ -2965,31 +3003,34 @@ export type Database = {
       }
       fechamento_estoque_saldos: {
         Row: {
-          competencia: string
-          created_at: string
-          fechamento_id: string | null
+          created_at: string | null
+          custo_unitario: number
+          fechamento_id: string
+          grupo_id: string | null
           id: string
-          produto_id: string | null
+          produto_id: string
           quantidade: number
-          valor_custo: number
+          valor_total: number
         }
         Insert: {
-          competencia: string
-          created_at?: string
-          fechamento_id?: string | null
+          created_at?: string | null
+          custo_unitario?: number
+          fechamento_id: string
+          grupo_id?: string | null
           id?: string
-          produto_id?: string | null
+          produto_id: string
           quantidade?: number
-          valor_custo?: number
+          valor_total?: number
         }
         Update: {
-          competencia?: string
-          created_at?: string
-          fechamento_id?: string | null
+          created_at?: string | null
+          custo_unitario?: number
+          fechamento_id?: string
+          grupo_id?: string | null
           id?: string
-          produto_id?: string | null
+          produto_id?: string
           quantidade?: number
-          valor_custo?: number
+          valor_total?: number
         }
         Relationships: [
           {
@@ -2999,70 +3040,56 @@ export type Database = {
             referencedRelation: "fechamentos_mensais"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_estoque_posicao"
-            referencedColumns: ["produto_id"]
-          },
-          {
-            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_critico"
-            referencedColumns: ["produto_id"]
-          },
-          {
-            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_giro"
-            referencedColumns: ["produto_id"]
-          },
-          {
-            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_posicao"
-            referencedColumns: ["produto_id"]
-          },
         ]
       }
       fechamento_financeiro_saldos: {
         Row: {
-          competencia: string
-          created_at: string
-          fechamento_id: string | null
+          conta_bancaria_id: string | null
+          conta_contabil_id: string | null
+          created_at: string | null
+          data_vencimento: string | null
+          faixa_aging: string | null
+          fechamento_id: string
           id: string
-          quantidade: number
-          saldo_total: number
+          parceiro_id: string | null
+          parceiro_tipo: string | null
+          saldo_aberto: number
+          status: string | null
           tipo: string
+          valor_original: number
+          valor_pago: number
         }
         Insert: {
-          competencia: string
-          created_at?: string
-          fechamento_id?: string | null
+          conta_bancaria_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string | null
+          data_vencimento?: string | null
+          faixa_aging?: string | null
+          fechamento_id: string
           id?: string
-          quantidade?: number
-          saldo_total?: number
+          parceiro_id?: string | null
+          parceiro_tipo?: string | null
+          saldo_aberto?: number
+          status?: string | null
           tipo: string
+          valor_original?: number
+          valor_pago?: number
         }
         Update: {
-          competencia?: string
-          created_at?: string
-          fechamento_id?: string | null
+          conta_bancaria_id?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string | null
+          data_vencimento?: string | null
+          faixa_aging?: string | null
+          fechamento_id?: string
           id?: string
-          quantidade?: number
-          saldo_total?: number
+          parceiro_id?: string | null
+          parceiro_tipo?: string | null
+          saldo_aberto?: number
+          status?: string | null
           tipo?: string
+          valor_original?: number
+          valor_pago?: number
         }
         Relationships: [
           {
@@ -3077,9 +3104,9 @@ export type Database = {
       fechamento_fopag_resumo: {
         Row: {
           competencia: string
-          created_at: string
+          created_at: string | null
           descontos: number
-          fechamento_id: string | null
+          fechamento_id: string
           funcionario_id: string | null
           id: string
           proventos: number
@@ -3088,9 +3115,9 @@ export type Database = {
         }
         Insert: {
           competencia: string
-          created_at?: string
+          created_at?: string | null
           descontos?: number
-          fechamento_id?: string | null
+          fechamento_id: string
           funcionario_id?: string | null
           id?: string
           proventos?: number
@@ -3099,9 +3126,9 @@ export type Database = {
         }
         Update: {
           competencia?: string
-          created_at?: string
+          created_at?: string | null
           descontos?: number
-          fechamento_id?: string | null
+          fechamento_id?: string
           funcionario_id?: string | null
           id?: string
           proventos?: number
@@ -3116,55 +3143,41 @@ export type Database = {
             referencedRelation: "fechamentos_mensais"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fechamento_fopag_resumo_funcionario_id_fkey"
-            columns: ["funcionario_id"]
-            isOneToOne: false
-            referencedRelation: "funcionarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fechamento_fopag_resumo_funcionario_id_fkey"
-            columns: ["funcionario_id"]
-            isOneToOne: false
-            referencedRelation: "funcionarios_basico"
-            referencedColumns: ["id"]
-          },
         ]
       }
       fechamentos_mensais: {
         Row: {
           competencia: string
-          created_at: string
+          created_at: string | null
           empresa_id: string | null
           fechado_em: string | null
           fechado_por: string | null
           id: string
           observacoes: string | null
-          status: string
-          updated_at: string
+          status: string | null
+          updated_at: string | null
         }
         Insert: {
           competencia: string
-          created_at?: string
+          created_at?: string | null
           empresa_id?: string | null
           fechado_em?: string | null
           fechado_por?: string | null
           id?: string
           observacoes?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
+          updated_at?: string | null
         }
         Update: {
           competencia?: string
-          created_at?: string
+          created_at?: string | null
           empresa_id?: string | null
           fechado_em?: string | null
           fechado_por?: string | null
           id?: string
           observacoes?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -3331,6 +3344,13 @@ export type Database = {
             foreignKeyName: "financeiro_baixa_lotes_conta_bancaria_id_fkey"
             columns: ["conta_bancaria_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixa_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
@@ -3415,6 +3435,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -3611,6 +3638,13 @@ export type Database = {
             foreignKeyName: "financeiro_extrato_importacoes_conta_bancaria_id_fkey"
             columns: ["conta_bancaria_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
@@ -3679,6 +3713,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -3761,6 +3802,13 @@ export type Database = {
             foreignKeyName: "financeiro_importacoes_docs_conta_bancaria_id_fkey"
             columns: ["conta_bancaria_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_importacoes_docs_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
@@ -3827,7 +3875,7 @@ export type Database = {
           created_at?: string
           data_emissao?: string | null
           data_pagamento?: string | null
-          data_vencimento: string
+          data_vencimento?: string
           descricao?: string | null
           documento_pai_id?: string | null
           empresa_id?: string
@@ -3939,6 +3987,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -4196,6 +4251,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_recorrencias_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -4906,7 +4968,7 @@ export type Database = {
           origem_id: string
           origem_tipo: string
           peso_total: number | null
-          status: string | null
+          status: string
           updated_at: string
           valor_mercadoria: number | null
           volumes: number | null
@@ -4924,9 +4986,9 @@ export type Database = {
           observacoes?: string | null
           opcao_escolhida_id?: string | null
           origem_id: string
-          origem_tipo?: string
+          origem_tipo: string
           peso_total?: number | null
-          status?: string | null
+          status?: string
           updated_at?: string
           valor_mercadoria?: number | null
           volumes?: number | null
@@ -4946,17 +5008,31 @@ export type Database = {
           origem_id?: string
           origem_tipo?: string
           peso_total?: number | null
-          status?: string | null
+          status?: string
           updated_at?: string
           valor_mercadoria?: number | null
           volumes?: number | null
         }
         Relationships: [
           {
+            foreignKeyName: "frete_simulacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "frete_simulacoes_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frete_simulacoes_opcao_escolhida_fkey"
+            columns: ["opcao_escolhida_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes_opcoes"
             referencedColumns: ["id"]
           },
         ]
@@ -4971,32 +5047,30 @@ export type Database = {
           observacoes: string | null
           payload_raw: Json | null
           prazo_dias: number | null
-          selecionada: boolean | null
+          selecionada: boolean
           servico: string | null
           simulacao_id: string
           transportadora_id: string | null
-          updated_at: string
           valor_adicional: number | null
-          valor_frete: number | null
-          valor_total: number | null
+          valor_frete: number
+          valor_total: number
         }
         Insert: {
           codigo?: string | null
           created_at?: string
-          fonte?: string
+          fonte: string
           id?: string
           modalidade?: string | null
           observacoes?: string | null
           payload_raw?: Json | null
           prazo_dias?: number | null
-          selecionada?: boolean | null
+          selecionada?: boolean
           servico?: string | null
           simulacao_id: string
           transportadora_id?: string | null
-          updated_at?: string
           valor_adicional?: number | null
-          valor_frete?: number | null
-          valor_total?: number | null
+          valor_frete?: number
+          valor_total?: number
         }
         Update: {
           codigo?: string | null
@@ -5007,14 +5081,13 @@ export type Database = {
           observacoes?: string | null
           payload_raw?: Json | null
           prazo_dias?: number | null
-          selecionada?: boolean | null
+          selecionada?: boolean
           servico?: string | null
           simulacao_id?: string
           transportadora_id?: string | null
-          updated_at?: string
           valor_adicional?: number | null
-          valor_frete?: number | null
-          valor_total?: number | null
+          valor_frete?: number
+          valor_total?: number
         }
         Relationships: [
           {
@@ -5022,6 +5095,13 @@ export type Database = {
             columns: ["simulacao_id"]
             isOneToOne: false
             referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frete_simulacoes_opcoes_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
             referencedColumns: ["id"]
           },
         ]
@@ -5492,6 +5572,60 @@ export type Database = {
         }
         Relationships: []
       }
+      mapeamento_gerencial_contas: {
+        Row: {
+          ativo: boolean | null
+          conta_contabil_id: string
+          created_at: string | null
+          grupo_aging: string | null
+          grupo_banco: string | null
+          grupo_capital_giro: string | null
+          grupo_debt: string | null
+          grupo_fluxo_caixa: string | null
+          grupo_resultado_financeiro: string | null
+          grupo_tributo: string | null
+          id: string
+          linha_dre: string | null
+          linha_gerencial: string | null
+          sinal_padrao: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          conta_contabil_id: string
+          created_at?: string | null
+          grupo_aging?: string | null
+          grupo_banco?: string | null
+          grupo_capital_giro?: string | null
+          grupo_debt?: string | null
+          grupo_fluxo_caixa?: string | null
+          grupo_resultado_financeiro?: string | null
+          grupo_tributo?: string | null
+          id?: string
+          linha_dre?: string | null
+          linha_gerencial?: string | null
+          sinal_padrao?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          conta_contabil_id?: string
+          created_at?: string | null
+          grupo_aging?: string | null
+          grupo_banco?: string | null
+          grupo_capital_giro?: string | null
+          grupo_debt?: string | null
+          grupo_fluxo_caixa?: string | null
+          grupo_resultado_financeiro?: string | null
+          grupo_tributo?: string | null
+          id?: string
+          linha_dre?: string | null
+          linha_gerencial?: string | null
+          sinal_padrao?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       matriz_fiscal: {
         Row: {
           aliquota_cofins: number
@@ -5894,6 +6028,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -6787,6 +6928,13 @@ export type Database = {
             foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -7134,6 +7282,13 @@ export type Database = {
             foreignKeyName: "orcamentos_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -7287,6 +7442,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ordens_venda_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ordens_venda_transportadora_id_fkey"
             columns: ["transportadora_id"]
             isOneToOne: false
@@ -7392,6 +7554,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -7592,6 +7761,13 @@ export type Database = {
             foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -7733,6 +7909,13 @@ export type Database = {
             foreignKeyName: "precos_especiais_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "precos_especiais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -7796,6 +7979,13 @@ export type Database = {
             foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
             columns: ["produto_filho_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
+            columns: ["produto_filho_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -7825,6 +8015,13 @@ export type Database = {
             columns: ["produto_pai_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
+            columns: ["produto_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -7906,6 +8103,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -8066,7 +8270,7 @@ export type Database = {
           preco_venda: number | null
           retencao_iss: boolean | null
           sku: string | null
-          tipo_item: string | null
+          tipo_item: string
           tipo_tributacao_iss: number | null
           unidade_medida: string | null
           unidade_tributavel: string | null
@@ -8112,7 +8316,7 @@ export type Database = {
           preco_venda?: number | null
           retencao_iss?: boolean | null
           sku?: string | null
-          tipo_item?: string | null
+          tipo_item?: string
           tipo_tributacao_iss?: number | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
@@ -8158,7 +8362,7 @@ export type Database = {
           preco_venda?: number | null
           retencao_iss?: boolean | null
           sku?: string | null
-          tipo_item?: string | null
+          tipo_item?: string
           tipo_tributacao_iss?: number | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
@@ -8246,6 +8450,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedores_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
             referencedColumns: ["produto_id"]
           },
           {
@@ -8481,6 +8692,13 @@ export type Database = {
             foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -8695,6 +8913,13 @@ export type Database = {
             foreignKeyName: "remessa_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -8731,6 +8956,7 @@ export type Database = {
           data_expedicao: string | null
           data_postagem: string | null
           empresa_id: string
+          frete_simulacao_id: string | null
           id: string
           motivo_cancelamento: string | null
           nota_fiscal_id: string | null
@@ -8756,6 +8982,7 @@ export type Database = {
           data_expedicao?: string | null
           data_postagem?: string | null
           empresa_id?: string
+          frete_simulacao_id?: string | null
           id?: string
           motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
@@ -8781,6 +9008,7 @@ export type Database = {
           data_expedicao?: string | null
           data_postagem?: string | null
           empresa_id?: string
+          frete_simulacao_id?: string | null
           id?: string
           motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
@@ -8803,6 +9031,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
             referencedColumns: ["id"]
           },
           {
@@ -10093,58 +10328,58 @@ export type Database = {
           arquivo_path: string | null
           competencia_final: string | null
           competencia_inicial: string | null
-          created_at: string
+          created_at: string | null
           empresa_id: string | null
           fechamento_id_final: string | null
           fechamento_id_inicial: string | null
-          gerado_em: string
+          gerado_em: string | null
           gerado_por: string | null
           hash_geracao: string | null
           id: string
           modo_geracao: string | null
           observacoes: string | null
           parametros_json: Json | null
-          status: string
-          template_id: string | null
-          updated_at: string
+          status: string | null
+          template_id: string
+          updated_at: string | null
         }
         Insert: {
           arquivo_path?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
-          created_at?: string
+          created_at?: string | null
           empresa_id?: string | null
           fechamento_id_final?: string | null
           fechamento_id_inicial?: string | null
-          gerado_em?: string
+          gerado_em?: string | null
           gerado_por?: string | null
           hash_geracao?: string | null
           id?: string
           modo_geracao?: string | null
           observacoes?: string | null
           parametros_json?: Json | null
-          status?: string
-          template_id?: string | null
-          updated_at?: string
+          status?: string | null
+          template_id: string
+          updated_at?: string | null
         }
         Update: {
           arquivo_path?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
-          created_at?: string
+          created_at?: string | null
           empresa_id?: string | null
           fechamento_id_final?: string | null
           fechamento_id_inicial?: string | null
-          gerado_em?: string
+          gerado_em?: string | null
           gerado_por?: string | null
           hash_geracao?: string | null
           id?: string
           modo_geracao?: string | null
           observacoes?: string | null
           parametros_json?: Json | null
-          status?: string
-          template_id?: string | null
-          updated_at?: string
+          status?: string | null
+          template_id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -10159,35 +10394,35 @@ export type Database = {
       workbook_templates: {
         Row: {
           arquivo_path: string
-          ativo: boolean
+          ativo: boolean | null
           codigo: string
-          created_at: string
+          created_at: string | null
           estrutura_json: Json | null
           id: string
           nome: string
-          updated_at: string
+          updated_at: string | null
           versao: string
         }
         Insert: {
           arquivo_path?: string
-          ativo?: boolean
+          ativo?: boolean | null
           codigo: string
-          created_at?: string
+          created_at?: string | null
           estrutura_json?: Json | null
           id?: string
           nome: string
-          updated_at?: string
+          updated_at?: string | null
           versao?: string
         }
         Update: {
           arquivo_path?: string
-          ativo?: boolean
+          ativo?: boolean | null
           codigo?: string
-          created_at?: string
+          created_at?: string | null
           estrutura_json?: Json | null
           id?: string
           nome?: string
-          updated_at?: string
+          updated_at?: string | null
           versao?: string
         }
         Relationships: []
@@ -10604,6 +10839,61 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_apresentacao_aging_consolidado: {
+        Row: {
+          competencia: string | null
+          cp_aberto: number | null
+          cr_aberto: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_backorder: {
+        Row: {
+          competencia: string | null
+          qtd_pedidos_pendentes: number | null
+          valor_atual: number | null
+          valor_backorder: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_balanco_gerencial: {
+        Row: {
+          ativo_circulante: number | null
+          competencia: string | null
+          passivo_circulante: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_bancos_detalhado: {
+        Row: {
+          banco_nome: string | null
+          competencia: string | null
+          conta_id: string | null
+          descricao: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_bridge_ebitda: {
+        Row: {
+          competencia: string | null
+          impacto_negativo: number | null
+          impacto_positivo: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_bridge_lucro_liquido: {
+        Row: {
+          competencia: string | null
+          despesas: number | null
+          lucro_operacional: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
       vw_apresentacao_capital_giro: {
         Row: {
           capital_giro_liquido: number | null
@@ -10623,6 +10913,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_apresentacao_debt: {
+        Row: {
+          competencia: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_despesas: {
+        Row: {
+          competencia: string | null
+          quantidade: number | null
+          total_pago: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_dre_gerencial: {
+        Row: {
+          competencia: string | null
+          linha: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
       vw_apresentacao_dre_waterfall: {
         Row: {
           competencia: string | null
@@ -10630,6 +10944,36 @@ export type Database = {
           rotulo: string | null
           tipo: string | null
           valor: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_faturamento: {
+        Row: {
+          competencia: string | null
+          quantidade_nfs: number | null
+          total_faturado: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_fluxo_caixa: {
+        Row: {
+          competencia: string | null
+          entradas: number | null
+          fluxo_liquido: number | null
+          saidas: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_fopag: {
+        Row: {
+          competencia: string | null
+          descontos: number | null
+          funcionarios: number | null
+          proventos: number | null
+          salario_base: number | null
+          valor_atual: number | null
         }
         Relationships: []
       }
@@ -10646,12 +10990,87 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_apresentacao_highlights_financeiros: {
+        Row: {
+          competencia: string | null
+          despesa_atual: number | null
+          pago: number | null
+          recebido: number | null
+          receita_atual: number | null
+          resultado: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_inadimplencia: {
+        Row: {
+          competencia: string | null
+          pct_inadimplencia: number | null
+          valor_atual: number | null
+          valor_inadimplente: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_lucro_produto_cliente: {
+        Row: {
+          competencia: string | null
+          maior_cliente: string | null
+          maior_produto: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
       vw_apresentacao_lucro_top10: {
         Row: {
           dimensao: string | null
           posicao: number | null
           rotulo: string | null
           valor: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_performance_comercial_canal: {
+        Row: {
+          canal: string | null
+          competencia: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_receita_vs_despesa: {
+        Row: {
+          competencia: string | null
+          despesa_atual: number | null
+          receita_atual: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_redes_sociais: {
+        Row: {
+          competencia: string | null
+          indisponivel: boolean | null
+          motivo: string | null
+          seguidores_novos: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_resultado_financeiro: {
+        Row: {
+          competencia: string | null
+          despesas_financeiras: number | null
+          receitas_financeiras: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_rol_caixa: {
+        Row: {
+          cobertura_pct: number | null
+          competencia: string | null
+          rol: number | null
+          valor_atual: number | null
         }
         Relationships: []
       }
@@ -10672,6 +11091,49 @@ export type Database = {
           engajamento: number | null
           plataforma: string | null
           seguidores: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_top_clientes: {
+        Row: {
+          cliente_lider: string | null
+          competencia: string | null
+          valor_atual: number | null
+          valor_lider: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_top_fornecedores: {
+        Row: {
+          competencia: string | null
+          fornecedor_lider: string | null
+          valor_atual: number | null
+          valor_lider: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_tributos: {
+        Row: {
+          competencia: string | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_variacao_estoque: {
+        Row: {
+          competencia: string | null
+          custo_unitario_medio: number | null
+          quantidade_itens: number | null
+          valor_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_venda_estado: {
+        Row: {
+          competencia: string | null
+          estado_lider: string | null
+          valor_atual: number | null
+          valor_lider: number | null
         }
         Relationships: []
       }
@@ -10715,6 +11177,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
             referencedColumns: ["id"]
           },
           {
@@ -10942,6 +11411,18 @@ export type Database = {
           },
         ]
       }
+      vw_workbook_bancos: {
+        Row: {
+          agencia: string | null
+          ativo: boolean | null
+          banco_nome: string | null
+          conta: string | null
+          descricao: string | null
+          id: string | null
+          saldo_atual: number | null
+        }
+        Relationships: []
+      }
       vw_workbook_bancos_saldo: {
         Row: {
           agencia: string | null
@@ -10974,6 +11455,13 @@ export type Database = {
             foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
             columns: ["conta_bancaria_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
             referencedColumns: ["id"]
           },
@@ -10998,6 +11486,15 @@ export type Database = {
           },
         ]
       }
+      vw_workbook_confronto_receita_caixa: {
+        Row: {
+          competencia: string | null
+          pct_realizacao: number | null
+          receita_prevista: number | null
+          receita_realizada: number | null
+        }
+        Relationships: []
+      }
       vw_workbook_despesa_mensal: {
         Row: {
           competencia: string | null
@@ -11018,6 +11515,27 @@ export type Database = {
           receita_liquida: number | null
         }
         Relationships: []
+      }
+      vw_workbook_estoque: {
+        Row: {
+          custo_unitario: number | null
+          grupo_descricao: string | null
+          grupo_id: string | null
+          nome: string | null
+          produto_id: string | null
+          quantidade: number | null
+          sku: string | null
+          valor_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_produto"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_workbook_estoque_critico: {
         Row: {
@@ -11091,6 +11609,70 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_workbook_fluxo_caixa: {
+        Row: {
+          competencia: string | null
+          conta_bancaria_id: string | null
+          conta_descricao: string | null
+          qtd_movimentos: number | null
+          tipo: string | null
+          total_valor: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_fopag: {
+        Row: {
+          cargo: string | null
+          competencia: string | null
+          departamento: string | null
+          descontos: number | null
+          funcionario_id: string | null
+          funcionario_nome: string | null
+          id: string | null
+          proventos: number | null
+          salario_base: number | null
+          status: string | null
+          valor_liquido: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_pagamento_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_pagamento_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios_basico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_workbook_logistica_resumo: {
         Row: {
           competencia: string | null
@@ -11120,6 +11702,15 @@ export type Database = {
           quantidade: number | null
           total_recebido: number | null
           total_receita: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_resultado_financeiro: {
+        Row: {
+          competencia: string | null
+          tipo: string | null
+          valor_realizado: number | null
+          valor_total: number | null
         }
         Relationships: []
       }
@@ -11576,10 +12167,20 @@ export type Database = {
         Args: { p_nota_id: string }
         Returns: number
       }
-      financeiro_processar_baixa_lote: {
-        Args: { p_items: Json }
-        Returns: Json
-      }
+      financeiro_processar_baixa_lote:
+        | { Args: { p_items: Json }; Returns: Json }
+        | {
+            Args: {
+              p_baixa_date: string
+              p_conta_bancaria_id: string
+              p_forma_pagamento: string
+              p_selected_ids: string[]
+              p_tipo_baixa: string
+              p_total_baixa: number
+              p_valor_pago_baixa: number
+            }
+            Returns: undefined
+          }
       financeiro_processar_estorno: {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
