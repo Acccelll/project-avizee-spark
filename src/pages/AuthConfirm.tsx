@@ -111,7 +111,22 @@ export default function AuthConfirm() {
         return;
       }
       // Sessão estabelecida. Agora seguimos para o destino real.
-      navigate(redirectTo, { replace: true });
+      //
+      // `redirectTo` vem de `{{ .RedirectTo }}`, resolvido pelo GoTrue a partir
+      // da URL ABSOLUTA que `resetPasswordForEmail`/`signUp` enviaram (GoTrue
+      // exige URL completa para o redirect no servidor e para validar contra
+      // `uri_allow_list`). O `navigate()` do react-router, por outro lado,
+      // espera um caminho relativo à SPA — passar a URL absoluta direto faz o
+      // router não achar rota nenhuma e a navegação falha silenciosamente.
+      // Extraímos pathname+search+hash antes de navegar.
+      let target = redirectTo;
+      try {
+        const url = new URL(redirectTo, window.location.origin);
+        target = `${url.pathname}${url.search}${url.hash}`;
+      } catch {
+        // redirectTo já é relativo ou é inválido — usa como veio.
+      }
+      navigate(target, { replace: true });
     } catch (err) {
       logger.error("[auth-confirm]", err);
       setError("Erro inesperado ao confirmar. Tente novamente.");
