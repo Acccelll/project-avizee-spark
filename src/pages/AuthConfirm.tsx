@@ -112,13 +112,25 @@ export default function AuthConfirm() {
       }
       // Sessão estabelecida. Agora seguimos para o destino real.
       //
-      // `redirectTo` vem de `{{ .RedirectTo }}`, resolvido pelo GoTrue a partir
-      // da URL ABSOLUTA que `resetPasswordForEmail`/`signUp` enviaram (GoTrue
-      // exige URL completa para o redirect no servidor e para validar contra
-      // `uri_allow_list`). O `navigate()` do react-router, por outro lado,
-      // espera um caminho relativo à SPA — passar a URL absoluta direto faz o
-      // router não achar rota nenhuma e a navegação falha silenciosamente.
-      // Extraímos pathname+search+hash antes de navegar.
+      // `recovery` e `invite` SEMPRE precisam terminar em `/reset-password`
+      // — é lá que o usuário define a senha (via `supabase.auth.updateUser`).
+      // Não confiamos em `redirectTo` para esses dois: `{{ .RedirectTo }}` é
+      // resolvido pelo GoTrue a partir da URL que `resetPasswordForEmail`/
+      // `inviteUserByEmail` enviaram, e pode vir vazio dependendo de como o
+      // GoTrue valida essa URL contra `uri_allow_list` — quando isso acontece,
+      // `redirectTo` cai em "/" e o usuário (já autenticado pela sessão de
+      // recovery) é jogado direto para dentro do sistema, sem nunca ver o
+      // formulário de nova senha.
+      if (type === "recovery" || type === "invite") {
+        navigate("/reset-password", { replace: true });
+        return;
+      }
+      // Demais tipos (signup, magiclink, email_change): usa `redirectTo`.
+      // Vem de `{{ .RedirectTo }}`, tipicamente uma URL ABSOLUTA (GoTrue exige
+      // URL completa para o redirect no servidor e para validar contra
+      // `uri_allow_list`). O `navigate()` do react-router espera um caminho
+      // relativo à SPA — passar a URL absoluta direto faz o router não achar
+      // rota nenhuma. Extraímos pathname+search+hash antes de navegar.
       let target = redirectTo;
       try {
         const url = new URL(redirectTo, window.location.origin);
