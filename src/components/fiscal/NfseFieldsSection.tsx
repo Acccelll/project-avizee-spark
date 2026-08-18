@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Receipt, Building2, Calculator, ChevronDown, Plus, X, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { calcularNfse, divergenciaValor, validarNfse, TRIBUTOS_NFSE, type RetencaoNfse, type NfseTributo } from "@/lib/fiscal/nfseCalculo";
 import { decimalParaPercentual, percentualParaDecimal } from "@/lib/fiscal/aliquota";
 import { formatCurrency } from "@/lib/format";
+import { listarRetencoesNfse } from "@/services/fiscal/lifecycle.service";
 
 const NATUREZA_OPTIONS = [
   { value: 1, label: "1 - Tributação no município" }, { value: 2, label: "2 - Tributação fora do município" },
@@ -27,6 +28,7 @@ function parseRetencoes(raw: unknown): RetencaoNfse[] {
 }
 
 export function NfseFieldsSection({ form, setForm, disabled }: Props) {
+  const ledgerCarregado = useRef<string>("");
   const retencoes = useMemo(() => parseRetencoes(form.nfse_retencoes_json), [form.nfse_retencoes_json]);
   const calculo = useMemo(() => calcularNfse({
     valorServicos: num(form.nfse_valor_servicos), valorDeducoes: num(form.nfse_valor_deducoes),
@@ -40,6 +42,21 @@ export function NfseFieldsSection({ form, setForm, disabled }: Props) {
     aliquotaIss: form.nfse_aliquota_iss == null ? null : num(form.nfse_aliquota_iss), retencoes,
     valorIssInformado: issInformado == null ? null : num(issInformado),
   });
+
+  useEffect(() => {
+    const documentoId = String(form.documento_id || "");
+    if (!documentoId || ledgerCarregado.current === documentoId) return;
+    ledgerCarregado.current = documentoId;
+    let ativo = true;
+    void listarRetencoesNfse(documentoId)
+      .then((rows) => {
+        if (ativo) setForm({ ...form, nfse_retencoes_json: JSON.stringify(rows) });
+      })
+      .catch(() => { ledgerCarregado.current = ""; });
+    return () => { ativo = false; };
+    // O ID é estável durante a edição; evita recarregar e sobrescrever alterações locais.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.documento_id]);
 
   // Sincroniza sempre base + valor calculado; mudança isolada da alíquota também entra aqui.
   useEffect(() => {
@@ -58,7 +75,7 @@ export function NfseFieldsSection({ form, setForm, disabled }: Props) {
 
   const toggleIssRetido = (checked: boolean) => {
     const idx = retencoes.findIndex((r) => r.tributo === "ISS" && (r.status ?? "rascunho") !== "estornada");
-    let rows = [...retencoes];
+    const rows = [...retencoes];
     if (checked && idx < 0) rows.push({ tributo: "ISS", base_calculo: calculo.baseCalculo, aliquota: form.nfse_aliquota_iss == null ? null : num(form.nfse_aliquota_iss), valor: importada && issInformado != null ? num(issInformado) : calculo.valorIssCalculado, retido: true, reduz_valor_fornecedor: true, responsavel_recolhimento: "empresa", status: "rascunho", origem: importada ? "xml" : "manual" });
     if (idx >= 0) rows[idx] = { ...rows[idx], retido: checked, reduz_valor_fornecedor: checked, responsavel_recolhimento: checked ? "empresa" : "fornecedor" };
     setForm({ ...form, nfse_iss_retido: checked, nfse_retencoes_json: JSON.stringify(rows) });
