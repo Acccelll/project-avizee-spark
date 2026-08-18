@@ -64,10 +64,10 @@ SELECT
 FROM public.fechamento_caixa_saldos fcs
 JOIN public.fechamentos_mensais fm ON fm.id = fcs.fechamento_id
 LEFT JOIN (
-  SELECT competencia, SUM(total_receita) AS total_receita
+  SELECT competencia, SUM(valor_bruto) AS total_receita
   FROM public.vw_workbook_receita_mensal
   GROUP BY competencia
-) r ON r.competencia = to_char(fm.competencia, 'YYYY-MM')
+) r ON r.competencia = fm.competencia
 WHERE fm.status = 'fechado'
 GROUP BY fm.competencia;
 
@@ -75,8 +75,8 @@ CREATE OR REPLACE VIEW public.vw_apresentacao_variacao_estoque AS
 SELECT
   to_char(fm.competencia, 'YYYY-MM') AS competencia,
   SUM(COALESCE(fes.valor_total, 0)) AS valor_atual,
-  COUNT(*) AS quantidade_itens,
-  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio
+  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio,
+  COUNT(*) AS quantidade_itens
 FROM public.fechamento_estoque_saldos fes
 JOIN public.fechamentos_mensais fm ON fm.id = fes.fechamento_id
 WHERE fm.status = 'fechado'
