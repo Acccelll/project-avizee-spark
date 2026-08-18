@@ -15,11 +15,31 @@ export async function obterStatusCteDistDFe():Promise<CteDistDfeStatus>{
   if(error)throw error; return data ?? {sucesso:false,enabled:false,configured:false,hasProxyUrl:false,hasProxySecret:false};
 }
 
+async function marcarDistribuicaoProcessada(chave:string,notaFiscalId:string){
+  const patch={nota_fiscal_id:notaFiscalId,status_processamento:"processado",updated_at:new Date().toISOString()};
+  await fromUntyped("cte_distribuicao").update(patch).eq("chave_acesso",chave);
+}
+
+async function salvarDistribuicaoProcessada(input:{doc:CteDistDfeDoc;ambiente:"1"|"2";path:string;notaId:string|null}){
+  const row={
+    nsu:input.doc.nsu,
+    chave_acesso:input.doc.chave,
+    schema_documento:input.doc.schema,
+    xml_path:input.path,
+    resumo:(input.doc.resumo??{}) as Json,
+    status_processamento:"processado",
+    nota_fiscal_id:input.notaId,
+    ambiente:input.ambiente,
+    updated_at:new Date().toISOString(),
+  };
+  await fromUntyped("cte_distribuicao").upsert(row,{onConflict:"empresa_id,chave_acesso"});
+}
+
 async function materializarDoc(doc:CteDistDfeDoc,ambiente:"1"|"2"):Promise<string|null>{
   if(!doc.chave||doc.chave.length!==44)return null;
   const {data:existente}=await supabase.from("notas_fiscais").select("id").eq("chave_acesso",doc.chave).limit(1).maybeSingle();
   if(existente?.id){
-    await fromUntyped("cte_distribuicao").update({nota_fiscal_id:existente.id,status_processamento:"processado",updated_at:new Date().toISOString()}).eq("chave_acesso",doc.chave);
+    await marcarDistribuicaoProcessada(doc.chave,existente.id);
     return existente.id;
   }
   const {data:fornecedores}=await supabase.from("fornecedores").select("id,nome_razao_social,cpf_cnpj").limit(1000);
@@ -30,7 +50,7 @@ async function materializarDoc(doc:CteDistDfeDoc,ambiente:"1"|"2"):Promise<strin
   const {data:id,error}=await supabase.rpc("salvar_documento_fiscal_completo" as never,{p_nf_id:null,p_payload:payload as unknown as Json,p_itens:[] as unknown as Json} as never);
   if(error)throw error;
   const notaId=String(id||"");
-  await fromUntyped("cte_distribuicao").upsert({nsu:doc.nsu,chave_acesso:doc.chave,schema_documento:doc.schema,xml_path:path,resumo:(doc.resumo??{}) as Json,status_processamento:"processado",nota_fiscal_id:notaId||null,ambiente,updated_at:new Date().toISOString()},{onConflict:"empresa_id,chave_acesso"});
+  await salvarDistribuicaoProcessada({doc,ambiente,path,notaId:notaId||null});
   return notaId||null;
 }
 
@@ -47,18 +67,24 @@ export async function sincronizarCteDistDFe(opcoes?:{ambiente?:"1"|"2";maxLotes?
     if(!data?.sucesso)return{novos,duplicados,ultNSU:cursor,maxNSU:lastMax,disabled:data?.disabled,erro:data?.erro,cStat:data?.cStat,xMotivo:data?.xMotivo};
     if(data.cStat==="656"){
       const ate=new Date(Date.now()+60*60_000).toISOString();
-      await fromUntyped("cte_distdfe_sync").upsert({ambiente,ultimo_nsu:cursor,max_nsu:data.maxNSU??lastMax??cursor,bloqueado_ate:ate,ultimo_cstat:data.cStat,ultimo_motivo:data.xMotivo,updated_at:new Date().toISOString()},{onConflict:"empresa_id,ambiente"});
+      const state={ambiente,ultimo_nsu:cursor,max_nsu:data.maxNSU??lastMax??cursor,bloqueado_ate:ate,ultimo_cstat:data.cStat,ultimo_motivo:data.xMotivo,updated_at:new Date().toISOString()};
+      await fromUntyped("cte_distdfe_sync").upsert(state,{onConflict:"empresa_id,ambiente"});
       return{novos,duplicados,ultNSU:cursor,maxNSU:data.maxNSU,cStat:data.cStat,xMotivo:data.xMotivo,erro:"Consumo indevido: cursor preservado e circuit breaker ativado."};
     }
     for(const doc of data.docs??[]){
       if(!doc.chave)continue;
       const {data:row}=await fromUntyped<CteInboxRow>("cte_distribuicao").select("id,nota_fiscal_id").eq("chave_acesso",doc.chave).limit(1).maybeSingle();
       if(row){duplicados++;continue;}
-      await fromUntyped("cte_distribuicao").insert({nsu:doc.nsu,chave_acesso:doc.chave,schema_documento:doc.schema,resumo:(doc.resumo??{}) as Json,status_processamento:"recebido",ambiente});
-      try{await materializarDoc(doc,ambiente);novos++;}catch(e){await fromUntyped("cte_distribuicao").update({status_processamento:"erro",erro:e instanceof Error?e.message:String(e),updated_at:new Date().toISOString()}).eq("chave_acesso",doc.chave);}
+      const inbox={nsu:doc.nsu,chave_acesso:doc.chave,schema_documento:doc.schema,resumo:(doc.resumo??{}) as Json,status_processamento:"recebido",ambiente};
+      await fromUntyped("cte_distribuicao").insert(inbox);
+      try{await materializarDoc(doc,ambiente);novos++;}catch(e){
+        const failure={status_processamento:"erro",erro:e instanceof Error?e.message:String(e),updated_at:new Date().toISOString()};
+        await fromUntyped("cte_distribuicao").update(failure).eq("chave_acesso",doc.chave);
+      }
     }
     cursor=data.ultNSU??cursor; lastMax=data.maxNSU??lastMax;
-    await fromUntyped("cte_distdfe_sync").upsert({ambiente,ultimo_nsu:cursor,max_nsu:lastMax??cursor,ultima_sincronizacao:new Date().toISOString(),bloqueado_ate:null,ultimo_cstat:data.cStat,ultimo_motivo:data.xMotivo,updated_at:new Date().toISOString()},{onConflict:"empresa_id,ambiente"});
+    const state={ambiente,ultimo_nsu:cursor,max_nsu:lastMax??cursor,ultima_sincronizacao:new Date().toISOString(),bloqueado_ate:null,ultimo_cstat:data.cStat,ultimo_motivo:data.xMotivo,updated_at:new Date().toISOString()};
+    await fromUntyped("cte_distdfe_sync").upsert(state,{onConflict:"empresa_id,ambiente"});
     if(!data.maxNSU||cursor===data.maxNSU||data.cStat==="137")break;
   }
   return{novos,duplicados,ultNSU:cursor,maxNSU:lastMax};
