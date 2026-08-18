@@ -24,6 +24,7 @@ Antes do aceite final, a branch foi ajustada contra o schema real do Supabase e 
 - consulta de conciliação alinhada aos campos reais da view financeira consolidada;
 - lint fiscal/E2E corrigido sem desabilitar regras globalmente;
 - assinatura da fixture Playwright preservada conforme a API do runner;
-- migrations históricas de apresentação corrigidas apenas para permitir replay limpo do banco local de CI, sem alterar o estado já aplicado no ambiente remoto.
+- migrations históricas de apresentação corrigidas apenas para permitir replay limpo do banco local de CI, sem alterar o estado já aplicado no ambiente remoto;
+- transição histórica do retorno de `financeiro_processar_estorno` explicitada com `DROP FUNCTION` antes da recriação, conforme exigência do PostgreSQL para mudança de tipo de retorno.
 
 O status **GO** depende do último ciclo de CI após esses ajustes; falhas advisory preexistentes devem ser registradas separadamente e não podem ser confundidas com regressões desta entrega.
