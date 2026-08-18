@@ -23,6 +23,7 @@ import type {
   ContaContabilRefMin,
 } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { logger } from "@/lib/logger";
+import { camposDocumentoDaNota, totalBaseDocumento } from "@/pages/fiscal/hooks/fiscalDocumentoFields";
 
 /**
  * Estado canônico do formulário de NF-e — alinhado a `Fiscal.tsx::FiscalForm`
@@ -166,6 +167,7 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
         desconto_valor: Number(n.desconto_valor || 0),
         outras_despesas: Number(n.outras_despesas || 0),
         origem: String(n.origem || "manual"),
+        ...camposDocumentoDaNota(n),
       });
       const itens = await listNotaFiscalItensCompletos(notaId).catch(() => []);
       const itensTyped = itens as unknown as Array<Record<string, unknown> & {
