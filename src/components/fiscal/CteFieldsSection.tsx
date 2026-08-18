@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Truck, MapPin, Users, PackageSearch, DollarSign, Plus, X, ChevronDown, CircleCheck, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { formatCurrency } from "@/lib/format";
+import { listarReferenciasCte } from "@/services/fiscal/lifecycle.service";
 
 const TIPO_OPTIONS=[{value:"normal",label:"Normal"},{value:"complemento_valores",label:"Complemento de valores"},{value:"anulacao",label:"Anulação"},{value:"substituto",label:"Substituto"}];
 const MODAL_OPTIONS=[{value:"rodoviario",label:"Rodoviário"},{value:"aereo",label:"Aéreo"},{value:"aquaviario",label:"Aquaviário"},{value:"ferroviario",label:"Ferroviário"},{value:"dutoviario",label:"Dutoviário"},{value:"multimodal",label:"Multimodal"}];
@@ -19,12 +20,22 @@ function parseRefs(v:unknown):RefResumo[]{if(typeof v!=="string"||!v)return[];tr
 
 export function CteFieldsSection({form,setForm,disabled}:Props){
   const [chaveInput,setChaveInput]=useState("");
+  const ledgerCarregado=useRef("");
   const chaves:string[]=Array.isArray(form.cte_chave_nfe_ref)?form.cte_chave_nfe_ref:[];
   const refs=useMemo(()=>parseRefs(form.cte_referencias_json),[form.cte_referencias_json]);
   const localizadas=refs.filter((r)=>r.status==="localizada").length;
   const pendentes=refs.filter((r)=>r.status!=="localizada").length;
   const tomador=form.cte_tomador_tipo;
   useEffect(()=>{if(!form.cte_modal)setForm({...form,cte_modal:"rodoviario"});/* eslint-disable-next-line react-hooks/exhaustive-deps */},[]);
+  useEffect(()=>{
+    const documentoId=String(form.documento_id||"");
+    if(!documentoId||ledgerCarregado.current===documentoId)return;
+    ledgerCarregado.current=documentoId;
+    let ativo=true;
+    void listarReferenciasCte(documentoId).then((rows)=>{if(ativo)setForm({...form,cte_referencias_json:JSON.stringify(rows)});}).catch(()=>{ledgerCarregado.current="";});
+    return()=>{ativo=false;};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[form.documento_id]);
   const addChave=()=>{const v=chaveInput.replace(/\D/g,"");if(v.length!==44)return;if(!chaves.includes(v))setForm({...form,cte_chave_nfe_ref:[...chaves,v]});setChaveInput("");};
   const removeChave=(k:string)=>setForm({...form,cte_chave_nfe_ref:chaves.filter((c)=>c!==k)});
   const participante=(prefix:string,label:string,comUf=true)=><div className="space-y-2"><p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p><div className="grid grid-cols-1 md:grid-cols-4 gap-2"><Input placeholder="CNPJ/CPF" value={form[`${prefix}_doc`]??""} onChange={(e)=>setForm({...form,[`${prefix}_doc`]:e.target.value})} disabled={disabled}/><Input className="md:col-span-2" placeholder="Razão social" value={form[`${prefix}_razao_social`]??""} onChange={(e)=>setForm({...form,[`${prefix}_razao_social`]:e.target.value})} disabled={disabled}/>{comUf&&<Select value={form[`${prefix}_uf`]??""} onValueChange={(v)=>setForm({...form,[`${prefix}_uf`]:v})} disabled={disabled}><SelectTrigger><SelectValue placeholder="UF"/></SelectTrigger><SelectContent>{UF_OPTIONS.map((u)=><SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select>}</div></div>;
