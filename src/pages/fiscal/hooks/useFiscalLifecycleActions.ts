@@ -16,6 +16,7 @@ import {
   useEstornarNotaFiscal,
 } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { canConfirmFiscal, canEstornarFiscal } from "@/lib/fiscalStatus";
+import { camposDocumentoDaNota } from "@/pages/fiscal/hooks/fiscalDocumentoFields";
 import type { NotaFiscal } from "@/types/domain";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 import type {
