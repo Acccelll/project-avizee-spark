@@ -43,7 +43,7 @@ Deno.serve(async(req)=>{
     const ambiente: "1"|"2"=body.ambiente==="2"?"2":"1"; const ultNSU=String(body.ultNSU??"0").replace(/\D/g,"");
     const mensagem=montarMensagem(cnpj,ambiente,ultNSU); const envelope=soapEnvelope(mensagem);
     const soapAction=Deno.env.get("CTE_DISTDFE_SOAP_ACTION")?.trim()||"";
-    const headers:Record<string,string>={"x-proxy-secret":pSecret,"x-target-url":endpoint(ambiente),"Content-Type":soapAction?`application/soap+xml; charset=utf-8; action=\"${soapAction}\"`:"application/soap+xml; charset=utf-8"};
+    const headers:Record<string,string>={"x-proxy-secret":pSecret,"x-target-url":endpoint(ambiente),"Content-Type":soapAction?`application/soap+xml; charset=utf-8; action="${soapAction}"`:"application/soap+xml; charset=utf-8"};
     if(soapAction)headers.soapaction=soapAction;
     const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),30_000);
     const resp=await fetch(pUrl,{method:"POST",headers,body:envelope,signal:ctrl.signal}); clearTimeout(timer);
