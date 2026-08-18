@@ -11,7 +11,6 @@ export const CTE_FORM_FIELDS = [
   "cte_valor_prestacao", "cte_valor_receber", "cte_chave_nfe_ref",
   "cte_icms_cst", "cte_icms_base", "cte_icms_aliquota", "cte_icms_valor",
 ] as const;
-
 export const NFSE_FORM_FIELDS = [
   "nfse_codigo_servico_lc116", "nfse_nbs", "nfse_descricao_servico",
   "nfse_municipio_prestacao", "nfse_municipio_prestacao_cod",
@@ -21,12 +20,11 @@ export const NFSE_FORM_FIELDS = [
   "nfse_data_competencia", "nfse_numero_rps", "nfse_serie_rps", "nfse_natureza_operacao",
   "nfse_layout_origem", "nfse_versao_layout", "nfse_provedor_origem",
 ] as const;
-
 export function camposDocumentoDaNota(n: Record<string, unknown>): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = { tipo_documento: String(n.tipo_documento || "nfe") };
+  if (n.id) out.documento_id = String(n.id);
   for (const key of [...CTE_FORM_FIELDS, ...NFSE_FORM_FIELDS]) {
-    const value = n[key];
-    if (value === null || value === undefined) continue;
+    const value = n[key]; if (value === null || value === undefined) continue;
     if (Array.isArray(value)) { (out as Record<string, unknown>)[key] = value; continue; }
     if (typeof value === "number" || typeof value === "boolean") { out[key] = value; continue; }
     out[key] = String(value);
@@ -36,16 +34,9 @@ export function camposDocumentoDaNota(n: Record<string, unknown>): Record<string
   if (n.nfse_ibscbs_dados && typeof n.nfse_ibscbs_dados === "object") out.nfse_ibscbs_json = JSON.stringify(n.nfse_ibscbs_dados);
   return out;
 }
-
 export function totalBaseDocumento(form: Record<string, unknown>, totalPorItens: number): number {
-  const tipoDoc = String(form.tipo_documento || "nfe");
-  if (tipoDoc === "cte" || tipoDoc === "cte_os") {
-    const prestacao = Number(form.cte_valor_prestacao || 0);
-    return prestacao > 0 ? prestacao : totalPorItens;
-  }
-  if (tipoDoc === "nfse") {
-    const servicos = Number(form.nfse_valor_servicos || 0);
-    return servicos > 0 ? servicos : totalPorItens;
-  }
+  const tipoDoc=String(form.tipo_documento||"nfe");
+  if(tipoDoc==="cte"||tipoDoc==="cte_os"){const v=Number(form.cte_valor_prestacao||0);return v>0?v:totalPorItens;}
+  if(tipoDoc==="nfse"){const v=Number(form.nfse_valor_servicos||0);return v>0?v:totalPorItens;}
   return totalPorItens;
 }
