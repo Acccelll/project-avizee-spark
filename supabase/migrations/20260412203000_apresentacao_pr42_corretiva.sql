@@ -67,7 +67,7 @@ LEFT JOIN (
   SELECT competencia, SUM(total_receita) AS total_receita
   FROM public.vw_workbook_receita_mensal
   GROUP BY competencia
-) r ON r.competencia = fm.competencia
+) r ON r.competencia = to_char(fm.competencia, 'YYYY-MM')
 WHERE fm.status = 'fechado'
 GROUP BY fm.competencia;
 
