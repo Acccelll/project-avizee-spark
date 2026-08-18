@@ -21,7 +21,9 @@ export const NFSE_FORM_FIELDS = [
   "nfse_layout_origem", "nfse_versao_layout", "nfse_provedor_origem",
 ] as const;
 export function camposDocumentoDaNota(n: Record<string, unknown>): Record<string, string | number | boolean> {
-  const out: Record<string, string | number | boolean> = { tipo_documento: String(n.tipo_documento || "nfe") };
+  const tipoBanco = String(n.tipo_documento || "nfe");
+  // A UI trabalha CT-e como uma família; modelo 67 é normalizado de volta para cte_os na RPC de save.
+  const out: Record<string, string | number | boolean> = { tipo_documento: tipoBanco === "cte_os" ? "cte" : tipoBanco };
   if (n.id) out.documento_id = String(n.id);
   for (const key of [...CTE_FORM_FIELDS, ...NFSE_FORM_FIELDS]) {
     const value = n[key]; if (value === null || value === undefined) continue;
