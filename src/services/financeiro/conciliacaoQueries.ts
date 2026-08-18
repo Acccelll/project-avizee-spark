@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TituloParaConciliacao } from "@/services/financeiro/conciliacao.service";
 
-/** Busca lançamentos pendentes via view consolidada `vw_conciliacao_eventos_financeiros`. */
+/** Busca eventos financeiros pendentes via view consolidada `vw_conciliacao_eventos_financeiros`. */
 export async function listLancamentosParaConciliacao(input: {
   contaId: string;
   dataInicio: string;
@@ -12,21 +12,26 @@ export async function listLancamentosParaConciliacao(input: {
 
   const { data, error } = await supabase
     .from("vw_conciliacao_eventos_financeiros")
-    .select("lancamento_id, descricao, valor_movimento, data_movimento, tipo, status_titulo, conciliacao_status")
+    .select("lancamento_id, lancamento_descricao, valor_pago, data_baixa, lancamento_tipo, conciliacao_status")
     .eq("conta_bancaria_id", contaId)
-    .gte("data_movimento", dataInicio)
-    .lte("data_movimento", dataFim)
+    .gte("data_baixa", dataInicio)
+    .lte("data_baixa", dataFim)
     .in("conciliacao_status", ["pendente", "divergente", "desconciliado"])
-    .order("data_movimento", { ascending: true })
+    .order("data_baixa", { ascending: true })
     .limit(5000); // período pode ser amplo; teto de segurança
   if (error) throw new Error(error.message);
   return ((data as unknown as Array<Record<string, unknown>>) ?? []).map((item) => ({
     id: String(item.lancamento_id),
-    descricao: (item.descricao as string | null) ?? null,
-    valor: Number(item.valor_movimento ?? 0),
-    data_vencimento: String(item.data_movimento),
-    tipo: String(item.tipo ?? ""),
-    status: String(item.status_titulo ?? "aberto"),
+    descricao: (item.lancamento_descricao as string | null) ?? null,
+    valor: Number(item.valor_pago ?? 0),
+    // O contrato legado chama o eixo de data de `data_vencimento`, mas a
+    // conciliação canônica opera sobre a data real da baixa.
+    data_vencimento: String(item.data_baixa),
+    data_baixa: String(item.data_baixa),
+    tipo: String(item.lancamento_tipo ?? ""),
+    // A view consolidada atual não expõe status persistido do título.
+    // Não inventamos um status financeiro a partir do status de conciliação.
+    status: null,
   }));
 }
 
