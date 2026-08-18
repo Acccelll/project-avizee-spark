@@ -20,6 +20,7 @@ export interface CteData {
 const TIPO: Record<string, CteData["tipoCte"]> = { "0":"normal", "1":"complemento_valores", "2":"anulacao", "3":"substituto" };
 const MODAL: Record<string, string> = { "01":"rodoviario", "02":"aereo", "03":"aquaviario", "04":"ferroviario", "05":"dutoviario", "06":"multimodal" };
 const nullable = (v: string): string | null => v ? v : null;
+const normalizarAliquota = (v: number | null): number | null => v === null || !Number.isFinite(v) ? null : v > 1 ? +(v / 100).toFixed(6) : v;
 
 function participante(node: XmlNode | null): CteParticipante | undefined {
   if (!node) return undefined;
@@ -70,7 +71,7 @@ export function parseCteXml(xml: string): CteData {
     municipioFim:textOf(ide,"xMunFim"), municipioFimUf:textOf(ide,"UFFim"), municipioFimCod:textOf(ide,"cMunFim"),
     produtoPredominante:nullable(textOf(infCarga,"proPred")), quantidade:numberOf(qNode,"qCarga"), unidadeMedida:nullable(textOf(qNode,"cUnid")),
     valorPrestacao:numberOf(vPrest,"vTPrest"), valorReceber:numberOf(vPrest,"vRec"),
-    icms:{ cst:nullable(textOf(icmsGroup,"CST")), baseCalculo:numberOf(icmsGroup,"vBC"), aliquota:numberOf(icmsGroup,"pICMS"), valor:numberOf(icmsGroup,"vICMS") },
+    icms:{ cst:nullable(textOf(icmsGroup,"CST")), baseCalculo:numberOf(icmsGroup,"vBC"), aliquota:normalizarAliquota(numberOf(icmsGroup,"pICMS")), valor:numberOf(icmsGroup,"vICMS") },
     chavesNfe:Array.from(chaves),
     dadosExtras:{ layout_origem:modelo === "67" ? "cte_os" : "cte", versao_layout:inf.attrs.versao ?? null, componentes_frete:comps, rntrc:nullable(textOf(rodo,"RNTRC")), valor_carga:numberOf(infCarga,"vCarga"), medidas:findAll(infCarga,"infQ").map((q)=>({tipo:textOf(q,"tpMed"),quantidade:numberOf(q,"qCarga"),unidade:textOf(q,"cUnid")})) }
   };
