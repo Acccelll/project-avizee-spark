@@ -221,15 +221,18 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
     [form.ipi_valor, form.icms_st_valor],
   );
   const totalNF = useMemo(
-    () => calcularTotalNF(
-      valorProdutos,
-      Number(form.desconto_valor || 0),
-      Number(form.icms_st_valor || 0),
-      Number(form.ipi_valor || 0),
-      Number(form.frete_valor || 0),
-      Number(form.outras_despesas || 0),
+    () => totalBaseDocumento(
+      form,
+      calcularTotalNF(
+        valorProdutos,
+        Number(form.desconto_valor || 0),
+        Number(form.icms_st_valor || 0),
+        Number(form.ipi_valor || 0),
+        Number(form.frete_valor || 0),
+        Number(form.outras_despesas || 0),
+      ),
     ),
-    [valorProdutos, form.desconto_valor, form.icms_st_valor, form.ipi_valor, form.frete_valor, form.outras_despesas],
+    [form, valorProdutos],
   );
 
   const buildItemsPayload = (nfId: string) =>
