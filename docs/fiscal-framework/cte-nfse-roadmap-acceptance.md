@@ -14,3 +14,16 @@ Cenários obrigatórios desta entrega:
 10. Distribuição CT-e e consulta ADN permanecem desligadas sem feature flag/configuração.
 
 Os cenários 1–6 foram exercitados contra o Supabase de desenvolvimento com transações revertidas (`BEGIN/ROLLBACK`) para não persistir dados de teste. Parsers e helpers possuem cobertura unitária via Vitest.
+
+## Hardening de integração
+
+Antes do aceite final, a branch foi ajustada contra o schema real do Supabase e contra o pipeline completo do repositório:
+
+- persistência do inbox/cursor CT-e isolada por acesso untyped somente onde os tipos gerados ainda não cobrem o uso dinâmico;
+- metadados de certificado e plugin fiscal de exemplo alinhados ao `strict` TypeScript;
+- consulta de conciliação alinhada aos campos reais da view financeira consolidada;
+- lint fiscal/E2E corrigido sem desabilitar regras globalmente;
+- assinatura da fixture Playwright preservada conforme a API do runner;
+- migrations históricas de apresentação corrigidas apenas para permitir replay limpo do banco local de CI, sem alterar o estado já aplicado no ambiente remoto.
+
+O status **GO** depende do último ciclo de CI após esses ajustes; falhas advisory preexistentes devem ser registradas separadamente e não podem ser confundidas com regressões desta entrega.
