@@ -5,6 +5,7 @@ import {
   listContasContabeisLancaveis,
 } from "@/services/fiscal.service";
 import { calcularTotalNF } from "@/lib/fiscal";
+import { totalBaseDocumento } from "@/pages/fiscal/hooks/fiscalDocumentoFields";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 import type { ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import {
