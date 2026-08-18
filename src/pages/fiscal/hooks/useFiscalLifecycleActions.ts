@@ -16,6 +16,7 @@ import {
   useEstornarNotaFiscal,
 } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { canConfirmFiscal, canEstornarFiscal } from "@/lib/fiscalStatus";
+import { camposDocumentoDaNota } from "@/pages/fiscal/hooks/fiscalDocumentoFields";
 import type { NotaFiscal } from "@/types/domain";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 import type {
@@ -205,6 +206,7 @@ export function useFiscalLifecycleActions(args: UseFiscalLifecycleActionsArgs) {
       origem: n.origem || "manual",
       data_vencimento: (n as { data_vencimento?: string | null }).data_vencimento || "",
       intervalo_parcelas_dias: (n as { intervalo_parcelas_dias?: number | null }).intervalo_parcelas_dias || 30,
+      ...camposDocumentoDaNota(n as unknown as Record<string, unknown>),
     });
     const numParc = Math.max(1, Number((n as { numero_parcelas?: number | null }).numero_parcelas) || 1);
     setParcelas(numParc);
