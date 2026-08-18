@@ -58,10 +58,10 @@ export function readEnv(): E2EEnv {
  *   test("…", async ({ page, env }) => { … });
  */
 export const test = base.extend<{ env: E2EEnv }>({
-  env: async (_fixtures, applyEnv, testInfo) => {
+  env: async ({}, use, testInfo) => {
     const env = readEnv();
     testInfo.skip(!env.ready, env.skipReason ?? "ambiente E2E indisponível");
-    await applyEnv(env);
+    await use(env);
   },
 });
 
