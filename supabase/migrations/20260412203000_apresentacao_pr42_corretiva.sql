@@ -64,7 +64,7 @@ SELECT
 FROM public.fechamento_caixa_saldos fcs
 JOIN public.fechamentos_mensais fm ON fm.id = fcs.fechamento_id
 LEFT JOIN (
-  SELECT competencia, SUM(valor_bruto) AS total_receita
+  SELECT competencia, SUM(total_receita) AS total_receita
   FROM public.vw_workbook_receita_mensal
   GROUP BY competencia
 ) r ON r.competencia = fm.competencia
