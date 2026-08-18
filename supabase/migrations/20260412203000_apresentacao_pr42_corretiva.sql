@@ -75,8 +75,8 @@ CREATE OR REPLACE VIEW public.vw_apresentacao_variacao_estoque AS
 SELECT
   to_char(fm.competencia, 'YYYY-MM') AS competencia,
   SUM(COALESCE(fes.valor_total, 0)) AS valor_atual,
-  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio,
-  COUNT(*) AS quantidade_itens
+  COUNT(*) AS quantidade_itens,
+  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio
 FROM public.fechamento_estoque_saldos fes
 JOIN public.fechamentos_mensais fm ON fm.id = fes.fechamento_id
 WHERE fm.status = 'fechado'
