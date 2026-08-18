@@ -39,6 +39,16 @@ export default tseslint.config(
     rules: { "no-console": "off" },
   },
   {
+    // A API de fixtures do Playwright exige destructuring no primeiro argumento
+    // e chama o segundo callback de `use`; ambos colidem com regras React/JS que
+    // não se aplicam semanticamente a este contexto.
+    files: ["e2e/fixtures/**/*.ts"],
+    rules: {
+      "no-empty-pattern": "off",
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
+  {
     // Dívida de higiene pré-existente: mantém visível sem bloquear entregas
     // enquanto os parsers legados são saneados de forma dedicada.
     files: [
