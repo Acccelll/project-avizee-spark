@@ -76,6 +76,10 @@ $$;
 GRANT EXECUTE ON FUNCTION public.proximo_numero_nota_fiscal() TO authenticated;
 
 -- PART 4: Financeiro RPCs v2
+-- A migration anterior criou a mesma assinatura retornando void. PostgreSQL
+-- não permite alterar o tipo de retorno com CREATE OR REPLACE, portanto a
+-- transição histórica precisa remover explicitamente a versão anterior.
+DROP FUNCTION IF EXISTS public.financeiro_processar_estorno(UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.financeiro_processar_estorno(p_lancamento_id UUID, p_motivo TEXT DEFAULT 'Estorno manual')
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_lanc RECORD;
