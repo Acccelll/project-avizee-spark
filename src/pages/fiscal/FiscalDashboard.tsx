@@ -64,10 +64,8 @@ function todayIso() {
 
 export default function FiscalDashboard() {
   const isMobile = useIsMobile();
-  // Item 8 — inicializa do GlobalPeriod quando compatível.
-  const globalPeriod = (() => {
-    try { return useGlobalPeriod(); } catch { return null; }
-  })();
+  // Item 8 — AppLayout garante o GlobalPeriodProvider para esta rota.
+  const globalPeriod = useGlobalPeriod();
   const mapGlobalToFiscal = (p: string | undefined): Period | null => {
     switch (p) {
       case "today": return "hoje";

@@ -12,6 +12,7 @@
 // project secrets / Vault.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { logger } from "@/lib/logger";
 
 /**
  * Lê uma `<meta name="...">` do `index.html`. Usado como fallback resiliente
@@ -43,7 +44,7 @@ export const isSupabaseConfigured = !isPlaceholderConfig;
 if (!isSupabaseConfigured && typeof window !== "undefined") {
   // Diagnóstico: se cair no fallback "placeholder", o .env não foi injetado pelo Vite.
   // Force um rebuild (editar qualquer arquivo) ou hard refresh para corrigir.
-  console.error("[supabase] VITE_SUPABASE_URL/KEY ausentes — usando placeholder. Faça hard refresh.");
+  logger.error("[supabase] VITE_SUPABASE_URL/KEY ausentes — usando placeholder. Faça hard refresh.");
 }
 
 export const supabase = createClient<Database>(
