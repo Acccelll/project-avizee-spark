@@ -1,11 +1,9 @@
 name: Repair package-lock
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/fiscal-cte-nfse-roadmap
-    paths:
-      - .github/workflows/repair-lockfile.yml
+      - main
 
 jobs:
   lockfile:
