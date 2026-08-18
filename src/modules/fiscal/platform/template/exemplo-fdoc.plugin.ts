@@ -2,8 +2,15 @@
  * Exemplo (não-produtivo) de plugin para um "F-Doc" fictício.
  * Usado no template e nos testes de extensibilidade — jamais utilizar em produção.
  */
-import { definePlugin, defineLayout, defineServico, defineValidador, defineBuilder, defineWorkflow, ok, fail } from '../sdk';
+import { definePlugin, defineLayout, defineServico, defineValidador, defineBuilder, defineWorkflow, ok } from '../sdk';
 import type { PluginDocumentoFiscal } from '../types';
+
+type FDocInput = { id?: string; total?: number };
+
+function asFDocInput(input: unknown): FDocInput {
+  if (typeof input !== 'object' || input === null) return {};
+  return input as FDocInput;
+}
 
 export const FDocPlugin: PluginDocumentoFiscal = definePlugin({
   codigo: 'fdoc',
@@ -14,18 +21,24 @@ export const FDocPlugin: PluginDocumentoFiscal = definePlugin({
     defineLayout({ chave: 'fdoc.autorizacao', versao: '1.0', documento: 'fdoc' }),
   ],
   builders: [
-    defineBuilder<{ id: string; total: number }, string>({
+    defineBuilder({
       id: 'fdoc.xml',
       documento: 'fdoc',
       formato: 'xml',
-      build: (i) => `<fdoc><id>${i.id}</id><total>${i.total.toFixed(2)}</total></fdoc>`,
+      build: (input: unknown) => {
+        const i = asFDocInput(input);
+        const id = i.id ?? '';
+        const total = i.total ?? 0;
+        return `<fdoc><id>${id}</id><total>${total.toFixed(2)}</total></fdoc>`;
+      },
     }),
   ],
   validadores: [
-    defineValidador<{ id?: string; total?: number }>({
+    defineValidador({
       id: 'fdoc.basico',
       documento: 'fdoc',
-      run: (i) => {
+      run: (input: unknown) => {
+        const i = asFDocInput(input);
         const erros: Array<{ codigo: string; mensagem: string; campo?: string }> = [];
         if (!i.id) erros.push({ codigo: 'FD001', mensagem: 'id obrigatório', campo: 'id' });
         if (i.total === undefined || i.total < 0) erros.push({ codigo: 'FD002', mensagem: 'total inválido', campo: 'total' });
