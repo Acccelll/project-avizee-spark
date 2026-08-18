@@ -23,8 +23,10 @@ Antes do aceite final, a branch foi ajustada contra o schema real do Supabase e 
 - metadados de certificado e plugin fiscal de exemplo alinhados ao `strict` TypeScript;
 - consulta de conciliação alinhada aos campos reais da view financeira consolidada;
 - lint fiscal/E2E corrigido sem desabilitar regras globalmente;
-- assinatura da fixture Playwright preservada conforme a API do runner;
-- migrations históricas de apresentação corrigidas apenas para permitir replay limpo do banco local de CI, sem alterar o estado já aplicado no ambiente remoto;
-- transição histórica do retorno de `financeiro_processar_estorno` explicitada com `DROP FUNCTION` antes da recriação, conforme exigência do PostgreSQL para mudança de tipo de retorno.
+- assinatura da fixture Playwright preservada conforme a API do runner.
 
-O status **GO** depende do último ciclo de CI após esses ajustes; falhas advisory preexistentes devem ser registradas separadamente e não podem ser confundidas com regressões desta entrega.
+O job pgTAP é advisory e atualmente não chega aos testes: o `supabase db start` falha ao reproduzir migrations históricas anteriores a este roadmap. A investigação confirmou sucessivamente incompatibilidades de replay em migrations antigas; essas migrations já aplicadas foram mantidas intactas no PR para não reescrever histórico fora de escopo. A validação das novas migrations desta entrega foi feita diretamente no Supabase transitório, inclusive com transações revertidas.
+
+`npm audit` e `touch-targets` também permanecem checks advisory do repositório e devem ser tratados como dívida técnica separada quando a falha não tiver sido introduzida por esta entrega.
+
+O status **GO** depende dos checks bloqueantes do último ciclo de CI, da ausência de regressão E2E e das validações de banco descritas acima.
