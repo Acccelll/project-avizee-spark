@@ -1,0 +1,36 @@
+name: Temporary pgTAP replay fix
+
+on:
+  push:
+    branches: [feat/fiscal-cte-nfse-roadmap]
+    paths: [.github/workflows/tmp-fix-pgtap-replay.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/fiscal-cte-nfse-roadmap
+      - name: Preserve historical view column contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('supabase/migrations/20260412203000_apresentacao_pr42_corretiva.sql')
+          s = p.read_text()
+          old = '''  SUM(COALESCE(fes.valor_total, 0)) AS valor_atual,\n  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio,\n  COUNT(*) AS quantidade_itens\n'''
+          new = '''  SUM(COALESCE(fes.valor_total, 0)) AS valor_atual,\n  COUNT(*) AS quantidade_itens,\n  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio\n'''
+          if old not in s:
+              raise SystemExit('expected view block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          rm .github/workflows/tmp-fix-pgtap-replay.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/migrations/20260412203000_apresentacao_pr42_corretiva.sql .github/workflows/tmp-fix-pgtap-replay.yml
+          git commit -m "fix(ci): preservar contrato de colunas da view histórica"
+          git push origin HEAD:feat/fiscal-cte-nfse-roadmap
