@@ -1,0 +1,27 @@
+name: Repair package-lock
+
+on:
+  push:
+    branches:
+      - feat/fiscal-cte-nfse-roadmap
+    paths:
+      - .github/workflows/repair-lockfile.yml
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Regenerate lockfile only
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify clean install metadata
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repaired-package-lock
+          path: package-lock.json
+          if-no-files-found: error
