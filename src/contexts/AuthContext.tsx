@@ -189,9 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setExtraPermissions([]);
       setDeniedPermissions([]);
     } finally {
-      if (!mountedRef.current || requestId !== bootstrapRequestId.current) return;
-      setPermissionsLoaded(true);
-      setLoading(false);
+      if (mountedRef.current && requestId === bootstrapRequestId.current) {
+        setPermissionsLoaded(true);
+        setLoading(false);
+      }
     }
   }, []);
 

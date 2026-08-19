@@ -10,7 +10,9 @@ export class CertificadoMetadataRepository implements ICertificadoMetadataReposi
   async getByEmpresa(empresaId: string): Promise<CertificadoDigital | null> {
     const { data, error } = await supabase.from('fiscal_certificado_metadata')
       .select('*').eq('empresa_id', empresaId).maybeSingle();
-    if (error || !data) return null;
+    // O domínio exige CNPJ. Metadado incompleto não deve virar um
+    // certificado aparentemente válido apenas para satisfazer a tipagem.
+    if (error || !data || !data.cnpj) return null;
     return {
       empresaId: data.empresa_id,
       cnpj: data.cnpj,
