@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -2517,6 +2517,298 @@ export type Database = {
           runs_count?: number
         }
         Relationships: []
+      }
+      cte_distdfe_sync: {
+        Row: {
+          ambiente: string
+          bloqueado_ate: string | null
+          empresa_id: string
+          id: string
+          max_nsu: string
+          ultima_sincronizacao: string | null
+          ultimo_cstat: string | null
+          ultimo_motivo: string | null
+          ultimo_nsu: string
+          updated_at: string
+        }
+        Insert: {
+          ambiente?: string
+          bloqueado_ate?: string | null
+          empresa_id?: string
+          id?: string
+          max_nsu?: string
+          ultima_sincronizacao?: string | null
+          ultimo_cstat?: string | null
+          ultimo_motivo?: string | null
+          ultimo_nsu?: string
+          updated_at?: string
+        }
+        Update: {
+          ambiente?: string
+          bloqueado_ate?: string | null
+          empresa_id?: string
+          id?: string
+          max_nsu?: string
+          ultima_sincronizacao?: string | null
+          ultimo_cstat?: string | null
+          ultimo_motivo?: string | null
+          ultimo_nsu?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cte_distribuicao: {
+        Row: {
+          ambiente: string
+          chave_acesso: string
+          empresa_id: string
+          erro: string | null
+          id: string
+          nota_fiscal_id: string | null
+          nsu: string | null
+          recebido_em: string
+          resumo: Json
+          schema_documento: string | null
+          status_processamento: string
+          updated_at: string
+          xml_path: string | null
+        }
+        Insert: {
+          ambiente?: string
+          chave_acesso: string
+          empresa_id?: string
+          erro?: string | null
+          id?: string
+          nota_fiscal_id?: string | null
+          nsu?: string | null
+          recebido_em?: string
+          resumo?: Json
+          schema_documento?: string | null
+          status_processamento?: string
+          updated_at?: string
+          xml_path?: string | null
+        }
+        Update: {
+          ambiente?: string
+          chave_acesso?: string
+          empresa_id?: string
+          erro?: string | null
+          id?: string
+          nota_fiscal_id?: string | null
+          nsu?: string | null
+          recebido_em?: string
+          resumo?: Json
+          schema_documento?: string | null
+          status_processamento?: string
+          updated_at?: string
+          xml_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cte_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cte_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_distribuicao_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
+      cte_nfe_referencias: {
+        Row: {
+          created_at: string
+          cte_id: string
+          empresa_id: string
+          id: string
+          nfe_chave: string
+          nfe_id: string | null
+          origem: string
+          status_vinculo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cte_id: string
+          empresa_id?: string
+          id?: string
+          nfe_chave: string
+          nfe_id?: string | null
+          origem?: string
+          status_vinculo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cte_id?: string
+          empresa_id?: string
+          id?: string
+          nfe_chave?: string
+          nfe_id?: string | null
+          origem?: string
+          status_vinculo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cte_nfe_referencias_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cte_nfe_referencias_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_nfe_referencias_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_nfe_referencias_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cte_nfe_referencias_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_nfe_referencias_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
+      cte_rateios: {
+        Row: {
+          confirmado_em: string
+          created_at: string
+          criterio: string
+          cte_id: string
+          empresa_id: string
+          estornado_em: string | null
+          id: string
+          nfe_id: string
+          percentual_rateio: number
+          referencia_id: string | null
+          status: string
+          updated_at: string
+          valor_base_nfe: number
+          valor_rateado: number
+          valor_total_rateio: number
+        }
+        Insert: {
+          confirmado_em?: string
+          created_at?: string
+          criterio?: string
+          cte_id: string
+          empresa_id?: string
+          estornado_em?: string | null
+          id?: string
+          nfe_id: string
+          percentual_rateio?: number
+          referencia_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_base_nfe?: number
+          valor_rateado?: number
+          valor_total_rateio?: number
+        }
+        Update: {
+          confirmado_em?: string
+          created_at?: string
+          criterio?: string
+          cte_id?: string
+          empresa_id?: string
+          estornado_em?: string | null
+          id?: string
+          nfe_id?: string
+          percentual_rateio?: number
+          referencia_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_base_nfe?: number
+          valor_rateado?: number
+          valor_total_rateio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cte_rateios_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_cte_id_fkey"
+            columns: ["cte_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "cte_rateios_referencia_id_fkey"
+            columns: ["referencia_id"]
+            isOneToOne: false
+            referencedRelation: "cte_nfe_referencias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_send_log: {
         Row: {
@@ -6127,6 +6419,94 @@ export type Database = {
           },
         ]
       }
+      nfse_retencoes: {
+        Row: {
+          aliquota: number | null
+          base_calculo: number
+          beneficiario_identificador: string | null
+          beneficiario_tipo: string | null
+          created_at: string
+          documento_complementar: Json
+          empresa_id: string
+          id: string
+          municipio_codigo: string | null
+          nota_fiscal_id: string
+          origem: string
+          reduz_valor_fornecedor: boolean
+          responsavel_recolhimento: string
+          retido: boolean
+          status: string
+          tributo: string
+          updated_at: string
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          aliquota?: number | null
+          base_calculo?: number
+          beneficiario_identificador?: string | null
+          beneficiario_tipo?: string | null
+          created_at?: string
+          documento_complementar?: Json
+          empresa_id?: string
+          id?: string
+          municipio_codigo?: string | null
+          nota_fiscal_id: string
+          origem?: string
+          reduz_valor_fornecedor?: boolean
+          responsavel_recolhimento?: string
+          retido?: boolean
+          status?: string
+          tributo: string
+          updated_at?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Update: {
+          aliquota?: number | null
+          base_calculo?: number
+          beneficiario_identificador?: string | null
+          beneficiario_tipo?: string | null
+          created_at?: string
+          documento_complementar?: Json
+          empresa_id?: string
+          id?: string
+          municipio_codigo?: string | null
+          nota_fiscal_id?: string
+          origem?: string
+          reduz_valor_fornecedor?: boolean
+          responsavel_recolhimento?: string
+          retido?: boolean
+          status?: string
+          tributo?: string
+          updated_at?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfse_retencoes_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfse_retencoes_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "nfse_retencoes_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
       nota_fiscal_anexos: {
         Row: {
           caminho_storage: string | null
@@ -6260,6 +6640,10 @@ export type Database = {
           cte_destinatario_uf: string | null
           cte_expedidor_doc: string | null
           cte_expedidor_razao_social: string | null
+          cte_icms_aliquota: number | null
+          cte_icms_base: number | null
+          cte_icms_cst: string | null
+          cte_icms_valor: number | null
           cte_modal: string | null
           cte_municipio_fim: string | null
           cte_municipio_fim_cod: string | null
@@ -6276,6 +6660,8 @@ export type Database = {
           cte_remetente_razao_social: string | null
           cte_remetente_uf: string | null
           cte_tipo: string | null
+          cte_tomador_outros_doc: string | null
+          cte_tomador_outros_razao_social: string | null
           cte_tomador_tipo: number | null
           cte_unidade_medida: string | null
           cte_valor_prestacao: number | null
@@ -6312,20 +6698,28 @@ export type Database = {
           nf_referenciada_id: string | null
           nfse_aliquota_iss: number | null
           nfse_codigo_servico_lc116: string | null
+          nfse_dados_extras: Json
           nfse_data_competencia: string | null
           nfse_descricao_servico: string | null
+          nfse_ibscbs_dados: Json
           nfse_incentivador_cultural: boolean | null
           nfse_iss_retido: boolean | null
+          nfse_layout_origem: string | null
           nfse_municipio_prestacao: string | null
           nfse_municipio_prestacao_cod: string | null
           nfse_natureza_operacao: number | null
+          nfse_nbs: string | null
           nfse_numero_rps: string | null
           nfse_optante_simples: boolean | null
+          nfse_provedor_origem: string | null
           nfse_serie_rps: string | null
           nfse_valor_base_calculo_iss: number | null
           nfse_valor_deducoes: number | null
           nfse_valor_iss: number | null
+          nfse_valor_iss_calculado: number | null
+          nfse_valor_iss_informado: number | null
           nfse_valor_servicos: number | null
+          nfse_versao_layout: string | null
           numeracao_volumes: string | null
           numero: string | null
           numero_parcelas: number
@@ -6383,6 +6777,10 @@ export type Database = {
           cte_destinatario_uf?: string | null
           cte_expedidor_doc?: string | null
           cte_expedidor_razao_social?: string | null
+          cte_icms_aliquota?: number | null
+          cte_icms_base?: number | null
+          cte_icms_cst?: string | null
+          cte_icms_valor?: number | null
           cte_modal?: string | null
           cte_municipio_fim?: string | null
           cte_municipio_fim_cod?: string | null
@@ -6399,6 +6797,8 @@ export type Database = {
           cte_remetente_razao_social?: string | null
           cte_remetente_uf?: string | null
           cte_tipo?: string | null
+          cte_tomador_outros_doc?: string | null
+          cte_tomador_outros_razao_social?: string | null
           cte_tomador_tipo?: number | null
           cte_unidade_medida?: string | null
           cte_valor_prestacao?: number | null
@@ -6435,20 +6835,28 @@ export type Database = {
           nf_referenciada_id?: string | null
           nfse_aliquota_iss?: number | null
           nfse_codigo_servico_lc116?: string | null
+          nfse_dados_extras?: Json
           nfse_data_competencia?: string | null
           nfse_descricao_servico?: string | null
+          nfse_ibscbs_dados?: Json
           nfse_incentivador_cultural?: boolean | null
           nfse_iss_retido?: boolean | null
+          nfse_layout_origem?: string | null
           nfse_municipio_prestacao?: string | null
           nfse_municipio_prestacao_cod?: string | null
           nfse_natureza_operacao?: number | null
+          nfse_nbs?: string | null
           nfse_numero_rps?: string | null
           nfse_optante_simples?: boolean | null
+          nfse_provedor_origem?: string | null
           nfse_serie_rps?: string | null
           nfse_valor_base_calculo_iss?: number | null
           nfse_valor_deducoes?: number | null
           nfse_valor_iss?: number | null
+          nfse_valor_iss_calculado?: number | null
+          nfse_valor_iss_informado?: number | null
           nfse_valor_servicos?: number | null
+          nfse_versao_layout?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
           numero_parcelas?: number
@@ -6506,6 +6914,10 @@ export type Database = {
           cte_destinatario_uf?: string | null
           cte_expedidor_doc?: string | null
           cte_expedidor_razao_social?: string | null
+          cte_icms_aliquota?: number | null
+          cte_icms_base?: number | null
+          cte_icms_cst?: string | null
+          cte_icms_valor?: number | null
           cte_modal?: string | null
           cte_municipio_fim?: string | null
           cte_municipio_fim_cod?: string | null
@@ -6522,6 +6934,8 @@ export type Database = {
           cte_remetente_razao_social?: string | null
           cte_remetente_uf?: string | null
           cte_tipo?: string | null
+          cte_tomador_outros_doc?: string | null
+          cte_tomador_outros_razao_social?: string | null
           cte_tomador_tipo?: number | null
           cte_unidade_medida?: string | null
           cte_valor_prestacao?: number | null
@@ -6558,20 +6972,28 @@ export type Database = {
           nf_referenciada_id?: string | null
           nfse_aliquota_iss?: number | null
           nfse_codigo_servico_lc116?: string | null
+          nfse_dados_extras?: Json
           nfse_data_competencia?: string | null
           nfse_descricao_servico?: string | null
+          nfse_ibscbs_dados?: Json
           nfse_incentivador_cultural?: boolean | null
           nfse_iss_retido?: boolean | null
+          nfse_layout_origem?: string | null
           nfse_municipio_prestacao?: string | null
           nfse_municipio_prestacao_cod?: string | null
           nfse_natureza_operacao?: number | null
+          nfse_nbs?: string | null
           nfse_numero_rps?: string | null
           nfse_optante_simples?: boolean | null
+          nfse_provedor_origem?: string | null
           nfse_serie_rps?: string | null
           nfse_valor_base_calculo_iss?: number | null
           nfse_valor_deducoes?: number | null
           nfse_valor_iss?: number | null
+          nfse_valor_iss_calculado?: number | null
+          nfse_valor_iss_informado?: number | null
           nfse_valor_servicos?: number | null
+          nfse_versao_layout?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
           numero_parcelas?: number
@@ -11802,6 +12224,7 @@ export type Database = {
         }
         Returns: Json
       }
+      aplicar_rateio_cte: { Args: { p_cte_id: string }; Returns: number }
       aprovar_cotacao_compra: { Args: { p_id: string }; Returns: Json }
       aprovar_orcamento: { Args: { p_id: string }; Returns: Json }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
@@ -12385,6 +12808,7 @@ export type Database = {
           table_name: string
         }[]
       }
+      listar_cte_referencias: { Args: { p_cte_id: string }; Returns: Json }
       listar_financeiro_lancamentos_ids: {
         Args: {
           p_ascending?: boolean
@@ -12403,6 +12827,7 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_nfse_retencoes: { Args: { p_nota_id: string }; Returns: Json }
       listar_notas_fiscais_ids: {
         Args: {
           p_ascending?: boolean
@@ -12639,12 +13064,24 @@ export type Database = {
         Args: { p_itens: Json; p_pedido_id: string }
         Returns: Json
       }
+      reprocessar_cte_referencias_por_chave: {
+        Args: { p_chave: string }
+        Returns: number
+      }
       restaurar_migracao_produtos: {
         Args: { p_execucao: string }
         Returns: Json
       }
       rpc_sync_fatura_status: {
         Args: { p_fatura_id: string }
+        Returns: undefined
+      }
+      salvar_documento_fiscal_completo: {
+        Args: { p_itens: Json; p_nf_id: string; p_payload: Json }
+        Returns: string
+      }
+      salvar_metadados_documento_fiscal: {
+        Args: { p_nf_id: string; p_payload: Json }
         Returns: undefined
       }
       salvar_nota_fiscal: {
@@ -12736,6 +13173,10 @@ export type Database = {
           orcamentos_pendentes: number
           pedidos_compra_pendentes: number
         }[]
+      }
+      sincronizar_cte_nfe_referencias: {
+        Args: { p_cte_id: string }
+        Returns: number
       }
       social_alertas_periodo: {
         Args: { _data_fim: string; _data_inicio: string }
