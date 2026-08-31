@@ -117,6 +117,9 @@ export function ContaBancariaDrawer({
         .from("financeiro_baixas")
         .select("id, valor_pago, data_baixa, forma_pagamento, lancamento_id")
         .eq("conta_bancaria_id", id)
+        // Desde o estorno lógico a baixa estornada permanece na tabela;
+        // o resumo da conta deve refletir apenas movimentação vigente.
+        .is("estornada_em", null)
         .order("data_baixa", { ascending: false })
         .limit(10)
         .abortSignal(signal),
