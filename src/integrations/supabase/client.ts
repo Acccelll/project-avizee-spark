@@ -12,6 +12,7 @@
 // project secrets / Vault.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { brokeredPreviewStorage } from "./previewAuthStorage";
 import { logger } from "@/lib/logger";
 
 /**
@@ -52,7 +53,7 @@ export const supabase = createClient<Database>(
   SUPABASE_PUBLISHABLE_KEY || "placeholder",
   {
     auth: {
-      storage: localStorage,
+      storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
     },
