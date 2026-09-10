@@ -34,6 +34,7 @@ const MOCK_XML = `
         <imposto>
           <ICMS>
             <ICMS00>
+              <orig>1</orig>
               <vICMS>90.00</vICMS>
             </ICMS00>
           </ICMS>
@@ -44,13 +45,13 @@ const MOCK_XML = `
           <vProd>500.00</vProd>
           <vFrete>0.00</vFrete>
           <vDesc>0.00</vDesc>
-          <vOutro>0.00</vOutro>
+          <vOutro>397.80</vOutro>
           <vICMS>90.00</vICMS>
           <vIPI>0.00</vIPI>
           <vPIS>0.00</vPIS>
           <vCOFINS>0.00</vCOFINS>
           <vST>0.00</vST>
-          <vNF>500.00</vNF>
+          <vNF>897.80</vNF>
         </ICMSTot>
       </total>
     </infNFe>
@@ -68,11 +69,13 @@ describe("NFe XML Parser", () => {
     expect(data.dataEmissao).toBe("2024-03-25");
     expect(data.emitente.cnpj).toBe("12345678000199");
     expect(data.emitente.razaoSocial).toBe("FORNECEDOR TESTE LTDA");
-    expect(data.valorTotal).toBe(500);
+    expect(data.valorOutrasDespesas).toBe(397.8);
+    expect(data.valorTotal).toBe(897.8);
     expect(data.itens).toHaveLength(1);
     expect(data.itens[0].codigo).toBe("PROD001");
     expect(data.itens[0].quantidade).toBe(10);
     expect(data.itens[0].icms).toBe(90);
+    expect(data.itens[0].origemMercadoria).toBe("1");
   });
 
   it("should throw error for invalid XML", () => {
