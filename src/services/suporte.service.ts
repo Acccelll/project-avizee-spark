@@ -203,9 +203,31 @@ export async function obterDiagnosticoSuporte(chamadoId: string) {
 
 // ---------------------------------------------------------------------------
 // Ações administrativas (Gestão de chamados — recurso `suporte`, admin-only).
-// A UI de gestão (fila, kanban, triagem) é uma etapa futura; estas funções já
-// ficam prontas e tipadas para quando essa camada for construída.
 // ---------------------------------------------------------------------------
+
+export interface AdminOption {
+  id: string;
+  nome: string;
+}
+
+/** Lista de admins para o seletor de "responsável" na triagem. */
+export async function listarAdmins(): Promise<AdminOption[]> {
+  const { data: rolesData, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  if (rolesError) throw rolesError;
+  const ids = (rolesData ?? []).map((r) => r.user_id);
+  if (!ids.length) return [];
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, nome")
+    .in("id", ids)
+    .order("nome");
+  if (profilesError) throw profilesError;
+  return (profiles ?? []).map((p) => ({ id: p.id, nome: p.nome ?? p.id }));
+}
 
 export async function listarFilaChamados(): Promise<SuporteChamado[]> {
   const { data, error } = await supabase

@@ -22,6 +22,7 @@ import {
   criarChamadoSuporte,
   getAnexoSignedUrl,
   getChamado,
+  listarAdmins,
   listarEventosChamado,
   listarMeusChamados,
   marcarChamadoDuplicado,
@@ -222,6 +223,7 @@ function makeSelectChain(result: { data: unknown; error: unknown }) {
   };
   chain.select = vi.fn(() => chain);
   chain.eq = vi.fn(() => chain);
+  chain.in = vi.fn(() => chain);
   chain.order = vi.fn(() => chain);
   chain.limit = vi.fn(() => Promise.resolve(result));
   chain.maybeSingle = vi.fn(() => Promise.resolve(result));
@@ -242,6 +244,51 @@ describe("leituras — listarMeusChamados / getChamado / listarEventosChamado", 
   it("listarEventosChamado propaga erro do Supabase", async () => {
     fromMock.mockReturnValueOnce(makeSelectChain({ data: null, error: new Error("rls") }));
     await expect(listarEventosChamado("c1")).rejects.toThrow("rls");
+  });
+});
+
+describe("listarAdmins", () => {
+  it("busca os user_id com role=admin e resolve os nomes em profiles", async () => {
+    fromMock.mockReturnValueOnce(
+      makeSelectChain({ data: [{ user_id: "u1" }, { user_id: "u2" }], error: null }),
+    );
+    fromMock.mockReturnValueOnce(
+      makeSelectChain({
+        data: [
+          { id: "u1", nome: "Ana" },
+          { id: "u2", nome: "Bruno" },
+        ],
+        error: null,
+      }),
+    );
+
+    const admins = await listarAdmins();
+
+    expect(admins).toEqual([
+      { id: "u1", nome: "Ana" },
+      { id: "u2", nome: "Bruno" },
+    ]);
+  });
+
+  it("devolve [] sem consultar profiles quando não há nenhum admin", async () => {
+    fromMock.mockReturnValueOnce(makeSelectChain({ data: [], error: null }));
+
+    const admins = await listarAdmins();
+
+    expect(admins).toEqual([]);
+    expect(fromMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("usa o próprio id como nome quando o perfil não tem nome preenchido", async () => {
+    fromMock.mockReturnValueOnce(makeSelectChain({ data: [{ user_id: "u1" }], error: null }));
+    fromMock.mockReturnValueOnce(makeSelectChain({ data: [{ id: "u1", nome: null }], error: null }));
+
+    expect(await listarAdmins()).toEqual([{ id: "u1", nome: "u1" }]);
+  });
+
+  it("propaga erro ao buscar user_roles", async () => {
+    fromMock.mockReturnValueOnce(makeSelectChain({ data: null, error: new Error("negado") }));
+    await expect(listarAdmins()).rejects.toThrow("negado");
   });
 });
 
