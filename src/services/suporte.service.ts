@@ -247,6 +247,20 @@ export async function listarFilaChamados(): Promise<SuporteChamado[]> {
   return data ?? [];
 }
 
+const TIPOS_ATIVIDADE_RECENTE: SuporteEvento["tipo"][] = ["abertura", "status_alterado", "comentario", "resolucao"];
+
+/** Eventos recentes de qualquer chamado, para o bloco "Atividade recente" da Visão geral (spec §20). */
+export async function listarEventosRecentes(limit = 15): Promise<SuporteEvento[]> {
+  const { data, error } = await supabase
+    .from("suporte_eventos")
+    .select("*")
+    .in("tipo", TIPOS_ATIVIDADE_RECENTE)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function assumirChamado(chamadoId: string): Promise<void> {
   const { error } = await supabase.rpc("suporte_assumir_chamado", { p_chamado_id: chamadoId });
   if (error) throw error;

@@ -19,12 +19,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAnexoSignedUrl, type SuporteEvento } from "@/services/suporte.service";
+import { getAnexoSignedUrl } from "@/services/suporte.service";
 import { notifyError } from "@/utils/errorMessages";
 import { useAnexosChamado, useChamado, useEventosChamado } from "./hooks/useSuporteQueries";
 import { useComentarChamado, useConfirmarResolucao } from "./hooks/useSuporteMutations";
 import {
   ABRANGENCIA_LABELS,
+  EVENTO_LABELS,
   FREQUENCIA_LABELS,
   IMPACTO_LABELS,
   STATUS_BADGE_CLASS,
@@ -33,22 +34,6 @@ import {
   TIPO_ICON_EMOJI,
   TIPO_LABELS,
 } from "./suporteLabels";
-
-const EVENTO_LABELS: Record<SuporteEvento["tipo"], string> = {
-  abertura: "Chamado aberto",
-  comentario: "Comentário",
-  status_alterado: "Status alterado",
-  prioridade_alterada: "Prioridade alterada",
-  tipo_modulo_alterado: "Classificação alterada",
-  responsavel_alterado: "Responsável alterado",
-  anexo_adicionado: "Anexo adicionado",
-  vinculo_dev: "Vínculo de desenvolvimento",
-  resolucao: "Marcado como resolvido",
-  reabertura: "Reaberto",
-  fechamento: "Fechado",
-  cancelamento: "Cancelado",
-  duplicidade: "Marcado como duplicado",
-};
 
 function AnexoItem({ nome, caminho }: { nome: string; caminho: string }) {
   const [carregando, setCarregando] = useState(false);

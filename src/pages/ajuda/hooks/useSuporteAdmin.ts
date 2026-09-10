@@ -6,6 +6,7 @@ import {
   atribuirResponsavelChamado,
   cancelarChamado,
   listarAdmins,
+  listarEventosRecentes,
   listarFilaChamados,
   listarUsuarios,
   resolverChamado,
@@ -20,6 +21,7 @@ import { SUPORTE_QUERY_KEYS } from "./useSuporteQueries";
 const FILA_QUERY_KEY = ["suporte-fila-admin"] as const;
 const ADMINS_QUERY_KEY = ["suporte-admins"] as const;
 const USUARIOS_QUERY_KEY = ["suporte-usuarios"] as const;
+const ATIVIDADE_RECENTE_QUERY_KEY = ["suporte-atividade-recente"] as const;
 
 export function useFilaChamados() {
   return useQuery({
@@ -43,6 +45,15 @@ export function useUsuarios() {
     queryKey: USUARIOS_QUERY_KEY,
     queryFn: listarUsuarios,
     staleTime: 5 * 60_000,
+  });
+}
+
+/** Bloco "Atividade recente" da Visão geral (spec §20). */
+export function useEventosRecentes() {
+  return useQuery({
+    queryKey: ATIVIDADE_RECENTE_QUERY_KEY,
+    queryFn: () => listarEventosRecentes(15),
+    staleTime: 15_000,
   });
 }
 

@@ -6,6 +6,7 @@
 import type {
   SuporteAbrangencia,
   SuporteCausa,
+  SuporteEvento,
   SuporteFrequencia,
   SuporteImpacto,
   SuporteStatus,
@@ -85,4 +86,20 @@ export const TIPO_ICON_EMOJI: Record<SuporteTipo, string> = {
   problema_operacional: "⚠️",
   duvida: "❓",
   sugestao: "💡",
+};
+
+export const EVENTO_LABELS: Record<SuporteEvento["tipo"], string> = {
+  abertura: "Chamado aberto",
+  comentario: "Comentário",
+  status_alterado: "Status alterado",
+  prioridade_alterada: "Prioridade alterada",
+  tipo_modulo_alterado: "Classificação alterada",
+  responsavel_alterado: "Responsável alterado",
+  anexo_adicionado: "Anexo adicionado",
+  vinculo_dev: "Vínculo de desenvolvimento",
+  resolucao: "Marcado como resolvido",
+  reabertura: "Reaberto",
+  fechamento: "Fechado",
+  cancelamento: "Cancelado",
+  duplicidade: "Marcado como duplicado",
 };
