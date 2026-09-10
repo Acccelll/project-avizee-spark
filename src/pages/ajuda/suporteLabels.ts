@@ -19,11 +19,12 @@ export const TIPO_LABELS: Record<SuporteTipo, string> = {
   sugestao: "Sugestão",
 };
 
+// Texto exato do wireframe aprovado (spec §6/§7.3) — não reformular.
 export const IMPACTO_LABELS: Record<SuporteImpacto, string> = {
-  incomodo: "É um incômodo, mas não atrapalha",
+  incomodo: "Incômodo",
   atrapalha_trabalho: "Atrapalha meu trabalho",
-  nao_consigo_concluir: "Não consigo concluir a tarefa",
-  indisponivel: "O sistema está indisponível",
+  nao_consigo_concluir: "Não consigo concluir esta tarefa",
+  indisponivel: "Sistema/atividade essencial indisponível",
 };
 
 export const ABRANGENCIA_LABELS: Record<SuporteAbrangencia, string> = {

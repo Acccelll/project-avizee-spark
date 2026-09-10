@@ -16,16 +16,21 @@ import { SUPORTE_QUERY_KEYS } from "./useSuporteQueries";
  * Uma falha no upload não desfaz o chamado: ele já existe e pode ser visto
  * em "Meus chamados"; o erro do upload é reportado à parte.
  */
+export interface AnexoParaEnvio {
+  file: File;
+  isScreenshot?: boolean;
+}
+
 export function useCriarChamadoSuporte() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: CriarChamadoInput & { anexos?: File[] }) => {
+    mutationFn: async (input: CriarChamadoInput & { anexos?: AnexoParaEnvio[] }) => {
       const { anexos, ...chamadoInput } = input;
       const chamado = await criarChamadoSuporte(chamadoInput);
       if (anexos?.length) {
         const results = await Promise.allSettled(
-          anexos.map((file) => uploadAnexoChamado(chamado.id, file)),
+          anexos.map((a) => uploadAnexoChamado(chamado.id, a.file, { isScreenshot: a.isScreenshot })),
         );
         const falhas = results.filter((r) => r.status === "rejected").length;
         if (falhas > 0) {
