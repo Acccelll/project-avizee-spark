@@ -18,6 +18,13 @@ export const APP_ROLES = [
 ] as const;
 export type AppRole = (typeof APP_ROLES)[number];
 
+/**
+ * O recurso `suporte` governa apenas a Gestão de chamados administrativa
+ * (triagem, fila, kanban, atribuição, resolução). A área "Ajuda e Suporte"
+ * em si (abrir chamado, ver próprios chamados) é liberada para qualquer
+ * usuário autenticado, sem checagem de recurso — mesmo padrão hoje usado
+ * pela rota /ajuda, que só exige `ProtectedRoute`.
+ */
 export const ERP_RESOURCES = [
   "dashboard",
   "produtos",
@@ -40,6 +47,7 @@ export const ERP_RESOURCES = [
   "administracao",
   "socios",
   "auditoria",
+  "suporte",
 ] as const;
 
 export const ERP_ACTIONS = [
@@ -63,6 +71,9 @@ export const ERP_ACTIONS = [
   "configurar",
   "sincronizar",
   "gerenciar_alertas",
+  "triar",
+  "atribuir",
+  "resolver",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
@@ -103,6 +114,7 @@ export const RESOURCE_LABELS: Record<ErpResource, string> = {
   administracao: "Administração",
   socios: "Sócios e Participações",
   auditoria: "Auditoria",
+  suporte: "Gestão de chamados",
 };
 
 /** Rótulos humanizados para ações ERP — uso em tooltips de botões bloqueados. */
@@ -127,6 +139,9 @@ export const ACTION_LABELS: Record<ErpAction, string> = {
   configurar: "Configurar",
   sincronizar: "Sincronizar",
   gerenciar_alertas: "Gerenciar alertas",
+  triar: "Triar chamado",
+  atribuir: "Atribuir responsável",
+  resolver: "Resolver chamado",
 };
 
 export function humanizeResource(resource: ErpResource | string): string {
@@ -371,6 +386,7 @@ export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
   administracao: ["visualizar", "editar", "configurar"],
   socios: ["visualizar", "editar", "exportar"],
   auditoria: ["visualizar", "exportar"],
+  suporte: ["visualizar", "triar", "atribuir", "resolver", "cancelar", "exportar"],
 };
 
 /**
