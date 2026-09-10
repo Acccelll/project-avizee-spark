@@ -1,14 +1,40 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LifeBuoy, MessageSquareWarning } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useHelp } from "@/contexts/HelpContext";
 import { useMeusChamados } from "./hooks/useSuporteQueries";
+import type { SuporteChamado } from "@/services/suporte.service";
 import { STATUS_BADGE_CLASS, STATUS_BADGE_VARIANT, STATUS_LABELS, TIPO_ICON_EMOJI, TIPO_LABELS } from "./suporteLabels";
+
+/** Filtros rápidos da spec §19 — "sem excesso de filtros". */
+type FiltroRapido = "todos" | "abertos" | "aguardando" | "resolvidos";
+
+const FILTROS: { value: FiltroRapido; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "abertos", label: "Abertos" },
+  { value: "aguardando", label: "Aguardando minha resposta" },
+  { value: "resolvidos", label: "Resolvidos" },
+];
+
+function correspondeAoFiltro(chamado: SuporteChamado, filtro: FiltroRapido): boolean {
+  switch (filtro) {
+    case "abertos":
+      return !["resolvido", "fechado", "cancelado"].includes(chamado.status);
+    case "aguardando":
+      return chamado.status === "aguardando_usuario";
+    case "resolvidos":
+      return chamado.status === "resolvido" || chamado.status === "fechado";
+    default:
+      return true;
+  }
+}
 
 /**
  * "Meus chamados" — lista dos chamados abertos pelo usuário atual (ou onde
@@ -19,6 +45,17 @@ import { STATUS_BADGE_CLASS, STATUS_BADGE_VARIANT, STATUS_LABELS, TIPO_ICON_EMOJ
 export default function MeusChamados() {
   const { data: chamados, isLoading } = useMeusChamados();
   const { openReportDialog } = useHelp();
+  const [filtro, setFiltro] = useState<FiltroRapido>("todos");
+  const [busca, setBusca] = useState("");
+
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return (chamados ?? []).filter((c) => {
+      if (!correspondeAoFiltro(c, filtro)) return false;
+      if (termo && !c.numero.toLowerCase().includes(termo) && !c.resumo.toLowerCase().includes(termo)) return false;
+      return true;
+    });
+  }, [chamados, filtro, busca]);
 
   return (
     <div className="space-y-5">
@@ -33,6 +70,29 @@ export default function MeusChamados() {
           <MessageSquareWarning className="h-4 w-4" /> Reportar problema
         </Button>
       </header>
+
+      {!!chamados?.length && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-1.5">
+            {FILTROS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={filtro === f.value ? "default" : "outline"}
+                onClick={() => setFiltro(f.value)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+          <Input
+            placeholder="Buscar por número ou texto..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="sm:w-64"
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -50,9 +110,11 @@ export default function MeusChamados() {
             </p>
           </CardContent>
         </Card>
+      ) : filtrados.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Nenhum chamado para os filtros selecionados.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {chamados.map((chamado) => (
+          {filtrados.map((chamado) => (
             <Link key={chamado.id} to={`/ajuda/chamados/${chamado.id}`}>
               <Card className="h-full transition-colors hover:border-primary/40">
                 <CardHeader className="space-y-1.5 pb-3">
