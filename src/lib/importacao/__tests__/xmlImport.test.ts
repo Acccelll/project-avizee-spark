@@ -78,6 +78,14 @@ describe("NFe XML Parser", () => {
     expect(data.itens[0].origemMercadoria).toBe("1");
   });
 
+  it("preserves origin codes without normalizing fiscal meaning", () => {
+    const nacionalConteudoImportacao = parseNFeXml(MOCK_XML.replace("<orig>1</orig>", "<orig>5</orig>"));
+    const estrangeiraMercadoInterno = parseNFeXml(MOCK_XML.replace("<orig>1</orig>", "<orig>7</orig>"));
+
+    expect(nacionalConteudoImportacao.itens[0].origemMercadoria).toBe("5");
+    expect(estrangeiraMercadoInterno.itens[0].origemMercadoria).toBe("7");
+  });
+
   it("should throw error for invalid XML", () => {
     expect(() => parseNFeXml("<invalid>xml</invalid>")).toThrow();
   });
