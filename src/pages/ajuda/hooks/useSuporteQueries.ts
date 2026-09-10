@@ -4,6 +4,7 @@ import {
   listarAnexosChamado,
   listarEventosChamado,
   listarMeusChamados,
+  obterDiagnosticoSuporte,
 } from "@/services/suporte.service";
 
 export const SUPORTE_QUERY_KEYS = {
@@ -11,6 +12,7 @@ export const SUPORTE_QUERY_KEYS = {
   chamado: (id: string) => ["suporte-chamado", id] as const,
   eventos: (id: string) => ["suporte-chamado-eventos", id] as const,
   anexos: (id: string) => ["suporte-chamado-anexos", id] as const,
+  diagnostico: (id: string) => ["suporte-chamado-diagnostico", id] as const,
 };
 
 export function useMeusChamados() {
@@ -41,5 +43,14 @@ export function useAnexosChamado(id: string | undefined) {
     queryKey: SUPORTE_QUERY_KEYS.anexos(id ?? ""),
     queryFn: () => listarAnexosChamado(id as string),
     enabled: !!id,
+  });
+}
+
+/** Diagnóstico técnico (spec §29) — só relevante para o painel administrativo; `enabled` também exige `podeVer`. */
+export function useDiagnosticoChamado(id: string | undefined, podeVer: boolean) {
+  return useQuery({
+    queryKey: SUPORTE_QUERY_KEYS.diagnostico(id ?? ""),
+    queryFn: () => obterDiagnosticoSuporte(id as string),
+    enabled: !!id && podeVer,
   });
 }

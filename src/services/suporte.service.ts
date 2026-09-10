@@ -320,3 +320,26 @@ export async function marcarChamadoDuplicado(chamadoId: string, duplicadoDeId: s
   });
   if (error) throw error;
 }
+
+export type SuporteDecisaoSugestao = NonNullable<SuporteChamado["decisao_sugestao"]>;
+
+/**
+ * Decisão de produto sobre uma sugestão (spec §31) — status operacional do
+ * chamado permanece separado. Sem RPC dedicada: `decisao_sugestao` e
+ * `decisao_observacao` já são colunas simples cobertas pela policy de UPDATE
+ * livre para admin (`suporte_chamados_update_admin`), então um UPDATE direto
+ * é suficiente. Não gera evento de timeline — não há tipo de evento do
+ * domínio que descreva bem essa mudança, e é uma anotação de planejamento de
+ * produto, não uma ação operacional sobre o chamado.
+ */
+export async function atualizarDecisaoSugestao(
+  chamadoId: string,
+  decisao: SuporteDecisaoSugestao,
+  observacao?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("suporte_chamados")
+    .update({ decisao_sugestao: decisao, decisao_observacao: observacao?.trim() || null })
+    .eq("id", chamadoId);
+  if (error) throw error;
+}

@@ -4,15 +4,18 @@ import { notifyError } from "@/utils/errorMessages";
 import {
   assumirChamado,
   atribuirResponsavelChamado,
+  atualizarDecisaoSugestao,
   cancelarChamado,
   listarAdmins,
   listarEventosRecentes,
   listarFilaChamados,
   listarUsuarios,
+  marcarChamadoDuplicado,
   resolverChamado,
   triarChamado,
   type SuporteCausa,
   type SuporteChamado,
+  type SuporteDecisaoSugestao,
   type SuporteStatus,
   type TriarChamadoInput,
 } from "@/services/suporte.service";
@@ -162,6 +165,33 @@ export function useCancelarChamado(chamadoId: string) {
     onSuccess: () => {
       invalidate();
       toast.success("Chamado cancelado.");
+    },
+    onError: (err) => notifyError(err),
+  });
+}
+
+/** Marcar duplicado (spec §32) — não exclui o chamado, só referencia o original. */
+export function useMarcarDuplicado(chamadoId: string) {
+  const invalidate = useInvalidateChamado(chamadoId);
+  return useMutation({
+    mutationFn: (duplicadoDeId: string) => marcarChamadoDuplicado(chamadoId, duplicadoDeId),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Chamado marcado como duplicado.");
+    },
+    onError: (err) => notifyError(err),
+  });
+}
+
+/** Decisão de produto sobre sugestão (spec §31) — separado do status operacional. */
+export function useAtualizarDecisaoSugestao(chamadoId: string) {
+  const invalidate = useInvalidateChamado(chamadoId);
+  return useMutation({
+    mutationFn: ({ decisao, observacao }: { decisao: SuporteDecisaoSugestao; observacao?: string }) =>
+      atualizarDecisaoSugestao(chamadoId, decisao, observacao),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Decisão da sugestão atualizada.");
     },
     onError: (err) => notifyError(err),
   });

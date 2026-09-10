@@ -21,8 +21,10 @@ import { formatDateTime } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAnexoSignedUrl } from "@/services/suporte.service";
 import { notifyError } from "@/utils/errorMessages";
-import { useAnexosChamado, useChamado, useEventosChamado } from "./hooks/useSuporteQueries";
+import { useAnexosChamado, useChamado, useDiagnosticoChamado, useEventosChamado } from "./hooks/useSuporteQueries";
 import { useComentarChamado, useConfirmarResolucao } from "./hooks/useSuporteMutations";
+import { ChamadoPainelAdmin } from "./ChamadoPainelAdmin";
+import { DiagnosticoPanel } from "./DiagnosticoPanel";
 import {
   ABRANGENCIA_LABELS,
   EVENTO_LABELS,
@@ -34,6 +36,13 @@ import {
   TIPO_ICON_EMOJI,
   TIPO_LABELS,
 } from "./suporteLabels";
+
+const PRIORIDADE_LABELS: Record<string, string> = {
+  critica: "Crítica",
+  alta: "Alta",
+  normal: "Normal",
+  baixa: "Baixa",
+};
 
 function AnexoItem({ nome, caminho }: { nome: string; caminho: string }) {
   const [carregando, setCarregando] = useState(false);
@@ -71,6 +80,7 @@ export default function ChamadoDetail() {
   const { data: chamado, isLoading: carregandoChamado } = useChamado(id);
   const { data: eventos, isLoading: carregandoEventos } = useEventosChamado(id);
   const { data: anexos } = useAnexosChamado(id);
+  const { data: diagnostico, isLoading: carregandoDiagnostico } = useDiagnosticoChamado(id, isAdmin);
   const comentar = useComentarChamado(id ?? "");
   const confirmarResolucao = useConfirmarResolucao(id ?? "");
 
@@ -121,144 +131,161 @@ export default function ChamadoDetail() {
         <Link to="/ajuda/chamados"><ArrowLeft className="h-4 w-4" /> Meus chamados</Link>
       </Button>
 
-      <Card>
-        <CardHeader className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-mono text-muted-foreground">{chamado.numero}</span>
-            <Badge variant={STATUS_BADGE_VARIANT[chamado.status]} className={cn(STATUS_BADGE_CLASS[chamado.status])}>
-              {STATUS_LABELS[chamado.status]}
-            </Badge>
-            <Badge variant="outline">{TIPO_ICON_EMOJI[chamado.tipo]} {TIPO_LABELS[chamado.tipo]}</Badge>
-          </div>
-          <h1 className="text-xl font-semibold leading-snug">{chamado.resumo}</h1>
-          <p className="text-xs text-muted-foreground">
-            Aberto em {formatDateTime(chamado.created_at)}
-            {chamado.reportado_por_nome ? ` · relatado originalmente por ${chamado.reportado_por_nome}` : ""}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{chamado.descricao}</p>
-
-          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-            <span>Impacto: {IMPACTO_LABELS[chamado.impacto]}</span>
-            <span>Abrangência: {ABRANGENCIA_LABELS[chamado.abrangencia]}</span>
-            <span>Frequência: {FREQUENCIA_LABELS[chamado.frequencia]}</span>
-          </div>
-
-          {chamado.registro_relacionado_tipo && (
-            <p className="text-xs text-muted-foreground">
-              Registro relacionado: <span className="font-mono">{chamado.registro_relacionado_tipo}</span>
-              {chamado.registro_relacionado_id ? ` (${chamado.registro_relacionado_id})` : ""}
-            </p>
-          )}
-
-          {chamado.status === "resolvido" && chamado.resumo_resolucao && (
-            <div className="rounded-md border border-success/30 bg-success/10 p-3 text-sm">
-              <p className="font-medium text-success">Como foi resolvido</p>
-              <p className="mt-1 text-foreground/90">{chamado.resumo_resolucao}</p>
-            </div>
-          )}
-
-          {anexos && anexos.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {anexos.map((a) => (
-                <AnexoItem key={a.id} nome={a.nome_arquivo} caminho={a.caminho_storage} />
-              ))}
-            </div>
-          )}
-
-          {podeConfirmar && (
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-              <p className="text-sm font-medium mb-2">Este chamado foi resolvido. Podemos fechá-lo?</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => confirmarResolucao.mutate(true)}
-                  disabled={confirmarResolucao.isPending}
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Sim, resolvido
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => confirmarResolucao.mutate(false)}
-                  disabled={confirmarResolucao.isPending}
-                >
-                  <RotateCcw className="h-4 w-4" /> Ainda tenho o problema
-                </Button>
+      <div className={isAdmin ? "grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start" : undefined}>
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-mono text-muted-foreground">{chamado.numero}</span>
+                <Badge variant={STATUS_BADGE_VARIANT[chamado.status]} className={cn(STATUS_BADGE_CLASS[chamado.status])}>
+                  {STATUS_LABELS[chamado.status]}
+                </Badge>
+                <Badge variant="outline">{TIPO_ICON_EMOJI[chamado.tipo]} {TIPO_LABELS[chamado.tipo]}</Badge>
+                {chamado.prioridade && <Badge variant="outline">{PRIORIDADE_LABELS[chamado.prioridade]}</Badge>}
+                {chamado.modulo && <Badge variant="outline">{chamado.modulo}</Badge>}
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              <h1 className="text-xl font-semibold leading-snug">{chamado.resumo}</h1>
+              <p className="text-xs text-muted-foreground">
+                Aberto em {formatDateTime(chamado.created_at)}
+                {chamado.reportado_por_nome ? ` · relatado originalmente por ${chamado.reportado_por_nome}` : ""}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{chamado.descricao}</p>
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-sm font-semibold">Histórico</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {carregandoEventos ? (
-            <Skeleton className="h-24 rounded-lg" />
-          ) : (
-            <ol className="space-y-4">
-              {eventos?.map((evento) => (
-                <li key={evento.id} className="flex gap-3">
-                  <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
-                    {evento.tipo === "comentario" ? (
-                      <MessageSquare className="h-3.5 w-3.5" />
-                    ) : evento.visibilidade === "interno" ? (
-                      <ShieldAlert className="h-3.5 w-3.5" />
-                    ) : (
-                      <UserCog className="h-3.5 w-3.5" />
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{EVENTO_LABELS[evento.tipo]}</span>
-                      {evento.visibilidade === "interno" && (
-                        <Badge variant="secondary" className="text-[10px]">Nota interna</Badge>
-                      )}
-                      <span>{formatDateTime(evento.created_at)}</span>
-                    </div>
-                    {evento.mensagem && (
-                      <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-2.5 text-sm">{evento.mensagem}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
+              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <span>Impacto: {IMPACTO_LABELS[chamado.impacto]}</span>
+                <span>Abrangência: {ABRANGENCIA_LABELS[chamado.abrangencia]}</span>
+                <span>Frequência: {FREQUENCIA_LABELS[chamado.frequencia]}</span>
+              </div>
 
-          <div className="space-y-2 border-t border-border pt-4">
-            <Textarea
-              placeholder="Adicionar um comentário…"
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              rows={3}
-            />
-            <div className="flex items-center justify-between gap-2">
-              {isAdmin ? (
-                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                  <Checkbox checked={notaInterna} onCheckedChange={(v) => setNotaInterna(v === true)} />
-                  Nota interna (não visível ao solicitante)
-                </label>
-              ) : (
-                <span />
+              {chamado.registro_relacionado_tipo && (
+                <p className="text-xs text-muted-foreground">
+                  Registro relacionado: <span className="font-mono">{chamado.registro_relacionado_tipo}</span>
+                  {chamado.registro_relacionado_id ? ` (${chamado.registro_relacionado_id})` : ""}
+                </p>
               )}
-              <Button
-                size="sm"
-                className="gap-1.5"
-                onClick={enviarComentario}
-                disabled={!mensagem.trim() || comentar.isPending}
-              >
-                <Send className="h-3.5 w-3.5" /> Enviar
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
+              {chamado.status === "resolvido" && chamado.resumo_resolucao && (
+                <div className="rounded-md border border-success/30 bg-success/10 p-3 text-sm">
+                  <p className="font-medium text-success">Como foi resolvido</p>
+                  <p className="mt-1 text-foreground/90">{chamado.resumo_resolucao}</p>
+                </div>
+              )}
+
+              {anexos && anexos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {anexos.map((a) => (
+                    <AnexoItem key={a.id} nome={a.nome_arquivo} caminho={a.caminho_storage} />
+                  ))}
+                </div>
+              )}
+
+              {podeConfirmar && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-sm font-medium mb-2">Este chamado foi resolvido. Podemos fechá-lo?</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => confirmarResolucao.mutate(true)}
+                      disabled={confirmarResolucao.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Sim, resolvido
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => confirmarResolucao.mutate(false)}
+                      disabled={confirmarResolucao.isPending}
+                    >
+                      <RotateCcw className="h-4 w-4" /> Ainda tenho o problema
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {isAdmin && (
+            <DiagnosticoPanel
+              chamadoNumero={chamado.numero}
+              diagnostico={diagnostico}
+              isLoading={carregandoDiagnostico}
+              totalAnexos={anexos?.length ?? 0}
+            />
+          )}
+
+          <Card>
+            <CardHeader>
+              <h2 className="text-sm font-semibold">Histórico</h2>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {carregandoEventos ? (
+                <Skeleton className="h-24 rounded-lg" />
+              ) : (
+                <ol className="space-y-4">
+                  {eventos?.map((evento) => (
+                    <li key={evento.id} className="flex gap-3">
+                      <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
+                        {evento.tipo === "comentario" ? (
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        ) : evento.visibilidade === "interno" ? (
+                          <ShieldAlert className="h-3.5 w-3.5" />
+                        ) : (
+                          <UserCog className="h-3.5 w-3.5" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">{EVENTO_LABELS[evento.tipo]}</span>
+                          {evento.visibilidade === "interno" && (
+                            <Badge variant="secondary" className="text-[10px]">Nota interna</Badge>
+                          )}
+                          <span>{formatDateTime(evento.created_at)}</span>
+                        </div>
+                        {evento.mensagem && (
+                          <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-2.5 text-sm">{evento.mensagem}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <div className="space-y-2 border-t border-border pt-4">
+                <Textarea
+                  placeholder="Adicionar um comentário…"
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  rows={3}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  {isAdmin ? (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <Checkbox checked={notaInterna} onCheckedChange={(v) => setNotaInterna(v === true)} />
+                      Nota interna (não visível ao solicitante)
+                    </label>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={enviarComentario}
+                    disabled={!mensagem.trim() || comentar.isPending}
+                  >
+                    <Send className="h-3.5 w-3.5" /> Enviar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {isAdmin && <ChamadoPainelAdmin chamado={chamado} />}
+      </div>
     </div>
   );
 }

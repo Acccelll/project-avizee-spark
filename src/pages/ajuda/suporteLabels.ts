@@ -6,6 +6,7 @@
 import type {
   SuporteAbrangencia,
   SuporteCausa,
+  SuporteDecisaoSugestao,
   SuporteEvento,
   SuporteFrequencia,
   SuporteImpacto,
@@ -86,6 +87,13 @@ export const TIPO_ICON_EMOJI: Record<SuporteTipo, string> = {
   problema_operacional: "⚠️",
   duvida: "❓",
   sugestao: "💡",
+};
+
+export const DECISAO_SUGESTAO_LABELS: Record<SuporteDecisaoSugestao, string> = {
+  em_analise: "Em análise",
+  planejada: "Planejada",
+  nao_planejada: "Não planejada",
+  implementada: "Implementada",
 };
 
 export const EVENTO_LABELS: Record<SuporteEvento["tipo"], string> = {
