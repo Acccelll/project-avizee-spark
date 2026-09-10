@@ -28,7 +28,7 @@ import type { ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEdito
 interface NfItemRow {
   id: string; produto_id: string; quantidade: number; valor_unitario: number;
   conta_contabil_id: string | null; cfop: string | null; cst: string | null;
-  ncm: string | null; unidade: string | null; descricao: string | null;
+  ncm: string | null; unidade: string | null; origem_mercadoria: string | null; descricao: string | null;
   icms_valor: number | null; icms_aliquota: number | null; icms_base: number | null;
   ipi_valor: number | null; ipi_aliquota: number | null;
   pis_valor: number | null; pis_aliquota: number | null; base_pis: number | null;
@@ -230,6 +230,7 @@ export function useFiscalLifecycleActions(args: UseFiscalLifecycleActionsArgs) {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
       fiscalMap[idx] = {
         cfop: i.cfop, cst: i.cst, ncm: i.ncm, unidade: i.unidade,
+        origem_mercadoria: i.origem_mercadoria,
         descricao: i.descricao, icms_valor: i.icms_valor, icms_aliquota: i.icms_aliquota,
         icms_base: i.icms_base, ipi_valor: i.ipi_valor, ipi_aliquota: i.ipi_aliquota,
         pis_valor: i.pis_valor, pis_aliquota: i.pis_aliquota, base_pis: i.base_pis,
