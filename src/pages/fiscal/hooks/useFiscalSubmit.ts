@@ -101,6 +101,7 @@ export function useFiscalSubmit(args: UseFiscalSubmitArgs) {
       cst: fiscal.cst ?? null,
       ncm: fiscal.ncm ?? null,
       unidade: fiscal.unidade ?? null,
+      origem_mercadoria: fiscal.origem_mercadoria ?? null,
       descricao: fiscal.descricao ?? i.descricao ?? null,
       icms_valor: fiscal.icms_valor ?? null,
       icms_aliquota: fiscal.icms_aliquota ?? null,

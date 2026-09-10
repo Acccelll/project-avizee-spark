@@ -43,6 +43,7 @@ export interface NfItemFiscalDataLike {
   cfop?: string | null;
   ncm?: string | null;
   unidade?: string | null;
+  origem_mercadoria?: string | null;
   icms_valor?: number | null;
   ipi_valor?: number | null;
   pis_valor?: number | null;
@@ -335,6 +336,7 @@ export function useNFeXmlImport({ fornecedores, produtos, clientes, cnpjEmpresa 
           cfop: nfeItem.cfop || null,
           ncm: nfeItem.ncm || null,
           unidade: nfeItem.unidade || null,
+          origem_mercadoria: nfeItem.origemMercadoria || null,
           icms_valor: nfeItem.icms || null,
           ipi_valor: nfeItem.ipi || null,
           pis_valor: nfeItem.pis || null,

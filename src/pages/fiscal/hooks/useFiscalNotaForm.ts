@@ -46,6 +46,7 @@ export interface FiscalFormState {
 
 export interface NfItemFiscalData {
   cfop?: string | null; cst?: string | null; ncm?: string | null; unidade?: string | null;
+  origem_mercadoria?: string | null;
   descricao?: string | null; icms_valor?: number | null; icms_aliquota?: number | null;
   icms_base?: number | null; ipi_valor?: number | null; ipi_aliquota?: number | null;
   pis_valor?: number | null; pis_aliquota?: number | null; base_pis?: number | null;
@@ -189,6 +190,7 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
         fiscalMap[idx] = {
           cfop: (i.cfop as string) ?? null, cst: (i.cst as string) ?? null,
           ncm: (i.ncm as string) ?? null, unidade: (i.unidade as string) ?? null,
+          origem_mercadoria: (i.origem_mercadoria as string) ?? null,
           descricao: (i.descricao as string) ?? null,
           icms_valor: (i.icms_valor as number) ?? null, icms_aliquota: (i.icms_aliquota as number) ?? null,
           icms_base: (i.icms_base as number) ?? null, ipi_valor: (i.ipi_valor as number) ?? null,
@@ -249,6 +251,7 @@ export function useFiscalNotaForm({ notaId, onSaved }: UseFiscalNotaFormOpts) {
         conta_contabil_id: itemContaContabil[idx] || null,
         cfop: f.cfop ?? null, cst: f.cst ?? null, ncm: f.ncm ?? null,
         unidade: f.unidade ?? null,
+        origem_mercadoria: f.origem_mercadoria ?? null,
         descricao: f.descricao ?? i.descricao ?? null,
         icms_valor: f.icms_valor ?? null, icms_aliquota: f.icms_aliquota ?? null,
         icms_base: f.icms_base ?? null,

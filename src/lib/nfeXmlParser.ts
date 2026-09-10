@@ -40,6 +40,8 @@ export interface NFeItem {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
+  /** Código fiscal <orig> do grupo ICMS, preservado exatamente como declarado no XML. */
+  origemMercadoria: string;
   icms: number;
   ipi: number;
   pis: number;
@@ -184,12 +186,17 @@ export function parseNFeXml(xmlString: string): NFeData {
     const prod = det.getElementsByTagName("prod")[0];
     const imposto = det.getElementsByTagName("imposto")[0];
 
-    // Try to find ICMS value in various ICMS groups
+    // Encontra o grupo ICMS aplicável uma única vez, preservando também <orig>.
     let icmsVal = 0;
+    let origemMercadoria = "";
     const icmsGroups = ["ICMS00", "ICMS10", "ICMS20", "ICMS30", "ICMS40", "ICMS51", "ICMS60", "ICMS70", "ICMS90", "ICMSSN101", "ICMSSN102", "ICMSSN201", "ICMSSN202", "ICMSSN500", "ICMSSN900"];
     for (const g of icmsGroups) {
       const el = imposto?.getElementsByTagName(g)?.[0];
-      if (el) { icmsVal = num(el, "vICMS"); break; }
+      if (el) {
+        icmsVal = num(el, "vICMS");
+        origemMercadoria = text(el, "orig");
+        break;
+      }
     }
 
     const ipiEl = imposto?.getElementsByTagName("IPITrib")?.[0];
@@ -206,6 +213,7 @@ export function parseNFeXml(xmlString: string): NFeData {
       quantidade: num(prod, "qCom"),
       valorUnitario: num(prod, "vUnCom"),
       valorTotal: num(prod, "vProd"),
+      origemMercadoria,
       icms: icmsVal,
       ipi: num(ipiEl, "vIPI"),
       pis: num(pisEl, "vPIS"),
