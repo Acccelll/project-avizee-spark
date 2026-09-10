@@ -15,7 +15,7 @@ import { submitHelpFeedback } from '@/services/help.service';
  * e apresenta seções, atalhos e botão de tour quando disponível.
  */
 export function HelpDrawer() {
-  const { drawerOpen, closeDrawer, startTour } = useHelp();
+  const { drawerOpen, closeDrawer, startTour, openReportDialog } = useHelp();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -134,6 +134,18 @@ export function HelpDrawer() {
                   <ThumbsDown className="h-4 w-4" /> Não
                 </Button>
               </div>
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground mb-2">Encontrou algum problema nesta tela?</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => openReportDialog()}
+              >
+                Reportar problema
+              </Button>
             </div>
           </>
         ) : (

@@ -56,6 +56,18 @@ export function formatDate(date: string | Date): string {
   return normalizeDate(date).toLocaleDateString("pt-BR");
 }
 
+/** Data + hora no padrão pt-BR: ex. `09/09/2026 14:32`. */
+export function formatDateTime(date: string | Date): string {
+  if (!date) return "-";
+  return normalizeDate(date).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function daysSince(date: string | Date): number {
   return calculateDaysBetween(date, new Date());
 }

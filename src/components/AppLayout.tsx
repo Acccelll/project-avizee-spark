@@ -15,6 +15,7 @@ import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
 import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
 import { HelpProvider, useHelp } from '@/contexts/HelpContext';
 import { HelpDrawer } from './help/HelpDrawer';
+import { ReportarProblemaSheet } from './help/ReportarProblemaSheet';
 import { CoachTour } from './help/CoachTour';
 import { FirstVisitToast } from './help/FirstVisitToast';
 import { CertificadoValidadeAlert } from './fiscal/CertificadoValidadeAlert';
@@ -145,6 +146,7 @@ export function AppLayout() {
       <GlobalShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       <HelpDrawer />
+      <ReportarProblemaSheet />
       <CoachTour />
       <FirstVisitToast />
 

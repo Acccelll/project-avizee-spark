@@ -5,6 +5,12 @@ import type { HelpEntry, HelpTourStep } from '@/help/types';
  * Contexto global do sistema de ajuda. Permite a qualquer componente abrir
  * o drawer ou iniciar o tour da rota atual sem prop drilling.
  */
+/** Contexto opcional pré-preenchido ao abrir "Reportar problema" a partir de um registro específico. */
+export interface ReportProblemaContext {
+  registroRelacionadoTipo?: string;
+  registroRelacionadoId?: string;
+}
+
 interface HelpContextValue {
   drawerOpen: boolean;
   openDrawer: () => void;
@@ -14,6 +20,11 @@ interface HelpContextValue {
   tourSteps: HelpTourStep[] | null;
   startTour: (entry: HelpEntry) => void;
   endTour: () => void;
+
+  reportOpen: boolean;
+  reportContext: ReportProblemaContext | null;
+  openReportDialog: (context?: ReportProblemaContext) => void;
+  closeReportDialog: () => void;
 }
 
 const HelpContext = createContext<HelpContextValue | null>(null);
@@ -21,6 +32,8 @@ const HelpContext = createContext<HelpContextValue | null>(null);
 export function HelpProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tourEntry, setTourEntry] = useState<HelpEntry | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportContext, setReportContext] = useState<ReportProblemaContext | null>(null);
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -33,6 +46,17 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 
   const endTour = useCallback(() => setTourEntry(null), []);
 
+  const openReportDialog = useCallback((context?: ReportProblemaContext) => {
+    setReportContext(context ?? null);
+    setDrawerOpen(false);
+    setReportOpen(true);
+  }, []);
+
+  const closeReportDialog = useCallback(() => {
+    setReportOpen(false);
+    setReportContext(null);
+  }, []);
+
   const value = useMemo<HelpContextValue>(
     () => ({
       drawerOpen,
@@ -42,8 +66,23 @@ export function HelpProvider({ children }: { children: ReactNode }) {
       tourSteps: tourEntry?.tour ?? null,
       startTour,
       endTour,
+      reportOpen,
+      reportContext,
+      openReportDialog,
+      closeReportDialog,
     }),
-    [drawerOpen, openDrawer, closeDrawer, tourEntry, startTour, endTour],
+    [
+      drawerOpen,
+      openDrawer,
+      closeDrawer,
+      tourEntry,
+      startTour,
+      endTour,
+      reportOpen,
+      reportContext,
+      openReportDialog,
+      closeReportDialog,
+    ],
   );
 
   return <HelpContext.Provider value={value}>{children}</HelpContext.Provider>;
