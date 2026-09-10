@@ -12,6 +12,9 @@ const ApresentacaoGerencial = lazy(() => import("@/pages/ApresentacaoGerencial")
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const Social = lazy(() => import("@/pages/Social"));
 const Ajuda = lazy(() => import("@/pages/Ajuda"));
+const MeusChamados = lazy(() => import("@/pages/ajuda/MeusChamados"));
+const ChamadoDetail = lazy(() => import("@/pages/ajuda/ChamadoDetail"));
+const GestaoChamados = lazy(() => import("@/pages/ajuda/GestaoChamados"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 /**
@@ -41,6 +44,12 @@ export const diversosRoutes = (
     <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
     {/* Central de ajuda — disponível para qualquer usuário autenticado */}
     <Route path="/ajuda" element={<ProtectedRoute><LazyPage><Ajuda /></LazyPage></ProtectedRoute>} />
+    {/* Meus chamados e detalhe — abrir/acompanhar chamado é liberado a qualquer
+        usuário autenticado (decisão fechada: não é a Gestão de chamados admin-only) */}
+    <Route path="/ajuda/chamados" element={<ProtectedRoute><LazyPage><MeusChamados /></LazyPage></ProtectedRoute>} />
+    <Route path="/ajuda/chamados/:id" element={<ProtectedRoute><LazyPage><ChamadoDetail /></LazyPage></ProtectedRoute>} />
+    {/* Gestão de chamados — admin-only, gated pelo recurso `suporte` (decisão fechada: distinto de abrir/ver chamados próprios) */}
+    <Route path="/ajuda/gestao" element={<PermissionRoute resource="suporte"><LazyPage><GestaoChamados /></LazyPage></PermissionRoute>} />
     {/* Catch-all dentro do shell — preserva sidebar/header em rotas inválidas */}
     <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
   </>

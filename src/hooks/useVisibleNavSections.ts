@@ -18,7 +18,7 @@ const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
   financeiro: ['financeiro', 'socios'],
   fiscal: ['faturamento_fiscal'],
   relatorios: ['relatorios', 'workbook', 'apresentacao'],
-  administracao: ['administracao', 'auditoria'],
+  administracao: ['administracao', 'auditoria', 'suporte'],
   // social handled separately via socialPermissions flag
 };
 
@@ -58,10 +58,16 @@ export function useVisibleNavSections(): NavSection[] {
       })
       // A-01: itens admin-only dentro de seções visíveis devem ser ocultados
       // para usuários que têm `administracao:visualizar` mas não são admin —
-      // a rota é guarded por `AdminRoute`, então o item iria gerar AccessDenied.
+      // a rota é guarded por `AdminRoute`/`PermissionRoute`, então o item iria
+      // gerar AccessDenied. `/ajuda/gestao` é guarded por `suporte:visualizar`,
+      // que hoje só admin recebe (ver src/lib/permissions.ts).
       .map((s) => {
         if (s.key !== 'administracao') return s;
-        const filterAdminOnly = (path: string) => path !== '/admin/audit-duplicidades' || isAdmin;
+        const filterAdminOnly = (path: string) => {
+          if (path === '/admin/audit-duplicidades') return isAdmin;
+          if (path === '/ajuda/gestao') return can('suporte:visualizar');
+          return true;
+        };
         return {
           ...s,
           items: s.items.map((sub) => ({

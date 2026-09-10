@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { calculateDaysBetween, daysSince, formatCurrency, formatDate, formatMoney, formatNumber, formatPercent } from "@/lib/format";
+import {
+  calculateDaysBetween,
+  daysSince,
+  formatCurrency,
+  formatDate,
+  formatIdade,
+  formatMoney,
+  formatNumber,
+  formatPercent,
+} from "@/lib/format";
 
 describe("format helpers", () => {
   it("deve formatar moeda em BRL", () => {
@@ -89,5 +98,25 @@ describe("calculateDaysBetween", () => {
 
   it("retorna valor negativo para datas inversas", () => {
     expect(calculateDaysBetween("2026-03-16", "2026-03-01")).toBe(-15);
+  });
+});
+
+describe("formatIdade", () => {
+  const agora = new Date("2026-03-16T12:00:00Z");
+
+  it("formata minutos quando faz menos de 1h", () => {
+    expect(formatIdade("2026-03-16T11:42:00Z", agora)).toBe("18 min");
+  });
+
+  it("formata horas quando faz menos de 24h", () => {
+    expect(formatIdade("2026-03-16T09:00:00Z", agora)).toBe("3h");
+  });
+
+  it("formata dias quando faz 24h ou mais", () => {
+    expect(formatIdade("2026-03-14T12:00:00Z", agora)).toBe("2d");
+  });
+
+  it("nunca retorna negativo para instante atual", () => {
+    expect(formatIdade(agora, agora)).toBe("0 min");
   });
 });

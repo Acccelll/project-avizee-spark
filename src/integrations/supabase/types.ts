@@ -10390,6 +10390,294 @@ export type Database = {
         }
         Relationships: []
       }
+      suporte_anexos: {
+        Row: {
+          caminho_storage: string
+          chamado_id: string
+          created_at: string
+          evento_id: string | null
+          id: string
+          is_screenshot: boolean
+          nome_arquivo: string
+          tamanho: number
+          tipo_arquivo: string
+          uploaded_by: string
+        }
+        Insert: {
+          caminho_storage: string
+          chamado_id: string
+          created_at?: string
+          evento_id?: string | null
+          id?: string
+          is_screenshot?: boolean
+          nome_arquivo: string
+          tamanho?: number
+          tipo_arquivo: string
+          uploaded_by: string
+        }
+        Update: {
+          caminho_storage?: string
+          chamado_id?: string
+          created_at?: string
+          evento_id?: string | null
+          id?: string
+          is_screenshot?: boolean
+          nome_arquivo?: string
+          tamanho?: number
+          tipo_arquivo?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suporte_anexos_chamado_id_fkey"
+            columns: ["chamado_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_chamados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suporte_anexos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_eventos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suporte_chamados: {
+        Row: {
+          abrangencia: Database["public"]["Enums"]["suporte_abrangencia"]
+          causa_resolucao: Database["public"]["Enums"]["suporte_causa"] | null
+          closed_at: string | null
+          created_at: string
+          decisao_observacao: string | null
+          decisao_sugestao:
+            | Database["public"]["Enums"]["suporte_decisao_sugestao"]
+            | null
+          descricao: string
+          diagnostic_session_id: string | null
+          duplicado_de_id: string | null
+          frequencia: Database["public"]["Enums"]["suporte_frequencia"]
+          github_commit_sha: string | null
+          github_issue_url: string | null
+          github_pr_url: string | null
+          id: string
+          impacto: Database["public"]["Enums"]["suporte_impacto"]
+          modulo: string | null
+          numero: string
+          prioridade: Database["public"]["Enums"]["suporte_prioridade"] | null
+          registro_relacionado_id: string | null
+          registro_relacionado_tipo: string | null
+          reportado_por_nome: string | null
+          resolved_at: string | null
+          responsavel_id: string | null
+          resumo: string
+          resumo_resolucao: string | null
+          rota: string
+          solicitante_id: string
+          status: Database["public"]["Enums"]["suporte_status"]
+          tipo: Database["public"]["Enums"]["suporte_tipo"]
+          updated_at: string
+          versao_corrigida: string | null
+        }
+        Insert: {
+          abrangencia: Database["public"]["Enums"]["suporte_abrangencia"]
+          causa_resolucao?: Database["public"]["Enums"]["suporte_causa"] | null
+          closed_at?: string | null
+          created_at?: string
+          decisao_observacao?: string | null
+          decisao_sugestao?:
+            | Database["public"]["Enums"]["suporte_decisao_sugestao"]
+            | null
+          descricao: string
+          diagnostic_session_id?: string | null
+          duplicado_de_id?: string | null
+          frequencia: Database["public"]["Enums"]["suporte_frequencia"]
+          github_commit_sha?: string | null
+          github_issue_url?: string | null
+          github_pr_url?: string | null
+          id?: string
+          impacto: Database["public"]["Enums"]["suporte_impacto"]
+          modulo?: string | null
+          numero?: string
+          prioridade?: Database["public"]["Enums"]["suporte_prioridade"] | null
+          registro_relacionado_id?: string | null
+          registro_relacionado_tipo?: string | null
+          reportado_por_nome?: string | null
+          resolved_at?: string | null
+          responsavel_id?: string | null
+          resumo: string
+          resumo_resolucao?: string | null
+          rota: string
+          solicitante_id: string
+          status?: Database["public"]["Enums"]["suporte_status"]
+          tipo: Database["public"]["Enums"]["suporte_tipo"]
+          updated_at?: string
+          versao_corrigida?: string | null
+        }
+        Update: {
+          abrangencia?: Database["public"]["Enums"]["suporte_abrangencia"]
+          causa_resolucao?: Database["public"]["Enums"]["suporte_causa"] | null
+          closed_at?: string | null
+          created_at?: string
+          decisao_observacao?: string | null
+          decisao_sugestao?:
+            | Database["public"]["Enums"]["suporte_decisao_sugestao"]
+            | null
+          descricao?: string
+          diagnostic_session_id?: string | null
+          duplicado_de_id?: string | null
+          frequencia?: Database["public"]["Enums"]["suporte_frequencia"]
+          github_commit_sha?: string | null
+          github_issue_url?: string | null
+          github_pr_url?: string | null
+          id?: string
+          impacto?: Database["public"]["Enums"]["suporte_impacto"]
+          modulo?: string | null
+          numero?: string
+          prioridade?: Database["public"]["Enums"]["suporte_prioridade"] | null
+          registro_relacionado_id?: string | null
+          registro_relacionado_tipo?: string | null
+          reportado_por_nome?: string | null
+          resolved_at?: string | null
+          responsavel_id?: string | null
+          resumo?: string
+          resumo_resolucao?: string | null
+          rota?: string
+          solicitante_id?: string
+          status?: Database["public"]["Enums"]["suporte_status"]
+          tipo?: Database["public"]["Enums"]["suporte_tipo"]
+          updated_at?: string
+          versao_corrigida?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suporte_chamados_duplicado_de_id_fkey"
+            columns: ["duplicado_de_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_chamados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suporte_diagnosticos: {
+        Row: {
+          ambiente: string | null
+          chamado_id: string
+          conectividade: string | null
+          contexto_tela: Json | null
+          created_at: string
+          erro_codigo: string | null
+          erro_correlation_id: string | null
+          erro_http_status: number | null
+          erro_mensagem_amigavel: string | null
+          erro_operacao: string | null
+          erro_stack_trace: string | null
+          erros_recentes: Json | null
+          idioma: string | null
+          navegador: string | null
+          requisicoes_rede: Json | null
+          sistema_operacional: string | null
+          url_relativa: string | null
+          versao_build: string | null
+          viewport: string | null
+        }
+        Insert: {
+          ambiente?: string | null
+          chamado_id: string
+          conectividade?: string | null
+          contexto_tela?: Json | null
+          created_at?: string
+          erro_codigo?: string | null
+          erro_correlation_id?: string | null
+          erro_http_status?: number | null
+          erro_mensagem_amigavel?: string | null
+          erro_operacao?: string | null
+          erro_stack_trace?: string | null
+          erros_recentes?: Json | null
+          idioma?: string | null
+          navegador?: string | null
+          requisicoes_rede?: Json | null
+          sistema_operacional?: string | null
+          url_relativa?: string | null
+          versao_build?: string | null
+          viewport?: string | null
+        }
+        Update: {
+          ambiente?: string | null
+          chamado_id?: string
+          conectividade?: string | null
+          contexto_tela?: Json | null
+          created_at?: string
+          erro_codigo?: string | null
+          erro_correlation_id?: string | null
+          erro_http_status?: number | null
+          erro_mensagem_amigavel?: string | null
+          erro_operacao?: string | null
+          erro_stack_trace?: string | null
+          erros_recentes?: Json | null
+          idioma?: string | null
+          navegador?: string | null
+          requisicoes_rede?: Json | null
+          sistema_operacional?: string | null
+          url_relativa?: string | null
+          versao_build?: string | null
+          viewport?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suporte_diagnosticos_chamado_id_fkey"
+            columns: ["chamado_id"]
+            isOneToOne: true
+            referencedRelation: "suporte_chamados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suporte_eventos: {
+        Row: {
+          autor_id: string
+          chamado_id: string
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          mensagem: string | null
+          tipo: Database["public"]["Enums"]["suporte_evento_tipo"]
+          visibilidade: string
+        }
+        Insert: {
+          autor_id: string
+          chamado_id: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          mensagem?: string | null
+          tipo: Database["public"]["Enums"]["suporte_evento_tipo"]
+          visibilidade?: string
+        }
+        Update: {
+          autor_id?: string
+          chamado_id?: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          mensagem?: string | null
+          tipo?: Database["public"]["Enums"]["suporte_evento_tipo"]
+          visibilidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suporte_eventos_chamado_id_fkey"
+            columns: ["chamado_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_chamados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -12451,6 +12739,24 @@ export type Database = {
         Args: { p_competencia: string; p_lucro_base?: number }
         Returns: string
       }
+      criar_chamado_suporte: {
+        Args: {
+          p_abrangencia: Database["public"]["Enums"]["suporte_abrangencia"]
+          p_descricao: string
+          p_diagnostico?: Json
+          p_frequencia: Database["public"]["Enums"]["suporte_frequencia"]
+          p_impacto: Database["public"]["Enums"]["suporte_impacto"]
+          p_registro_relacionado_id?: string
+          p_registro_relacionado_tipo?: string
+          p_resumo: string
+          p_rota: string
+          p_tipo: Database["public"]["Enums"]["suporte_tipo"]
+        }
+        Returns: {
+          id: string
+          numero: string
+        }[]
+      }
       criar_revisao_orcamento: {
         Args: { p_orcamento_id: string }
         Returns: string
@@ -12672,6 +12978,7 @@ export type Database = {
         }[]
       }
       gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
+      gerar_numero_suporte: { Args: never; Returns: string }
       gerar_parcelas_financeiras: {
         Args: {
           p_base: Json
@@ -12914,6 +13221,28 @@ export type Database = {
       }
       normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
+      obter_diagnostico_suporte: {
+        Args: { p_chamado_id: string }
+        Returns: {
+          ambiente: string
+          conectividade: string
+          contexto_tela: Json
+          erro_codigo: string
+          erro_correlation_id: string
+          erro_http_status: number
+          erro_mensagem_amigavel: string
+          erro_operacao: string
+          erro_stack_trace: string
+          erros_recentes: Json
+          idioma: string
+          navegador: string
+          requisicoes_rede: Json
+          sistema_operacional: string
+          url_relativa: string
+          versao_build: string
+          viewport: string
+        }[]
+      }
       peek_proximo_numero_orcamento: { Args: never; Returns: string }
       posicao_estoque_em_data: {
         Args: { p_data: string }
@@ -13014,6 +13343,14 @@ export type Database = {
           p_observacoes?: string
         }
         Returns: Json
+      }
+      registrar_comentario_suporte: {
+        Args: {
+          p_chamado_id: string
+          p_mensagem: string
+          p_visibilidade?: string
+        }
+        Returns: string
       }
       registrar_recebimento_compra: {
         Args: {
@@ -13269,6 +13606,44 @@ export type Database = {
           score: number
         }[]
       }
+      suporte_assumir_chamado: {
+        Args: { p_chamado_id: string }
+        Returns: undefined
+      }
+      suporte_atribuir_responsavel: {
+        Args: { p_chamado_id: string; p_responsavel_id: string }
+        Returns: undefined
+      }
+      suporte_cancelar_chamado: {
+        Args: { p_chamado_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      suporte_confirmar_resolucao: {
+        Args: { p_chamado_id: string; p_confirmado: boolean }
+        Returns: undefined
+      }
+      suporte_marcar_duplicado: {
+        Args: { p_chamado_id: string; p_duplicado_de_id: string }
+        Returns: undefined
+      }
+      suporte_resolver_chamado: {
+        Args: {
+          p_causa?: Database["public"]["Enums"]["suporte_causa"]
+          p_chamado_id: string
+          p_resumo_resolucao: string
+        }
+        Returns: undefined
+      }
+      suporte_triar_chamado: {
+        Args: {
+          p_chamado_id: string
+          p_modulo?: string
+          p_prioridade?: Database["public"]["Enums"]["suporte_prioridade"]
+          p_status?: Database["public"]["Enums"]["suporte_status"]
+          p_tipo?: Database["public"]["Enums"]["suporte_tipo"]
+        }
+        Returns: undefined
+      }
       sync_fatura_status_from_lancamentos: {
         Args: { p_fatura_id: string }
         Returns: undefined
@@ -13342,6 +13717,56 @@ export type Database = {
         | "estoquista"
         | "gestor_compras"
         | "operador_logistico"
+      suporte_abrangencia: "so_eu" | "mais_pessoas" | "nao_sei"
+      suporte_causa:
+        | "bug_corrigido"
+        | "configuracao"
+        | "permissao"
+        | "dado_inconsistente"
+        | "uso_incorreto"
+        | "duplicado"
+        | "melhoria_implementada"
+        | "nao_reproduzido"
+        | "outro"
+      suporte_decisao_sugestao:
+        | "em_analise"
+        | "planejada"
+        | "nao_planejada"
+        | "implementada"
+      suporte_evento_tipo:
+        | "abertura"
+        | "comentario"
+        | "status_alterado"
+        | "prioridade_alterada"
+        | "tipo_modulo_alterado"
+        | "responsavel_alterado"
+        | "anexo_adicionado"
+        | "vinculo_dev"
+        | "resolucao"
+        | "reabertura"
+        | "fechamento"
+        | "cancelamento"
+        | "duplicidade"
+      suporte_frequencia:
+        | "uma_vez"
+        | "mais_de_uma_vez"
+        | "sempre_que_tento"
+        | "nao_sei"
+      suporte_impacto:
+        | "incomodo"
+        | "atrapalha_trabalho"
+        | "nao_consigo_concluir"
+        | "indisponivel"
+      suporte_prioridade: "critica" | "alta" | "normal" | "baixa"
+      suporte_status:
+        | "aberto"
+        | "em_triagem"
+        | "em_andamento"
+        | "aguardando_usuario"
+        | "resolvido"
+        | "fechado"
+        | "cancelado"
+      suporte_tipo: "bug" | "problema_operacional" | "duvida" | "sugestao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -13357,12 +13782,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -13386,11 +13811,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -13411,11 +13836,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -13436,11 +13861,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -13453,11 +13878,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -13479,6 +13904,62 @@ export const Constants = {
         "gestor_compras",
         "operador_logistico",
       ],
+      suporte_abrangencia: ["so_eu", "mais_pessoas", "nao_sei"],
+      suporte_causa: [
+        "bug_corrigido",
+        "configuracao",
+        "permissao",
+        "dado_inconsistente",
+        "uso_incorreto",
+        "duplicado",
+        "melhoria_implementada",
+        "nao_reproduzido",
+        "outro",
+      ],
+      suporte_decisao_sugestao: [
+        "em_analise",
+        "planejada",
+        "nao_planejada",
+        "implementada",
+      ],
+      suporte_evento_tipo: [
+        "abertura",
+        "comentario",
+        "status_alterado",
+        "prioridade_alterada",
+        "tipo_modulo_alterado",
+        "responsavel_alterado",
+        "anexo_adicionado",
+        "vinculo_dev",
+        "resolucao",
+        "reabertura",
+        "fechamento",
+        "cancelamento",
+        "duplicidade",
+      ],
+      suporte_frequencia: [
+        "uma_vez",
+        "mais_de_uma_vez",
+        "sempre_que_tento",
+        "nao_sei",
+      ],
+      suporte_impacto: [
+        "incomodo",
+        "atrapalha_trabalho",
+        "nao_consigo_concluir",
+        "indisponivel",
+      ],
+      suporte_prioridade: ["critica", "alta", "normal", "baixa"],
+      suporte_status: [
+        "aberto",
+        "em_triagem",
+        "em_andamento",
+        "aguardando_usuario",
+        "resolvido",
+        "fechado",
+        "cancelado",
+      ],
+      suporte_tipo: ["bug", "problema_operacional", "duvida", "sugestao"],
     },
   },
 } as const

@@ -58,7 +58,11 @@ function parseTablesFromTypes(source) {
   const RE_TABLE = /^ {6}([a-zA-Z_][a-zA-Z0-9_]*):\s*\{$/;
   const RE_ROW_OPEN = /^ {8}Row:\s*\{$/;
   const RE_ROW_CLOSE = /^ {8}\}$/;
+  // Coluna normal: `nome: tipo` numa linha só. Coluna com union type longo
+  // (ex.: enum nullable) sai quebrada pelo codegen em várias linhas, com a
+  // primeira terminando só em `:` — sem espaço/tipo depois — daí o segundo padrão.
   const RE_COLUMN = /^ {10}([a-zA-Z_][a-zA-Z0-9_]*)\??:\s/;
+  const RE_COLUMN_WRAPPED = /^ {10}([a-zA-Z_][a-zA-Z0-9_]*)\??:$/;
   const RE_TABLE_CLOSE = /^ {6}\}$/;
 
   for (const line of lines) {
@@ -85,7 +89,7 @@ function parseTablesFromTypes(source) {
       inRow = false;
       continue;
     }
-    const m = line.match(RE_COLUMN);
+    const m = line.match(RE_COLUMN) ?? line.match(RE_COLUMN_WRAPPED);
     if (m) {
       tables.get(currentTable).add(m[1]);
     }

@@ -15,6 +15,8 @@ export interface SidebarAlerts {
   pedidosCompraPendentes: number;
   nfeEntradaPendentes: number;
   notasSemFormaPagamento: number;
+  suportePendentesAdmin: number;
+  suporteAguardandoResposta: number;
   lastUpdatedAt?: string;
 }
 
@@ -55,6 +57,8 @@ export function useSidebarAlerts(): SidebarAlerts {
       pedidosCompraPendentes: 0,
       nfeEntradaPendentes: 0,
       notasSemFormaPagamento: 0,
+      suportePendentesAdmin: 0,
+      suporteAguardandoResposta: 0,
       lastUpdatedAt: undefined,
     }
   );

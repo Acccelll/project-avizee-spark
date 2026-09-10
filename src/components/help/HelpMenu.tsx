@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig } from 'lucide-react';
+import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig, LifeBuoy, MessageSquareWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { resolveHelpEntry } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
+import { useSidebarAlerts } from '@/hooks/useSidebarAlerts';
 
 interface HelpMenuProps {
   onOpenShortcuts: () => void;
@@ -27,9 +29,10 @@ interface HelpMenuProps {
 export function HelpMenu({ onOpenShortcuts, variant = 'header' }: HelpMenuProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { openDrawer, startTour } = useHelp();
+  const { openDrawer, startTour, openReportDialog } = useHelp();
   const entry = resolveHelpEntry(pathname);
   const hasTour = !!entry?.tour?.length;
+  const { suporteAguardandoResposta } = useSidebarAlerts();
 
   const triggerSize = variant === 'mobile' ? 'h-9 w-9' : 'h-9 w-9';
 
@@ -67,6 +70,17 @@ export function HelpMenu({ onOpenShortcuts, variant = 'header' }: HelpMenuProps)
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/ajuda')}>
           <LibraryBig className="mr-2 h-4 w-4" /> Central de ajuda
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/ajuda/chamados')}>
+          <LifeBuoy className="mr-2 h-4 w-4" /> Meus chamados
+          {suporteAguardandoResposta > 0 && (
+            <Badge variant="secondary" className="ml-auto h-5 min-w-5 justify-center px-1">
+              {suporteAguardandoResposta}
+            </Badge>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openReportDialog()}>
+          <MessageSquareWarning className="mr-2 h-4 w-4" /> Reportar problema
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

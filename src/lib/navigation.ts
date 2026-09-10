@@ -30,6 +30,7 @@ import {
   FileOutput,
   FileInput,
   History,
+  LifeBuoy,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
@@ -257,6 +258,7 @@ export const navSections: NavSection[] = [
           { title: 'Migração de Dados', path: '/migracao-dados', icon: Database, keywords: ['importacao', 'excel', 'csv', 'carga'] },
           { title: 'Auditoria', path: '/auditoria', icon: Shield, keywords: ['logs', 'historico', 'rastreabilidade'] },
           { title: 'Auditoria de Duplicidades', path: '/admin/audit-duplicidades', icon: Shield, keywords: ['financeiro', 'duplicados', 'limpeza', 'lancamentos'] },
+          { title: 'Gestão de chamados', path: '/ajuda/gestao', icon: LifeBuoy, keywords: ['suporte', 'chamados', 'bugs', 'triagem', 'kanban'] },
         ],
       },
     ],
