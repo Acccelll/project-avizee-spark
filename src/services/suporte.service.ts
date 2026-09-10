@@ -229,6 +229,13 @@ export async function listarAdmins(): Promise<AdminOption[]> {
   return (profiles ?? []).map((p) => ({ id: p.id, nome: p.nome ?? p.id }));
 }
 
+/** Todos os usuários com perfil — usado para exibir/filtrar por solicitante na fila administrativa. */
+export async function listarUsuarios(): Promise<AdminOption[]> {
+  const { data, error } = await supabase.from("profiles").select("id, nome").order("nome");
+  if (error) throw error;
+  return (data ?? []).map((p) => ({ id: p.id, nome: p.nome ?? p.id }));
+}
+
 export async function listarFilaChamados(): Promise<SuporteChamado[]> {
   const { data, error } = await supabase
     .from("suporte_chamados")

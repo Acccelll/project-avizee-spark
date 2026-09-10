@@ -82,6 +82,17 @@ export function calculateDaysBetween(startDate: string | Date, endDate: string |
   return Math.floor((endUtc - startUtc) / (1000 * 60 * 60 * 24));
 }
 
+/** Idade desde uma data, no formato compacto do spec de suporte: `18 min`, `1h`, `3h`, `2d`. */
+export function formatIdade(date: string | Date, since: Date = new Date()): string {
+  const start = date instanceof Date ? date : new Date(date);
+  const minutos = Math.max(0, Math.floor((since.getTime() - start.getTime()) / 60_000));
+  if (minutos < 60) return `${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `${horas}h`;
+  const dias = Math.floor(horas / 24);
+  return `${dias}d`;
+}
+
 export function formatPercent(value: number, fractionDigits = 2): string {
   return new Intl.NumberFormat("pt-BR", {
     style: "percent",

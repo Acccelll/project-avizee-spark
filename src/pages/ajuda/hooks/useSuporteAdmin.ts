@@ -7,6 +7,7 @@ import {
   cancelarChamado,
   listarAdmins,
   listarFilaChamados,
+  listarUsuarios,
   resolverChamado,
   triarChamado,
   type SuporteCausa,
@@ -18,6 +19,7 @@ import { SUPORTE_QUERY_KEYS } from "./useSuporteQueries";
 
 const FILA_QUERY_KEY = ["suporte-fila-admin"] as const;
 const ADMINS_QUERY_KEY = ["suporte-admins"] as const;
+const USUARIOS_QUERY_KEY = ["suporte-usuarios"] as const;
 
 export function useFilaChamados() {
   return useQuery({
@@ -31,6 +33,15 @@ export function useAdmins() {
   return useQuery({
     queryKey: ADMINS_QUERY_KEY,
     queryFn: listarAdmins,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Todos os usuários — usado para exibir/filtrar por solicitante na fila administrativa. */
+export function useUsuarios() {
+  return useQuery({
+    queryKey: USUARIOS_QUERY_KEY,
+    queryFn: listarUsuarios,
     staleTime: 5 * 60_000,
   });
 }
