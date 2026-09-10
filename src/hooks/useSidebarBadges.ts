@@ -54,6 +54,7 @@ export function useSidebarBadges(): SidebarBadges {
       '/administracao': { count: alerts.filaEmailDLQ, tone: 'danger' },
       '/pedidos-compra': { count: alerts.pedidosCompraPendentes, tone: 'warning' },
       '/fiscal?tipo=entrada': { count: alerts.nfeEntradaPendentes, tone: 'warning' },
+      '/ajuda/gestao': { count: alerts.suportePendentesAdmin, tone: 'warning' },
     };
 
     const secondsSinceSync = alerts.lastUpdatedAt
