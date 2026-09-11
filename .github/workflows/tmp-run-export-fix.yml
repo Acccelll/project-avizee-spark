@@ -21,14 +21,14 @@ jobs:
         run: |
           python <<'PYRUN'
           from pathlib import Path
-          import textwrap
           raw = Path('.github/workflows/tmp-export-complete-fix.yml').read_text(encoding='utf-8')
           start = "          python <<'PY'\n"
           end = "\n          PY\n\n      - name: Commit patched files"
           if start not in raw or end not in raw:
               raise RuntimeError('Embedded patch markers not found')
           code = raw.split(start, 1)[1].split(end, 1)[0]
-          exec(compile(textwrap.dedent(code), 'tmp-export-patch.py', 'exec'))
+          code = "\n".join(line[10:] if line.startswith("          ") else line for line in code.splitlines())
+          exec(compile(code, 'tmp-export-patch.py', 'exec'))
           PYRUN
       - name: Commit patched files
         shell: bash
