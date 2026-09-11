@@ -4,6 +4,7 @@ import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnD
 import { useCan } from '@/hooks/useCan';
 import type { PermissionKey } from '@/lib/permissions';
 import { logger } from "@/lib/logger";
+import { getExportRowsLoader } from "@/lib/exportRowsRegistry";
 
 /**
  * Hook que encapsula a exportação CSV/XLSX/PDF do DataTable, incluindo
@@ -51,14 +52,18 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         return;
       }
 
+      // A prop explícita tem prioridade. O registry é fallback para módulos
+      // server-paged já padronizados no useSupabaseCrud, evitando que telas
+      // legadas continuem exportando apenas a página corrente.
+      const resolvedLoader = loadRows ?? getExportRowsLoader<T>(titulo);
       const toastId = toast.loading(
-        loadRows
+        resolvedLoader
           ? `Preparando dados completos para ${format.toUpperCase()}...`
           : `Iniciando exportação ${format.toUpperCase()}... 0%`,
       );
 
       try {
-        const sourceRows = loadRows ? await loadRows() : rows;
+        const sourceRows = resolvedLoader ? await resolvedLoader() : rows;
         if (sourceRows.length === 0) {
           toast.warning('Nenhum dado para exportar.', { id: toastId });
           return;
@@ -95,8 +100,10 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         toast.success('Exportação PDF concluída', { id: toastId });
       } catch (error) {
         logger.error('Erro ao exportar dados', error);
+        const description = error instanceof Error ? error.message : undefined;
         toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
           id: toastId,
+          description,
           action: { label: 'Tentar novamente', onClick: () => { void exportData(format); } },
         });
       }
