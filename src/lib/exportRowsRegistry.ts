@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 type ExportRowsLoader<T = unknown> = () => Promise<T[]>;
 
 const loaders = new Map<string, ExportRowsLoader>();
@@ -20,6 +22,17 @@ export function registerExportRowsLoader<T>(key: string, loader: ExportRowsLoade
       loaders.delete(normalized);
     }
   };
+}
+
+/** Mantém o loader mais recente sem recriar o registro a cada render. */
+export function useRegisterExportRowsLoader<T>(key: string, loader: ExportRowsLoader<T>) {
+  const loaderRef = useRef(loader);
+  loaderRef.current = loader;
+
+  useEffect(() => {
+    const stableLoader: ExportRowsLoader<T> = () => loaderRef.current();
+    return registerExportRowsLoader(key, stableLoader);
+  }, [key]);
 }
 
 export function getExportRowsLoader<T>(key: string): ExportRowsLoader<T> | undefined {
