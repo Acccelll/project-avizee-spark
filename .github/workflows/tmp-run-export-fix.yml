@@ -26,8 +26,17 @@ jobs:
           end = "\n          PY\n\n      - name: Commit patched files"
           if start not in raw or end not in raw:
               raise RuntimeError('Embedded patch markers not found')
-          code = raw.split(start, 1)[1].split(end, 1)[0]
-          code = "\n".join(line[10:] if line.startswith("          ") else line for line in code.splitlines())
+          block = raw.split(start, 1)[1].split(end, 1)[0]
+          out = []
+          in_triple = False
+          for raw_line in block.splitlines():
+              line = raw_line
+              if not in_triple and line.startswith("          "):
+                  line = line[10:]
+              out.append(line)
+              if line.count("'''") % 2 == 1:
+                  in_triple = not in_triple
+          code = "\n".join(out)
           exec(compile(code, 'tmp-export-patch.py', 'exec'))
           PYRUN
       - name: Commit patched files
