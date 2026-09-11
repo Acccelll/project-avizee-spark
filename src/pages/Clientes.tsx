@@ -255,6 +255,7 @@ const Clientes = () => {
     update,
     remove,
     fetchData,
+    fetchAllRows,
     page,
     setPage,
     totalCount,
@@ -708,6 +709,7 @@ const Clientes = () => {
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
             mobileLabeledDetails
+            exportRows={fetchAllRows}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}

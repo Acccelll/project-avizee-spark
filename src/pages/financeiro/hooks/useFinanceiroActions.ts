@@ -16,13 +16,14 @@ type LancamentoWritePayload = Partial<Lancamento>;
 
 interface Params {
   filteredData: Lancamento[];
+  loadAllRows?: () => Promise<Lancamento[]>;
   getLancamentoStatus: (l: Lancamento) => string;
   create: (payload: LancamentoWritePayload) => Promise<Lancamento>;
   update: (id: string, payload: LancamentoWritePayload) => Promise<Lancamento>;
   fetchData: () => Promise<void>;
 }
 
-export function useFinanceiroActions({ filteredData, getLancamentoStatus, create, update, fetchData }: Params) {
+export function useFinanceiroActions({ filteredData, loadAllRows, getLancamentoStatus, create, update, fetchData }: Params) {
   const [saving, setSaving] = useState(false);
   const [estornoTarget, setEstornoTarget] = useState<Lancamento | null>(null);
   const [estornoProcessing, setEstornoProcessing] = useState(false);
@@ -193,7 +194,11 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
 
   const handleExportar = useCallback(
     async (formato: "excel" | "pdf", subset?: Lancamento[]) => {
-      const source = subset && subset.length > 0 ? subset : filteredData;
+      const source = subset && subset.length > 0
+        ? subset
+        : loadAllRows
+          ? await loadAllRows()
+          : filteredData;
       const rows = source.map((item) => ({
         Tipo: item.tipo === "receber" ? "A Receber" : "A Pagar",
         Descrição: item.descricao,
@@ -213,7 +218,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
       if (formato === "excel") await exportarParaExcel(opts);
       else await exportarParaPdf(opts);
     },
-    [filteredData, getLancamentoStatus],
+    [filteredData, loadAllRows, getLancamentoStatus],
   );
 
   return {
