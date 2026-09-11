@@ -64,10 +64,10 @@ describe("useDataTableExport", () => {
     expect(loadRows).toHaveBeenCalledTimes(1);
     expect(mocks.exportCsv).toHaveBeenCalledWith({
       titulo: "clientes",
-      rows: [
-        { ID: "1", Nome: "Cliente 1" },
-        { ID: "51", Nome: "Cliente 51" },
-        { ID: "101", Nome: "Cliente 101" },
+      rows: allFilteredRows,
+      columns: [
+        { key: "id", label: "ID" },
+        { key: "nome", label: "Nome" },
       ],
     });
   });
