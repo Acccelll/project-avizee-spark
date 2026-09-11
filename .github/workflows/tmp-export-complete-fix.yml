@@ -1,0 +1,619 @@
+name: Temporary complete export patch
+
+on:
+  push:
+    branches:
+      - fix/export-relatorios-filtros-completos
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[tmp-export-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/export-relatorios-filtros-completos
+          fetch-depth: 0
+
+      - name: Apply surgical export fixes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          def load(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def save(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(path, old, new):
+              text = load(path)
+              if new in text:
+                  return
+              if old not in text:
+                  raise RuntimeError(f'Pattern not found in {path}: {old[:120]!r}')
+              save(path, text.replace(old, new, 1))
+
+          def regex_once(path, pattern, repl, flags=0):
+              text = load(path)
+              new_text, count = re.subn(pattern, repl, text, count=1, flags=flags)
+              if count != 1:
+                  raise RuntimeError(f'Regex matched {count} times in {path}: {pattern}')
+              save(path, new_text)
+
+          # 1) Remove the abandoned hidden registry approach. Explicit exportRows only.
+          p = Path('src/hooks/useSupabaseCrud.ts')
+          text = load(p)
+          text = text.replace('import { useRegisterExportRowsLoader } from "@/lib/exportRowsRegistry";\n', '')
+          text = text.replace('\n  useRegisterExportRowsLoader(table, fetchAllRows);\n', '\n')
+          save(p, text)
+          registry = Path('src/lib/exportRowsRegistry.ts')
+          if registry.exists():
+              registry.unlink()
+
+          # 2) Explicitly wire generic server-paged CRUD pages.
+          for path in [
+              'src/pages/Clientes.tsx',
+              'src/pages/Fornecedores.tsx',
+              'src/pages/Transportadoras.tsx',
+              'src/pages/GruposEconomicos.tsx',
+          ]:
+              text = load(path)
+              m = re.search(r'(?m)^(\s*)fetchData,\n\1page,', text)
+              if not m:
+                  raise RuntimeError(f'fetchData/page destructure not found: {path}')
+              indent = m.group(1)
+              text = text[:m.start()] + f'{indent}fetchData,\n{indent}fetchAllRows,\n{indent}page,' + text[m.end():]
+              m = re.search(r'(?m)^(\s*)serverPagination=\{\{', text)
+              if not m:
+                  raise RuntimeError(f'serverPagination not found: {path}')
+              indent = m.group(1)
+              text = text[:m.start()] + f'{indent}exportRows={{fetchAllRows}}\n{indent}serverPagination={{{{' + text[m.end():]
+              save(path, text)
+
+          # 3) Produtos: same full loader, plus exact client-side filters/dedupe/display mapping.
+          path = 'src/pages/Produtos.tsx'
+          text = load(path)
+          text = text.replace('import { useEffect, useMemo, useState } from "react";', 'import { useCallback, useEffect, useMemo, useState } from "react";', 1)
+          m = re.search(r'(?m)^(\s*)fetchData,\n\1page,', text)
+          if not m:
+              raise RuntimeError('Produtos fetchData/page destructure not found')
+          indent = m.group(1)
+          text = text[:m.start()] + f'{indent}fetchData,\n{indent}fetchAllRows,\n{indent}page,' + text[m.end():]
+          old = '''  const filteredData = useMemo(() => {
+    const needsClientFilter = hasEstoqueFilter || hasSemGrupoFilter;
+    const filtered = needsClientFilter
+      ? data.filter((p) => {
+          if (hasEstoqueFilter) {
+            const situacao = getSituacaoEstoque(p);
+            if (!estoqueFilters.includes(situacao)) return false;
+          }
+          if (hasSemGrupoFilter) {
+            if (!grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
+          }
+          return true;
+        })
+      : data;
+    return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
+      ...produto,
+      display_codigo: getProdutoDisplayCodigo(produto),
+      display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
+    }));
+  }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);'''
+          new = '''  const prepareProdutoRows = useCallback((source: Produto[]): ProdutoTableRow[] => {
+    const needsClientFilter = hasEstoqueFilter || hasSemGrupoFilter;
+    const filtered = needsClientFilter
+      ? source.filter((p) => {
+          if (hasEstoqueFilter) {
+            const situacao = getSituacaoEstoque(p);
+            if (!estoqueFilters.includes(situacao)) return false;
+          }
+          if (hasSemGrupoFilter) {
+            if (!grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
+          }
+          return true;
+        })
+      : source;
+    return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
+      ...produto,
+      display_codigo: getProdutoDisplayCodigo(produto),
+      display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
+    }));
+  }, [hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
+
+  const filteredData = useMemo(() => prepareProdutoRows(data), [data, prepareProdutoRows]);'''
+          if old not in text:
+              raise RuntimeError('Produtos filteredData block not found')
+          text = text.replace(old, new, 1)
+          needle = '            mobileStatusKey="ativo"\n            serverPagination={{ page, setPage, totalCount, hasMore }}'
+          repl = '            mobileStatusKey="ativo"\n            exportRows={async () => prepareProdutoRows(await fetchAllRows())}\n            serverPagination={{ page, setPage, totalCount, hasMore }}'
+          if needle not in text:
+              raise RuntimeError('Produtos DataTable serverPagination block not found')
+          text = text.replace(needle, repl, 1)
+          save(path, text)
+
+          # 4) Fiscal explicit export loader.
+          path = 'src/pages/fiscal/components/FiscalNotasTable.tsx'
+          text = load(path)
+          text = text.replace('  totalCount: number;\n', '  totalCount: number;\n  exportRows: () => Promise<NotaFiscal[]>;\n', 1)
+          text = text.replace('    page, setPage, pageSize, totalCount,\n', '    page, setPage, pageSize, totalCount, exportRows,\n', 1)
+          text = text.replace('        pageSize={pageSize}\n        serverPagination=', '        pageSize={pageSize}\n        exportRows={exportRows}\n        serverPagination=', 1)
+          save(path, text)
+
+          path = 'src/pages/Fiscal.tsx'
+          text = load(path)
+          old = '    refetch: refetchPaged,\n  } = useNotasFiscaisPaged'
+          new = '    refetch: refetchPaged,\n    fetchAllRows,\n  } = useNotasFiscaisPaged'
+          if old not in text:
+              raise RuntimeError('Fiscal hook destructure not found')
+          text = text.replace(old, new, 1)
+          old = '          data={data}\n          loading={loading}'
+          new = '          data={data}\n          loading={loading}\n          exportRows={fetchAllRows}'
+          if old not in text:
+              raise RuntimeError('FiscalNotasTable call not found')
+          text = text.replace(old, new, 1)
+          save(path, text)
+
+          # 5) Financeiro paged hook: factor page loader and full export loader.
+          path = 'src/pages/financeiro/hooks/useFinanceiroLancamentosPaged.ts'
+          text = load(path)
+          text = text.replace('import { useEffect } from "react";', 'import { useCallback, useEffect } from "react";', 1)
+          text = text.replace('const DEFAULT_PAGE_SIZE = 50;\n', 'const DEFAULT_PAGE_SIZE = 50;\nconst EXPORT_PAGE_SIZE = 500;\nconst EXPORT_HARD_CAP = 50000;\n', 1)
+          pattern = r'''  const query = useQuery<PageResult>\(\{.*?\n  \}\);\n\n  // Invalidação centralizada'''
+          replacement = '''  const loadPage = useCallback(async (
+    offset: number,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<PageResult> => {
+    const orderBy = sort?.key ?? "data_vencimento";
+    const ascending = sort?.dir === "asc";
+    const { ids, totalCount } = await listarFinanceiroLancamentosIds({
+      dateFrom: filters.dateFrom ?? null,
+      dateTo: filters.dateTo ?? null,
+      tipos: filters.tipos ?? null,
+      status: filters.status ?? null,
+      bancos: filters.bancos ?? null,
+      origens: filters.origens ?? null,
+      formas: filters.formas ?? null,
+      cartoes: filters.cartoes ?? null,
+      search: filters.search ?? null,
+      orderBy,
+      ascending,
+      offset,
+      limit,
+    });
+    if (ids.length === 0) return { rows: [], totalCount };
+
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select(SELECT_RELATIONAL)
+      .in("id", ids);
+    if (signal) q = q.abortSignal(signal);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+
+    const byId = new Map<string, Lancamento>();
+    (rows as Lancamento[] | null)?.forEach((r) => byId.set(r.id, r));
+    const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Lancamento[];
+    return { rows: ordered, totalCount };
+  }, [filters, sort?.key, sort?.dir]);
+
+  const query = useQuery<PageResult>({
+    queryKey,
+    queryFn: async ({ signal }) => loadPage(page * pageSize, pageSize, signal),
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+  });
+
+  const fetchAllRows = useCallback(async (): Promise<Lancamento[]> => {
+    const all: Lancamento[] = [];
+    let offset = 0;
+
+    // Sob demanda para exportação: não altera página/caches da UI.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = await loadPage(offset, EXPORT_PAGE_SIZE);
+      if (result.totalCount > EXPORT_HARD_CAP) {
+        throw new Error(
+          `A exportação excede o limite seguro de ${EXPORT_HARD_CAP.toLocaleString("pt-BR")} lançamentos. Aplique filtros mais específicos e tente novamente.`,
+        );
+      }
+      all.push(...result.rows);
+      if (all.length >= result.totalCount || result.rows.length < EXPORT_PAGE_SIZE) break;
+      offset += EXPORT_PAGE_SIZE;
+    }
+    return all;
+  }, [loadPage]);
+
+  // Invalidação centralizada'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError(f'Financeiro paged query block matched {count}')
+          text = text.replace('    refetch,\n    isError:', '    refetch,\n    fetchAllRows,\n    isError:', 1)
+          save(path, text)
+
+          # Financeiro custom export preserves explicit subsets and otherwise loads all filtered rows.
+          path = 'src/pages/financeiro/hooks/useFinanceiroActions.ts'
+          text = load(path)
+          text = text.replace('  filteredData: Lancamento[];\n', '  filteredData: Lancamento[];\n  loadAllRows?: () => Promise<Lancamento[]>;\n', 1)
+          text = text.replace('export function useFinanceiroActions({ filteredData, getLancamentoStatus, create, update, fetchData }: Params)', 'export function useFinanceiroActions({ filteredData, loadAllRows, getLancamentoStatus, create, update, fetchData }: Params)', 1)
+          text = text.replace('      const source = subset && subset.length > 0 ? subset : filteredData;', '      const source = subset && subset.length > 0\n        ? subset\n        : loadAllRows\n          ? await loadAllRows()\n          : filteredData;', 1)
+          text = text.replace('[filteredData, getLancamentoStatus],', '[filteredData, loadAllRows, getLancamentoStatus],', 1)
+          save(path, text)
+
+          path = 'src/pages/Financeiro.tsx'
+          text = load(path)
+          text = text.replace('const { data, totalCount, loading, refetch: refetchPaged, isError, error: queryError } = useFinanceiroLancamentosPaged(', 'const { data, totalCount, loading, refetch: refetchPaged, fetchAllRows, isError, error: queryError } = useFinanceiroLancamentosPaged(', 1)
+          text = text.replace('useFinanceiroActions({ filteredData: data, getLancamentoStatus, create, update, fetchData });', 'useFinanceiroActions({ filteredData: data, loadAllRows: fetchAllRows, getLancamentoStatus, create, update, fetchData });', 1)
+          old = '              selectable\n              serverPagination={{'
+          new = '              selectable\n              exportRows={fetchAllRows}\n              serverPagination={{'
+          if old not in text:
+              raise RuntimeError('Financeiro DataTable selectable/serverPagination not found')
+          text = text.replace(old, new, 1)
+          save(path, text)
+
+          # 6) Auditoria full server-filtered loader.
+          path = 'src/pages/admin/hooks/useAdminAuditUnificada.ts'
+          text = load(path)
+          text = text.replace('import type { Criticality } from "@/lib/audit/metadata";\n', 'import type { Criticality } from "@/lib/audit/metadata";\nimport { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";\n', 1)
+          marker = '  const totalPages = Math.max(1, Math.ceil((query.data?.count ?? 0) / pageSize));\n'
+          fetch_all = '''  const fetchAllRows = async (): Promise<AdminAuditRow[]> => {
+    let truncatedAt: number | null = null;
+    const result = await fetchAllPages<AdminAuditRow>(
+      () => {
+        let q = supabase
+          .from("v_admin_audit_unified")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (filtros.dateFrom) q = q.gte("created_at", filtros.dateFrom);
+        if (filtros.origem) q = q.eq("origem", filtros.origem);
+        if (filtros.tipoAcao) q = q.eq("tipo_acao", filtros.tipoAcao);
+        if (filtros.entidade) q = q.eq("entidade", filtros.entidade);
+        if (filtros.atorId) q = q.eq("ator_id", filtros.atorId);
+        if (filtros.targetUserId) q = q.eq("target_user_id", filtros.targetUserId);
+        if (filtros.ipAddress) q = q.eq("ip_address", filtros.ipAddress);
+        if (filtros.registroId) q = q.eq("entidade_id", filtros.registroId);
+
+        const crit = filtros.criticidade && filtros.criticidade !== "todas" ? filtros.criticidade : null;
+        if (crit === "alta") {
+          q = q.or(`tipo_acao.in.${csv(HIGH_ACOES)},entidade.in.${csv(SENSITIVE_ENTIDADES)}`);
+        } else if (crit === "media") {
+          q = q
+            .in("tipo_acao", MEDIUM_ACOES)
+            .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+        } else if (crit === "baixa") {
+          q = q
+            .not("tipo_acao", "in", csv([...HIGH_ACOES, ...MEDIUM_ACOES]))
+            .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+        }
+        return q;
+      },
+      { onTruncated: (limit) => { truncatedAt = limit; } },
+    );
+    if (truncatedAt !== null) {
+      throw new Error(
+        `A exportação excede o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} eventos. Aplique filtros mais específicos e tente novamente.`,
+      );
+    }
+    return result;
+  };
+
+'''
+          if marker not in text:
+              raise RuntimeError('Auditoria totalPages marker not found')
+          text = text.replace(marker, fetch_all + marker, 1)
+          text = text.replace('    totalPages,\n  };', '    totalPages,\n    fetchAllRows,\n  };', 1)
+          save(path, text)
+
+          # Auditoria UI/custom export: full scope + full text-search for exports.
+          path = 'src/pages/Auditoria.tsx'
+          text = load(path)
+          text = text.replace(' * e exportação Excel/PDF dos eventos da página atual.', ' * e exportação Excel/PDF de todo o conjunto que atende aos filtros ativos.', 1)
+          text = text.replace('import { useEffect, useMemo, useState } from "react";\n', 'import { useEffect, useMemo, useState } from "react";\nimport { toast } from "sonner";\n', 1)
+          text = text.replace('const { rows, totalCount, totalPages, isLoading, isFetching } =\n    useAdminAuditUnificada', 'const { rows, totalCount, totalPages, isLoading, isFetching, fetchAllRows } =\n    useAdminAuditUnificada', 1)
+          pattern = r'''  // Filtro client-side: apenas busca textual sobre a página atual\..*?\n  \}, \[rows, searchTerm, profileMap\]\);'''
+          replacement = '''  // A tabela mantém a busca textual client-side por página para não ampliar o
+  // custo normal de navegação. A exportação reutiliza a mesma função sobre o
+  // conjunto completo carregado sob demanda.
+  const filterRowsBySearch = (sourceRows: AdminAuditRow[]) => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return sourceRows;
+    return sourceRows.filter((r) => {
+      const ator = getProfile(r.ator_id);
+      const alvo = getProfile(r.target_user_id);
+      const meta = getTableMeta(r.entidade);
+      const hay = [
+        r.tipo_acao,
+        r.entidade,
+        r.entidade_id,
+        r.ip_address,
+        r.motivo,
+        ator?.nome,
+        ator?.email,
+        alvo?.nome,
+        alvo?.email,
+        meta.modulo,
+        meta.entidade,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  };
+
+  const visibleRows = useMemo(
+    () => filterRowsBySearch(rows),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helper usa apenas searchTerm/profileMap do mesmo render
+    [rows, searchTerm, profileMap],
+  );'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError(f'Auditoria visibleRows block matched {count}')
+          text = text.replace('  // Exportações (sobre a página atual)\n', '  // Exportações sobre todo o universo filtrado (busca textual incluída).\n', 1)
+          text = text.replace('  function rowsForExport() {\n    return visibleRows.map((r) => {', '  function rowsForExport(sourceRows: AdminAuditRow[]) {\n    return filterRowsBySearch(sourceRows).map((r) => {', 1)
+          old = '''  async function handleExportarExcel() {
+    setExporting(true);
+    try {
+      await exportarParaExcel({
+        titulo: "auditoria-trilha-unificada",
+        rows: rowsForExport(),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+  async function handleExportarPdf() {
+    setExporting(true);
+    try {
+      await exportarParaPdf({
+        titulo: "Trilha de Auditoria",
+        rows: rowsForExport(),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }'''
+          new = '''  async function handleExportarExcel() {
+    setExporting(true);
+    try {
+      const allRows = await fetchAllRows();
+      await exportarParaExcel({
+        titulo: "auditoria-trilha-unificada",
+        rows: rowsForExport(allRows),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao exportar auditoria.");
+    } finally {
+      setExporting(false);
+    }
+  }
+  async function handleExportarPdf() {
+    setExporting(true);
+    try {
+      const allRows = await fetchAllRows();
+      await exportarParaPdf({
+        titulo: "Trilha de Auditoria",
+        rows: rowsForExport(allRows),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao exportar auditoria.");
+    } finally {
+      setExporting(false);
+    }
+  }'''
+          if old not in text:
+              raise RuntimeError('Auditoria export handlers not found')
+          text = text.replace(old, new, 1)
+          text = text.replace('disabled={exporting || visibleRows.length === 0}', 'disabled={exporting || totalCount === 0}')
+          old = '''                  A exportação inclui apenas os {visibleRows.length} registros desta página
+                  (pág. {page} de {totalPages}). Para exportar mais, navegue pelas páginas ou amplie o período.'''
+          new = '''                  A exportação inclui todos os eventos que atendem aos filtros e à busca textual,
+                  independentemente da página atual.'''
+          if old not in text:
+              raise RuntimeError('Auditoria scope tooltip text not found')
+          text = text.replace(old, new, 1)
+          old = '''              A busca textual cobre apenas esta página ({ADMIN_AUDIT_PAGE_SIZE} eventos).
+              Para buscar em todo o histórico, use os filtros estruturados de Ator, Entidade, IP ou ID do registro.'''
+          new = '''              Na tabela, a busca textual cobre apenas esta página ({ADMIN_AUDIT_PAGE_SIZE} eventos).
+              A exportação reaplica essa busca em todos os eventos que atendem aos filtros estruturados.'''
+          if old not in text:
+              raise RuntimeError('Auditoria search scope text not found')
+          text = text.replace(old, new, 1)
+          needle = '          moduleKey="auditoria"\n          mobileStatusKey="criticidade"'
+          repl = '          moduleKey="auditoria"\n          exportRows={async () => filterRowsBySearch(await fetchAllRows())}\n          mobileStatusKey="criticidade"'
+          if needle not in text:
+              raise RuntimeError('Auditoria DataTable moduleKey block not found')
+          text = text.replace(needle, repl, 1)
+          save(path, text)
+
+          # 7) Conciliação Bancária: fetch all pages on both axes.
+          path = 'src/services/financeiro/conciliacaoLoaders.service.ts'
+          text = load(path)
+          text = text.replace('import type { Lancamento } from "@/types/domain";\n', 'import type { Lancamento } from "@/types/domain";\nimport { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";\n', 1)
+          pattern = r'''export async function fetchLancamentosParaConciliacao\(.*?\n\}\n$'''
+          replacement = '''export async function fetchLancamentosParaConciliacao(
+  contaId: string | null,
+  dataInicio: string,
+  dataFim: string,
+): Promise<Array<Lancamento & { data_baixa?: string | null }>> {
+  let truncated = false;
+  const completeOptions = {
+    onTruncated: () => { truncated = true; },
+  };
+
+  const porBaixa = await fetchAllPages(() => {
+    let q = supabase
+      .from("financeiro_baixas")
+      .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${LANC_SELECT})`)
+      .is("estornada_em", null)
+      .gte("data_baixa", dataInicio)
+      .lte("data_baixa", dataFim)
+      .order("data_baixa", { ascending: true });
+    if (contaId) q = q.eq("conta_bancaria_id", contaId);
+    return q;
+  }, completeOptions);
+
+  if (truncated) {
+    throw new Error(`A conciliação excedeu ${REPORT_HARD_CAP.toLocaleString("pt-BR")} baixas. Refine o período.`);
+  }
+
+  const porVencimento = await fetchAllPages(() => {
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select(LANC_SELECT)
+      .eq("ativo", true)
+      .in("status", ["aberto", "parcial"])
+      .lte("data_vencimento", dataFim)
+      .order("data_vencimento", { ascending: true });
+    if (contaId) {
+      q = q.or(`conta_bancaria_id.eq.${contaId},conta_bancaria_id.is.null`);
+    }
+    return q;
+  }, completeOptions);
+
+  if (truncated) {
+    throw new Error(`A conciliação excedeu ${REPORT_HARD_CAP.toLocaleString("pt-BR")} lançamentos. Refine os filtros.`);
+  }
+
+  const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
+  ((porBaixa as Array<{
+    lancamento_id: string;
+    data_baixa: string;
+    financeiro_lancamentos: Lancamento;
+  }>) || []).forEach((row) => {
+    if (!row.financeiro_lancamentos) return;
+    merged.set(row.lancamento_id, { ...row.financeiro_lancamentos, data_baixa: row.data_baixa });
+  });
+  ((porVencimento as unknown as Lancamento[]) || []).forEach((l) => {
+    if (!merged.has(l.id)) merged.set(l.id, l);
+  });
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const da = a.data_vencimento ?? "";
+    const db = b.data_vencimento ?? "";
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+}
+'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError(f'Conciliação loader function matched {count}')
+          save(path, text)
+
+          # 8) Fluxo de Caixa: no implicit 1000-row cap for launches/bank accounts/settlements.
+          path = 'src/hooks/useFluxoCaixaData.ts'
+          text = load(path)
+          text = text.replace('import type { Lancamento, ContaBancaria } from "@/types/domain";\n', 'import type { Lancamento, ContaBancaria } from "@/types/domain";\nimport { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";\n', 1)
+          pattern = r'''      const \[\{ data: lancs \}, \{ data: contas \}, \{ data: baixasRaw \}\] = await Promise\.all\(\[.*?\n      \]\);'''
+          replacement = '''      const failOnTruncate = (label: string) => ({
+        onTruncated: () => {
+          throw new Error(
+            `${label} excedeu o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} registros. Refine o período.`,
+          );
+        },
+      });
+
+      const [lancs, contas, baixasRaw] = await Promise.all([
+        fetchAllPages(
+          () => supabase
+            .from("financeiro_lancamentos")
+            .select(
+              "id, tipo, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))",
+            )
+            .eq("ativo", true)
+            .gte("data_vencimento", dataInicio)
+            .lte("data_vencimento", dataFim),
+          failOnTruncate("Fluxo de caixa"),
+        ),
+        fetchAllPages(
+          () => supabase
+            .from("contas_bancarias")
+            .select("*, bancos(nome)")
+            .eq("ativo", true),
+          failOnTruncate("Contas bancárias"),
+        ),
+        fetchAllPages(
+          () => supabase
+            .from("financeiro_baixas")
+            .select(
+              "id, lancamento_id, data_baixa, valor_pago, conta_bancaria_id, financeiro_lancamentos!inner(tipo)",
+            )
+            .is("estornada_em", null)
+            .gte("data_baixa", dataInicio)
+            .lte("data_baixa", dataFim),
+          failOnTruncate("Baixas do fluxo de caixa"),
+        ),
+      ]);'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError(f'Fluxo Caixa Promise.all block matched {count}')
+          text = text.replace('const baixas: BaixaFluxo[] = ((baixasRaw as BaixaJoinRow[] | null) ?? []).map', 'const baixas: BaixaFluxo[] = ((baixasRaw as unknown as BaixaJoinRow[]) ?? []).map', 1)
+          text = text.replace('lancamentos: (lancs as Lancamento[]) ?? [],', 'lancamentos: (lancs as unknown as Lancamento[]) ?? [],', 1)
+          text = text.replace('contasBancarias: (contas as ContaBancaria[]) ?? [],', 'contasBancarias: (contas as unknown as ContaBancaria[]) ?? [],', 1)
+          save(path, text)
+
+          # 9) Conciliação de Cartão: remove arbitrary 200 cap and fetch all filtered invoices.
+          path = 'src/pages/financeiro/ConciliacaoCartao.tsx'
+          text = load(path)
+          text = text.replace('import { exportarParaExcel } from "@/services/export.service";\n', 'import { exportarParaExcel } from "@/services/export.service";\nimport { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";\n', 1)
+          old = '''    queryFn: async () => {
+      let q = supabase
+        .from("cartao_faturas")
+        .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
+        .order("data_vencimento", { ascending: false })
+        .limit(200);
+      if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
+      if (inicio) q = q.gte("data_vencimento", inicio);
+      if (fim) q = q.lte("data_vencimento", fim);
+      if (statusFilters.length > 0) q = q.in("status", statusFilters);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as FaturaRow[];
+    },'''
+          new = '''    queryFn: async () => {
+      let truncated = false;
+      const data = await fetchAllPages(() => {
+        let q = supabase
+          .from("cartao_faturas")
+          .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
+          .order("data_vencimento", { ascending: false });
+        if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
+        if (inicio) q = q.gte("data_vencimento", inicio);
+        if (fim) q = q.lte("data_vencimento", fim);
+        if (statusFilters.length > 0) q = q.in("status", statusFilters);
+        return q;
+      }, { onTruncated: () => { truncated = true; } });
+      if (truncated) {
+        throw new Error(
+          `A consulta excedeu o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} faturas. Refine os filtros.`,
+        );
+      }
+      return data as unknown as FaturaRow[];
+    },'''
+          if old not in text:
+              raise RuntimeError('ConciliacaoCartao faturas query block not found')
+          text = text.replace(old, new, 1)
+          save(path, text)
+
+          print('Temporary patch completed successfully')
+          PY
+
+      - name: Commit patched files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix(export): completar fontes filtradas [tmp-export-fix]"
+          git push origin HEAD:fix/export-relatorios-filtros-completos
