@@ -37,6 +37,8 @@ jobs:
               if line.count("'''") % 2 == 1:
                   in_triple = not in_triple
           code = "\n".join(out)
+          conciliacao = Path('src/services/financeiro/conciliacaoLoaders.service.ts')
+          conciliacao.write_text(conciliacao.read_text(encoding='utf-8').rstrip() + "\n", encoding='utf-8')
           exec(compile(code, 'tmp-export-patch.py', 'exec'))
           PYRUN
       - name: Commit patched files
