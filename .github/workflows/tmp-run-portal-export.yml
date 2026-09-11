@@ -1,0 +1,21 @@
+name: Run temporary Portal export patch
+on:
+  push:
+    branches: [fix/export-relatorios-filtros-completos]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/export-relatorios-filtros-completos
+      - run: python scripts/tmp_portal_export_fix.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/services/fiscal/portal.service.ts src/pages/fiscal/PortalFiscal.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(export): completar CSV do Portal Fiscal [tmp-portal-export]"
+          git push origin HEAD:fix/export-relatorios-filtros-completos
