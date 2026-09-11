@@ -217,6 +217,7 @@ const Fiscal = () => {
     totalCount,
     loading,
     refetch: refetchPaged,
+    fetchAllRows,
   } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE, { orderBy: sortKey, ascending: sortAsc });
 
   // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
@@ -398,6 +399,7 @@ const Fiscal = () => {
           columns={columns}
           data={data}
           loading={loading}
+          exportRows={fetchAllRows}
           page={page}
           setPage={setPage}
           pageSize={PAGE_SIZE}

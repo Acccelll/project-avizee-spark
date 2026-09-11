@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
+import { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";
 
 /**
  * Baixa enriquecida com `tipo` e `conta_bancaria_id` do lançamento pai.
@@ -43,29 +44,46 @@ export function useFluxoCaixaData(dataInicio: string, dataFim: string) {
   return useQuery<FluxoCaixaData>({
     queryKey: ["fluxo-caixa", dataInicio, dataFim],
     queryFn: async () => {
-      const [{ data: lancs }, { data: contas }, { data: baixasRaw }] = await Promise.all([
-        supabase
-          .from("financeiro_lancamentos")
-          .select(
-            "id, tipo, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))",
-          )
-          .eq("ativo", true)
-          .gte("data_vencimento", dataInicio)
-          .lte("data_vencimento", dataFim),
-        supabase
-          .from("contas_bancarias")
-          .select("*, bancos(nome)")
-          .eq("ativo", true),
-        supabase
-          .from("financeiro_baixas")
-          .select(
-            "id, lancamento_id, data_baixa, valor_pago, conta_bancaria_id, financeiro_lancamentos!inner(tipo)",
-          )
-          .is("estornada_em", null)
-          .gte("data_baixa", dataInicio)
-          .lte("data_baixa", dataFim),
+      const failOnTruncate = (label: string) => ({
+        onTruncated: () => {
+          throw new Error(
+            `${label} excedeu o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} registros. Refine o período.`,
+          );
+        },
+      });
+
+      const [lancs, contas, baixasRaw] = await Promise.all([
+        fetchAllPages(
+          () => supabase
+            .from("financeiro_lancamentos")
+            .select(
+              "id, tipo, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))",
+            )
+            .eq("ativo", true)
+            .gte("data_vencimento", dataInicio)
+            .lte("data_vencimento", dataFim),
+          failOnTruncate("Fluxo de caixa"),
+        ),
+        fetchAllPages(
+          () => supabase
+            .from("contas_bancarias")
+            .select("*, bancos(nome)")
+            .eq("ativo", true),
+          failOnTruncate("Contas bancárias"),
+        ),
+        fetchAllPages(
+          () => supabase
+            .from("financeiro_baixas")
+            .select(
+              "id, lancamento_id, data_baixa, valor_pago, conta_bancaria_id, financeiro_lancamentos!inner(tipo)",
+            )
+            .is("estornada_em", null)
+            .gte("data_baixa", dataInicio)
+            .lte("data_baixa", dataFim),
+          failOnTruncate("Baixas do fluxo de caixa"),
+        ),
       ]);
-      const baixas: BaixaFluxo[] = ((baixasRaw as BaixaJoinRow[] | null) ?? []).map((b) => ({
+      const baixas: BaixaFluxo[] = ((baixasRaw as unknown as BaixaJoinRow[]) ?? []).map((b) => ({
         id: b.id,
         lancamento_id: b.lancamento_id,
         data_baixa: b.data_baixa,
@@ -74,8 +92,8 @@ export function useFluxoCaixaData(dataInicio: string, dataFim: string) {
         conta_bancaria_id: b.conta_bancaria_id ?? null,
       }));
       return {
-        lancamentos: (lancs as Lancamento[]) ?? [],
-        contasBancarias: (contas as ContaBancaria[]) ?? [],
+        lancamentos: (lancs as unknown as Lancamento[]) ?? [],
+        contasBancarias: (contas as unknown as ContaBancaria[]) ?? [],
         baixas,
       };
     },

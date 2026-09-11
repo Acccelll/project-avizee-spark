@@ -5,7 +5,6 @@ import { fromUntyped } from "@/lib/supabase/fromUntyped";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
-import { useRegisterExportRowsLoader } from "@/lib/exportRowsRegistry";
 
 type Primitive = string | number | boolean;
 
@@ -285,7 +284,6 @@ export function useSupabaseCrud<R = any>({
     return all;
   };
 
-  useRegisterExportRowsLoader(table, fetchAllRows);
 
   const queryResult = useQuery({
     queryKey,

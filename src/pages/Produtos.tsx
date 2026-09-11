@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -161,6 +161,7 @@ const Produtos = () => {
     error: queryError,
     remove,
     fetchData,
+    fetchAllRows,
     page,
     setPage,
     totalCount,
@@ -230,10 +231,10 @@ const Produtos = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot
   }, [location.search, location.state]);
 
-  const filteredData = useMemo(() => {
+  const prepareProdutoRows = useCallback((source: Produto[]): ProdutoTableRow[] => {
     const needsClientFilter = hasEstoqueFilter || hasSemGrupoFilter;
     const filtered = needsClientFilter
-      ? data.filter((p) => {
+      ? source.filter((p) => {
           if (hasEstoqueFilter) {
             const situacao = getSituacaoEstoque(p);
             if (!estoqueFilters.includes(situacao)) return false;
@@ -243,13 +244,15 @@ const Produtos = () => {
           }
           return true;
         })
-      : data;
+      : source;
     return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
       ...produto,
       display_codigo: getProdutoDisplayCodigo(produto),
       display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
     }));
-  }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
+  }, [hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
+
+  const filteredData = useMemo(() => prepareProdutoRows(data), [data, prepareProdutoRows]);
 
   const columns = [
     { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
@@ -592,6 +595,7 @@ const Produtos = () => {
             mobileHideIdentifier
             mobileLabeledDetails
             mobileStatusKey="ativo"
+            exportRows={async () => prepareProdutoRows(await fetchAllRows())}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
