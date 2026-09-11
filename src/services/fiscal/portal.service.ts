@@ -58,6 +58,31 @@ export async function buscarNfePortal(
   return { rows: r.rows ?? [], total: Number(r.total ?? 0) };
 }
 
+const PORTAL_EXPORT_PAGE_SIZE = 1000;
+const PORTAL_EXPORT_HARD_CAP = 50000;
+
+/** Busca sob demanda todo o universo filtrado do Portal Fiscal para exportação. */
+export async function buscarTodasNfePortal(
+  filtros: PortalRpcFiltros,
+): Promise<PortalRow[]> {
+  const first = await buscarNfePortal(filtros, 0, PORTAL_EXPORT_PAGE_SIZE);
+  if (first.total > PORTAL_EXPORT_HARD_CAP) {
+    throw new Error(
+      `A exportação excede o limite seguro de ${PORTAL_EXPORT_HARD_CAP.toLocaleString("pt-BR")} NF-es. Aplique filtros mais específicos.`,
+    );
+  }
+
+  const all = [...first.rows];
+  let page = 1;
+  while (all.length < first.total) {
+    const next = await buscarNfePortal(filtros, page, PORTAL_EXPORT_PAGE_SIZE);
+    all.push(...next.rows);
+    if (next.rows.length < PORTAL_EXPORT_PAGE_SIZE) break;
+    page += 1;
+  }
+  return all;
+}
+
 export async function excluirNfeDistribuicaoAlheias(): Promise<number> {
   const { data, error } = await supabase.rpc("excluir_nfe_distribuicao_alheias");
   if (error) throw error;
