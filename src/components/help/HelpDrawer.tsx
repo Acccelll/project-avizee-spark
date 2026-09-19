@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsDown, ThumbsUp, Play, ArrowRight } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, Play, ArrowRight, Flag } from 'lucide-react';
 import { resolveHelpEntry } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +15,7 @@ import { submitHelpFeedback } from '@/services/help.service';
  * e apresenta seções, atalhos e botão de tour quando disponível.
  */
 export function HelpDrawer() {
-  const { drawerOpen, closeDrawer, startTour } = useHelp();
+  const { drawerOpen, closeDrawer, startTour, openReportarProblema } = useHelp();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -135,6 +135,20 @@ export function HelpDrawer() {
                 </Button>
               </div>
             </div>
+
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={() => {
+                  closeDrawer();
+                  openReportarProblema();
+                }}
+              >
+                <Flag className="h-4 w-4" /> Reportar problema nesta tela
+              </Button>
+            </div>
           </>
         ) : (
           <>
@@ -145,7 +159,7 @@ export function HelpDrawer() {
                 para ver os manuais das telas já documentadas.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-6">
+            <div className="mt-6 space-y-2">
               <Button
                 onClick={() => {
                   closeDrawer();
@@ -154,6 +168,16 @@ export function HelpDrawer() {
                 className="w-full"
               >
                 Ir para a Central de ajuda
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => {
+                  closeDrawer();
+                  openReportarProblema();
+                }}
+              >
+                <Flag className="h-4 w-4" /> Reportar problema nesta tela
               </Button>
             </div>
           </>

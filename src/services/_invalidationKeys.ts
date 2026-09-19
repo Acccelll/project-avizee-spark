@@ -75,4 +75,12 @@ export const INVALIDATION_KEYS = {
     "socios_retiradas",
     "financeiro_lancamentos",
   ],
+  /** Ajuda/Suporte/Chamados — chamado, timeline (eventos) e anexos. */
+  suporte: [
+    "suporte_meus_chamados",
+    "suporte_fila_chamados",
+    "suporte_chamado",
+    "suporte_eventos",
+    "suporte_anexos",
+  ],
 } as const;
