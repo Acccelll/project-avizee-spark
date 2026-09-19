@@ -64,6 +64,17 @@ export async function getChamado(id: string): Promise<SuporteChamado | null> {
   return data;
 }
 
+/** Busca por número de exibição (`CH-000123`) — usado para marcar duplicidade (seção 28). */
+export async function getChamadoPorNumero(numero: string): Promise<SuporteChamado | null> {
+  const { data, error } = await supabase
+    .from("suporte_chamados")
+    .select("*")
+    .eq("numero", numero.trim())
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function assumirChamado(chamadoId: string): Promise<void> {
   const { error } = await supabase.rpc("suporte_assumir_chamado", {
     p_chamado_id: chamadoId,
