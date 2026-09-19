@@ -14,6 +14,11 @@ interface HelpContextValue {
   tourSteps: HelpTourStep[] | null;
   startTour: (entry: HelpEntry) => void;
   endTour: () => void;
+
+  /** Drawer global "Reportar problema" — seção 3 da especificação de Ajuda/Suporte. */
+  reportarProblemaOpen: boolean;
+  openReportarProblema: () => void;
+  closeReportarProblema: () => void;
 }
 
 const HelpContext = createContext<HelpContextValue | null>(null);
@@ -21,6 +26,7 @@ const HelpContext = createContext<HelpContextValue | null>(null);
 export function HelpProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tourEntry, setTourEntry] = useState<HelpEntry | null>(null);
+  const [reportarProblemaOpen, setReportarProblemaOpen] = useState(false);
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -33,6 +39,9 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 
   const endTour = useCallback(() => setTourEntry(null), []);
 
+  const openReportarProblema = useCallback(() => setReportarProblemaOpen(true), []);
+  const closeReportarProblema = useCallback(() => setReportarProblemaOpen(false), []);
+
   const value = useMemo<HelpContextValue>(
     () => ({
       drawerOpen,
@@ -42,8 +51,14 @@ export function HelpProvider({ children }: { children: ReactNode }) {
       tourSteps: tourEntry?.tour ?? null,
       startTour,
       endTour,
+      reportarProblemaOpen,
+      openReportarProblema,
+      closeReportarProblema,
     }),
-    [drawerOpen, openDrawer, closeDrawer, tourEntry, startTour, endTour],
+    [
+      drawerOpen, openDrawer, closeDrawer, tourEntry, startTour, endTour,
+      reportarProblemaOpen, openReportarProblema, closeReportarProblema,
+    ],
   );
 
   return <HelpContext.Provider value={value}>{children}</HelpContext.Provider>;
