@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Paperclip, Send, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useChamado } from '@/hooks/suporte/useChamado';
+import { TriagemAdminPanel } from '@/components/suporte/TriagemAdminPanel';
 import {
   SUPORTE_STATUS_LABELS,
   SUPORTE_TIPO_LABELS,
@@ -52,10 +54,12 @@ function descreverEvento(evento: SuporteEvento): string {
 export default function ChamadoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
+  const chamadoActions = useChamado(id);
   const {
     chamado, loadingChamado, eventos, anexos,
     comentar, anexar, confirmarResolucao,
-  } = useChamado(id);
+  } = chamadoActions;
   const [mensagem, setMensagem] = useState('');
 
   if (loadingChamado) {
@@ -115,6 +119,8 @@ export default function ChamadoDetalhe() {
           )}
         </CardContent>
       </Card>
+
+      {isAdmin && <TriagemAdminPanel chamado={chamado} actions={chamadoActions} />}
 
       {chamado.status === 'resolvido' && chamado.solicitante_id === user?.id && (
         <Card className="border-primary/40">

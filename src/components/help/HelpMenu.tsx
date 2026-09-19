@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig, Flag, Ticket } from 'lucide-react';
+import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig, Flag, Ticket, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { resolveHelpEntry } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface HelpMenuProps {
   onOpenShortcuts: () => void;
@@ -28,6 +29,7 @@ export function HelpMenu({ onOpenShortcuts, variant = 'header' }: HelpMenuProps)
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { openDrawer, startTour, openReportarProblema } = useHelp();
+  const { isAdmin } = useIsAdmin();
   const entry = resolveHelpEntry(pathname);
   const hasTour = !!entry?.tour?.length;
 
@@ -71,6 +73,11 @@ export function HelpMenu({ onOpenShortcuts, variant = 'header' }: HelpMenuProps)
         <DropdownMenuItem onClick={() => navigate('/ajuda/meus-chamados')}>
           <Ticket className="mr-2 h-4 w-4" /> Meus chamados
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => navigate('/ajuda/gestao-chamados')}>
+            <LayoutGrid className="mr-2 h-4 w-4" /> Gestão de chamados
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={openReportarProblema}>
           <Flag className="mr-2 h-4 w-4" /> Reportar problema

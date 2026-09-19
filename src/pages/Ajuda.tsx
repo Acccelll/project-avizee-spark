@@ -4,9 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, BookOpen, Play } from 'lucide-react';
+import { Search, BookOpen, Play, Ticket, LayoutGrid } from 'lucide-react';
 import { listHelpEntries } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 /**
  * Central de ajuda — índice navegável de todos os manuais cadastrados, com
@@ -15,6 +16,7 @@ import { useHelp } from '@/contexts/HelpContext';
 export default function Ajuda() {
   const [query, setQuery] = useState('');
   const { startTour } = useHelp();
+  const { isAdmin } = useIsAdmin();
   const entries = useMemo(() => listHelpEntries(), []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -37,11 +39,23 @@ export default function Ajuda() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Central de ajuda</h1>
-        <p className="text-sm text-muted-foreground">
-          Manuais e tours guiados das telas do ERP. O conteúdo é incremental — novas telas serão adicionadas ao longo do tempo.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold">Central de ajuda</h1>
+          <p className="text-sm text-muted-foreground">
+            Manuais e tours guiados das telas do ERP. O conteúdo é incremental — novas telas serão adicionadas ao longo do tempo.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link to="/ajuda/meus-chamados"><Ticket className="h-4 w-4" /> Meus chamados</Link>
+          </Button>
+          {isAdmin && (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/ajuda/gestao-chamados"><LayoutGrid className="h-4 w-4" /> Gestão de chamados</Link>
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="relative max-w-md">

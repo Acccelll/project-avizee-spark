@@ -14,6 +14,7 @@ const Social = lazy(() => import("@/pages/Social"));
 const Ajuda = lazy(() => import("@/pages/Ajuda"));
 const MeusChamados = lazy(() => import("@/pages/suporte/MeusChamados"));
 const ChamadoDetalhe = lazy(() => import("@/pages/suporte/ChamadoDetalhe"));
+const GestaoChamados = lazy(() => import("@/pages/suporte/GestaoChamados"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 /**
@@ -46,6 +47,8 @@ export const diversosRoutes = (
     {/* Meus chamados (Ajuda/Suporte) — disponível para qualquer usuário autenticado */}
     <Route path="/ajuda/meus-chamados" element={<ProtectedRoute><LazyPage><MeusChamados /></LazyPage></ProtectedRoute>} />
     <Route path="/ajuda/meus-chamados/:id" element={<ProtectedRoute><LazyPage><ChamadoDetalhe /></LazyPage></ProtectedRoute>} />
+    {/* Gestão de chamados (admin) — RequireStrictAdmin dentro da própria página cuida do gate de acesso */}
+    <Route path="/ajuda/gestao-chamados" element={<ProtectedRoute><LazyPage><GestaoChamados /></LazyPage></ProtectedRoute>} />
     {/* Catch-all dentro do shell — preserva sidebar/header em rotas inválidas */}
     <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
   </>
