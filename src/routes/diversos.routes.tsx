@@ -12,6 +12,7 @@ const ApresentacaoGerencial = lazy(() => import("@/pages/ApresentacaoGerencial")
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const Social = lazy(() => import("@/pages/Social"));
 const Ajuda = lazy(() => import("@/pages/Ajuda"));
+const AbrirChamado = lazy(() => import("@/pages/suporte/AbrirChamado"));
 const MeusChamados = lazy(() => import("@/pages/suporte/MeusChamados"));
 const ChamadoDetalhe = lazy(() => import("@/pages/suporte/ChamadoDetalhe"));
 const GestaoChamados = lazy(() => import("@/pages/suporte/GestaoChamados"));
@@ -44,6 +45,8 @@ export const diversosRoutes = (
     <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
     {/* Central de ajuda — disponível para qualquer usuário autenticado */}
     <Route path="/ajuda" element={<ProtectedRoute><LazyPage><Ajuda /></LazyPage></ProtectedRoute>} />
+    {/* Abrir chamado (tipo livre: bug, problema operacional, dúvida, sugestão) — disponível para qualquer usuário autenticado */}
+    <Route path="/ajuda/abrir-chamado" element={<ProtectedRoute><LazyPage><AbrirChamado /></LazyPage></ProtectedRoute>} />
     {/* Meus chamados (Ajuda/Suporte) — disponível para qualquer usuário autenticado */}
     <Route path="/ajuda/meus-chamados" element={<ProtectedRoute><LazyPage><MeusChamados /></LazyPage></ProtectedRoute>} />
     <Route path="/ajuda/meus-chamados/:id" element={<ProtectedRoute><LazyPage><ChamadoDetalhe /></LazyPage></ProtectedRoute>} />

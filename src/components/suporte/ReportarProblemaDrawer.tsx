@@ -5,36 +5,17 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Camera, ChevronDown, X, Loader2 } from 'lucide-react';
 import { useHelp } from '@/contexts/HelpContext';
 import { useReportarProblema } from '@/hooks/suporte/useReportarProblema';
 import { uploadAnexo } from '@/services/suporte/anexos.service';
 import { coletarDiagnosticoAutomatico } from '@/services/suporte/diagnostico.service';
-import {
-  SUPORTE_IMPACTO_LABELS,
-  SUPORTE_ABRANGENCIA_LABELS,
-  SUPORTE_FREQUENCIA_LABELS,
-  type SuporteAbrangencia,
-  type SuporteFrequencia,
-  type SuporteImpacto,
-} from '@/services/suporte/types';
+import { ChamadoFormFields, EMPTY_CHAMADO_FORM, chamadoFormEstaCompleto } from './ChamadoFormFields';
+import type { SuporteAbrangencia, SuporteFrequencia, SuporteImpacto } from '@/services/suporte/types';
 
-const IMPACTO_OPCOES = Object.entries(SUPORTE_IMPACTO_LABELS) as [SuporteImpacto, string][];
-const ABRANGENCIA_OPCOES = Object.entries(SUPORTE_ABRANGENCIA_LABELS) as [SuporteAbrangencia, string][];
-const FREQUENCIA_OPCOES = Object.entries(SUPORTE_FREQUENCIA_LABELS) as [SuporteFrequencia, string][];
-
-const EMPTY_FORM = {
-  resumo: '',
-  descricao: '',
-  impacto: '' as SuporteImpacto | '',
-  abrangencia: '' as SuporteAbrangencia | '',
-  frequencia: '' as SuporteFrequencia | '',
-};
+const EMPTY_FORM = EMPTY_CHAMADO_FORM;
 
 /**
  * Drawer global "Reportar problema" (seção 3–5 da especificação). Não é só
@@ -92,12 +73,7 @@ export function ReportarProblemaDrawer() {
     });
   }, []);
 
-  const podeEnviar =
-    form.resumo.trim().length > 0 &&
-    form.descricao.trim().length > 0 &&
-    form.impacto !== '' &&
-    form.abrangencia !== '' &&
-    form.frequencia !== '';
+  const podeEnviar = chamadoFormEstaCompleto(form);
 
   const handleSubmit = useCallback(async () => {
     if (!podeEnviar) return;
@@ -134,79 +110,7 @@ export function ReportarProblemaDrawer() {
         </SheetHeader>
 
         <div className="mt-6 space-y-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="rp-resumo">O que aconteceu?</Label>
-            <Input
-              id="rp-resumo"
-              placeholder='Ex.: Cliquei em "Salvar" e o pedido continuou com os dados anteriores.'
-              value={form.resumo}
-              onChange={(e) => setForm((f) => ({ ...f, resumo: e.target.value }))}
-              maxLength={200}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="rp-descricao">Descrição</Label>
-            <Textarea
-              id="rp-descricao"
-              placeholder="O que você estava tentando fazer, o que aconteceu e o que esperava que acontecesse."
-              value={form.descricao}
-              onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Impacto</Label>
-            <RadioGroup
-              value={form.impacto}
-              onValueChange={(v) => setForm((f) => ({ ...f, impacto: v as SuporteImpacto }))}
-            >
-              {IMPACTO_OPCOES.map(([value, label]) => (
-                <div key={value} className="flex items-start gap-2">
-                  <RadioGroupItem value={value} id={`rp-impacto-${value}`} className="mt-0.5" />
-                  <Label htmlFor={`rp-impacto-${value}`} className="font-normal leading-snug cursor-pointer">
-                    {label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Abrangência</Label>
-            <RadioGroup
-              value={form.abrangencia}
-              onValueChange={(v) => setForm((f) => ({ ...f, abrangencia: v as SuporteAbrangencia }))}
-              className="grid-flow-col auto-cols-max gap-4"
-            >
-              {ABRANGENCIA_OPCOES.map(([value, label]) => (
-                <div key={value} className="flex items-center gap-2">
-                  <RadioGroupItem value={value} id={`rp-abrangencia-${value}`} />
-                  <Label htmlFor={`rp-abrangencia-${value}`} className="font-normal cursor-pointer">
-                    {label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Frequência</Label>
-            <RadioGroup
-              value={form.frequencia}
-              onValueChange={(v) => setForm((f) => ({ ...f, frequencia: v as SuporteFrequencia }))}
-            >
-              {FREQUENCIA_OPCOES.map(([value, label]) => (
-                <div key={value} className="flex items-center gap-2">
-                  <RadioGroupItem value={value} id={`rp-frequencia-${value}`} />
-                  <Label htmlFor={`rp-frequencia-${value}`} className="font-normal cursor-pointer">
-                    {label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
+          <ChamadoFormFields idPrefix="rp" form={form} onChange={setForm} />
 
           <div className="space-y-2 border-t border-border pt-4">
             <Label>Captura de tela (opcional)</Label>

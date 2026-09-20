@@ -4,7 +4,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Flag, ChevronRight } from 'lucide-react';
+import { Flag, ChevronRight, PlusCircle } from 'lucide-react';
 import { useMeusChamados } from '@/hooks/suporte/useMeusChamados';
 import { useHelp } from '@/contexts/HelpContext';
 import {
@@ -57,9 +57,14 @@ export default function MeusChamados() {
             Acompanhe os problemas, dúvidas e sugestões que você enviou.
           </p>
         </div>
-        <Button onClick={openReportarProblema} className="gap-1.5">
-          <Flag className="h-4 w-4" /> Reportar problema
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link to="/ajuda/abrir-chamado"><PlusCircle className="h-4 w-4" /> Abrir chamado</Link>
+          </Button>
+          <Button onClick={openReportarProblema} className="gap-1.5">
+            <Flag className="h-4 w-4" /> Reportar problema
+          </Button>
+        </div>
       </header>
 
       <Tabs value={filtro} onValueChange={(v) => setFiltro(v as Filtro)}>

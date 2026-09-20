@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig, Flag, Ticket, LayoutGrid } from 'lucide-react';
+import { HelpCircle, BookOpen, Play, Keyboard, LibraryBig, Flag, Ticket, LayoutGrid, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -69,6 +69,9 @@ export function HelpMenu({ onOpenShortcuts, variant = 'header' }: HelpMenuProps)
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/ajuda')}>
           <LibraryBig className="mr-2 h-4 w-4" /> Central de ajuda
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/ajuda/abrir-chamado')}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Abrir chamado
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/ajuda/meus-chamados')}>
           <Ticket className="mr-2 h-4 w-4" /> Meus chamados
