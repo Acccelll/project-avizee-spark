@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, BookOpen, Play, Ticket, LayoutGrid } from 'lucide-react';
+import { Search, BookOpen, Play, Ticket, LayoutGrid, PlusCircle } from 'lucide-react';
 import { listHelpEntries } from '@/help/registry';
 import { useHelp } from '@/contexts/HelpContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -47,6 +47,9 @@ export default function Ajuda() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link to="/ajuda/abrir-chamado"><PlusCircle className="h-4 w-4" /> Abrir chamado</Link>
+          </Button>
           <Button asChild variant="outline" size="sm" className="gap-1.5">
             <Link to="/ajuda/meus-chamados"><Ticket className="h-4 w-4" /> Meus chamados</Link>
           </Button>
