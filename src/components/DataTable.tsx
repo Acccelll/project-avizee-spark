@@ -162,6 +162,11 @@ interface DataTableProps<T> {
    */
   exportPermission?: PermissionKey;
   /**
+   * Loader sob demanda para exportar todo o conjunto filtrado. Em tabelas
+   * server-paged evita que CSV/XLSX/PDF fiquem restritos à página atual.
+   */
+  exportRows?: () => Promise<T[]>;
+  /**
    * Marca a coluna usada como "identifier" (CNPJ, SKU, código) no card mobile.
    * Renderizada em fonte mono cinza abaixo do título primário.
    */
@@ -274,6 +279,7 @@ export function DataTable<T extends Record<string, any>>({
   onClearFilters,
   searchTerm,
   exportPermission = 'relatorios:exportar',
+  exportRows,
   mobileIdentifierKey,
   mobileInlineActions,
   mobilePrimaryAction,
@@ -567,6 +573,7 @@ export function DataTable<T extends Record<string, any>>({
   // Exportação CSV/XLSX/PDF delegada ao hook compartilhado.
   const { exportData } = useDataTableExport({
     rows: sortedData,
+    loadRows: exportRows,
     columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
     titulo: moduleKey || 'dados',
     permission: exportPermission,

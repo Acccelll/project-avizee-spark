@@ -4,6 +4,7 @@ import { hashParametros } from '@/lib/workbook/utils';
 import { fromUntyped } from '@/lib/supabase/fromUntyped';
 import type { WorkbookCaps } from '@/lib/workbook/fetchWorkbookData';
 import { logger } from "@/lib/logger";
+import { fetchAllPages, REPORT_HARD_CAP } from '@/services/_lib/fetchAllPages';
 
 /**
  * Lazy-loads the heavy ExcelJS-based workbook generator. Keeps ~400KB out of
@@ -30,6 +31,22 @@ export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
     .limit(50);
   if (error) throw error;
   return (data ?? []) as WorkbookGeracao[];
+}
+
+export async function listarTodasGeracoes(): Promise<WorkbookGeracao[]> {
+  let truncated = false;
+  const rows = await fetchAllPages<WorkbookGeracao>(
+    () => fromUntyped('workbook_geracoes')
+      .select('*, workbook_templates(nome, versao)')
+      .order('created_at', { ascending: false }),
+    { onTruncated: () => { truncated = true; } },
+  );
+  if (truncated) {
+    throw new Error(
+      `O histórico excede o limite seguro de ${REPORT_HARD_CAP.toLocaleString('pt-BR')} gerações.`,
+    );
+  }
+  return rows;
 }
 
 export async function listarFechamentos(): Promise<FechamentoMensal[]> {

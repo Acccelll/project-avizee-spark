@@ -5,6 +5,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
+import { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";
 
 export interface ContaBancariaDropdown {
   id: string;
@@ -40,31 +41,44 @@ export async function fetchLancamentosParaConciliacao(
   dataInicio: string,
   dataFim: string,
 ): Promise<Array<Lancamento & { data_baixa?: string | null }>> {
-  const baixasQ = supabase
-    .from("financeiro_baixas")
-    .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${LANC_SELECT})`)
-    .is("estornada_em", null)
-    .gte("data_baixa", dataInicio)
-    .lte("data_baixa", dataFim);
-  const vencQ = supabase
-    .from("financeiro_lancamentos")
-    .select(LANC_SELECT)
-    .eq("ativo", true)
-    .in("status", ["aberto", "parcial"])
-    .lte("data_vencimento", dataFim)
-    .order("data_vencimento", { ascending: true });
-  if (contaId) {
-    baixasQ.eq("conta_bancaria_id", contaId);
-    // Títulos em aberto/parciais vindos do ERP podem ainda não ter conta bancária
-    // definida; nesses casos eles continuam sendo candidatos à conciliação da
-    // conta selecionada, pois a conta só será determinada na baixa.
-    vencQ.or(`conta_bancaria_id.eq.${contaId},conta_bancaria_id.is.null`);
+  let truncated = false;
+  const completeOptions = {
+    onTruncated: () => { truncated = true; },
+  };
+
+  const porBaixa = await fetchAllPages(() => {
+    let q = supabase
+      .from("financeiro_baixas")
+      .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${LANC_SELECT})`)
+      .is("estornada_em", null)
+      .gte("data_baixa", dataInicio)
+      .lte("data_baixa", dataFim)
+      .order("data_baixa", { ascending: true });
+    if (contaId) q = q.eq("conta_bancaria_id", contaId);
+    return q;
+  }, completeOptions);
+
+  if (truncated) {
+    throw new Error(`A conciliação excedeu ${REPORT_HARD_CAP.toLocaleString("pt-BR")} baixas. Refine o período.`);
   }
-  const [porBaixaRes, porVencimentoRes] = await Promise.all([baixasQ, vencQ]);
-  if (porBaixaRes.error) throw porBaixaRes.error;
-  if (porVencimentoRes.error) throw porVencimentoRes.error;
-  const porBaixa = porBaixaRes.data;
-  const porVencimento = porVencimentoRes.data;
+
+  const porVencimento = await fetchAllPages(() => {
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select(LANC_SELECT)
+      .eq("ativo", true)
+      .in("status", ["aberto", "parcial"])
+      .lte("data_vencimento", dataFim)
+      .order("data_vencimento", { ascending: true });
+    if (contaId) {
+      q = q.or(`conta_bancaria_id.eq.${contaId},conta_bancaria_id.is.null`);
+    }
+    return q;
+  }, completeOptions);
+
+  if (truncated) {
+    throw new Error(`A conciliação excedeu ${REPORT_HARD_CAP.toLocaleString("pt-BR")} lançamentos. Refine os filtros.`);
+  }
 
   const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
   ((porBaixa as Array<{
@@ -75,12 +89,10 @@ export async function fetchLancamentosParaConciliacao(
     if (!row.financeiro_lancamentos) return;
     merged.set(row.lancamento_id, { ...row.financeiro_lancamentos, data_baixa: row.data_baixa });
   });
-  ((porVencimento as Lancamento[]) || []).forEach((l) => {
+  ((porVencimento as unknown as Lancamento[]) || []).forEach((l) => {
     if (!merged.has(l.id)) merged.set(l.id, l);
   });
 
-  // Ordena por vencimento asc para que títulos antigos/vencidos apareçam
-  // no topo (evita "sumirem" no meio da lista virtualizada).
   return Array.from(merged.values()).sort((a, b) => {
     const da = a.data_vencimento ?? "";
     const db = b.data_vencimento ?? "";

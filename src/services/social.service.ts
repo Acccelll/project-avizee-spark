@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { exportarParaCsv, exportarMultiSheetExcel } from './export.service';
 import { getSocialProvider } from './socialProviders';
+import { fetchAllPages, REPORT_HARD_CAP } from '@/services/_lib/fetchAllPages';
 import type {
   SocialAlerta,
   SocialConta,
@@ -150,25 +151,40 @@ export async function listarSnapshotsPeriodo(
 }
 
 export async function listarPostsFiltrados(filtros: SocialPostFilters): Promise<SocialPost[]> {
-  const { data, error } = await supabase.rpc('social_posts_filtrados', {
-    _data_inicio: filtros.dataInicio,
-    _data_fim: filtros.dataFim,
-    _conta_id: filtros.campanhaId ?? null,
-  });
-  if (error) throw error;
-  return (data ?? []) as unknown as SocialPost[];
+  let truncated = false;
+  const rows = await fetchAllPages<SocialPost>(
+    () => supabase.rpc('social_posts_filtrados', {
+      _data_inicio: filtros.dataInicio,
+      _data_fim: filtros.dataFim,
+      _conta_id: filtros.campanhaId ?? null,
+    }),
+    { onTruncated: () => { truncated = true; } },
+  );
+  if (truncated) {
+    throw new Error(
+      `O relatório social excede o limite seguro de ${REPORT_HARD_CAP.toLocaleString('pt-BR')} posts. Reduza o período ou aplique filtros.`,
+    );
+  }
+  return rows;
 }
 
 export async function listarAlertas(resolvido?: boolean): Promise<SocialAlerta[]> {
   const today = new Date();
   const ago = new Date(today);
   ago.setDate(today.getDate() - 30);
-  const { data, error } = await supabase.rpc('social_alertas_periodo', {
-    _data_inicio: ago.toISOString().slice(0, 10),
-    _data_fim: today.toISOString().slice(0, 10),
-  });
-  if (error) throw error;
-  const rows = (data ?? []) as unknown as SocialAlerta[];
+  let truncated = false;
+  const rows = await fetchAllPages<SocialAlerta>(
+    () => supabase.rpc('social_alertas_periodo', {
+      _data_inicio: ago.toISOString().slice(0, 10),
+      _data_fim: today.toISOString().slice(0, 10),
+    }),
+    { onTruncated: () => { truncated = true; } },
+  );
+  if (truncated) {
+    throw new Error(
+      `O relatório social excede o limite seguro de ${REPORT_HARD_CAP.toLocaleString('pt-BR')} alertas. Reduza o período.`,
+    );
+  }
   if (typeof resolvido === 'boolean') {
     return rows.filter((a) => a.resolvido === resolvido);
   }

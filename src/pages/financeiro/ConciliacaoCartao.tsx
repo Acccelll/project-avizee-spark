@@ -29,6 +29,7 @@ import { excluirFatura } from "@/services/conciliacaoCartao/faturaLinhas.service
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { autoConciliarFaturas } from "@/services/conciliacaoCartao/autoConciliarService";
 import { exportarParaExcel } from "@/services/export.service";
+import { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";
 
 interface FaturaRow {
   id: string;
@@ -86,18 +87,24 @@ export default function ConciliacaoCartaoPage() {
   const faturas = useQuery({
     queryKey: ["cartao-faturas", "conciliacao-cartao", cartaoFilters, inicio, fim, statusFilters],
     queryFn: async () => {
-      let q = supabase
-        .from("cartao_faturas")
-        .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
-        .order("data_vencimento", { ascending: false })
-        .limit(200);
-      if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
-      if (inicio) q = q.gte("data_vencimento", inicio);
-      if (fim) q = q.lte("data_vencimento", fim);
-      if (statusFilters.length > 0) q = q.in("status", statusFilters);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as unknown as FaturaRow[];
+      let truncated = false;
+      const data = await fetchAllPages(() => {
+        let q = supabase
+          .from("cartao_faturas")
+          .select("id, cartao_id, competencia, data_fechamento, data_vencimento, valor_total, status, cartoes_credito(nome, ultimos4)")
+          .order("data_vencimento", { ascending: false });
+        if (cartaoFilters.length > 0) q = q.in("cartao_id", cartaoFilters);
+        if (inicio) q = q.gte("data_vencimento", inicio);
+        if (fim) q = q.lte("data_vencimento", fim);
+        if (statusFilters.length > 0) q = q.in("status", statusFilters);
+        return q;
+      }, { onTruncated: () => { truncated = true; } });
+      if (truncated) {
+        throw new Error(
+          `A consulta excedeu o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} faturas. Refine os filtros.`,
+        );
+      }
+      return data as unknown as FaturaRow[];
     },
   });
 

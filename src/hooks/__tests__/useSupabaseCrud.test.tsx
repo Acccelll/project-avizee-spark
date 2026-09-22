@@ -270,4 +270,43 @@ describe("useSupabaseCrud", () => {
     await waitFor(() => expect(fromMock).toHaveBeenCalled());
     expect(query.in).not.toHaveBeenCalledWith("status", expect.anything());
   });
+
+  it("fetchAllRows busca o conjunto completo reaplicando filtros, busca e ordenação", async () => {
+    const allRows: Row[] = [
+      { id: "1", nome: "Mesa A", ativo: true },
+      { id: "2", nome: "Mesa B", ativo: true },
+      { id: "3", nome: "Mesa C", ativo: true },
+    ];
+    const { query } = createQueryMock(allRows);
+    fromMock.mockReturnValue(query);
+
+    const { result } = renderHook(
+      () =>
+        useSupabaseCrud<"produtos">({
+          table: "produtos",
+          searchTerm: "mesa",
+          searchColumns: ["nome"],
+          filter: [{ column: "ativo", value: true }],
+          filterAtivo: false,
+          orderBy: "nome",
+          ascending: true,
+          pageSize: 1,
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const initialFromCalls = fromMock.mock.calls.length;
+
+    let exported: unknown[] = [];
+    await act(async () => {
+      exported = await result.current.fetchAllRows();
+    });
+
+    expect(exported).toEqual(allRows);
+    expect(fromMock.mock.calls.length).toBeGreaterThan(initialFromCalls);
+    expect(query.or).toHaveBeenCalledWith("nome.ilike.%mesa%");
+    expect(query.eq).toHaveBeenCalledWith("ativo", true);
+    expect(query.order).toHaveBeenCalledWith("nome", { ascending: true });
+  });
 });

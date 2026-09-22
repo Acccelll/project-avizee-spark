@@ -116,6 +116,7 @@ const GruposEconomicos = () => {
     update,
     remove,
     fetchData,
+    fetchAllRows,
     page,
     setPage,
     totalCount,
@@ -496,6 +497,7 @@ const GruposEconomicos = () => {
                 Editar grupo
               </Button>
             )}
+            exportRows={fetchAllRows}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}

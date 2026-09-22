@@ -406,7 +406,7 @@ const Financeiro = () => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
 
-  const { data, totalCount, loading, refetch: refetchPaged, isError, error: queryError } = useFinanceiroLancamentosPaged(
+  const { data, totalCount, loading, refetch: refetchPaged, fetchAllRows, isError, error: queryError } = useFinanceiroLancamentosPaged(
     serverFilters,
     page,
     PAGE_SIZE,
@@ -473,7 +473,7 @@ const Financeiro = () => {
     estornoProcessing,
     estornoMotivo,
     setEstornoMotivo,
-  } = useFinanceiroActions({ filteredData: data, getLancamentoStatus, create, update, fetchData });
+  } = useFinanceiroActions({ filteredData: data, loadAllRows: fetchAllRows, getLancamentoStatus, create, update, fetchData });
 
   // KPIs server-side via RPC `kpis_financeiro` — fonte única, sem fallback local.
   const { data: kpisRpc } = useFinanceiroKpisRpc({
@@ -811,6 +811,7 @@ const Financeiro = () => {
               moduleKey="financeiro-lancamentos"
               showColumnToggle={true}
               selectable
+              exportRows={fetchAllRows}
               serverPagination={{
                 page,
                 setPage,

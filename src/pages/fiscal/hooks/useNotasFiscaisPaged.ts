@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NotaFiscal } from "@/types/domain";
 import { fetchNotasFiscaisPaged } from "@/services/fiscal/notasFiscaisPaged.service";
@@ -22,6 +22,8 @@ export interface NotasFiscaisPagedFilters {
 }
 
 const DEFAULT_PAGE_SIZE = 50;
+const EXPORT_PAGE_SIZE = 1000;
+const EXPORT_HARD_CAP = 50000;
 
 interface PageResult {
   rows: NotaFiscal[];
@@ -72,6 +74,45 @@ export function useNotasFiscaisPaged(
     staleTime: 10_000,
   });
 
+  const fetchAllRows = useCallback(async (): Promise<NotaFiscal[]> => {
+    const all: NotaFiscal[] = [];
+    let offset = 0;
+
+    // Busca sob demanda somente durante a exportação; a página visível e o
+    // cache paginado permanecem intactos.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = await fetchNotasFiscaisPaged({
+        dateFrom: filters.dateFrom ?? null,
+        dateTo: filters.dateTo ?? null,
+        tipos: filters.tipos ?? null,
+        status: filters.status ?? null,
+        statusSefaz: filters.statusSefaz ?? null,
+        modelos: filters.modelos ?? null,
+        origens: filters.origens ?? null,
+        fornecedores: filters.fornecedores ?? null,
+        clientes: filters.clientes ?? null,
+        search: filters.search ?? null,
+        orderBy,
+        ascending,
+        offset,
+        limit: EXPORT_PAGE_SIZE,
+      });
+
+      if (result.totalCount > EXPORT_HARD_CAP) {
+        throw new Error(
+          `A exportação excede o limite seguro de ${EXPORT_HARD_CAP.toLocaleString("pt-BR")} notas. Aplique filtros mais específicos e tente novamente.`,
+        );
+      }
+
+      all.push(...result.rows);
+      if (all.length >= result.totalCount || result.rows.length < EXPORT_PAGE_SIZE) break;
+      offset += EXPORT_PAGE_SIZE;
+    }
+
+    return all;
+  }, [filters, orderBy, ascending]);
+
   const refetch = async () => {
     await qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
   };
@@ -82,6 +123,7 @@ export function useNotasFiscaisPaged(
     loading: query.isLoading,
     refetching: query.isFetching && !query.isLoading,
     refetch,
+    fetchAllRows,
     error: query.error,
   };
 }

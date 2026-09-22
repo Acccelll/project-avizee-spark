@@ -15,6 +15,7 @@ import { useCan } from '@/hooks/useCan';
 import {
   listarTemplates,
   listarGeracoes,
+  listarTodasGeracoes,
   gerarWorkbook,
   downloadGeracao,
   downloadBlob,
@@ -95,18 +96,23 @@ export default function WorkbookGerencial() {
     }
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     if (!geracoes.length) {
       toast.info('Sem gerações para exportar.');
       return;
     }
-    const csv = buildHistoricoCsv(geracoes);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
-    downloadBlob(
-      blob,
-      `workbook_historico_${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-    toast.success('CSV exportado.');
+    try {
+      const todasGeracoes = await listarTodasGeracoes();
+      const csv = buildHistoricoCsv(todasGeracoes);
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+      downloadBlob(
+        blob,
+        `workbook_historico_${new Date().toISOString().slice(0, 10)}.csv`,
+      );
+      toast.success(`CSV exportado com ${todasGeracoes.length.toLocaleString('pt-BR')} gerações.`);
+    } catch (err) {
+      toast.error(`Erro ao exportar histórico: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   return (
