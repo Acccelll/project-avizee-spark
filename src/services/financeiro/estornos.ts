@@ -27,16 +27,27 @@ import {
 } from "@/types/rpc";
 import { logger } from "@/lib/logger";
 
+/**
+ * Resultado da RPC consolidada. Ela sinaliza falha de regra de negócio
+ * pelo payload (`success: false`), não por `error` — um retorno ignorado
+ * fazia a UI exibir "Estorno realizado com sucesso" sem ter estornado nada.
+ */
+interface ProcessarEstornoPayload {
+  success?: boolean;
+  error?: string;
+  baixas_estornadas?: number;
+}
+
 async function processarEstornoRpc(
   lancamentoId: string,
   motivoEstorno?: string,
 ): Promise<boolean | null> {
+  let payload: ProcessarEstornoPayload | null;
   try {
-    await financeiroProcessarEstornoRpc({
+    payload = (await financeiroProcessarEstornoRpc({
       p_lancamento_id: lancamentoId,
       p_motivo: motivoEstorno ?? undefined,
-    });
-    return true;
+    })) as unknown as ProcessarEstornoPayload | null;
   } catch (err) {
     const e = err as { message?: string; code?: string };
     if (
@@ -47,6 +58,13 @@ async function processarEstornoRpc(
     }
     throw err;
   }
+
+  // Regra de negócio recusada pelo banco: propaga para o catch de
+  // processarEstorno em vez de reportar sucesso silencioso.
+  if (payload && payload.success === false) {
+    throw new Error(payload.error || "Não foi possível estornar o lançamento.");
+  }
+  return true;
 }
 
 export async function processarEstorno(

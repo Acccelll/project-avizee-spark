@@ -225,7 +225,12 @@ Módulos consumidos: Financeiro (baixas), Cartões (`syncFaturaStatus`), Fornece
 | `conciliacao_pares` (8) | Pares extrato↔lancamento. |
 | `vw_conciliacao_eventos_financeiros` | View consumida pelo hook alternativo. |
 
-Índices críticos: `uq_fin_extrato_conta_fitid`, `uq_fid_empresa_arquivo_hash`, `uq_fin_alias_desc`, `uq_baixa_conta_extrato_ref`, `uniq_baixa_conciliada_por_lanc`.
+Índices críticos: `uq_fin_extrato_conta_fitid`, `uq_fid_empresa_arquivo_hash`, `uq_fin_alias_desc`, `idx_baixa_conta_extrato_ref`, `uniq_baixa_conciliada_por_lanc`.
+
+> **Atenção:** `idx_baixa_conta_extrato_ref` **não é único**. O índice único
+> `uq_baixa_conta_extrato_ref` foi removido de propósito pela migration
+> `20260711213545`, para liberar o cenário 1↔N (uma transação de extrato
+> liquidando vários títulos). Não existe hoje controle compensatório — ver §7.5.
 
 ## 7. Regras de negócio
 
@@ -259,7 +264,13 @@ Módulos consumidos: Financeiro (baixas), Cartões (`syncFaturaStatus`), Fornece
 
 ### 7.5 Baixa e conciliação
 - `conciliarTransacao` cria baixa via RPC quando `saldo_restante > 0`; senão localiza baixa ativa (valor exato → data ±3d → mais recente).
-- `conciliacao_extrato_referencia = fitid`; `uq_baixa_conta_extrato_ref` impede reuso.
+- `conciliacao_extrato_referencia = fitid`. **Não há trava de unicidade**: a
+  mesma linha de extrato pode ser conciliada contra várias baixas (requisito
+  1↔N). O único controle contra reconciliação acidental é o
+  `status='conciliado'` da linha em `financeiro_extrato_importacoes` — que
+  pode não ser gravado se a sequência não-transacional de `conciliarTransacao`
+  falhar no meio. Controle adequado pendente: invariante de soma
+  (Σ `valor_movimento_bancario` das baixas de um fitid = valor da linha).
 - Baixa conciliada única por lançamento (`uniq_baixa_conciliada_por_lanc`).
 - Lançamento `cancelado` não pode ser conciliado.
 - Desfazer: `estornar_baixa_financeira` + status extrato=pendente.
