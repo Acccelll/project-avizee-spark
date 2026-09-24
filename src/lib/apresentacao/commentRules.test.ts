@@ -13,4 +13,14 @@ describe('commentRules', () => {
     expect(pickEditedComment('auto', 'editado')).toBe('editado');
     expect(pickEditedComment('auto', '')).toBe('auto');
   });
+
+  it('usa o motivo específico quando o slide está indisponível', () => {
+    const comment = buildAutomaticComment('fopag', { indisponivel: true, motivo: 'sem retiradas de sócios nem folha de pagamento no período' });
+    expect(comment).toBe('Sem dados neste período: sem retiradas de sócios nem folha de pagamento no período.');
+  });
+
+  it('cai no texto genérico quando não há motivo informado', () => {
+    const comment = buildAutomaticComment('fopag', { indisponivel: true });
+    expect(comment).toBe('Sem dados neste período: dados indisponíveis ou não automatizados nesta fase.');
+  });
 });

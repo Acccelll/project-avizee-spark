@@ -162,7 +162,8 @@ function buildCoberturaComment(slide: SlideCodigo, data: Record<string, unknown>
 
 export function buildAutomaticComments(slide: SlideCodigo, data: Record<string, unknown>): ExecutiveComment[] {
   if (data.indisponivel) {
-    return [{ text: 'Dados indisponíveis ou não automatizados nesta fase.', severity: 'warning', priority: 1, tags: ['indisponivel'] }];
+    const motivo = typeof data.motivo === 'string' && data.motivo.trim() ? data.motivo : 'dados indisponíveis ou não automatizados nesta fase';
+    return [{ text: `Sem dados neste período: ${motivo}.`, severity: 'warning', priority: 1, tags: ['indisponivel'] }];
   }
 
   const comments: ExecutiveComment[] = [buildCoreSummary(slide, data)];
