@@ -30,6 +30,8 @@ const TIPO_LABEL: Record<string, string> = {
   pro_labore: "Pró-labore", bonus: "Bônus", distribuicao_lucros: "Distribuição", ajuste: "Ajuste",
 };
 
+type TipoRetirada = "pro_labore" | "bonus" | "distribuicao_lucros" | "ajuste";
+
 export default function SociosParticipacoes() {
   const [competencia, setCompetencia] = useState(currentMonth());
   const isMobile = useIsMobile();
@@ -57,7 +59,7 @@ export default function SociosParticipacoes() {
   // Modais
   const [retiradaOpen, setRetiradaOpen] = useState(false);
   const [retiradaForm, setRetiradaForm] = useState({
-    socio_id: "", tipo: "bonus" as const, valor_calculado: 0, data_prevista: new Date().toISOString().split("T")[0], observacoes: "",
+    socio_id: "", tipo: "pro_labore" as TipoRetirada, valor_calculado: 0, data_prevista: new Date().toISOString().split("T")[0], observacoes: "",
   });
   const [gerarFinOpen, setGerarFinOpen] = useState<SocioRetirada | null>(null);
   const [gerarForm, setGerarForm] = useState({ data_vencimento: new Date().toISOString().split("T")[0] });
@@ -67,17 +69,26 @@ export default function SociosParticipacoes() {
   // Edição inline da apuração
   const [editAjustes, setEditAjustes] = useState<string>("");
   const ajustesEffective = editAjustes !== "" ? Number(editAjustes) : Number(apuracaoAtual?.ajustes ?? 0);
+  const [editLucroBase, setEditLucroBase] = useState<string>("");
+  const lucroBaseEffective = editLucroBase !== "" ? Number(editLucroBase) : Number(apuracaoAtual?.lucro_base ?? 0);
+
+  // Vazio = RPC usa o fechamento mensal da competência (ou 0, se não houver).
+  const [lucroBaseNovo, setLucroBaseNovo] = useState<string>("");
 
   const handleCriarApuracao = async () => {
-    await submit(async () => { await criar.mutateAsync({ competencia }); });
+    await submit(async () => {
+      await criar.mutateAsync({ competencia, lucro_base: lucroBaseNovo === "" ? null : Number(lucroBaseNovo) });
+      setLucroBaseNovo("");
+    });
   };
 
   const handleSalvarAjustes = async () => {
     if (!apuracaoAtual) return;
     await submit(async () => {
-      await updateBasic.mutateAsync({ id: apuracaoAtual.id, ajustes: ajustesEffective });
+      await updateBasic.mutateAsync({ id: apuracaoAtual.id, lucro_base: lucroBaseEffective, ajustes: ajustesEffective });
       await recalcular.mutateAsync(apuracaoAtual.id);
       setEditAjustes("");
+      setEditLucroBase("");
     });
   };
 
@@ -199,19 +210,51 @@ export default function SociosParticipacoes() {
                   </div>
                 </>
               ) : (
-                <Button
-                  size="sm"
-                  className="max-sm:h-11 max-sm:w-full"
-                  onClick={handleCriarApuracao}
-                  disabled={saving}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Criar apuração
-                </Button>
+                <>
+                  <div className="space-y-1.5 max-sm:w-full">
+                    <Label htmlFor="lucro-base-novo">Lucro base do mês (R$)</Label>
+                    <Input
+                      id="lucro-base-novo"
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={lucroBaseNovo}
+                      onChange={(e) => setLucroBaseNovo(e.target.value)}
+                      className="w-[180px] max-sm:w-full"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="max-sm:h-11 max-sm:w-full"
+                    onClick={handleCriarApuracao}
+                    disabled={saving}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Criar apuração
+                  </Button>
+                </>
               )}
             </div>
 
             {apuracaoAtual && apuracaoAtual.status === "rascunho" && (
-              <div className="flex items-end gap-3 rounded-lg border p-4">
+              <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
+                <div className="space-y-1.5 flex-1 max-w-xs">
+                  <Label htmlFor="lucro-base-edit">Lucro base (R$)</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      id="lucro-base-edit"
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={editLucroBase !== "" ? editLucroBase : Number(apuracaoAtual.lucro_base ?? 0)}
+                      onChange={(e) => setEditLucroBase(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1.5 flex-1 max-w-xs">
                   <Label>Ajustes (R$)</Label>
                   <div className="relative">
@@ -230,7 +273,7 @@ export default function SociosParticipacoes() {
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSalvarAjustes}>Aplicar e recalcular</Button>
                 <p className="text-xs text-muted-foreground ml-2">
-                  Lucro distribuível = lucro base ({formatCurrency(Number(apuracaoAtual.lucro_base))}) + ajustes
+                  Lucro distribuível = lucro base + ajustes = {formatCurrency(lucroBaseEffective + ajustesEffective)}
                 </p>
               </div>
             )}
@@ -287,13 +330,14 @@ export default function SociosParticipacoes() {
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Prevista</TableHead>
+                    <TableHead>Pago em</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {retiradas.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma retirada</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhuma retirada</TableCell></TableRow>
                   )}
                   {retiradas.map((r) => (
                     <TableRow key={r.id}>
@@ -301,6 +345,7 @@ export default function SociosParticipacoes() {
                       <TableCell>{TIPO_LABEL[r.tipo] ?? r.tipo}</TableCell>
                       <TableCell className="text-right font-mono">{formatCurrency(Number(r.valor_aprovado ?? r.valor_calculado))}</TableCell>
                       <TableCell>{r.data_prevista ? formatDate(r.data_prevista) : "—"}</TableCell>
+                      <TableCell>{r.data_pagamento ? formatDate(r.data_pagamento) : "—"}</TableCell>
                       <TableCell><StatusBadge status={r.status} /></TableCell>
                       <TableCell className="text-right space-x-1">
                         {r.status === "rascunho" && (
