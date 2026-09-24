@@ -11679,10 +11679,9 @@ export type Database = {
       vw_apresentacao_fopag: {
         Row: {
           competencia: string | null
-          descontos: number | null
+          folha_pagamento: number | null
           funcionarios: number | null
-          proventos: number | null
-          salario_base: number | null
+          retiradas_socios: number | null
           valor_atual: number | null
         }
         Relationships: []
