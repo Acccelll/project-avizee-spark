@@ -178,21 +178,17 @@ async function buildDynamicSlides(iniYM: string, fimYM: string, slidesList: Slid
     viewByComp('vw_apresentacao_capital_giro', iniYM, fimYM),
   ]);
 
-  // FOPAG: agrega snapshots por competência (formato YYYY-MM-DD)
-  let fopagAgg: Array<{ competencia: string; valor_liquido_total: number; headcount: number }> = [];
-  try {
-    const { data: fopagRows } = await sb.from('fechamento_fopag_resumo').select('competencia, valor_liquido')
-      .gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`);
-    const map = new Map<string, { total: number; count: number }>();
-    (fopagRows ?? []).forEach((r: AnyRow) => {
-      const ym = String(r.competencia).slice(0, 7);
-      const cur = map.get(ym) ?? { total: 0, count: 0 };
-      cur.total += Number(r.valor_liquido || 0);
-      cur.count += 1;
-      map.set(ym, cur);
-    });
-    fopagAgg = Array.from(map.entries()).map(([k, v]) => ({ competencia: k, valor_liquido_total: v.total, headcount: v.count }));
-  } catch { /* segue */ }
+  // FOPAG: folha de pagamento (funcionários) + retiradas de sócios pagas, por competência.
+  // Fonte é a view vw_apresentacao_fopag (dado vivo), não o snapshot fechamento_fopag_resumo —
+  // este só é populado quando um fechamento_mensal é fechado, o que ainda não ocorre nesta ERP.
+  const fopagRows = await viewByComp('vw_apresentacao_fopag', iniYM, fimYM);
+  const fopagAgg = fopagRows.map((r: AnyRow) => ({
+    competencia: String(r.competencia),
+    valor_liquido_total: Number(r.valor_atual || 0),
+    headcount: Number(r.funcionarios || 0),
+    folha_pagamento: Number(r.folha_pagamento || 0),
+    retiradas_socios: Number(r.retiradas_socios || 0),
+  }));
 
   // Aging — totais (filtro de saldo > 0 aplicado em memória para resiliência)
   const safeAging = async (table: string): Promise<AnyRow[]> => {
@@ -269,8 +265,10 @@ async function buildDynamicSlides(iniYM: string, fimYM: string, slidesList: Slid
     fopag: () => lastFopag ? {
       valor_atual: lastFopag.valor_liquido_total,
       headcount: lastFopag.headcount,
+      folha_pagamento: lastFopag.folha_pagamento,
+      retiradas_socios: lastFopag.retiradas_socios,
       serie: fopagAgg,
-    } : { indisponivel: true, motivo: 'sem snapshot FOPAG no período' },
+    } : { indisponivel: true, motivo: 'sem retiradas de sócios nem folha de pagamento no período' },
 
     fluxo_caixa: () => caixaEvol.length ? {
       serie: caixaEvol.map((c: AnyRow) => ({ competencia: c.competencia, saldo: Number(c.saldo_final), variacao: Number(c.variacao_mes) })),
