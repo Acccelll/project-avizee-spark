@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useChamado } from '@/hooks/suporte/useChamado';
 import { TriagemAdminPanel } from '@/components/suporte/TriagemAdminPanel';
+import { AnexoItem } from '@/components/suporte/AnexoItem';
 import {
   SUPORTE_STATUS_LABELS,
   SUPORTE_TIPO_LABELS,
@@ -176,12 +177,9 @@ export default function ChamadoDetalhe() {
           {anexos.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground">Anexos</p>
-              <ul className="space-y-1">
+              <ul className="flex flex-wrap items-start gap-3">
                 {anexos.map((anexo) => (
-                  <li key={anexo.id} className="flex items-center gap-1.5 text-sm">
-                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                    {anexo.nome_arquivo}
-                  </li>
+                  <AnexoItem key={anexo.id} anexo={anexo} />
                 ))}
               </ul>
             </div>
