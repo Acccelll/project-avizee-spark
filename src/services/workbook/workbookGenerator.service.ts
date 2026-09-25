@@ -14,6 +14,22 @@ async function loadGenerateWorkbook() {
   return mod.generateWorkbook;
 }
 
+/** Código do template que usa o modelo do Workbook de Fechamento (sem ExcelJS). */
+export const WORKBOOK_FECHAMENTO_CODIGO = 'WB_FECHAMENTO_V1';
+
+async function gerarBlob(
+  parametros: WorkbookParametros,
+  geracaoId: string,
+  options: { signal?: AbortSignal; caps?: WorkbookCaps },
+): Promise<Blob> {
+  if (parametros.templateCodigo === WORKBOOK_FECHAMENTO_CODIGO) {
+    const { gerarWorkbookFechamento } = await import('@/lib/workbook/fechamento');
+    return gerarWorkbookFechamento(parametros.competenciaFinal.slice(0, 7), options.signal);
+  }
+  const generateWorkbook = await loadGenerateWorkbook();
+  return generateWorkbook({ parametros, geracaoId, signal: options.signal, caps: options.caps });
+}
+
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
   const { data, error } = await fromUntyped('workbook_templates')
     .select('*')
@@ -69,13 +85,7 @@ export async function gerarWorkbook(
 
   try {
     // Generate the workbook blob
-    const generateWorkbook = await loadGenerateWorkbook();
-    const blob = await generateWorkbook({
-      parametros,
-      geracaoId: geracao.id,
-      signal: options.signal,
-      caps: options.caps,
-    });
+    const blob = await gerarBlob(parametros, geracao.id, options);
 
     // Try to save artifact to storage
     let arquivoPath: string | null = null;
@@ -150,24 +160,24 @@ export async function downloadGeracao(geracao: WorkbookGeracao): Promise<Blob> {
 
   const params = geracao.parametros_json as {
     templateId?: string;
+    templateCodigo?: string;
     competenciaInicial?: string;
     competenciaFinal?: string;
     modoGeracao?: 'dinamico' | 'fechado';
   };
 
-  const generateWorkbook = await loadGenerateWorkbook();
-  const blob = await generateWorkbook({
-    parametros: {
+  return gerarBlob(
+    {
       templateId: params.templateId ?? '',
+      templateCodigo: params.templateCodigo,
       competenciaInicial: params.competenciaInicial ?? '',
       competenciaFinal: params.competenciaFinal ?? '',
       modoGeracao: params.modoGeracao ?? 'dinamico',
       abasSelecionadas: [],
     },
-    geracaoId: geracao.id,
-  });
-
-  return blob;
+    geracao.id,
+    {},
+  );
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

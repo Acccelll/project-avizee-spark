@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { WorkbookParametrosCard } from './WorkbookParametrosCard';
 import { WORKBOOK_SHEET_GROUPS } from '@/lib/workbook/templateMap';
+import { WORKBOOK_FECHAMENTO_CODIGO } from '@/services/workbook';
 import type { WorkbookTemplate, WorkbookModoGeracao } from '@/types/workbook';
 
 interface WorkbookGeracaoDialogProps {
@@ -19,6 +20,7 @@ interface WorkbookGeracaoDialogProps {
   templates: WorkbookTemplate[];
   onGerar: (params: {
     templateId: string;
+    templateCodigo?: string;
     competenciaInicial: string;
     competenciaFinal: string;
     modoGeracao: WorkbookModoGeracao;
@@ -48,8 +50,23 @@ export function WorkbookGeracaoDialog({
     WORKBOOK_SHEET_GROUPS.filter((g) => g.defaultEnabled).map((g) => g.id),
   );
 
+  const templateCodigo = templates.find((t) => t.id === templateId)?.codigo;
+  const isFechamento = templateCodigo === WORKBOOK_FECHAMENTO_CODIGO;
+
   const handleGerar = async () => {
-    await onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao, abasSelecionadas });
+    if (isFechamento) {
+      // O modelo de fechamento cobre sempre o ano da competência (com os dois anteriores).
+      await onGerar({
+        templateId,
+        templateCodigo,
+        competenciaInicial: `${competenciaFinal.slice(0, 4)}-01`,
+        competenciaFinal,
+        modoGeracao: 'dinamico',
+        abasSelecionadas: [],
+      });
+      return;
+    }
+    await onGerar({ templateId, templateCodigo, competenciaInicial, competenciaFinal, modoGeracao, abasSelecionadas });
   };
 
   return (
@@ -89,8 +106,9 @@ export function WorkbookGeracaoDialog({
           onModoGeracaoChange={setModoGeracao}
           onTemplateChange={setTemplateId}
           onAbasChange={setAbasSelecionadas}
+          isFechamento={isFechamento}
         />
-        {modoGeracao === 'fechado' && (
+        {!isFechamento && modoGeracao === 'fechado' && (
           <div className="mt-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning-foreground flex gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">

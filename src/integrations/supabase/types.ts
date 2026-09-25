@@ -9894,6 +9894,7 @@ export type Database = {
           forma_recebimento_padrao: string | null
           id: string
           nome: string
+          nome_exibicao: string | null
           observacoes: string | null
           percentual_participacao_atual: number
           telefone: string | null
@@ -9917,6 +9918,7 @@ export type Database = {
           forma_recebimento_padrao?: string | null
           id?: string
           nome: string
+          nome_exibicao?: string | null
           observacoes?: string | null
           percentual_participacao_atual?: number
           telefone?: string | null
@@ -9940,6 +9942,7 @@ export type Database = {
           forma_recebimento_padrao?: string | null
           id?: string
           nome?: string
+          nome_exibicao?: string | null
           observacoes?: string | null
           percentual_participacao_atual?: number
           telefone?: string | null
@@ -11101,6 +11104,36 @@ export type Database = {
           },
         ]
       }
+      workbook_parametros_anuais: {
+        Row: {
+          ano: number
+          crescimento_meta: number
+          empresa_id: string
+          id: string
+          limite_faturamento: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ano: number
+          crescimento_meta?: number
+          empresa_id?: string
+          id?: string
+          limite_faturamento?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ano?: number
+          crescimento_meta?: number
+          empresa_id?: string
+          id?: string
+          limite_faturamento?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       workbook_templates: {
         Row: {
           arquivo_path: string
@@ -11134,6 +11167,45 @@ export type Database = {
           nome?: string
           updated_at?: string | null
           versao?: string
+        }
+        Relationships: []
+      }
+      workbook_valores_mensais: {
+        Row: {
+          chave: string
+          competencia: string
+          empresa_id: string
+          fonte: string
+          id: string
+          metrica: string
+          observacao: string | null
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        Insert: {
+          chave?: string
+          competencia: string
+          empresa_id?: string
+          fonte?: string
+          id?: string
+          metrica: string
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          chave?: string
+          competencia?: string
+          empresa_id?: string
+          fonte?: string
+          id?: string
+          metrica?: string
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
         }
         Relationships: []
       }
@@ -12484,6 +12556,21 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
+      _wb_aging: {
+        Args: { p_emp: string; p_fim: string; p_tipo: string }
+        Returns: Json
+      }
+      _wb_caixa: {
+        Args: {
+          p_emp: string
+          p_fim: string
+          p_incluir_disponivel?: boolean
+          p_ini: string
+          p_tipo: string
+        }
+        Returns: number
+      }
+      _wb_estoque: { Args: { p_emp: string; p_fim: string }; Returns: Json }
       acao_cliente_orcamento: {
         Args: { p_acao: string; p_comentario?: string; p_token: string }
         Returns: Json
@@ -13705,6 +13792,10 @@ export type Database = {
         Returns: Json
       }
       webhooks_rotate_secret: { Args: { p_endpoint_id: string }; Returns: Json }
+      workbook_fechamento_dados: {
+        Args: { p_competencia: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:

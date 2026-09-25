@@ -5,3 +5,4 @@
  */
 export * from './workbookData.service';
 export * from './workbookGenerator.service';
+export * from './workbookFechamento.service';
