@@ -49,6 +49,8 @@ export interface FechamentoMensal {
 
 export interface WorkbookParametros {
   templateId: string;
+  /** Código do template; `WB_FECHAMENTO_V1` usa o modelo do Workbook de Fechamento. */
+  templateCodigo?: string;
   competenciaInicial: string;
   competenciaFinal: string;
   modoGeracao: WorkbookModoGeracao;

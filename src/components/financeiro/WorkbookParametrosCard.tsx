@@ -18,6 +18,8 @@ interface WorkbookParametrosCardProps {
   onModoGeracaoChange: (v: WorkbookModoGeracao) => void;
   onTemplateChange: (v: string) => void;
   onAbasChange: (ids: string[]) => void;
+  /** Modelo do Workbook de Fechamento: só a competência importa. */
+  isFechamento?: boolean;
 }
 
 export function WorkbookParametrosCard({
@@ -32,6 +34,7 @@ export function WorkbookParametrosCard({
   onModoGeracaoChange,
   onTemplateChange,
   onAbasChange,
+  isFechamento = false,
 }: WorkbookParametrosCardProps) {
   const toggle = (id: string, checked: boolean) => {
     const set = new Set(abasSelecionadas);
@@ -45,6 +48,7 @@ export function WorkbookParametrosCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {!isFechamento && (
         <div className="space-y-1">
           <Label htmlFor="comp-ini">Competência Inicial</Label>
           <Input
@@ -54,8 +58,9 @@ export function WorkbookParametrosCard({
             onChange={(e) => onCompetenciaInicialChange(e.target.value)}
           />
         </div>
+        )}
         <div className="space-y-1">
-          <Label htmlFor="comp-fim">Competência Final</Label>
+          <Label htmlFor="comp-fim">{isFechamento ? 'Competência do fechamento' : 'Competência Final'}</Label>
           <Input
             id="comp-fim"
             type="month"
@@ -63,6 +68,7 @@ export function WorkbookParametrosCard({
             onChange={(e) => onCompetenciaFinalChange(e.target.value)}
           />
         </div>
+        {!isFechamento && (
         <div className="space-y-1">
           <Label>Modo de Geração</Label>
           <Select value={modoGeracao} onValueChange={(v) => onModoGeracaoChange(v as WorkbookModoGeracao)}>
@@ -75,6 +81,7 @@ export function WorkbookParametrosCard({
             </SelectContent>
           </Select>
         </div>
+        )}
         <div className="space-y-1">
           <Label>Template</Label>
           <Select value={templateId} onValueChange={onTemplateChange}>
@@ -91,6 +98,13 @@ export function WorkbookParametrosCard({
           </Select>
         </div>
         </div>
+        {isFechamento ? (
+          <p className="text-xs text-muted-foreground">
+            Mesmo layout, abas e gráficos do Workbook de fechamento: Confronto, Receita, Despesa, Caixa Livre,
+            FOPAG, Faturamento, Bridge, Estoque, Aging CR/CP e LinkedIn x Instagram, com o ano da competência e os
+            dois anteriores. Meses depois da competência ficam em branco.
+          </p>
+        ) : (
         <div className="space-y-2">
           <Label>Conteúdo do Workbook</Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -108,6 +122,7 @@ export function WorkbookParametrosCard({
             })}
           </div>
         </div>
+        )}
       </CardContent>
     </Card>
   );

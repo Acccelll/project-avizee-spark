@@ -1,6 +1,6 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCcw, Download } from 'lucide-react';
+import { Plus, RefreshCcw, Download, ClipboardEdit } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button';
 const WorkbookGeracaoDialog = lazy(() =>
   import('@/components/financeiro/WorkbookGeracaoDialog').then((m) => ({
     default: m.WorkbookGeracaoDialog,
+  })),
+);
+const WorkbookEntradasFechamentoDialog = lazy(() =>
+  import('@/components/financeiro/WorkbookEntradasFechamentoDialog').then((m) => ({
+    default: m.WorkbookEntradasFechamentoDialog,
   })),
 );
 import { WorkbookHistoricoTable } from '@/components/financeiro/WorkbookHistoricoTable';
@@ -18,6 +23,7 @@ import {
   gerarWorkbook,
   downloadGeracao,
   downloadBlob,
+  WORKBOOK_FECHAMENTO_CODIGO,
 } from '@/services/workbook';
 import { buildHistoricoCsv } from '@/lib/workbook/historicoCsv';
 import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
@@ -25,6 +31,7 @@ import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
 export default function WorkbookGerencial() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [entradasOpen, setEntradasOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { can } = useCan();
 
@@ -44,6 +51,7 @@ export default function WorkbookGerencial() {
   const gerarMutation = useMutation({
     mutationFn: async (params: {
       templateId: string;
+      templateCodigo?: string;
       competenciaInicial: string;
       competenciaFinal: string;
       modoGeracao: WorkbookModoGeracao;
@@ -55,6 +63,7 @@ export default function WorkbookGerencial() {
       const { blob, geracaoId } = await gerarWorkbook(
         {
           templateId: params.templateId,
+          templateCodigo: params.templateCodigo,
           competenciaInicial: params.competenciaInicial + '-01',
           competenciaFinal: params.competenciaFinal + '-01',
           modoGeracao: params.modoGeracao,
@@ -63,7 +72,9 @@ export default function WorkbookGerencial() {
         undefined,
         { signal: controller.signal },
       );
-      const filename = `workbook_gerencial_${params.competenciaInicial}_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`;
+      const filename = params.templateCodigo === WORKBOOK_FECHAMENTO_CODIGO
+        ? `workbook_fechamento_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`
+        : `workbook_gerencial_${params.competenciaInicial}_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`;
       downloadBlob(blob, filename);
       return geracaoId;
     },
@@ -135,6 +146,17 @@ export default function WorkbookGerencial() {
             </Button>
             {canGerar && (
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEntradasOpen(true)}
+                className="h-11 sm:h-9"
+              >
+                <ClipboardEdit className="h-4 w-4 mr-1" />
+                Entradas do fechamento
+              </Button>
+            )}
+            {canGerar && (
+              <Button
                 size="sm"
                 onClick={() => setDialogOpen(true)}
                 disabled={loadingTemplates || templates.length === 0}
@@ -159,6 +181,12 @@ export default function WorkbookGerencial() {
           canDownload={canDownload}
         />
       </ModulePage>
+
+      {canGerar && entradasOpen && (
+        <Suspense fallback={null}>
+          <WorkbookEntradasFechamentoDialog open={entradasOpen} onOpenChange={setEntradasOpen} />
+        </Suspense>
+      )}
 
       {canGerar && dialogOpen && (
         <Suspense fallback={null}>
