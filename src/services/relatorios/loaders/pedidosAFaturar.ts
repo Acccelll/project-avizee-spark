@@ -146,7 +146,7 @@ interface RawItem {
   ordens_venda: {
     id: string;
     numero: string;
-    status: string;
+    status: string | null;
     data_emissao: string | null;
     data_prometida_despacho: string | null;
     cliente_id: string | null;
