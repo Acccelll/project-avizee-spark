@@ -15,6 +15,7 @@ import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
 import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
 import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
 import { LockedAlert } from "@/pages/comercial/orcamento-form/LockedAlert";
+import { PedidoClienteCard } from "@/pages/comercial/orcamento-form/PedidoClienteCard";
 import { TemplateSaveDialog } from "@/pages/comercial/orcamento-form/TemplateSaveDialog";
 import { EnviarEmailDialog } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 import { PreviewDialog, OffscreenPdfTemplate, type OrcamentoPdfData } from "@/pages/comercial/orcamento-form/PreviewDialog";
@@ -83,6 +84,16 @@ export default function OrcamentoForm() {
     >
       {v.isEdit && v.status && v.isLocked && (
         <LockedAlert status={v.status} onCriarRevisao={handleCriarRevisao} />
+      )}
+      {v.isEdit && v.id && (
+        <div className="mb-5">
+          <PedidoClienteCard
+            orcamentoId={v.id}
+            clienteNome={v.clienteSnapshot.nome_razao_social}
+            clienteCpfCnpj={v.clienteSnapshot.cpf_cnpj}
+            onPedidoRegistrado={() => v.setValue("status", "aprovado")}
+          />
+        </div>
       )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className={cn("lg:col-span-8 space-y-5", v.isLocked && "[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed")}>

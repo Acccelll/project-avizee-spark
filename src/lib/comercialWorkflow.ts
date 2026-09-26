@@ -24,6 +24,23 @@ export function canSendOrcamento(status?: string | null): boolean {
   return normalizeOrcamentoStatus(status) === "rascunho";
 }
 
+/**
+ * "Registrar pedido do cliente": rascunho ou enviado viram pedido direto.
+ * Aprovado pelo link público sem dados de pedido também pode completar.
+ */
+export function canRegistrarPedido(
+  status?: string | null,
+  pedidoRegistradoEm?: string | null,
+): boolean {
+  const s = normalizeOrcamentoStatus(status);
+  return s === "rascunho" || s === "pendente" || (s === "aprovado" && !pedidoRegistradoEm);
+}
+
+/** Orçamento que já é pedido (novo fluxo) — dados do pedido podem ser editados. */
+export function isPedidoOrcamento(status?: string | null): boolean {
+  return normalizeOrcamentoStatus(status) === "aprovado";
+}
+
 export function canApproveOrcamento(status?: string | null): boolean {
   return normalizeOrcamentoStatus(status) === "pendente";
 }

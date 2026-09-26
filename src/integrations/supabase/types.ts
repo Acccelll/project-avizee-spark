@@ -7421,8 +7421,10 @@ export type Database = {
           comprimento_cm: number | null
           created_at: string
           data_orcamento: string | null
+          data_pedido_cliente: string | null
           desconto: number | null
           empresa_id: string
+          faturamento_status: string | null
           frete_simulacao_id: string | null
           frete_tipo: string | null
           frete_valor: number | null
@@ -7440,10 +7442,15 @@ export type Database = {
           origem_frete: string | null
           outras_despesas: number | null
           pagamento: string | null
+          pedido_anexo_path: string | null
+          pedido_cliente: string | null
+          pedido_registrado_em: string | null
+          pedido_registrado_por: string | null
           peso_total: number | null
           prazo_entrega: string | null
           prazo_entrega_dias: number | null
           prazo_pagamento: string | null
+          previsao_despacho: string | null
           public_token: string | null
           quantidade_total: number | null
           revisao: number | null
@@ -7467,8 +7474,10 @@ export type Database = {
           comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
+          data_pedido_cliente?: string | null
           desconto?: number | null
           empresa_id?: string
+          faturamento_status?: string | null
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -7486,10 +7495,15 @@ export type Database = {
           origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
+          pedido_anexo_path?: string | null
+          pedido_cliente?: string | null
+          pedido_registrado_em?: string | null
+          pedido_registrado_por?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
           prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
+          previsao_despacho?: string | null
           public_token?: string | null
           quantidade_total?: number | null
           revisao?: number | null
@@ -7513,8 +7527,10 @@ export type Database = {
           comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
+          data_pedido_cliente?: string | null
           desconto?: number | null
           empresa_id?: string
+          faturamento_status?: string | null
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -7532,10 +7548,15 @@ export type Database = {
           origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
+          pedido_anexo_path?: string | null
+          pedido_cliente?: string | null
+          pedido_registrado_em?: string | null
+          pedido_registrado_por?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
           prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
+          previsao_despacho?: string | null
           public_token?: string | null
           quantidade_total?: number | null
           revisao?: number | null
@@ -12606,6 +12627,16 @@ export type Database = {
         Args: { p_retirada_id: string }
         Returns: undefined
       }
+      atualizar_pedido_orcamento: {
+        Args: {
+          p_anexo_path?: string
+          p_data_pedido?: string
+          p_id: string
+          p_pedido_cliente?: string
+          p_previsao_despacho?: string
+        }
+        Returns: Json
+      }
       atualizar_financeiro_nota: {
         Args: {
           p_condicao_pagamento: string
@@ -13437,6 +13468,16 @@ export type Database = {
           p_visibilidade?: string
         }
         Returns: string
+      }
+      registrar_pedido_orcamento: {
+        Args: {
+          p_anexo_path?: string
+          p_data_pedido?: string
+          p_id: string
+          p_pedido_cliente?: string
+          p_previsao_despacho?: string
+        }
+        Returns: Json
       }
       registrar_recebimento_compra: {
         Args: {

@@ -22,7 +22,7 @@ export function useEnviarOrcamentoAprovacao() {
     mutationFn: ({ id }) => enviarOrcamentoAprovacao(id),
     onSuccess: (result) => {
       invalidateOrcamentos(qc);
-      toast.success(`Orçamento ${result.numero} enviado para aprovação!`);
+      toast.success(`Orçamento ${result.numero} marcado como enviado ao cliente.`);
     },
     onError: (err) => notifyError(err),
   });

@@ -8,10 +8,7 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { useCan } from "@/hooks/useCan";
@@ -32,19 +29,16 @@ import {
   fetchOrcamentoDetalhes,
 } from "@/services/orcamentos.service";
 import { enviarOrcamentoAprovacao } from "@/services/comercial/orcamentosLifecycle.service";
-import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
-import { useAprovarOrcamento } from "@/pages/comercial/hooks/useAprovarOrcamento";
-import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
-import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
-import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
+import { canRegistrarPedido, canSendOrcamento, isPedidoOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
+import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
+import { PedidoClienteResumo } from "@/components/orcamentos/PedidoClienteResumo";
 import type { OrcamentoDetail } from "@/types/comercial";
 import {
   Edit,
   Trash2,
   FileText,
   Send,
-  CheckCircle,
-  ArrowRightCircle,
+  ClipboardCheck,
   Link2,
   Copy,
   ExternalLink,
@@ -71,22 +65,15 @@ interface Props {
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
-  const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
-  const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
-  const [poNumberCliente, setPoNumberCliente] = useState("");
-  const [dataPoCliente, setDataPoCliente] = useState("");
+  const [pedidoDialog, setPedidoDialog] = useState<"registrar" | "editar" | null>(null);
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
   const { canHardDelete } = useCanHardDelete();
   const { can } = useCan();
-  const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const canCancelar = can("orcamentos:cancelar") || isAdmin;
   const canEditar = can("orcamentos:editar") || isAdmin;
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
-  const converterOrcamento = useConverterOrcamento();
-  const aprovarOrcamentoMut = useAprovarOrcamento();
-  const crossToast = useCrossModuleToast();
   const { confirm: confirmCancel, dialog: cancelDialog } = useConfirmDestructive({ verb: "Cancelar" });
   // B-03: motivo obrigatório de cancelamento de orçamento (paralelo ao do pedido).
   const { value: comercialFlags } = useAppConfig<{
@@ -111,7 +98,7 @@ export function OrcamentoView({ id }: Props) {
   today.setHours(0, 0, 0, 0);
   const isExpired = !!(
     selected?.validade &&
-    normalizeOrcamentoStatus(selected.status) !== "convertido" &&
+    !["aprovado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) &&
     new Date(selected.validade) < today
   );
 
@@ -125,37 +112,7 @@ export function OrcamentoView({ id }: Props) {
       await enviarOrcamentoAprovacao(selected.id);
       await reload();
       invalidate(["orcamentos"]);
-      toast.success(`Orçamento ${selected.numero} enviado para aprovação!`);
-    }).catch(() => {});
-
-  const handleApprove = () =>
-    run("approve", async () => {
-      // F-04: hook RQ com invalidação cross-módulo.
-      await aprovarOrcamentoMut.mutateAsync({ id: selected.id, numero: selected.numero });
-      await reload();
-      setApproveConfirmOpen(false);
-    }).catch(() => {});
-
-  const handleConvertToOV = () =>
-    run("convert", async () => {
-      // RPC transacional + invalidação cross-módulo via hook.
-      const result = await converterOrcamento.mutateAsync({
-        orcamento: selected,
-        options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
-      });
-      setPoNumberCliente("");
-      setDataPoCliente("");
-      await reload();
-      setConvertConfirmOpen(false);
-      // Toast com CTA contextual: usuário abre o pedido recém-criado em 1 clique.
-      crossToast.success({
-        title: "Pedido gerado!",
-        description: `OV ${result.ovNumero} criada a partir do orçamento ${selected.numero}.`,
-        actionLabel: "Abrir pedido",
-        action: { drawer: { type: "ordem_venda", id: result.ovId } },
-      });
-      // Mantém o usuário na visualização para ver o pedido vinculado
-      // (em vez de navegar para fora — divergência intencional vs grid).
+      toast.success(`Orçamento ${selected.numero} marcado como enviado ao cliente.`);
     }).catch(() => {});
 
   const handleGeneratePublicToken = () =>
@@ -258,17 +215,12 @@ export function OrcamentoView({ id }: Props) {
         {/* MB-02: em mobile só mostra ações primárias; secundárias vão para dropdown abaixo. */}
         {canSendOrcamento(selected.status) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleSendForApproval} disabled={isAnyLocked}>
-            <Send className="h-3.5 w-3.5" /> Enviar para aprovação
+            <Send className="h-3.5 w-3.5" /> Marcar como enviado
           </Button>
         )}
-        {canApproveOrcamento(selected.status) && canAprovar && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={isAnyLocked}>
-            <CheckCircle className="h-3.5 w-3.5" /> Aprovar
-          </Button>
-        )}
-        {canConvertOrcamento(selected.status) && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={isAnyLocked}>
-            <ArrowRightCircle className="h-3.5 w-3.5" /> Converter em Pedido
+        {canRegistrarPedido(selected.status, selected.pedido_registrado_em) && (
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setPedidoDialog("registrar")} disabled={isAnyLocked}>
+            <ClipboardCheck className="h-3.5 w-3.5" /> Registrar pedido
           </Button>
         )}
         {/* Desktop: ações secundárias inline */}
@@ -316,7 +268,7 @@ export function OrcamentoView({ id }: Props) {
             </DropdownMenuItem>
             {canSendOrcamento(selected.status) && (
               <DropdownMenuItem className="md:hidden" onClick={handleSendForApproval}>
-                <Send className="h-4 w-4 mr-2" /> Enviar para aprovação
+                <Send className="h-4 w-4 mr-2" /> Marcar como enviado
               </DropdownMenuItem>
             )}
             {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
@@ -377,15 +329,15 @@ export function OrcamentoView({ id }: Props) {
             label: `Orçamento ${selected.numero}`,
             shortLabel: "Orçamento",
             done: true,
-            current: !linkedOV,
+            current: !linkedOV && !isPedidoOrcamento(selected.status),
             hint: "Etapa atual",
           },
           {
             key: "pedido",
-            label: linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido de Venda",
+            label: selected.pedido_cliente ? `Pedido ${selected.pedido_cliente}` : linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido do cliente",
             shortLabel: "Pedido",
-            done: !!linkedOV,
-            hint: linkedOV ? "Abrir pedido vinculado" : "Use 'Converter em Pedido' para avançar",
+            done: isPedidoOrcamento(selected.status) || !!linkedOV,
+            hint: isPedidoOrcamento(selected.status) || linkedOV ? "Pedido registrado" : "Use 'Registrar pedido' quando o cliente confirmar",
             onClick: linkedOV ? () => pushView("ordem_venda", linkedOV.id) : undefined,
           },
           {
@@ -393,7 +345,7 @@ export function OrcamentoView({ id }: Props) {
             label: "Nota Fiscal",
             shortLabel: "NF",
             done: false,
-            hint: "Emitida a partir do Pedido (módulo Faturamento)",
+            hint: "Ligada ao pedido na importação do XML",
           },
         ]}
       />
@@ -694,29 +646,30 @@ export function OrcamentoView({ id }: Props) {
 
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Pedido</p>
-              {linkedOV ? (
+              {selected.pedido_cliente ? (
+                <PedidoClienteResumo
+                  orcamento={selected}
+                  onEditar={isPedidoOrcamento(selected.status) ? () => setPedidoDialog("editar") : undefined}
+                />
+              ) : linkedOV ? (
                 <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
                   {linkedOV.numero}
                 </RelationalLink>
-              ) : canConvertOrcamento(selected.status) ? (
+              ) : canRegistrarPedido(selected.status, selected.pedido_registrado_em) ? (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
+                  <p className="text-xs text-muted-foreground">O cliente ainda não confirmou o pedido.</p>
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs gap-1.5"
-                    onClick={() => setConvertConfirmOpen(true)}
+                    onClick={() => setPedidoDialog("registrar")}
                     disabled={isAnyLocked}
                   >
-                    <ArrowRightCircle className="h-3 w-3" /> Gerar pedido a partir deste orçamento
+                    <ClipboardCheck className="h-3 w-3" /> Registrar pedido do cliente
                   </Button>
                 </div>
-              ) : ["rascunho", "pendente"].includes(normalizeOrcamentoStatus(selected.status)) ? (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum pedido vinculado. O pedido será liberado após aprovação.
-                </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
+                <p className="text-xs text-muted-foreground">Nenhum pedido registrado.</p>
               )}
             </div>
 
@@ -789,69 +742,27 @@ export function OrcamentoView({ id }: Props) {
       {/* Cancel confirm — padronizado via ConfirmDestructiveDialog */}
       {cancelDialog}
 
-      {/* Approve confirm */}
-      <ConfirmDialog
-        open={approveConfirmOpen}
-        onClose={() => setApproveConfirmOpen(false)}
-        onConfirm={handleApprove}
-        title="Aprovar orçamento?"
-        description="O orçamento ficará disponível para gerar um Pedido."
-        confirmLabel="Aprovar"
-        confirmVariant="default"
-        loading={locked("approve")}
-      />
-
-      {/* Converter em Pedido de Venda — preview de impacto cross-módulo */}
-      <CrossModuleActionDialog
-        open={convertConfirmOpen}
-        onClose={() => {
-          setConvertConfirmOpen(false);
-          setPoNumberCliente("");
-          setDataPoCliente("");
+      <RegistrarPedidoDialog
+        open={!!pedidoDialog}
+        modo={pedidoDialog ?? "registrar"}
+        onClose={() => setPedidoDialog(null)}
+        orcamento={selected ? {
+          id: selected.id,
+          numero: selected.numero,
+          cliente_id: selected.cliente_id,
+          clienteNome: selected.clientes?.nome_razao_social,
+          clienteCpfCnpj: (selected.clientes as { cpf_cnpj?: string | null } | null)?.cpf_cnpj ?? null,
+          valor_total: selected.valor_total,
+          prazo_entrega_dias: selected.prazo_entrega_dias,
+          pedido_cliente: selected.pedido_cliente,
+          data_pedido_cliente: selected.data_pedido_cliente,
+          previsao_despacho: selected.previsao_despacho,
+        } : null}
+        onDone={() => {
+          void reload();
+          invalidate(["orcamentos"]);
         }}
-        onConfirm={handleConvertToOV}
-        title="Converter em Pedido de Venda"
-        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido de Venda? Nenhuma Nota Fiscal será emitida nesta etapa.`}
-        confirmLabel="Converter em Pedido"
-        loading={locked("convert")}
-        impacts={[
-          {
-            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
-            detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(kpiValor)}`,
-            tone: "primary",
-          },
-          {
-            label: "Orçamento muda para “convertido”",
-            detail: `Nº ${selected?.numero}`,
-            tone: "info",
-          },
-          {
-            label: "Pedido fica disponível para faturamento",
-            tone: "success",
-          },
-        ] satisfies ImpactItem[]}
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label className="text-xs">Nº Pedido do Cliente (PO)</Label>
-            <Input
-              value={poNumberCliente}
-              onChange={(e) => setPoNumberCliente(e.target.value)}
-              placeholder="Ex: PO-2026-00123"
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Data do Pedido do Cliente</Label>
-            <Input
-              type="date"
-              value={dataPoCliente}
-              onChange={(e) => setDataPoCliente(e.target.value)}
-              className="h-9"
-            />
-          </div>
-        </div>
-      </CrossModuleActionDialog>
+      />
 
       <PermanentDeleteDialog
         open={permDeleteOpen}
