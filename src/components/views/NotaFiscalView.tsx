@@ -12,6 +12,7 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { NotaFiscal } from "@/types/domain";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { PedidosDaNfPanel } from "@/components/fiscal/PedidosDaNfPanel";
 
 interface NfViewItem {
   id: string;
@@ -170,6 +171,12 @@ export function NotaFiscalView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="vinculos" className="space-y-4 mt-3 text-sm">
+          {selected.tipo === "saida" && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pedido do cliente</p>
+              <PedidosDaNfPanel nf={{ id: selected.id, numero: selected.numero, tipo: selected.tipo, status: selected.status }} />
+            </div>
+          )}
           {selected.ordens_venda && (
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pedido</p>

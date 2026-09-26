@@ -35,6 +35,7 @@ import {
   getFiscalSefazStatus,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { PedidosDaNfPanel } from "@/components/fiscal/PedidosDaNfPanel";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -304,6 +305,12 @@ export function NotaFiscalDrawer({
           )}
         </div>
       </ViewSection>
+
+      {selected.tipo === "saida" && (
+        <ViewSection title="Pedido do cliente">
+          <PedidosDaNfPanel nf={{ id: selected.id, numero: selected.numero, tipo: selected.tipo, status: selected.status }} />
+        </ViewSection>
+      )}
 
       <ViewSection title="Pagamento">
         <div className="grid grid-cols-2 gap-4">

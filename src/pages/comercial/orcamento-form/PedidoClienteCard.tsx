@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
 import { PedidoClienteResumo } from "@/components/orcamentos/PedidoClienteResumo";
+import { FaturamentoPedido } from "@/components/orcamentos/FaturamentoPedido";
 import { canRegistrarPedido, isPedidoOrcamento } from "@/lib/comercialWorkflow";
 import { getOrcamentoById } from "@/services/orcamentos.service";
 
@@ -42,7 +43,15 @@ export function PedidoClienteCard({ orcamentoId, clienteNome, clienteCpfCnpj, on
       </CardHeader>
       <CardContent>
         {ehPedido ? (
-          <PedidoClienteResumo orcamento={orc} onEditar={() => setDialog("editar")} />
+          <div className="space-y-4">
+            <PedidoClienteResumo orcamento={orc} onEditar={() => setDialog("editar")} />
+            <div className="border-t pt-3">
+              <FaturamentoPedido
+                orcamento={orc}
+                onChanged={() => void qc.invalidateQueries({ queryKey: ["orcamento-pedido", orcamentoId] })}
+              />
+            </div>
+          </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">

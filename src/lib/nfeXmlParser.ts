@@ -46,6 +46,10 @@ export interface NFeItem {
   ipi: number;
   pis: number;
   cofins: number;
+  /** Número do pedido do cliente (prod/xPed), quando o emissor preenche. */
+  pedido?: string;
+  /** Item do pedido do cliente (prod/nItemPed). */
+  itemPedido?: string;
 }
 
 export interface NFeData {
@@ -76,6 +80,8 @@ export interface NFeData {
   naturezaOperacao?: string | null;
   /** Protocolo de autorização (protNFe/infProt/nProt) — quando o XML é o procNFe autorizado. */
   protocolo?: string | null;
+  /** Informações complementares (infAdic/infCpl), onde o Sebrae põe "PEDIDO:", "OC:" ou o nº do orçamento. */
+  informacoesComplementares?: string | null;
 }
 
 export interface NFeDuplicata {
@@ -218,6 +224,8 @@ export function parseNFeXml(xmlString: string): NFeData {
       ipi: num(ipiEl, "vIPI"),
       pis: num(pisEl, "vPIS"),
       cofins: num(cofinsEl, "vCOFINS"),
+      pedido: text(prod, "xPed") || undefined,
+      itemPedido: text(prod, "nItemPed") || undefined,
     });
   }
 
@@ -229,6 +237,8 @@ export function parseNFeXml(xmlString: string): NFeData {
   const infProt = protNFe?.getElementsByTagName("infProt")?.[0];
   const protocolo = text(infProt || null, "nProt") || null;
   const naturezaOperacao = text(ide, "natOp") || null;
+  const informacoesComplementares =
+    text(infNFe.getElementsByTagName("infAdic")[0] || null, "infCpl") || null;
 
   // cobr / dup
   const cobr = infNFe.getElementsByTagName("cobr")[0];
@@ -332,5 +342,6 @@ export function parseNFeXml(xmlString: string): NFeData {
     cobranca: { fatura, duplicatas, tPag, aVista },
     naturezaOperacao,
     protocolo,
+    informacoesComplementares,
   };
 }

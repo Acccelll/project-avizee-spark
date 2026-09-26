@@ -32,6 +32,7 @@ import { enviarOrcamentoAprovacao } from "@/services/comercial/orcamentosLifecyc
 import { canRegistrarPedido, canSendOrcamento, isPedidoOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
 import { PedidoClienteResumo } from "@/components/orcamentos/PedidoClienteResumo";
+import { FaturamentoBadge, FaturamentoPedido } from "@/components/orcamentos/FaturamentoPedido";
 import type { OrcamentoDetail } from "@/types/comercial";
 import {
   Edit,
@@ -198,6 +199,9 @@ export function OrcamentoView({ id }: Props) {
         badges={
           <>
             <StatusBadge status={selected.status} />
+            {["aprovado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+              <FaturamentoBadge status={selected.faturamento_status} />
+            )}
             {isExpired && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">
                 <AlertTriangle className="h-3 w-3" /> Expirada
@@ -672,6 +676,19 @@ export function OrcamentoView({ id }: Props) {
                 <p className="text-xs text-muted-foreground">Nenhum pedido registrado.</p>
               )}
             </div>
+
+            {["aprovado", "convertido", "historico"].includes(normalizeOrcamentoStatus(selected.status)) && (
+              <div className="border-t pt-3">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Faturamento</p>
+                <FaturamentoPedido
+                  orcamento={selected}
+                  onChanged={() => {
+                    void reload();
+                    invalidate(["orcamentos"]);
+                  }}
+                />
+              </div>
+            )}
 
             <div className="border-t pt-3">
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Link Público</p>

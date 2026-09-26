@@ -15,7 +15,7 @@ interface OrcamentoBase {
 }
 
 /**
- * NFs candidatas a vínculo manual de um orçamento (saída, sem OV).
+ * NFs candidatas a vínculo manual de um orçamento (saída, não cancelada).
  * Encapsula o SELECT antes embarcado em `VincularNfDialog`.
  */
 export interface NfVinculavelRow {
@@ -40,7 +40,6 @@ export async function listNotasFiscaisVinculaveis(
     )
     .eq("ativo", true)
     .eq("tipo", "saida")
-    .is("ordem_venda_id", null)
     .in("status", ["confirmada", "importada", "autorizada"])
     .order("data_emissao", { ascending: false })
     .limit(100);
@@ -53,13 +52,14 @@ export async function listNotasFiscaisVinculaveis(
 export async function vincularOrcamentoNf(params: {
   orcamentoId: string;
   nfId: string;
-}): Promise<{ ov_id: string; nf_id: string } | null> {
-  const { data, error } = await supabase.rpc("vincular_orcamento_nf" as never, {
-    p_orcamento_id: params.orcamentoId,
+}): Promise<{ orcamento: string; nf: string; faturamento_status: string | null; ja_vinculado: boolean }> {
+  const { data, error } = await supabase.rpc("vincular_nf_orcamento", {
     p_nf_id: params.nfId,
-  } as never);
+    p_orcamento_id: params.orcamentoId,
+    p_origem: "manual",
+  });
   if (error) throw error;
-  return (data as { ov_id: string; nf_id: string } | null) ?? null;
+  return data as never;
 }
 
 /**

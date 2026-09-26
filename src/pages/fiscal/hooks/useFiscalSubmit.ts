@@ -11,6 +11,18 @@ import {
   atualizarFinanceiroNota,
 } from "@/services/fiscal/lifecycle.service";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import { resumoVinculoAutomatico, vincularNfAutomatico } from "@/services/comercial/vinculoNfPedido.service";
+
+/** Liga a NF de saída importada ao pedido citado no XML; falha não bloqueia o lançamento. */
+async function ligarNotaAoPedido(nfId: string, referencias: string[]): Promise<void> {
+  try {
+    const resumo = resumoVinculoAutomatico(await vincularNfAutomatico(nfId, referencias));
+    if (resumo) toast[resumo.tipo](resumo.texto, { duration: 8000 });
+  } catch (err) {
+    logger.error("[fiscal] vincular NF ao pedido:", err);
+    toast.warning("NF salva, mas não foi possível ligá-la ao pedido. Faça o vínculo em Fiscal › Vínculos.");
+  }
+}
 import { isFiscalStructurallyLocked } from "@/lib/fiscalStatus";
 import type { NotaFiscal } from "@/types/domain";
 import type { GridItem } from "@/components/ui/ItemsGrid";
@@ -33,6 +45,7 @@ export type XmlOriginInfo = {
   clienteNome?: string;
   tipo?: "entrada" | "saida";
   cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
+  referenciasPedido?: string[];
 } | null;
 
 export interface UseFiscalSubmitArgs {
@@ -435,6 +448,9 @@ export function useFiscalSubmit(args: UseFiscalSubmitArgs) {
           }
         } else {
           toast.warning(`NF salva como pendente — ${financeiroMotivo || "complete a condição financeira"} e use 'Concluir lançamento'.`);
+        }
+        if (form.tipo === "saida" && form.origem === "xml_importado") {
+          await ligarNotaAoPedido(nfId, xmlOriginInfo?.referenciasPedido ?? []);
         }
       } else if (selected) {
         await registrarEventoFiscal({

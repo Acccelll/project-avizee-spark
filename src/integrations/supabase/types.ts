@@ -6737,6 +6737,7 @@ export type Database = {
           quantidade_volumes: number | null
           recibo: string | null
           recorrencia_id: string | null
+          referencias_pedido: string[] | null
           serie: string | null
           status: string | null
           status_sefaz: string | null
@@ -6874,6 +6875,7 @@ export type Database = {
           quantidade_volumes?: number | null
           recibo?: string | null
           recorrencia_id?: string | null
+          referencias_pedido?: string[] | null
           serie?: string | null
           status?: string | null
           status_sefaz?: string | null
@@ -7011,6 +7013,7 @@ export type Database = {
           quantidade_volumes?: number | null
           recibo?: string | null
           recorrencia_id?: string | null
+          referencias_pedido?: string[] | null
           serie?: string | null
           status?: string | null
           status_sefaz?: string | null
@@ -7409,6 +7412,97 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: []
+      }
+      orcamento_nf_vinculo_itens: {
+        Row: {
+          id: string
+          nota_fiscal_item_id: string
+          orcamento_item_id: string
+          quantidade: number
+          vinculo_id: string
+        }
+        Insert: {
+          id?: string
+          nota_fiscal_item_id: string
+          orcamento_item_id: string
+          quantidade: number
+          vinculo_id: string
+        }
+        Update: {
+          id?: string
+          nota_fiscal_item_id?: string
+          orcamento_item_id?: string
+          quantidade?: number
+          vinculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_nf_vinculo_itens_nota_fiscal_item_id_fkey"
+            columns: ["nota_fiscal_item_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculo_itens_orcamento_item_id_fkey"
+            columns: ["orcamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculo_itens_vinculo_id_fkey"
+            columns: ["vinculo_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_nf_vinculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_nf_vinculos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          nota_fiscal_id: string
+          orcamento_id: string
+          origem: string
+          referencia: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nota_fiscal_id: string
+          orcamento_id: string
+          origem: string
+          referencia?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nota_fiscal_id?: string
+          orcamento_id?: string
+          origem?: string
+          referencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_nf_vinculos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculos_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orcamentos: {
         Row: {
@@ -12102,6 +12196,27 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_orcamento_itens_saldo: {
+        Row: {
+          faturado_a_mais: boolean | null
+          notas: string[] | null
+          orcamento_id: string | null
+          orcamento_item_id: string | null
+          produto_id: string | null
+          quantidade: number | null
+          quantidade_faturada: number | null
+          saldo: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_recebimentos_consolidado: {
         Row: {
           data_recebimento: string | null
@@ -12925,6 +13040,10 @@ export type Database = {
           valor_total: number
         }[]
       }
+      desvincular_nf_orcamento: {
+        Args: { p_nf_id: string; p_orcamento_id: string }
+        Returns: Json
+      }
       duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
       editar_baixa_admin: {
         Args: { p_baixa_id: string; p_motivo: string; p_payload: Json }
@@ -12945,6 +13064,10 @@ export type Database = {
           queue_name: string
           total_messages: number
         }[]
+      }
+      encerrar_saldo_orcamento: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: Json
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -13337,6 +13460,7 @@ export type Database = {
         }
       }
       normalizar_descricao: { Args: { p: string }; Returns: string }
+      normalizar_pedido: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
       obter_diagnostico_suporte: {
         Args: { p_chamado_id: string }
@@ -13413,9 +13537,14 @@ export type Database = {
           read_ct: number
         }[]
       }
+      raiz_documento: { Args: { p: string }; Returns: string }
       recalcular_apuracao_societaria: {
         Args: { p_apuracao_id: string }
         Returns: undefined
+      }
+      recalcular_faturamento_orcamento: {
+        Args: { p_orcamento_id: string }
+        Returns: string
       }
       receber_compra: {
         Args: {
@@ -13779,7 +13908,36 @@ export type Database = {
         Args: { p_error?: string; p_job: string; p_status: string }
         Returns: undefined
       }
+      sugerir_pedidos_nf: {
+        Args: { p_nf_id: string }
+        Returns: {
+          faturamento_status: string
+          motivo: string
+          numero: string
+          orcamento_id: string
+          pedido_cliente: string
+          referencia: string
+          registrado: boolean
+          status: string
+          valor_total: number
+          vinculado: boolean
+        }[]
+      }
       unaccent: { Args: { "": string }; Returns: string }
+      vincular_nf_automatico: {
+        Args: { p_nf_id: string; p_referencias?: string[] }
+        Returns: Json
+      }
+      vincular_nf_orcamento: {
+        Args: {
+          p_nf_id: string
+          p_orcamento_id: string
+          p_origem?: string
+          p_permitir_excedente?: boolean
+          p_referencia?: string
+        }
+        Returns: Json
+      }
       vincular_nf_pedido_compra: {
         Args: { p_nf_id: string; p_pedido_id: string }
         Returns: Json

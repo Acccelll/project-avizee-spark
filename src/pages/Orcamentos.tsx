@@ -29,6 +29,7 @@ import { Send, Link2 } from "lucide-react";
 import { sendForApproval, duplicateOrcamento } from "@/services/orcamentos.service";
 import { VincularNfDialog } from "@/components/orcamentos/VincularNfDialog";
 import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
+import { FaturamentoBadge } from "@/components/orcamentos/FaturamentoPedido";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { canRegistrarPedido, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { notifyError } from "@/utils/errorMessages";
@@ -65,15 +66,21 @@ interface Orcamento {
   data_pedido_cliente?: string | null;
   previsao_despacho?: string | null;
   pedido_registrado_em?: string | null;
+  faturamento_status?: string | null;
   clientes?: { nome_razao_social: string; cpf_cnpj?: string | null } | null;
 }
 
-/** Abas rápidas da lista: cada uma é um conjunto de status. */
-const ABAS: { value: string; label: string; status: string[] }[] = [
-  { value: "todos", label: "Todos", status: [] },
-  { value: "negociacao", label: "Em negociação", status: ["rascunho", "pendente"] },
-  { value: "pedidos", label: "Pedidos em aberto", status: ["aprovado"] },
-  { value: "encerrados", label: "Encerrados", status: ["rejeitado", "cancelado", "expirado"] },
+const ehPedido = (s: string) => s === "aprovado" || s === "convertido";
+const faturado = (o: { faturamento_status?: string | null }) =>
+  o.faturamento_status === "faturado" || o.faturamento_status === "encerrado";
+
+/** Abas rápidas da lista. `aceita` recebe o status já normalizado. */
+const ABAS: { value: string; label: string; aceita: (status: string, o: Orcamento) => boolean }[] = [
+  { value: "todos", label: "Todos", aceita: () => true },
+  { value: "negociacao", label: "Em negociação", aceita: (s) => s === "rascunho" || s === "pendente" },
+  { value: "pedidos", label: "Pedidos em aberto", aceita: (s, o) => ehPedido(s) && !faturado(o) },
+  { value: "faturados", label: "Faturados", aceita: (s, o) => (ehPedido(s) || s === "historico") && faturado(o) },
+  { value: "encerrados", label: "Encerrados", aceita: (s) => s === "rejeitado" || s === "cancelado" || s === "expirado" },
 ];
 
 function PrevisaoDespacho({ o }: { o: Orcamento }) {
@@ -260,7 +267,7 @@ const Orcamentos = () => {
       if (historicoFilter === "excluir" && isHistorico) return false;
       if (historicoFilter === "apenas" && !isHistorico) return false;
       const normalizedStatus = normalizeOrcamentoStatus(orc.status);
-      if (aba.status.length > 0 && !aba.status.includes(normalizedStatus)) return false;
+      if (!aba.aceita(normalizedStatus, orc)) return false;
       if (statusFilters.length > 0 && !statusFilters.includes(normalizedStatus)) return false;
       if (clienteFilters.length > 0 && !clienteFilters.includes(orc.cliente_id || "")) return false;
 
@@ -286,7 +293,7 @@ const Orcamentos = () => {
   const kpis = useMemo(() => {
     const total = filteredData.length;
     const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const pedidos = filteredData.filter(o => o.status === "aprovado");
+    const pedidos = filteredData.filter(o => ehPedido(normalizeOrcamentoStatus(o.status)) && !faturado(o));
     const pedidosValor = pedidos.reduce((s, o) => s + Number(o.valor_total || 0), 0);
     const converted = filteredData.filter(o => o.status === "aprovado" || o.status === "convertido").length;
     const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
@@ -331,6 +338,12 @@ const Orcamentos = () => {
       key: "previsao_despacho", label: "Previsão", sortable: true,
       sortValue: (o: Orcamento) => o.previsao_despacho ?? "",
       render: (o: Orcamento) => <PrevisaoDespacho o={o} />,
+    },
+    {
+      key: "faturamento_status", label: "Faturamento", sortable: true,
+      sortValue: (o: Orcamento) => o.faturamento_status ?? "",
+      render: (o: Orcamento) =>
+        o.faturamento_status ? <FaturamentoBadge status={o.faturamento_status} /> : <span className="text-xs text-muted-foreground">—</span>,
     },
     {
       key: "valor_total",
@@ -646,7 +659,7 @@ const Orcamentos = () => {
         } : null}
         onDone={() => {
           fetchData();
-          if (aba.status.length > 0 && !aba.status.includes("aprovado")) {
+          if (aba.value !== "todos" && aba.value !== "pedidos") {
             toast.info("O pedido saiu desta aba. Veja em \u201cPedidos em aberto\u201d.", { duration: 5000 });
           }
         }}
