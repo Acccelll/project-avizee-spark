@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import html2canvas from 'html2canvas';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from '@/components/ui/sheet';
@@ -11,6 +10,7 @@ import { Camera, ChevronDown, X, Loader2 } from 'lucide-react';
 import { useHelp } from '@/contexts/HelpContext';
 import { useReportarProblema } from '@/hooks/suporte/useReportarProblema';
 import { uploadAnexo } from '@/services/suporte/anexos.service';
+import { capturarTelaVisivel } from '@/services/suporte/captura.service';
 import { coletarDiagnosticoAutomatico } from '@/services/suporte/diagnostico.service';
 import { ChamadoFormFields, EMPTY_CHAMADO_FORM, chamadoFormEstaCompleto } from './ChamadoFormFields';
 import type { SuporteAbrangencia, SuporteFrequencia, SuporteImpacto } from '@/services/suporte/types';
@@ -53,10 +53,7 @@ export function ReportarProblemaDrawer() {
     closeReportarProblema();
     try {
       await new Promise((r) => setTimeout(r, 300));
-      const canvas = await html2canvas(document.body, { scale: 1, useCORS: true });
-      const blob: Blob | null = await new Promise((resolve) =>
-        canvas.toBlob(resolve, 'image/png'),
-      );
+      const blob = await capturarTelaVisivel();
       if (blob) {
         setScreenshot({ blob, previewUrl: URL.createObjectURL(blob) });
       }
