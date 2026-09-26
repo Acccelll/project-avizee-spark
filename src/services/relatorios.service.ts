@@ -14,6 +14,8 @@
  *       → loaders/financeiro.ts
  *   - vendas, faturamento, vendas_cliente, curva_abc
  *       → loaders/comercial.ts
+ *   - pedidos_a_faturar
+ *       → loaders/pedidosAFaturar.ts
  *   - compras, compras_fornecedor
  *       → loaders/compras.ts
  *   - divergencias
@@ -46,6 +48,7 @@ import {
   loadComprasFornecedor,
   loadNfeEntrada,
 } from "@/services/relatorios/loaders/compras";
+import { loadPedidosAFaturar } from "@/services/relatorios/loaders/pedidosAFaturar";
 import { loadDivergencias } from "@/services/relatorios/loaders/divergencias";
 import { loadXmlsArquivados } from "@/services/relatorios/loaders/xmlsArquivados";
 import {
@@ -99,6 +102,8 @@ export async function carregarRelatorio(
       return loadVendas(filtros);
     case "faturamento":
       return loadFaturamento(filtros);
+    case "pedidos_a_faturar":
+      return loadPedidosAFaturar(filtros);
     case "vendas_cliente":
       return loadVendasCliente(filtros);
     case "curva_abc":
