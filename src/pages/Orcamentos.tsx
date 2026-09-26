@@ -11,13 +11,11 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil } from "lucide-react";
+import { ClipboardCheck, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil, PackageCheck } from "lucide-react";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
@@ -27,16 +25,12 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import { formatCurrencyCompact } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { useCan } from "@/hooks/useCan";
 import { Send, Link2 } from "lucide-react";
-import { sendForApproval, approveOrcamento, duplicateOrcamento } from "@/services/orcamentos.service";
+import { sendForApproval, duplicateOrcamento } from "@/services/orcamentos.service";
 import { VincularNfDialog } from "@/components/orcamentos/VincularNfDialog";
-import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
-import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
-import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
+import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
 import { statusOrcamento } from "@/lib/statusSchema";
-import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
+import { canRegistrarPedido, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { notifyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
@@ -66,10 +60,36 @@ interface Orcamento {
   frete_tipo?: string | null;
   modalidade?: string | null;
   cliente_snapshot?: unknown;
-  clientes?: { nome_razao_social: string } | null;
+  prazo_entrega_dias?: number | null;
+  pedido_cliente?: string | null;
+  data_pedido_cliente?: string | null;
+  previsao_despacho?: string | null;
+  pedido_registrado_em?: string | null;
+  clientes?: { nome_razao_social: string; cpf_cnpj?: string | null } | null;
 }
 
-const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
+/** Abas rápidas da lista: cada uma é um conjunto de status. */
+const ABAS: { value: string; label: string; status: string[] }[] = [
+  { value: "todos", label: "Todos", status: [] },
+  { value: "negociacao", label: "Em negociação", status: ["rascunho", "pendente"] },
+  { value: "pedidos", label: "Pedidos em aberto", status: ["aprovado"] },
+  { value: "encerrados", label: "Encerrados", status: ["rejeitado", "cancelado", "expirado"] },
+];
+
+function PrevisaoDespacho({ o }: { o: Orcamento }) {
+  if (!o.previsao_despacho) return <span className="text-xs text-muted-foreground">—</span>;
+  const atrasado =
+    normalizeOrcamentoStatus(o.status) === "aprovado" &&
+    o.previsao_despacho < new Date().toISOString().slice(0, 10);
+  return (
+    <span className={atrasado ? "text-xs font-medium text-destructive" : "text-xs"} title={atrasado ? "Previsão de despacho vencida" : undefined}>
+      {formatDate(o.previsao_despacho)}
+    </span>
+  );
+}
+
+// Pedido (aprovado) não vence: a validade só vale para a proposta.
+const TERMINAL_STATUSES = ["aprovado", "convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
@@ -135,11 +155,9 @@ const Orcamentos = () => {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
   const isMobile = useIsMobile();
-  const { data: rawData, loading, fetchData, isError, error: queryError } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
+  const { data: rawData, loading, fetchData, isError, error: queryError } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social, cpf_cnpj)" });
   const data = rawData as unknown as Orcamento[];
-  const [convertingId, setConvertingId] = useState<string | null>(null);
-  const [poNumberCliente, setPoNumberCliente] = useState("");
-  const [dataPoCliente, setDataPoCliente] = useState("");
+  const [registrarPedidoId, setRegistrarPedidoId] = useState<string | null>(null);
   const [vincularNfId, setVincularNfId] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -170,6 +188,7 @@ const Orcamentos = () => {
       de: { type: "string" },
       ate: { type: "string" },
       historico: { type: "string" },
+      aba: { type: "string" },
     },
   });
   const searchTerm = filterState.q;
@@ -179,6 +198,7 @@ const Orcamentos = () => {
   const dataInicio = filterState.de;
   const dataFim = filterState.ate;
   const historicoFilter = filterState.historico || "todos";
+  const aba = ABAS.find((a) => a.value === filterState.aba) ?? ABAS[0];
 
   const setSearchTerm = (v: string) => setFilters({ q: v });
   const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
@@ -208,14 +228,7 @@ const Orcamentos = () => {
   };
   const setHistoricoFilter = (v: string) => setFilters({ historico: v === "todos" ? "" : v });
   const { data: clientesList = [] } = useClientesRef();
-  const { isAdmin } = useIsAdmin();
-  const { can } = useCan();
-  const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const sendLock = useActionLock();
-  const approveLock = useActionLock();
-  const convertLock = useActionLock();
-  const converterOrcamento = useConverterOrcamento();
-  const crossToast = useCrossModuleToast();
 
   const handleSendForApproval = useCallback(async (orc: Orcamento) => {
     await sendLock.run(async () => {
@@ -240,57 +253,6 @@ const Orcamentos = () => {
     }
   };
 
-  const handleApprove = async (orc: Orcamento) => {
-    if (!canAprovar) {
-      toast.error("Você não tem permissão para aprovar orçamentos.");
-      return;
-    }
-    await approveLock.run(async () => {
-      try {
-        await approveOrcamento(orc);
-        fetchData();
-      } catch (err: unknown) {
-        notifyError(err);
-      }
-    });
-  };
-
-  const handleConvertToPedido = async (orc: Orcamento) => {
-    await convertLock.run(async () => {
-      try {
-        // RPC transacional + invalidação cross-módulo (orcamentos + ordens_venda + pedidos).
-        const result = await converterOrcamento.mutateAsync({
-          orcamento: orc,
-          options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
-        });
-        setPoNumberCliente("");
-        setDataPoCliente("");
-        fetchData();
-        // Aviso quando o orçamento sai do filtro atual após conversão.
-        const filtroEscondeConvertido =
-          statusFilters.length > 0 && !statusFilters.includes("convertido");
-        if (filtroEscondeConvertido) {
-          toast.info(
-            `Orçamento ${orc.numero} agora está como "convertido" e saiu do filtro atual.`,
-            { duration: 5000 }
-          );
-        }
-        // Toast com CTA: abre o pedido criado em drawer (sem sair da grid de cotações).
-        crossToast.success({
-          title: "Pedido gerado!",
-          description: `OV ${result.ovNumero} criada a partir do orçamento ${orc.numero}.`,
-          actionLabel: "Abrir pedido",
-          action: { drawer: { type: "ordem_venda", id: result.ovId } },
-        });
-      } catch {
-        // toast já emitido pelo hook
-      } finally {
-        setConvertingId(null);
-      }
-    });
-  };
-
-
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return data.filter((orc) => {
@@ -298,6 +260,7 @@ const Orcamentos = () => {
       if (historicoFilter === "excluir" && isHistorico) return false;
       if (historicoFilter === "apenas" && !isHistorico) return false;
       const normalizedStatus = normalizeOrcamentoStatus(orc.status);
+      if (aba.status.length > 0 && !aba.status.includes(normalizedStatus)) return false;
       if (statusFilters.length > 0 && !statusFilters.includes(normalizedStatus)) return false;
       if (clienteFilters.length > 0 && !clienteFilters.includes(orc.cliente_id || "")) return false;
 
@@ -316,17 +279,18 @@ const Orcamentos = () => {
       }
 
       if (!query) return true;
-      return [orc.numero, orc.clientes?.nome_razao_social, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
+      return [orc.numero, orc.clientes?.nome_razao_social, orc.pedido_cliente, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, searchTerm, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter]);
+  }, [data, searchTerm, aba, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter]);
 
   const kpis = useMemo(() => {
     const total = filteredData.length;
     const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const approved = filteredData.filter(o => o.status === "aprovado").length;
-    const converted = filteredData.filter(o => o.status === "convertido").length;
+    const pedidos = filteredData.filter(o => o.status === "aprovado");
+    const pedidosValor = pedidos.reduce((s, o) => s + Number(o.valor_total || 0), 0);
+    const converted = filteredData.filter(o => o.status === "aprovado" || o.status === "convertido").length;
     const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
-    return { total, totalValue, approved, converted, conversionRate };
+    return { total, totalValue, pedidos: pedidos.length, pedidosValor, converted, conversionRate };
   }, [filteredData]);
 
   const columns = [
@@ -343,6 +307,18 @@ const Orcamentos = () => {
       ),
     },
     {
+      key: "pedido_cliente", label: "Pedido do cliente", sortable: true,
+      sortValue: (o: Orcamento) => o.pedido_cliente ?? "",
+      render: (o: Orcamento) =>
+        o.pedido_cliente ? (
+          <span className={o.pedido_cliente === o.numero ? "font-mono text-xs text-muted-foreground" : "font-mono text-xs"}>
+            {o.pedido_cliente}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: "data_orcamento", label: "Emissão", sortable: true,
       render: (o: Orcamento) => <span className="text-xs">{formatDate(o.data_orcamento)}</span>,
     },
@@ -350,6 +326,11 @@ const Orcamentos = () => {
       key: "validade", mobileCard: true, label: "Validade", sortable: true,
       sortValue: (o: Orcamento) => o.validade ?? "",
       render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
+    },
+    {
+      key: "previsao_despacho", label: "Previsão", sortable: true,
+      sortValue: (o: Orcamento) => o.previsao_despacho ?? "",
+      render: (o: Orcamento) => <PrevisaoDespacho o={o} />,
     },
     {
       key: "valor_total",
@@ -399,7 +380,7 @@ const Orcamentos = () => {
     },
   ];
 
-  const convertingOrc = data.find(o => o.id === convertingId);
+  const registrarPedidoOrc = data.find(o => o.id === registrarPedidoId);
 
   const orcActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -451,24 +432,40 @@ const Orcamentos = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total de Orçamentos" shortTitle="Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
           <SummaryCard title="Valor Total" shortTitle="Valor total" value={isMobile ? formatCurrencyCompact(kpis.totalValue) : formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
-          <SummaryCard title="Aguardando pedido" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aprovados, ainda não convertidos" />
-          <div title="Convertidos em pedido ÷ total de orçamentos no filtro">
+          <SummaryCard title="Pedidos em aberto" shortTitle="Pedidos" value={String(kpis.pedidos)} icon={PackageCheck} variationType="positive" variation={formatCurrency(kpis.pedidosValor)} />
+          <div title="Orçamentos que viraram pedido ÷ total de orçamentos no filtro">
             <SummaryCard
-              title="Taxa de Conversão"
-              shortTitle="Conversão"
+              title="Viraram pedido"
+              shortTitle="Viraram pedido"
               value={`${kpis.conversionRate}%`}
               icon={BarChart3}
               variationType="positive"
-              variation={`${kpis.converted} de ${kpis.total} convertidos`}
+              variation={`${kpis.converted} de ${kpis.total}`}
             />
           </div>
+        </div>
+
+        <div role="tablist" aria-label="Situação" className="mb-3 flex flex-wrap gap-1.5">
+          {ABAS.map((a) => (
+            <Button
+              key={a.value}
+              role="tab"
+              aria-selected={aba.value === a.value}
+              size="sm"
+              variant={aba.value === a.value ? "default" : "outline"}
+              className="h-9"
+              onClick={() => setFilters({ aba: a.value === "todos" ? "" : a.value })}
+            >
+              {a.label}
+            </Button>
+          ))}
         </div>
 
         <div data-help-id="orcamentos.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por número do orçamento ou cliente..."
+          searchPlaceholder="Buscar por orçamento, cliente ou pedido do cliente..."
           activeFilters={orcActiveFilters}
           onRemoveFilter={handleRemoveOrcFilter}
           onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); setSearchTerm(""); }}
@@ -533,38 +530,13 @@ const Orcamentos = () => {
             rowExtraActions={(o: Orcamento) => (
               <>
                 {canSendOrcamento(o.status) && (
-                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }} title="Enviar para aprovação" aria-label="Enviar para aprovação">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }} title="Marcar como enviado ao cliente" aria-label="Marcar como enviado ao cliente">
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canApproveOrcamento(o.status) && canAprovar && (
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={approveLock.pending} title="Aprovar" aria-label="Aprovar">
-                    <CheckCircle className="h-4 w-4" />
-                  </Button>
-                )}
-                {canConvertOrcamento(o.status) && (
-                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={convertLock.pending} onClick={(e) => {
-                    e.stopPropagation();
-                    setPoNumberCliente("");
-                    setDataPoCliente("");
-                    setConvertingId(o.id);
-                  }} title="Converter em pedido" aria-label="Converter em pedido">
-                    <ArrowRightCircle className="h-4 w-4" />
-                  </Button>
-                )}
-                {normalizeOrcamentoStatus(o.status) === "convertido" && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/pedidos?cotacao=${o.id}`);
-                    }}
-                    title="Abrir pedido gerado a partir deste orçamento"
-                    aria-label="Abrir pedido"
-                  >
-                    <ArrowRightCircle className="h-4 w-4" />
+                {canRegistrarPedido(o.status, o.pedido_registrado_em) && (
+                  <Button size="icon" variant="ghost" className="h-8 w-8 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0" onClick={(e) => { e.stopPropagation(); setRegistrarPedidoId(o.id); }} title="Registrar pedido do cliente" aria-label="Registrar pedido do cliente">
+                    <ClipboardCheck className="h-4 w-4" />
                   </Button>
                 )}
                 {["aprovado", "convertido"].includes(normalizeOrcamentoStatus(o.status)) && (
@@ -608,55 +580,15 @@ const Orcamentos = () => {
               </div>
             )}
             mobilePrimaryAction={(o) => {
-              if (canConvertOrcamento(o.status)) {
+              if (canRegistrarPedido(o.status, o.pedido_registrado_em)) {
                 return (
                   <Button
                     size="lg"
                     variant="default"
                     className="h-11 w-full gap-2 text-sm"
-                    disabled={convertLock.pending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPoNumberCliente("");
-                      setDataPoCliente("");
-                      setConvertingId(o.id);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setRegistrarPedidoId(o.id); }}
                   >
-                    <ArrowRightCircle className="w-4 h-4" /> Converter em Pedido
-                  </Button>
-                );
-              }
-              if (canApproveOrcamento(o.status) && canAprovar) {
-                return (
-                  <Button
-                    size="lg"
-                    variant="default"
-                    className="h-11 w-full gap-2 text-sm"
-                    disabled={approveLock.pending}
-                    onClick={(e) => { e.stopPropagation(); handleApprove(o); }}
-                  >
-                    <CheckCircle className="w-4 h-4" /> Aprovar
-                  </Button>
-                );
-              }
-              if (canApproveOrcamento(o.status) && !canAprovar) {
-                return (
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground py-2">
-                    <Clock className="w-3.5 h-3.5" />
-                    Aguardando aprovação do gerente
-                  </div>
-                );
-              }
-              if (canSendOrcamento(o.status)) {
-                return (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-11 w-full gap-2 text-sm"
-                    disabled={sendLock.pending}
-                    onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}
-                  >
-                    <Send className="w-4 h-4" /> Enviar para aprovação
+                    <ClipboardCheck className="w-4 h-4" /> Registrar pedido
                   </Button>
                 );
               }
@@ -669,7 +601,7 @@ const Orcamentos = () => {
                     className="h-11 w-full gap-2 text-sm"
                     onClick={(e) => { e.stopPropagation(); navigate(`/pedidos?cotacao=${o.id}`); }}
                   >
-                    <ArrowRightCircle className="w-4 h-4" /> Abrir pedido
+                    <Eye className="w-4 h-4" /> Abrir pedido (OV)
                   </Button>
                 );
               }
@@ -700,50 +632,25 @@ const Orcamentos = () => {
         label="Novo orçamento"
       />
 
-      <CrossModuleActionDialog
-        open={!!convertingId}
-        onClose={() => {
-          setConvertingId(null);
-          setPoNumberCliente("");
-          setDataPoCliente("");
+      <RegistrarPedidoDialog
+        open={!!registrarPedidoOrc}
+        onClose={() => setRegistrarPedidoId(null)}
+        orcamento={registrarPedidoOrc ? {
+          id: registrarPedidoOrc.id,
+          numero: registrarPedidoOrc.numero,
+          cliente_id: registrarPedidoOrc.cliente_id,
+          clienteNome: registrarPedidoOrc.clientes?.nome_razao_social,
+          clienteCpfCnpj: registrarPedidoOrc.clientes?.cpf_cnpj,
+          valor_total: registrarPedidoOrc.valor_total,
+          prazo_entrega_dias: registrarPedidoOrc.prazo_entrega_dias,
+        } : null}
+        onDone={() => {
+          fetchData();
+          if (aba.status.length > 0 && !aba.status.includes("aprovado")) {
+            toast.info("O pedido saiu desta aba. Veja em \u201cPedidos em aberto\u201d.", { duration: 5000 });
+          }
         }}
-        onConfirm={() => convertingOrc && handleConvertToPedido(convertingOrc)}
-        title="Converter em Pedido de Venda"
-        description={`Confirma a conversão do orçamento ${convertingOrc?.numero} em Pedido de Venda? Nenhuma Nota Fiscal será emitida nesta etapa.`}
-        confirmLabel="Converter em Pedido"
-        loading={convertLock.pending}
-        impacts={[
-          {
-            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
-            detail: convertingOrc ? formatCurrency(Number(convertingOrc.valor_total || 0)) : undefined,
-            tone: "primary",
-          },
-          { label: "Orçamento muda para “convertido”", tone: "info" },
-          { label: "Pedido fica disponível para faturamento", tone: "success" },
-        ] satisfies ImpactItem[]}
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label className="text-xs">Nº Pedido do Cliente (PO)</Label>
-            <Input
-              value={poNumberCliente}
-              onChange={(e) => setPoNumberCliente(e.target.value)}
-              placeholder="Ex: PO-2026-00123"
-              className="h-9"
-            />
-            <p className="text-xs text-muted-foreground">Número do pedido de compra emitido pelo cliente.</p>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Data do Pedido do Cliente</Label>
-            <Input
-              type="date"
-              value={dataPoCliente}
-              onChange={(e) => setDataPoCliente(e.target.value)}
-              className="h-9"
-            />
-          </div>
-        </div>
-      </CrossModuleActionDialog>
+      />
 
       <VincularNfDialog
         open={!!vincularNfId}

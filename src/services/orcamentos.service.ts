@@ -85,7 +85,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
   const { error } = await supabase.rpc("enviar_orcamento_aprovacao", { p_id: orc.id });
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
-  toast.success(`Orçamento ${orc.numero} enviado para aprovação!`);
+  toast.success(`Orçamento ${orc.numero} marcado como enviado ao cliente.`);
 }
 
 export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
@@ -436,7 +436,7 @@ export async function criarRevisaoOrcamento(orcamentoId: string): Promise<string
 export async function fetchOrcamentoDetalhes(orcamentoId: string, signal: AbortSignal) {
   const { data: orc, error: orcError } = await supabase
     .from("orcamentos")
-    .select("*, clientes(id, nome_razao_social)")
+    .select("*, clientes(id, nome_razao_social, cpf_cnpj)")
     .eq("id", orcamentoId)
     .abortSignal(signal)
     .maybeSingle();

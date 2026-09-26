@@ -12,10 +12,10 @@
 
 export const statusOrcamento: Record<string, { label: string; color: string }> = {
   rascunho: { label: "Rascunho", color: "secondary" },
-  pendente: { label: "Aguardando Aprovação", color: "warning" },
-  aprovado: { label: "Aprovado", color: "success" },
-  convertido: { label: "Convertido em Pedido", color: "success" },
-  rejeitado: { label: "Rejeitado", color: "destructive" },
+  pendente: { label: "Enviado", color: "warning" },
+  aprovado: { label: "Pedido", color: "success" },
+  convertido: { label: "Pedido (OV)", color: "success" },
+  rejeitado: { label: "Recusado", color: "destructive" },
   cancelado: { label: "Cancelado", color: "destructive" },
   expirado: { label: "Expirado", color: "destructive" },
   historico: { label: "Histórico", color: "secondary" },

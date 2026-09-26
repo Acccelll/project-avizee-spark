@@ -2,9 +2,9 @@
 export function StatusStepper({ status }: { status: string }) {
   const steps = [
     { key: "rascunho", label: "Rascunho", match: ["rascunho"] },
-    { key: "pendente", label: "Aprovação", match: ["pendente"] },
-    { key: "aprovado", label: "Aprovado", match: ["aprovado"] },
-    { key: "convertido", label: "Pedido", match: ["convertido"] },
+    { key: "pendente", label: "Enviado", match: ["pendente"] },
+    { key: "aprovado", label: "Pedido", match: ["aprovado", "convertido"] },
+    { key: "faturado", label: "Faturado", match: [] as string[] },
   ];
   const currentIdx = steps.findIndex((s) => s.match.includes(status));
   const isTerminal = ["rejeitado", "cancelado", "expirado", "historico"].includes(status);

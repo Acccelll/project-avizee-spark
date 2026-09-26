@@ -43,6 +43,8 @@ import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/o
 import { type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
 
 const LOCKED_STATUSES = new Set([
+  // "aprovado" = Pedido: itens travados; ajustes só por revisão.
+  "aprovado",
   "convertido",
   "rejeitado",
   "expirado",
@@ -198,22 +200,21 @@ export function useOrcamentoForm() {
   const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
-  // isLocked: somente estados terminais/derivados são imutáveis.
-  // "rascunho", "pendente" e "aprovado" continuam editáveis para permitir ajustes
-  // antes da conversão em pedido.
+  // isLocked: pedido registrado e estados terminais são imutáveis.
+  // "rascunho" e "pendente" (enviado) continuam editáveis.
   const isLocked = isEdit && !!status && LOCKED_STATUSES.has(status);
 
-  // Opções de status filtradas por permissão. "Convertido" nunca é selecionável manualmente.
+  // Opções de status filtradas por permissão. "Pedido" (aprovado) só por
+  // "Registrar pedido" e "Convertido" nunca são selecionáveis manualmente.
   const statusOptions = useMemo(() => {
     const base: { value: string; label: string }[] = [
       { value: "rascunho", label: "Rascunho" },
-      { value: "pendente", label: "Aguardando Aprovação" },
+      { value: "pendente", label: "Enviado" },
       { value: "cancelado", label: "Cancelado" },
     ];
     if (canApprove) {
       base.push(
-        { value: "aprovado", label: "Aprovado" },
-        { value: "rejeitado", label: "Rejeitado" },
+        { value: "rejeitado", label: "Recusado" },
         { value: "expirado", label: "Expirado" },
       );
     }

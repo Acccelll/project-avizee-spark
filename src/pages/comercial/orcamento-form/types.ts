@@ -61,10 +61,10 @@ export const emptyCliente: ClienteSnapshot = {
 
 export const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
-  pendente: "Aguardando aprovação",
-  aprovado: "Aprovado",
-  convertido: "Convertido",
-  rejeitado: "Rejeitado",
+  pendente: "Enviado",
+  aprovado: "Pedido",
+  convertido: "Pedido (OV)",
+  rejeitado: "Recusado",
   expirado: "Expirado",
   cancelado: "Cancelado",
   historico: "Histórico",
