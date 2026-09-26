@@ -23,16 +23,17 @@ export type RelatorioDomain =
 
 const DOMAIN_TO_TIPOS: Record<RelatorioDomain, TipoRelatorio[]> = {
   financeiro: ['financeiro', 'fluxo_caixa', 'aging', 'dre'] as TipoRelatorio[],
-  comercial: ['vendas', 'faturamento', 'curva_abc', 'margem_produtos'] as TipoRelatorio[],
+  comercial: ['vendas', 'pedidos_a_faturar', 'faturamento', 'curva_abc', 'margem_produtos'] as TipoRelatorio[],
   compras: ['compras'] as TipoRelatorio[],
   estoque: [
     'estoque',
+    'pedidos_a_faturar',
     'movimentos_estoque',
     'estoque_minimo',
     'curva_abc',
     'margem_produtos',
   ] as TipoRelatorio[],
-  fiscal: ['faturamento'] as TipoRelatorio[],
+  fiscal: ['faturamento', 'pedidos_a_faturar'] as TipoRelatorio[],
   cadastros: [] as TipoRelatorio[],
 };
 

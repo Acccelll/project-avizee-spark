@@ -17,6 +17,7 @@ export type TipoRelatorio =
   | "financeiro"
   | "fluxo_caixa"
   | "vendas"
+  | "pedidos_a_faturar"
   | "compras"
   | "aging"
   | "dre"

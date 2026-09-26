@@ -34,6 +34,7 @@ const STALE_TIME_BY_TIPO: Partial<Record<TipoRelatorio, number>> = {
   movimentos_estoque: 2 * 60 * 1000,
   fluxo_caixa: 2 * 60 * 1000,
   vendas: 5 * 60 * 1000,
+  pedidos_a_faturar: 2 * 60 * 1000,
   faturamento: 5 * 60 * 1000,
   compras: 5 * 60 * 1000,
   aging: 5 * 60 * 1000,

@@ -34,6 +34,7 @@ import {
   ContactRound,
   IdCard,
   FileArchive,
+  PackageCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -692,6 +693,56 @@ const xmlsArquivadosConfig: ReportConfig = {
   drillDown: [],
 };
 
+const pedidosAFaturarConfig: ReportConfig = {
+  id: 'pedidos_a_faturar',
+  title: 'Pedidos a Faturar',
+  description: 'Itens de pedidos aprovados ainda não faturados, com cobertura de estoque',
+  objective: 'O que precisa ser despachado/faturado e quanto falta em estoque para atender',
+  category: 'comercial',
+  priority: true,
+  icon: PackageCheck,
+  chartType: 'bar',
+  columns: [
+    { key: 'numero', label: 'Pedido' },
+    { key: 'cliente', label: 'Cliente' },
+    { key: 'previsao', label: 'Previsão Despacho', format: 'date' },
+    { key: 'codigo', label: 'Código' },
+    { key: 'produto', label: 'Produto' },
+    { key: 'unidade', label: 'UN' },
+    { key: 'qtdPendente', label: 'Qtd a Faturar', format: 'quantity', align: 'right' },
+    { key: 'valorUnitario', label: 'Valor Un', format: 'currency', align: 'right' },
+    { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'estoqueDisponivel', label: 'Estoque Disp.', format: 'quantity', align: 'right' },
+    { key: 'falta', label: 'Falta', format: 'quantity', align: 'right' },
+    { key: 'situacao', label: 'Situação', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: false,
+    showClientes: true,
+    showFornecedores: false,
+    showGrupos: false,
+    showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'atendido', label: 'Estoque OK' },
+      { value: 'parcial', label: 'Estoque parcial' },
+      { value: 'sem_estoque', label: 'Sem estoque' },
+      { value: 'sem_cadastro', label: 'Item sem cadastro' },
+    ],
+    showTipos: false,
+  },
+  kpis: [
+    { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', variation: 'saldo em aberto' },
+    { key: 'pedidos', label: 'Pedidos em Aberto', format: 'number', variation: 'aprovados' },
+    { key: 'itensComFalta', label: 'Itens com Falta', format: 'number', variant: 'danger', variation: 'estoque insuficiente' },
+    { key: 'atrasados', label: 'Pedidos Atrasados', format: 'number', variant: 'warning', variation: 'previsão vencida' },
+  ],
+  drillDown: [
+    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
+    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
+  ],
+};
+
 const faturamentoConfig: ReportConfig = {
   id: 'faturamento',
   title: 'Faturamento',
@@ -1096,6 +1147,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   financeiro: financeiroConfig,
   fluxo_caixa: fluxoCaixaConfig,
   vendas: vendasConfig,
+  pedidos_a_faturar: pedidosAFaturarConfig,
   vendas_cliente: vendasClienteConfig,
   compras: comprasConfig,
   compras_fornecedor: comprasFornecedorConfig,
@@ -1202,6 +1254,15 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     investigableField: 'referencia',
   },
   vendas: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão' },
+  pedidos_a_faturar: {
+    statusField: 'statusKey',
+    valueSortField: 'valorPendente',
+    dateSortField: 'previsao',
+    periodAxisLabel: 'posição atual da carteira',
+    statusMeaning: 'Situação indica se o estoque disponível cobre o saldo a faturar (alocado pela previsão de despacho mais próxima).',
+    highlightFilters: ['clientes', 'status'],
+    investigableField: 'numero',
+  },
   vendas_cliente: { valueSortField: 'valorTotal', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (por cliente)', highlightFilters: ['periodo', 'clientes'], investigableField: 'cliente' },
   // `compras` filtra/lista por data de compra (campo `compra` na linha) — alinhado a `timeAxis.field = 'criacao'` (data de compra) no config.
   compras: { statusField: 'status', valueSortField: 'valor', dateSortField: 'compra', periodAxisLabel: 'data de compra', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
