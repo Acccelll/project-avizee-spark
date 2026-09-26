@@ -66,12 +66,12 @@ export function PedidoClienteResumo({ orcamento, onEditar }: Props) {
       </dl>
       <div className="flex flex-wrap gap-2">
         {orcamento.pedido_anexo_path && (
-          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={abrirAnexo}>
+          <Button size="sm" variant="outline" className="h-7 min-h-11 gap-1.5 text-xs sm:min-h-0" onClick={abrirAnexo}>
             <Paperclip className="h-3 w-3" /> Ver pedido anexado
           </Button>
         )}
         {onEditar && (
-          <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs" onClick={onEditar}>
+          <Button size="sm" variant="ghost" className="h-7 min-h-11 gap-1.5 text-xs sm:min-h-0" onClick={onEditar}>
             <Pencil className="h-3 w-3" /> Editar dados do pedido
           </Button>
         )}

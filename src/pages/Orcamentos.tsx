@@ -535,7 +535,7 @@ const Orcamentos = () => {
                   </Button>
                 )}
                 {canRegistrarPedido(o.status, o.pedido_registrado_em) && (
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setRegistrarPedidoId(o.id); }} title="Registrar pedido do cliente" aria-label="Registrar pedido do cliente">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0" onClick={(e) => { e.stopPropagation(); setRegistrarPedidoId(o.id); }} title="Registrar pedido do cliente" aria-label="Registrar pedido do cliente">
                     <ClipboardCheck className="h-4 w-4" />
                   </Button>
                 )}

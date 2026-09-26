@@ -219,7 +219,7 @@ export function OrcamentoView({ id }: Props) {
           </Button>
         )}
         {canRegistrarPedido(selected.status, selected.pedido_registrado_em) && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setPedidoDialog("registrar")} disabled={isAnyLocked}>
+          <Button size="sm" variant="default" className="h-8 min-h-11 gap-1.5 text-xs sm:min-h-0" onClick={() => setPedidoDialog("registrar")} disabled={isAnyLocked}>
             <ClipboardCheck className="h-3.5 w-3.5" /> Registrar pedido
           </Button>
         )}
