@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { extrairReferenciasPedido } from "@/lib/referenciasPedido";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 import {
   useNFeXmlImport,
@@ -26,6 +27,8 @@ export interface XmlOriginInfo {
   clienteNome?: string;
   tipo?: "entrada" | "saida";
   cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
+  /** Pedido/OC/orçamento lidos do XML de saída, para ligar a nota ao pedido. */
+  referenciasPedido?: string[];
 }
 
 interface PendingXmlImport {
@@ -219,7 +222,7 @@ export function useFiscalXmlImport(args: UseFiscalXmlImportArgs) {
     setItems(newItems);
     if (anexarNa) { setMode("edit"); setSelected(anexarNa); } else { setMode("create"); setSelected(null); }
     setItemContaContabil({}); setItemFiscalData(fiscalMap); setTraducaoLinhas(linhas);
-    setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca });
+    setXmlOriginInfo({ tipo, fornecedorId, fornecedorNome, clienteId, clienteNome, cobranca: nfe.cobranca, referenciasPedido: tipo === "saida" ? extrairReferenciasPedido(nfe) : undefined });
     const dups = nfe.cobranca?.duplicatas ?? [];
     if (dups.length > 0) {
       const { mapTPagSefaz } = await import("@/lib/financeiro");

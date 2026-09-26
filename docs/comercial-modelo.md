@@ -33,6 +33,25 @@ Com status `aprovado` os itens ficam travados; ajustes só por
 `criar_revisao_orcamento`. Quando a revisão vira pedido, a versão anterior
 que já era pedido é cancelada.
 
+## Vínculo NF ↔ pedido
+
+As NFs de saída são emitidas fora do ERP (Sebrae) e importadas pelo XML. A
+importação lê o número do pedido (`prod/xPed` dos itens e "PEDIDO:", "OC:",
+"PC:" ou "ORC…" em `infCpl`), grava em `notas_fiscais.referencias_pedido` e
+chama `vincular_nf_automatico`:
+
+1. pedido do cliente igual a uma referência (`xml_pedido`), mesmo cliente pela raiz do CNPJ;
+2. número do orçamento igual a uma referência (`xml_orcamento`);
+3. sem referência que bata: mesmo valor vira só **sugestão** (`sugerir_pedidos_nf`).
+
+`orcamento_nf_vinculos` (nota ↔ orçamento) e `orcamento_nf_vinculo_itens`
+(item da nota ↔ item do pedido, com quantidade) guardam o vínculo. Uma nota
+pode atender vários pedidos e um pedido pode ter várias notas.
+`vw_orcamento_itens_saldo` dá pedido, faturado e saldo por item; nota
+cancelada não conta. `orcamentos.faturamento_status` é recalculado a cada
+vínculo, desvínculo ou cancelamento de nota (`aberto → parcial → faturado`);
+`encerrado` vem de `encerrar_saldo_orcamento`.
+
 ## Política de exclusão
 
 - DELETE físico: **somente** `rascunho` sem pedido vinculado.
@@ -62,6 +81,7 @@ View `v_trilha_comercial` consolida orçamento + pedido + NF + cliente para cons
 ## RPCs principais
 
 - `registrar_pedido_orcamento(p_id, p_pedido_cliente, p_data_pedido, p_previsao_despacho, p_anexo_path)` — rascunho/pendente → `aprovado`, grava o pedido do cliente, encerra a versão anterior numa revisão, auditoria.
+- `vincular_nf_orcamento`, `desvincular_nf_orcamento`, `vincular_nf_automatico`, `sugerir_pedidos_nf`, `encerrar_saldo_orcamento` — vínculo NF ↔ pedido e saldo.
 - `atualizar_pedido_orcamento(...)` — edita número, datas e anexo de um pedido já registrado, sem mexer nos itens.
 - `converter_orcamento_em_ov(p_orcamento_id, p_po_number, p_data_po, p_forcar)` — gate `aprovado`, idempotente, auditoria.
 - `gerar_nf_de_pedido(p_pedido_id)` — advisory lock, gate operacional, retorna `status_faturamento_novo`.

@@ -115,3 +115,21 @@ describe("buscarPedidosDuplicados", () => {
     expect(rows).toEqual([{ id: "a", numero: "ORC10", status: "aprovado" }]);
   });
 });
+
+describe("resumoVinculoAutomatico", () => {
+  it("resume cada resultado do vínculo automático", async () => {
+    const { resumoVinculoAutomatico } = await import("../vinculoNfPedido.service");
+    expect(resumoVinculoAutomatico({
+      status: "vinculado",
+      vinculados: [{ orcamento_id: "o", numero: "ORC1", pedido_cliente: "4500", referencia: "4500", faturamento_status: "parcial" }],
+    })).toEqual({ tipo: "success", texto: "NF ligada ao pedido 4500 (ORC1)." });
+    expect(resumoVinculoAutomatico({
+      status: "pedido_nao_registrado", vinculados: [],
+      pendentes: [{ orcamento_id: "o", numero: "ORC100500", referencia: "ORC100500", status: "rascunho" }],
+    })?.tipo).toBe("warning");
+    expect(resumoVinculoAutomatico({
+      status: "sugestao", vinculados: [], sugestoes: [{ orcamento_id: "o", numero: "ORC5", motivo: "valor" }],
+    })?.texto).toContain("ORC5");
+    expect(resumoVinculoAutomatico({ status: "sem_pedido", vinculados: [] })).toBeNull();
+  });
+});

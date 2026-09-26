@@ -24,13 +24,13 @@ interface Props {
     cliente_id: string | null;
     valor_total: number | null;
   } | null;
-  onLinked?: (result: { nfId: string; ovId: string }) => void;
+  onLinked?: (result: { nfId: string }) => void;
 }
 
 /**
- * Permite vincular um orçamento (que ainda não tem NF) a uma NF de saída já
- * emitida. Chama a RPC `vincular_orcamento_nf` que cria a OV-ponte quando
- * necessário e atualiza `notas_fiscais.ordem_venda_id`.
+ * Liga um pedido (orçamento com pedido do cliente) a uma NF de saída já
+ * emitida, via RPC `vincular_nf_orcamento`: os itens da nota baixam o saldo
+ * do pedido pelo produto. Uma nota pode atender vários pedidos.
  */
 export function VincularNfDialog({ open, onClose, orcamento, onLinked }: Props) {
   const [loading, setLoading] = useState(false);
@@ -74,8 +74,12 @@ export function VincularNfDialog({ open, onClose, orcamento, onLinked }: Props) 
         orcamentoId: orcamento.id,
         nfId: selectedId,
       });
-      toast.success(`Orçamento ${orcamento.numero} vinculado à NF.`);
-      onLinked?.({ nfId: selectedId, ovId: res?.ov_id ?? "" });
+      toast.success(
+        res.ja_vinculado
+          ? `A NF ${res.nf} já estava ligada a ${orcamento.numero}.`
+          : `NF ${res.nf} ligada ao pedido ${orcamento.numero}.`,
+      );
+      onLinked?.({ nfId: selectedId });
       onClose();
     } catch (err) {
       notifyError(err);
@@ -93,7 +97,7 @@ export function VincularNfDialog({ open, onClose, orcamento, onLinked }: Props) 
           </DialogTitle>
           <DialogDescription>
             {orcamento
-              ? `Selecione uma NF-e de saída já emitida para o cliente do orçamento ${orcamento.numero}. Será criada uma OV-ponte automaticamente quando necessário.`
+              ? `Selecione a NF-e de saída que atendeu o pedido ${orcamento.numero}. Os itens da nota baixam o saldo do pedido.`
               : ""}
           </DialogDescription>
         </DialogHeader>
