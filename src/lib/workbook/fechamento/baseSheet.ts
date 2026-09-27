@@ -19,6 +19,8 @@ const COLUNAS_METRICAS: Array<[string, FechamentoMetrica]> = [
   ['H', 'estoque_produtos'],
   ...AGING_FAIXAS.map((f, i) => [colLetter(9 + i), `aging_cr_${f}`] as [string, FechamentoMetrica]),
   ...AGING_FAIXAS.map((f, i) => [colLetter(20 + i), `aging_cp_${f}`] as [string, FechamentoMetrica]),
+  // Somado ao caixa acumulado da aba Receita (caixa final informado no fechamento).
+  ['AO', 'ajuste_caixa'],
 ];
 /** Métricas sem valor ficam em branco (o modelo mostra vazio, não zero). */
 const COLUNAS_OPCIONAIS: Array<[string, FechamentoMetrica]> = [
@@ -58,8 +60,18 @@ function cellXml(ref: string, v: Cell): string {
   return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(v)}</t></is></c>`;
 }
 
+function colNumber(col: string): number {
+  let n = 0;
+  for (const ch of col) n = n * 26 + ch.charCodeAt(0) - 64;
+  return n;
+}
+
 function rowXml(r: number, cells: Array<[string, Cell]>): string {
-  const body = cells.map(([c, v]) => cellXml(`${c}${r}`, v)).join('');
+  // O Excel exige as células da linha em ordem de coluna.
+  const body = [...cells]
+    .sort(([a], [b]) => colNumber(a) - colNumber(b))
+    .map(([c, v]) => cellXml(`${c}${r}`, v))
+    .join('');
   return body ? `<row r="${r}">${body}</row>` : '';
 }
 

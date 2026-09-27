@@ -159,6 +159,39 @@ describe('preencherWorkbookFechamento', () => {
     expect(caixa).toContain('<c:numCache>');
     expect(caixa).toContain('<c:strCache>');
   });
+
+  it('soma o ajuste de caixa ao caixa acumulado a partir do mês ajustado', async () => {
+    const caixaReceita = async (d: FechamentoDados) => {
+      const out = (await preencherWorkbookFechamento(modelo, d, { tipo: 'uint8array' })) as Uint8Array;
+      const zip = await JSZip.loadAsync(out);
+      const xml = await parteDaAba(zip, 'Receita');
+      return (ref: string) => Number(new RegExp(`<c r="${ref}"[^>]*><f>[^<]*</f><v>([^<]*)</v>`).exec(xml)![1]);
+    };
+    const semAjuste = await caixaReceita(dadosSinteticos('2026-05'));
+    const d = dadosSinteticos('2026-05');
+    // Mar/2026 = linha 29 da BASE; na aba Receita, caixa de 2026 fica na linha 13 (mar = coluna E).
+    d.meses.find((m) => m.competencia === '2026-03')!.valores.ajuste_caixa = -5000;
+    const base = buildBaseSheetXml(d);
+    expect(base).toContain('<c r="AO29"><v>-5000</v></c>');
+    const comAjuste = await caixaReceita(d);
+    expect(comAjuste('D13')).toBeCloseTo(semAjuste('D13'), 6);
+    expect(comAjuste('E13')).toBeCloseTo(semAjuste('E13') - 5, 6);
+    expect(comAjuste('F13')).toBeCloseTo(semAjuste('F13') - 5, 6);
+    // Variação do caixa: o ajuste aparece só no mês em que entrou.
+    expect(comAjuste('E14')).toBeCloseTo(semAjuste('E14') - 5, 6);
+    expect(comAjuste('F14')).toBeCloseTo(semAjuste('F14'), 6);
+  });
+
+  it('grava as células de cada linha da BASE em ordem de coluna', () => {
+    const d = dadosSinteticos('2026-05');
+    d.meses[29].valores.ajuste_caixa = 1;
+    const xml = buildBaseSheetXml(d);
+    const colNum = (c: string) => [...c].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+    for (const row of xml.matchAll(/<row r="\d+">([\s\S]*?)<\/row>/g)) {
+      const cols = [...row[1].matchAll(/<c r="([A-Z]+)\d+"/g)].map((m) => colNum(m[1]));
+      expect(cols).toEqual([...cols].sort((a, b) => a - b));
+    }
+  });
 });
 
 describe('utilitários', () => {

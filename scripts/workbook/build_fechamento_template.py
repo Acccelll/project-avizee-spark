@@ -18,6 +18,7 @@ Layout da BASE (linha 1 = cabeçalho):
   I..S aging CR (a vencer 0-30,31-60,61-90,90+; vencido 0-30,31-60,61-90,91-120,121-180,181-360,360+)
   T..AD aging CP (mesmas faixas) | AE seguidores LinkedIn | AF Instagram
   AG..AJ saldo sócio 1..4 | AK..AN retirada/pró-labore sócio 1..4
+  AO ajuste de caixa do mês (caixa final informado no fechamento - caixa calculado)
   AQ2 competência | AQ3 ano | AQ4 crescimento meta ano | AQ5 crescimento meta ano-1
   AQ6..AQ8 limite faturamento ano-2..ano | AQ9 resultado de caixa anterior à janela
   AP12..AP15 nome dos sócios | AQ12..AQ15 participação (fração)
@@ -86,7 +87,7 @@ def receita():
             f[f'{c}{h}'] = base('A', r)
             f[f'{c}{rr}'] = f'Confronto!{c}{conf_rec}'
             parts = prev[off] + [f'Confronto!$C${conf_res}:{c}{conf_res}']
-            f[f'{c}{cx}'] = w(r, f'BASE!$AQ$9/1000+SUM({",".join(parts)})')
+            f[f'{c}{cx}'] = w(r, f'BASE!$AQ$9/1000+SUM({",".join(parts)})+SUM(BASE!$AO$3:$AO${r})/1000')
             if m == 1:
                 ant = 'BASE!$AQ$9/1000' if prev_cx is None else f'N{prev_cx}'
                 f[f'{c}{vr}'] = w(r, f'{c}{cx}-{ant}')

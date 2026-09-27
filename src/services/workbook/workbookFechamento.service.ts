@@ -1,8 +1,40 @@
 import { supabase } from '@/integrations/supabase/client';
+import { buscarDadosFechamento } from '@/lib/workbook/fechamento';
+import { METRICAS_MANUAIS } from '@/lib/workbook/fechamento/types';
 
 /** Métricas do Workbook de Fechamento que são digitadas no fechamento. */
-export const METRICAS_ENTRADA_MANUAL = ['seguidores_linkedin', 'seguidores_instagram'] as const;
+export const METRICAS_ENTRADA_MANUAL = METRICAS_MANUAIS;
 export type MetricaEntradaManual = (typeof METRICAS_ENTRADA_MANUAL)[number];
+
+export interface PreviaSocioFechamento {
+  id: string;
+  nome: string;
+  /** Pró-labore/retirada do mês (retiradas cadastradas em Sócios). */
+  retirada: number;
+  /** Saldo acumulado no ano (lucro de caixa × participação). */
+  saldo: number;
+}
+
+export interface PreviaFechamento {
+  /** Caixa no fim do mês pelo ERP, antes do ajuste do próprio mês. */
+  caixaCalculado: number;
+  socios: PreviaSocioFechamento[];
+}
+
+/** Valores que o sistema calcula para o mês, exibidos ao lado das entradas manuais. */
+export async function carregarPreviaFechamento(competencia: string): Promise<PreviaFechamento> {
+  const dados = await buscarDadosFechamento(competencia);
+  const mes = dados.meses.find((m) => m.competencia === competencia);
+  return {
+    caixaCalculado: Number(mes?.valores.caixa_final_calculado ?? 0),
+    socios: dados.socios.map((s) => ({
+      id: s.id,
+      nome: s.nome_exibicao,
+      retirada: Number(mes?.socios?.[s.id]?.prolabore ?? 0),
+      saldo: Number(mes?.socios?.[s.id]?.saldo ?? 0),
+    })),
+  };
+}
 
 export interface ParametrosAnoWorkbook {
   ano: number;
