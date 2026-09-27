@@ -137,6 +137,28 @@ describe('preencherWorkbookFechamento', () => {
     const fopag = await zip.file('xl/charts/chart21.xml')!.async('string');
     expect(fopag).toContain('<a:t>FOPAG - mai/2026</a:t>');
   });
+
+  it('grava o valor calculado de cada fórmula e o cache dos gráficos', async () => {
+    const zip = await gerar('2026-05');
+    const wb = await zip.file('xl/workbook.xml')!.async('string');
+    const rels = await zip.file('xl/_rels/workbook.xml.rels')!.async('string');
+    const caminho = (aba: string) => {
+      const rid = new RegExp(`<sheet name="${aba}"[^>]*r:id="([^"]+)"`).exec(wb)![1];
+      return `xl/${new RegExp(`Id="${rid}"[^>]*Target="([^"]+)"`).exec(rels)![1].replace(/^\/?xl\//, '')}`;
+    };
+    let semValor = 0;
+    for (const p of Object.keys(zip.files).filter((f) => /^xl\/worksheets\/sheet[^/]+\.xml$/.test(f))) {
+      const xml = await zip.file(p)!.async('string');
+      semValor += [...xml.matchAll(/<c\b[^>]*>(<f>[\s\S]*?<\/f>)(?!<v>)/g)].length;
+    }
+    expect(semValor).toBe(0);
+    // Bridge: faturamento de jan/2026 em milhares (dado sintético: 2000 + índice 25).
+    const bridge = await zip.file(caminho('Bridge Faturamento'))!.async('string');
+    expect(bridge).toMatch(/<c r="H4"[^>]*><f>[^<]*<\/f><v>2\.025<\/v><\/c>/);
+    const caixa = await zip.file('xl/charts/chart12.xml')!.async('string');
+    expect(caixa).toContain('<c:numCache>');
+    expect(caixa).toContain('<c:strCache>');
+  });
 });
 
 describe('utilitários', () => {

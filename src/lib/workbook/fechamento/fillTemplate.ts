@@ -4,12 +4,15 @@
  * arquivo, e o valor do fechamento está justamente em manter layout, tabelas e
  * gráficos do Workbook original. Só são tocados: a aba BASE (dados), rótulos
  * que dependem do ano, cabeçalhos das tabelas da FOPAG e títulos/faixas dos
- * gráficos. O modelo tem `fullCalcOnLoad`, então o Excel recalcula ao abrir.
+ * gráficos. No fim, o valor de cada fórmula e o cache dos gráficos são
+ * calculados e gravados (ver `recalculo.ts`), para o arquivo abrir preenchido
+ * mesmo sem recálculo; `fullCalcOnLoad` segue ligado para o Excel recalcular.
  */
 import JSZip from 'jszip';
 import { buildBaseSheetXml, colLetter, escapeXml } from './baseSheet';
 import { GRAFICOS, TABELAS_FOPAG_LINHAS, TEXTOS, aplicarPlaceholders, type ContextoAno, type PatchGrafico } from './layout';
 import type { FechamentoDados } from './types';
+import { gravarValoresCalculados } from './recalculo';
 
 const REL_NS_ATTR = /r:id="([^"]+)"/;
 
@@ -142,6 +145,10 @@ export async function preencherWorkbookFechamento(
     for (const p of g.patches) xml = aplicarPatch(xml, p, ctx);
     zip.file(g.arquivo, xml);
   }
+
+  // Valores calculados junto das fórmulas: o arquivo abre preenchido mesmo
+  // onde o Excel não recalcula (Modo de Exibição Protegido, pré-visualizações).
+  await gravarValoresCalculados(zip, abas);
 
   return zip.generateAsync({
     type: opcoes.tipo ?? 'blob',
