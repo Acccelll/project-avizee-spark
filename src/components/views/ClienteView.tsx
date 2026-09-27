@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { FaturamentoBadge } from "@/components/orcamentos/FaturamentoPedido";
+import type { FaturamentoStatus } from "@/services/comercial/vinculoNfPedido.service";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -43,7 +45,15 @@ type ClienteWithGroup = Tables<"clientes"> & {
   formas_pagamento: { descricao: string } | null;
 };
 
-interface VendaRow { id: string; numero: string; data_emissao: string; valor_total: number; status: string }
+interface VendaRow {
+  id: string;
+  numero: string;
+  pedido_cliente: string | null;
+  data_pedido_cliente: string | null;
+  data_orcamento: string | null;
+  valor_total: number;
+  faturamento_status: FaturamentoStatus | null;
+}
 interface NotaSaidaRow { id: string; numero: string | null; data_emissao: string | null; valor_total: number | null; status: string | null; ordem_venda_id: string | null }
 type FinanceiroRow = Tables<"financeiro_lancamentos">;
 type ComunicacaoRow = Tables<"cliente_registros_comunicacao">;
@@ -126,8 +136,9 @@ export function ClienteView({ id }: Props) {
     .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   const titulosAbertos = financeiro.filter((f) => f.status === "aberto" || f.status === "parcial").length;
   // Combina pedidos atuais + notas históricas migradas para os KPIs.
-  const ultCompra = vendas[0]?.data_emissao || notasSaida[0]?.data_emissao || null;
-  const ultCompraOrigem: "pedido" | "nf" | null = vendas[0]?.data_emissao ? "pedido" : (notasSaida[0]?.data_emissao ? "nf" : null);
+  const dataVenda = (v: VendaRow | undefined) => v?.data_pedido_cliente ?? v?.data_orcamento ?? null;
+  const ultCompra = dataVenda(vendas[0]) || notasSaida[0]?.data_emissao || null;
+  const ultCompraOrigem: "pedido" | "nf" | null = dataVenda(vendas[0]) ? "pedido" : (notasSaida[0]?.data_emissao ? "nf" : null);
   const pmvBase = vendas.length > 0 ? vendas : notasSaida;
   const pmv = pmvBase.length > 0
     ? pmvBase.reduce((acc, curr) => acc + (Number(curr.valor_total) || 0), 0) / pmvBase.length
@@ -381,12 +392,14 @@ export function ClienteView({ id }: Props) {
               {vendas.map((v) => (
                 <div key={v.id} className="flex items-center justify-between p-2 rounded border bg-card hover:bg-muted/30 transition-colors text-sm">
                   <div>
-                    <RelationalLink onClick={() => pushView("ordem_venda", v.id)} className="font-mono">{v.numero}</RelationalLink>
-                    <p className="text-[10px] text-muted-foreground">{formatDate(v.data_emissao)}</p>
+                    <RelationalLink onClick={() => pushView("orcamento", v.id)} className="font-mono">{v.pedido_cliente || v.numero}</RelationalLink>
+                    <p className="text-[10px] text-muted-foreground">
+                      {v.pedido_cliente && v.pedido_cliente !== v.numero ? `${v.numero} · ` : ""}{formatDate(dataVenda(v))}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{formatCurrency(v.valor_total)}</p>
-                    <StatusBadge status={v.status} className="h-4 text-[10px]" />
+                    {v.faturamento_status && <FaturamentoBadge status={v.faturamento_status} />}
                   </div>
                 </div>
               ))}

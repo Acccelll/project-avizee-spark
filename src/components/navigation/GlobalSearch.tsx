@@ -100,7 +100,7 @@ const SEARCH_COMMANDS: SearchCommand[] = [
   { keywords: ['nf', 'nota'], arg: 'novo', title: 'Nova nota fiscal de saída', description: '/nf novo', path: '/fiscal?tipo=saida&new=1', requires: 'faturamento_fiscal:editar' },
   { keywords: ['nf', 'nota', 'fiscal'], title: 'Abrir Fiscal', description: '/nf', path: '/fiscal', requires: 'faturamento_fiscal:visualizar' },
   { keywords: ['central', 'fiscal'], title: 'Central Fiscal (runtime unificado)', description: '/fiscal/central', path: '/fiscal/central', requires: 'faturamento_fiscal:visualizar' },
-  { keywords: ['ped', 'pedido'], title: 'Abrir pedidos', description: '/ped', path: '/pedidos', requires: 'pedidos:visualizar' },
+  { keywords: ['ped', 'pedido'], title: 'Abrir pedidos em aberto', description: '/ped', path: '/orcamentos?aba=pedidos', requires: 'orcamentos:visualizar' },
   { keywords: ['fin', 'financeiro'], title: 'Abrir financeiro', description: '/fin', path: '/financeiro', requires: 'financeiro:visualizar' },
   { keywords: ['baixa', 'pag'], title: 'Baixa financeira em lote', description: '/baixa', path: '/financeiro?baixa=lote', requires: 'financeiro:baixar' },
   { keywords: ['est', 'estoque'], title: 'Abrir estoque', description: '/est', path: '/estoque', requires: 'estoque:visualizar' },
@@ -249,7 +249,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const filteredActions = useMemo(() => {
     const enriched = [
       ...quickActions,
-      { id: 'nova-venda', title: 'Novo Pedido', description: 'Ver pedidos e faturamento', path: '/pedidos', shortcut: '⌃⇧N' },
+      { id: 'nova-venda', title: 'Pedidos em aberto', description: 'Pedidos registrados nos orçamentos', path: '/orcamentos?aba=pedidos', shortcut: '⌃⇧N' },
       { id: 'nova-nota', title: 'Nova Nota Fiscal', description: 'Abrir emissão fiscal', path: '/fiscal?tipo=saida', shortcut: '⌃⇧N', requires: 'faturamento_fiscal:editar' as const },
       { id: 'novo-produto-atalho', title: 'Novo Produto', description: 'Ir para cadastro de produto', path: '/produtos', shortcut: '⌃⇧P' },
     ] as Array<typeof quickActions[number] & { requires?: string }>;

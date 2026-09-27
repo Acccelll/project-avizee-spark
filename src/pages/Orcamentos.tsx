@@ -612,9 +612,9 @@ const Orcamentos = () => {
                     size="lg"
                     variant="outline"
                     className="h-11 w-full gap-2 text-sm"
-                    onClick={(e) => { e.stopPropagation(); navigate(`/pedidos?cotacao=${o.id}`); }}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
                   >
-                    <Eye className="w-4 h-4" /> Abrir pedido (OV)
+                    <Eye className="w-4 h-4" /> Abrir pedido
                   </Button>
                 );
               }

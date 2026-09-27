@@ -147,7 +147,7 @@ export const navSections: NavSection[] = [
         title: 'Vendas',
         items: [
           { title: 'Orçamentos', path: '/orcamentos', icon: FileText, keywords: ['orcamentos', 'propostas', 'cotacoes', 'cotações'] },
-          { title: 'Pedidos', path: '/pedidos', icon: ClipboardList, keywords: ['pedidos', 'backlog', 'operacional', 'ordens', 'ov'] },
+          { title: 'Pedidos em aberto', path: '/orcamentos?aba=pedidos', icon: ClipboardList, keywords: ['pedidos', 'pedido do cliente', 'oc', 'ordens', 'ov', 'carteira'] },
         ],
       },
       {
@@ -202,7 +202,7 @@ export const navSections: NavSection[] = [
         title: 'Operacional',
         items: [
           { title: 'Emitir NF-e', path: '/faturamento/emitir', icon: FilePlus2, keywords: ['emissao', 'wizard', 'sefaz', 'nfe'] },
-          { title: 'Backlog de faturamento', path: '/faturamento/backlog', icon: ClipboardList, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla', 'backlog'] },
+          { title: 'Pedidos a faturar', path: '/relatorios?tipo=pedidos_a_faturar', icon: ClipboardList, keywords: ['pendente', 'pedidos', 'fila', 'backlog', 'despachar', 'saldo'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: FileInput, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
           { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: FileOutput, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
         ],

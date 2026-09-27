@@ -276,11 +276,14 @@ export async function fetchClienteDetalhes(clienteId: string, signal: AbortSigna
   if (!c) return null;
 
   const results = await Promise.allSettled([
+    // Pedidos de venda = orçamentos com pedido registrado (ou histórico já faturado).
     supabase
-      .from("ordens_venda")
-      .select("id, numero, data_emissao, valor_total, status")
+      .from("orcamentos")
+      .select("id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, valor_total, faturamento_status")
       .eq("cliente_id", c.id)
-      .order("data_emissao", { ascending: false })
+      .eq("ativo", true)
+      .or("status.in.(aprovado,convertido),and(status.eq.historico,faturamento_status.not.is.null)")
+      .order("data_orcamento", { ascending: false })
       .limit(10)
       .abortSignal(signal),
     supabase

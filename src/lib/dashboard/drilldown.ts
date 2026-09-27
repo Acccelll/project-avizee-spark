@@ -24,7 +24,7 @@
  * | logistica:remessas-atrasadas        | useDashboardAuxData                      | tab=remessas + atrasadas=1                                    |
  * | compras:atrasadas                   | useDashboardAuxData (comprasAtrasadasCount)| atrasadas=1 (interpretação local em PedidosCompra.tsx)      |
  * | fiscal:rascunho / fiscal:pendentes  | useDashboardFiscalData (pendentes)       | status=rascunho (único status real de NF não emitida)         |
- * | pedidos:aguardando-faturamento      | useDashboardComercialData (backlogOVs)   | status IN (aprovada,em_separacao) + faturamento IN (aguardando,parcial) |
+ * | pedidos:aguardando-faturamento      | useDashboardComercialData (backlogOVs)   | orçamento aprovado/convertido + faturamento_status IN (aberto,parcial) |
  */
 
 export type DrilldownIntent =
@@ -67,7 +67,7 @@ export function buildDrilldownUrl(intent: DrilldownIntent): string {
       // 'pendente' não é status real de notas_fiscais; rascunho é a fonte de verdade.
       return '/fiscal?status=rascunho';
     case 'pedidos:aguardando-faturamento':
-      // Espelha o filtro do hook (status da OV + status_faturamento).
-      return '/pedidos?status=aprovada,em_separacao&faturamento=aguardando,parcial';
+      // Pedidos com saldo a faturar: mesmo recorte do relatório Pedidos a Faturar.
+      return '/relatorios?tipo=pedidos_a_faturar';
   }
 }

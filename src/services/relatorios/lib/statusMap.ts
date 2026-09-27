@@ -47,6 +47,21 @@ export const faturamentoStatusMap: Record<string, StatusMeta> = {
   faturado: { key: 'faturado', kind: 'success' },
 };
 
+/** Faturamento do pedido (orcamentos.faturamento_status). */
+export const pedidoFaturamentoStatusMap: Record<string, StatusMeta> = {
+  aberto: { key: 'aberto', kind: 'warning' },
+  parcial: { key: 'parcial', kind: 'info' },
+  faturado: { key: 'faturado', kind: 'success' },
+  encerrado: { key: 'encerrado', kind: 'neutral' },
+};
+
+export const FATURAMENTO_PEDIDO_LABEL: Record<string, string> = {
+  aberto: 'A faturar',
+  parcial: 'Faturado parcial',
+  faturado: 'Faturado',
+  encerrado: 'Saldo encerrado',
+};
+
 /** Compras / pedidos de compra. */
 export const compraStatusMap: Record<string, StatusMeta> = {
   pendente: { key: 'pendente', kind: 'warning' },

@@ -1,6 +1,6 @@
 /**
  * Loaders para relatórios comerciais (vendas/faturamento):
- *  - vendas (ordens de venda)
+ *  - vendas (pedidos registrados nos orçamentos)
  *  - faturamento (NFs de saída confirmadas)
  *  - vendas_cliente (ranking)
  *  - curva_abc (produtos por faturamento)
@@ -10,8 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { addParticipacao, computeTop5Concentracao } from "@/utils/relatorios";
 import {
   curvaAbcClasseKind,
-  faturamentoStatusMap,
-  ordemVendaStatusMap,
+  FATURAMENTO_PEDIDO_LABEL,
+  pedidoFaturamentoStatusMap,
   resolveStatus,
 } from "@/services/relatorios/lib/statusMap";
 import {
@@ -21,52 +21,62 @@ import {
 } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
+/**
+ * Pedidos de venda = orçamentos com pedido registrado (`aprovado`, ou
+ * `convertido` legado) e orçamentos do histórico que já têm NF vinculada.
+ * O período filtra pela data do orçamento.
+ */
+export const PEDIDOS_FILTRO_OR =
+  "status.in.(aprovado,convertido),and(status.eq.historico,faturamento_status.not.is.null)";
+
 export async function loadVendas(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   const data = await fetchAllPages<Record<string, unknown>>(() => {
     let q = supabase
-      .from("ordens_venda")
-      .select("id, cliente_id, numero, data_emissao, valor_total, status, status_faturamento, clientes(nome_razao_social)")
+      .from("orcamentos")
+      .select("id, cliente_id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, valor_total, status, faturamento_status, clientes(nome_razao_social)")
       .eq("ativo", true)
-      .order("data_emissao", { ascending: false });
-    q = withDateRange(q, "data_emissao", filtros);
+      .or(PEDIDOS_FILTRO_OR)
+      .order("data_orcamento", { ascending: false });
+    q = withDateRange(q, "data_orcamento", filtros);
     if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
     return q;
   });
 
   const rows = data.map((item: Record<string, unknown>) => {
-    const status = (item.status as string | null) ?? '-';
-    const fatRaw = ((item as Record<string, unknown>).faturamento_status || item.status_faturamento || '-') as string;
-    const stMeta = resolveStatus(ordemVendaStatusMap, status);
-    const fatMeta = resolveStatus(faturamentoStatusMap, fatRaw);
+    const fatRaw = (item.faturamento_status as string | null) || 'aberto';
+    const fatMeta = resolveStatus(pedidoFaturamentoStatusMap, fatRaw);
     return {
-      ordemVendaId: item.id as string,
+      orcamentoId: item.id as string,
       clienteId: (item.cliente_id as string | null) ?? undefined,
-      numero: item.numero,
+      numero: (item.pedido_cliente as string | null) || (item.numero as string),
+      orcamento: item.numero,
       cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
-      emissao: item.data_emissao,
+      emissao: (item.data_pedido_cliente as string | null) ?? item.data_orcamento,
       valor: Number(item.valor_total || 0),
-      status,
-      statusKey: stMeta.key,
-      statusKind: stMeta.kind,
-      faturamento: fatRaw,
+      faturamento: FATURAMENTO_PEDIDO_LABEL[fatRaw] ?? fatRaw,
       faturamentoKey: fatMeta.key,
       faturamentoKind: fatMeta.kind,
+      status: FATURAMENTO_PEDIDO_LABEL[fatRaw] ?? fatRaw,
+      statusKey: fatMeta.key,
+      statusKind: fatMeta.kind,
     };
   });
 
   const totalVendido = rows.reduce((s, r) => s + r.valor, 0);
   const qtdPedidos = rows.length;
   const ticketMedio = qtdPedidos > 0 ? totalVendido / qtdPedidos : 0;
-  const aguardandoFaturamento = rows.filter((r) => r.faturamento === 'aguardando' || r.faturamento === '-').length;
+  const aguardandoFaturamento = rows.filter((r) => r.statusKey === 'aberto' || r.statusKey === 'parcial').length;
+  const somaPor = (key: string) => rows.filter((r) => r.statusKey === key).reduce((sum, r) => sum + r.valor, 0);
 
   return {
     title: "Vendas por período",
-    subtitle: "Ordens de venda emitidas com status comercial e faturamento.",
+    subtitle: "Pedidos registrados nos orçamentos, com a situação de faturamento.",
     rows,
     chartData: [
-      { name: "Aguardando", value: rows.filter((row) => row.faturamento === "aguardando").reduce((sum, row) => sum + row.valor, 0) },
-      { name: "Parcial", value: rows.filter((row) => row.faturamento === "parcial").reduce((sum, row) => sum + row.valor, 0) },
-      { name: "Total", value: rows.filter((row) => row.faturamento === "total").reduce((sum, row) => sum + row.valor, 0) },
+      { name: "A faturar", value: somaPor("aberto") },
+      { name: "Parcial", value: somaPor("parcial") },
+      { name: "Faturado", value: somaPor("faturado") },
+      { name: "Encerrado", value: somaPor("encerrado") },
     ],
     kpis: { totalVendido, qtdPedidos, ticketMedio, aguardandoFaturamento },
     meta: {
@@ -83,12 +93,12 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
     let q = supabase
       .from("notas_fiscais")
       .select(`
-        id, cliente_id, ordem_venda_id, numero, serie, data_emissao, valor_total, modelo_documento,
+        id, cliente_id, numero, serie, data_emissao, valor_total, modelo_documento,
         frete_valor, icms_valor, ipi_valor, pis_valor, cofins_valor,
         icms_st_valor, desconto_valor, outras_despesas,
         forma_pagamento, status,
         clientes(nome_razao_social),
-        ordens_venda(numero)
+        orcamento_nf_vinculos(orcamento_id, orcamentos(numero, pedido_cliente))
       `)
       .eq("ativo", true)
       .eq("tipo", "saida")
@@ -106,17 +116,23 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
       Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.icms_st_valor || 0);
     const valorTotal = Number(nf.valor_total || 0);
     const cliente = nf.clientes as { nome_razao_social: string } | null;
-    const ov = nf.ordens_venda as { numero: string } | null;
+    const vinculos = (nf.orcamento_nf_vinculos ?? []) as Array<{
+      orcamento_id: string;
+      orcamentos: { numero: string; pedido_cliente: string | null } | null;
+    }>;
+    const pedidos = vinculos
+      .map((v) => v.orcamentos?.pedido_cliente || v.orcamentos?.numero)
+      .filter((p): p is string => !!p);
 
     return {
       notaFiscalId: nf.id as string,
       clienteId: (nf.cliente_id as string | null) ?? undefined,
-      ordemVendaId: (nf.ordem_venda_id as string | null) ?? undefined,
+      orcamentoId: vinculos[0]?.orcamento_id,
       data: nf.data_emissao as string | null,
       nf: `${nf.numero}/${nf.serie || '1'}`,
       modelo: modeloLabels[(nf.modelo_documento as string) || '55'] || (nf.modelo_documento as string) || 'NF-e',
       cliente: cliente?.nome_razao_social || '—',
-      ov: ov?.numero || '—',
+      pedido: pedidos.length ? [...new Set(pedidos)].join(', ') : '—',
       frete: Number(nf.frete_valor || 0),
       desconto: Number(nf.desconto_valor || 0),
       impostos: totalImpostos,
@@ -160,22 +176,23 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
 export async function loadVendasCliente(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   const data = await fetchAllPages<Record<string, unknown>>(() => {
     let q = supabase
-      .from("ordens_venda")
+      .from("orcamentos")
       .select("cliente_id, valor_total, clientes(nome_razao_social, cpf_cnpj)")
       .eq("ativo", true)
-      .order("data_emissao", { ascending: false });
-    q = withDateRange(q, "data_emissao", filtros);
+      .or(PEDIDOS_FILTRO_OR)
+      .order("data_orcamento", { ascending: false });
+    q = withDateRange(q, "data_orcamento", filtros);
     if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
     return q;
   });
 
   const map = new Map<string, { clienteId: string | null; cliente: string; cnpj: string; total: number; qtd: number }>();
-  for (const ov of data as Record<string, unknown>[]) {
-    const c = ov.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
+  for (const ped of data as Record<string, unknown>[]) {
+    const c = ped.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
     const nome = c?.nome_razao_social || "Sem cliente";
-    const key = (ov.cliente_id as string | null) || nome;
-    const existing = map.get(key) || { clienteId: (ov.cliente_id as string | null), cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
-    existing.total += Number(ov.valor_total || 0);
+    const key = (ped.cliente_id as string | null) || nome;
+    const existing = map.get(key) || { clienteId: (ped.cliente_id as string | null), cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
+    existing.total += Number(ped.valor_total || 0);
     existing.qtd += 1;
     map.set(key, existing);
   }

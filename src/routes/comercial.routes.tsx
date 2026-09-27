@@ -5,8 +5,7 @@ import { LazyPage } from "./LazyPage";
 
 const Orcamentos = lazy(() => import("@/pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("@/pages/OrcamentoForm"));
-const Pedidos = lazy(() => import("@/pages/Pedidos"));
-const PedidoForm = lazy(() => import("@/pages/PedidoForm"));
+const PedidoLegadoRedirect = lazy(() => import("@/pages/comercial/PedidoLegadoRedirect"));
 const CotacoesCompra = lazy(() => import("@/pages/CotacoesCompra"));
 const CotacaoCompraForm = lazy(() => import("@/pages/CotacaoCompraForm"));
 const PedidosCompra = lazy(() => import("@/pages/PedidosCompra"));
@@ -27,8 +26,9 @@ function CotacaoIdRedirect() {
 /**
  * Rotas do bloco comercial: Vendas (orçamentos/pedidos), Compras
  * (cotações/pedidos), Logística (remessas) e Estoque. Inclui aliases
- * legados (/cotacoes, /ordens-venda, /compras, /remessas) que apenas
- * redirecionam para as rotas canônicas.
+ * legados (/cotacoes, /ordens-venda, /pedidos, /compras, /remessas) que
+ * apenas redirecionam para as rotas canônicas. O pedido de venda é o
+ * orçamento com pedido registrado; a tela de Ordem de Venda saiu do fluxo.
  */
 export const comercialRoutes = (
   <>
@@ -52,9 +52,9 @@ export const comercialRoutes = (
     <Route path="/orcamentos" element={<PermissionRoute resource="orcamentos"><LazyPage><Orcamentos /></LazyPage></PermissionRoute>} />
     <Route path="/orcamentos/novo" element={<PermissionRoute resource="orcamentos" action="editar"><LazyPage><OrcamentoForm /></LazyPage></PermissionRoute>} />
     <Route path="/orcamentos/:id" element={<PermissionRoute resource="orcamentos"><LazyPage><OrcamentoForm /></LazyPage></PermissionRoute>} />
-    <Route path="/ordens-venda" element={<Navigate to="/pedidos" replace />} />
-    <Route path="/pedidos" element={<PermissionRoute resource="pedidos"><LazyPage><Pedidos /></LazyPage></PermissionRoute>} />
-    <Route path="/pedidos/:id" element={<PermissionRoute resource="pedidos"><LazyPage><PedidoForm /></LazyPage></PermissionRoute>} />
+    <Route path="/ordens-venda" element={<Navigate to="/orcamentos?aba=pedidos" replace />} />
+    <Route path="/pedidos" element={<Navigate to="/orcamentos?aba=pedidos" replace />} />
+    <Route path="/pedidos/:id" element={<PermissionRoute resource="orcamentos"><LazyPage><PedidoLegadoRedirect /></LazyPage></PermissionRoute>} />
 
     {/* Estoque */}
     <Route path="/estoque" element={<PermissionRoute resource="estoque"><LazyPage><Estoque /></LazyPage></PermissionRoute>} />

@@ -34,7 +34,7 @@ interface Options {
 const QUICK_NAV_ROUTES: ReadonlyArray<{ path: string; permission?: Permission }> = [
   { path: '/' },
   { path: '/orcamentos', permission: 'orcamentos:visualizar' },
-  { path: '/pedidos', permission: 'pedidos:visualizar' },
+  { path: '/orcamentos?aba=pedidos', permission: 'orcamentos:visualizar' },
   { path: '/pedidos-compra', permission: 'compras:visualizar' },
   { path: '/estoque', permission: 'estoque:visualizar' },
   { path: '/financeiro', permission: 'financeiro:visualizar' },
