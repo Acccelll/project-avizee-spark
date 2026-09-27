@@ -101,12 +101,15 @@ export async function getAnexoPedidoUrl(path: string): Promise<string> {
 /**
  * Outros orçamentos com o mesmo número de pedido para o mesmo cliente
  * (mesma raiz de CNPJ, para pegar filiais e cadastros duplicados).
+ * `qualquerCliente`: números únicos no canal (venda do Mercado Livre) são
+ * comparados com todos os clientes.
  */
 export async function buscarPedidosDuplicados(params: {
-  orcamentoId: string;
+  orcamentoId: string | null;
   clienteCpfCnpj: string | null;
   clienteId: string | null;
   pedidoCliente: string;
+  qualquerCliente?: boolean;
 }): Promise<PedidoDuplicado[]> {
   const alvo = normalizarPedido(params.pedidoCliente);
   if (!alvo) return [];
@@ -114,13 +117,13 @@ export async function buscarPedidosDuplicados(params: {
     .from("orcamentos")
     .select("id, numero, status, cliente_id, pedido_cliente, clientes(cpf_cnpj)")
     .not("pedido_cliente", "is", null)
-    .neq("id", params.orcamentoId);
+    .neq("id", params.orcamentoId ?? "00000000-0000-0000-0000-000000000000");
   if (error) throw new Error(error.message);
   const raiz = raizDocumento(params.clienteCpfCnpj);
   return (data ?? [])
     .filter((o) => normalizarPedido(o.pedido_cliente) === alvo)
     .filter((o) =>
-      raiz
+      params.qualquerCliente ? true : raiz
         ? raizDocumento((o.clientes as { cpf_cnpj: string | null } | null)?.cpf_cnpj) === raiz
         : o.cliente_id === params.clienteId,
     )

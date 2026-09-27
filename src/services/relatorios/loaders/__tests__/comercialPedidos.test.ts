@@ -14,7 +14,7 @@ describe("relatórios comerciais lendo pedidos dos orçamentos", () => {
   it("Vendas usa o pedido do cliente e a situação de faturamento do orçamento", async () => {
     fetchAllPages.mockResolvedValue([
       { id: "o1", cliente_id: "c1", numero: "ORC100305", pedido_cliente: "4500120465", data_pedido_cliente: "2026-09-20",
-        data_orcamento: "2026-09-15", valor_total: 8240, status: "aprovado", faturamento_status: "parcial",
+        data_orcamento: "2026-09-15", valor_total: 8240, status: "aprovado", faturamento_status: "parcial", canal: "email",
         clientes: { nome_razao_social: "COBB" } },
       { id: "o2", cliente_id: "c2", numero: "ORC100212", pedido_cliente: null, data_pedido_cliente: null,
         data_orcamento: "2025-10-01", valor_total: 100, status: "historico", faturamento_status: "faturado",
@@ -22,10 +22,10 @@ describe("relatórios comerciais lendo pedidos dos orçamentos", () => {
     ]);
     const res = await loadVendas({});
     expect(res.rows[0]).toMatchObject({
-      orcamentoId: "o1", numero: "4500120465", orcamento: "ORC100305", emissao: "2026-09-20",
+      orcamentoId: "o1", numero: "4500120465", orcamento: "ORC100305", canal: "E-mail/OC", emissao: "2026-09-20",
       faturamento: "Faturado parcial", statusKey: "parcial", statusKind: "info",
     });
-    expect(res.rows[1]).toMatchObject({ numero: "ORC100212", emissao: "2025-10-01", statusKey: "faturado" });
+    expect(res.rows[1]).toMatchObject({ numero: "ORC100212", canal: "Orçamento", emissao: "2025-10-01", statusKey: "faturado" });
     expect(res.kpis).toMatchObject({ qtdPedidos: 2, aguardandoFaturamento: 1, totalVendido: 8340 });
   });
 

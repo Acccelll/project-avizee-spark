@@ -11,7 +11,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil, PackageCheck } from "lucide-react";
+import { ClipboardCheck, ClipboardPlus, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil, PackageCheck } from "lucide-react";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
@@ -29,6 +29,9 @@ import { Send, Link2 } from "lucide-react";
 import { sendForApproval, duplicateOrcamento } from "@/services/orcamentos.service";
 import { VincularNfDialog } from "@/components/orcamentos/VincularNfDialog";
 import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
+import { NovoPedidoDialog } from "@/components/orcamentos/NovoPedidoDialog";
+import { CanalBadge } from "@/components/orcamentos/CanalBadge";
+import { CANAL_LABEL, type CanalVenda } from "@/services/comercial/pedidoDireto.service";
 import { FaturamentoBadge } from "@/components/orcamentos/FaturamentoPedido";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { canRegistrarPedido, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
@@ -67,6 +70,7 @@ interface Orcamento {
   previsao_despacho?: string | null;
   pedido_registrado_em?: string | null;
   faturamento_status?: string | null;
+  canal?: string | null;
   clientes?: { nome_razao_social: string; cpf_cnpj?: string | null } | null;
 }
 
@@ -165,6 +169,7 @@ const Orcamentos = () => {
   const { data: rawData, loading, fetchData, isError, error: queryError } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social, cpf_cnpj)" });
   const data = rawData as unknown as Orcamento[];
   const [registrarPedidoId, setRegistrarPedidoId] = useState<string | null>(null);
+  const [novoPedidoOpen, setNovoPedidoOpen] = useState(false);
   const [vincularNfId, setVincularNfId] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -286,7 +291,8 @@ const Orcamentos = () => {
       }
 
       if (!query) return true;
-      return [orc.numero, orc.clientes?.nome_razao_social, orc.pedido_cliente, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
+      const canal = orc.canal && orc.canal !== "orcamento" ? CANAL_LABEL[orc.canal as CanalVenda] : null;
+      return [orc.numero, orc.clientes?.nome_razao_social, orc.pedido_cliente, canal, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
   }, [data, searchTerm, aba, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter]);
 
@@ -318,8 +324,11 @@ const Orcamentos = () => {
       sortValue: (o: Orcamento) => o.pedido_cliente ?? "",
       render: (o: Orcamento) =>
         o.pedido_cliente ? (
-          <span className={o.pedido_cliente === o.numero ? "font-mono text-xs text-muted-foreground" : "font-mono text-xs"}>
-            {o.pedido_cliente}
+          <span className="inline-flex flex-wrap items-center gap-1">
+            <span className={o.pedido_cliente === o.numero ? "font-mono text-xs text-muted-foreground" : "font-mono text-xs"}>
+              {o.pedido_cliente}
+            </span>
+            <CanalBadge canal={o.canal} />
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -441,6 +450,11 @@ const Orcamentos = () => {
         addLabel="Novo Orçamento"
         onAdd={() => navigate("/orcamentos/novo")}
         addButtonHelpId="orcamentos.novoBtn"
+        headerActions={
+          <Button variant="outline" className="gap-1.5" onClick={() => setNovoPedidoOpen(true)}>
+            <ClipboardPlus className="h-4 w-4" /> Novo pedido
+          </Button>
+        }
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total de Orçamentos" shortTitle="Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
@@ -662,6 +676,15 @@ const Orcamentos = () => {
           if (aba.value !== "todos" && aba.value !== "pedidos") {
             toast.info("O pedido saiu desta aba. Veja em \u201cPedidos em aberto\u201d.", { duration: 5000 });
           }
+        }}
+      />
+
+      <NovoPedidoDialog
+        open={novoPedidoOpen}
+        onClose={() => setNovoPedidoOpen(false)}
+        onDone={() => {
+          fetchData();
+          if (aba.value !== "todos" && aba.value !== "pedidos") setFilters({ aba: "pedidos" });
         }}
       />
 

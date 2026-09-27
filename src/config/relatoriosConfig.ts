@@ -82,6 +82,10 @@ export interface ReportFiltersDef {
   /** When provided, overrides the default status option list in FiltrosRelatorio. */
   statusOptions?: Array<{ value: string; label: string }>;
   showTipos: boolean;
+  /** Opções do filtro de tipos; ausente = A Receber / A Pagar (financeiro). */
+  tipoOptions?: Array<{ value: string; label: string }>;
+  /** Rótulo do filtro de tipos (padrão "Tipos"). */
+  tipoLabel?: string;
   showSomenteCriticos?: boolean;
   showSomenteZerados?: boolean;
   showDreCompetencia?: boolean;
@@ -168,6 +172,15 @@ export interface ReportRuntimeSemantics {
 // ---------------------------------------------------------------------------
 // Individual report configurations
 // ---------------------------------------------------------------------------
+
+/** Canais de venda do pedido (orcamentos.canal) para o filtro "Canal". */
+const CANAL_OPTIONS = [
+  { value: 'orcamento', label: 'Orçamento' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'mercado_livre', label: 'Mercado Livre' },
+  { value: 'email', label: 'E-mail/OC' },
+  { value: 'telefone', label: 'Telefone' },
+];
 
 const estoqueConfig: ReportConfig = {
   id: 'estoque',
@@ -469,6 +482,7 @@ const vendasConfig: ReportConfig = {
   columns: [
     { key: 'numero', label: 'Pedido' },
     { key: 'orcamento', label: 'Orçamento' },
+    { key: 'canal', label: 'Canal' },
     { key: 'cliente', label: 'Cliente' },
     { key: 'emissao', label: 'Data do Pedido', format: 'date' },
     { key: 'valor', label: 'Valor', format: 'currency', align: 'right', footerTotal: true },
@@ -487,7 +501,9 @@ const vendasConfig: ReportConfig = {
       { value: 'faturado', label: 'Faturado' },
       { value: 'encerrado', label: 'Saldo encerrado' },
     ],
-    showTipos: false,
+    showTipos: true,
+    tipoLabel: 'Canal',
+    tipoOptions: CANAL_OPTIONS,
   },
   timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
@@ -524,7 +540,9 @@ const vendasClienteConfig: ReportConfig = {
     showFornecedores: false,
     showGrupos: false,
     showStatus: false,
-    showTipos: false,
+    showTipos: true,
+    tipoLabel: 'Canal',
+    tipoOptions: CANAL_OPTIONS,
   },
   timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
@@ -720,6 +738,7 @@ const xmlsArquivadosConfig: ReportConfig = {
 const pedidosAFaturarItensColumns: ReportColumnDef[] = [
   { key: 'pedido', label: 'Pedido' },
   { key: 'orcamento', label: 'Orçamento' },
+  { key: 'canal', label: 'Canal' },
   { key: 'cliente', label: 'Cliente' },
   { key: 'previsao', label: 'Previsão Despacho', format: 'date' },
   { key: 'codigo', label: 'Código' },
@@ -789,7 +808,9 @@ const pedidosAFaturarConfig: ReportConfig = {
       { value: 'sem_estoque', label: 'Sem estoque' },
       { value: 'sem_cadastro', label: 'Item sem cadastro' },
     ],
-    showTipos: false,
+    showTipos: true,
+    tipoLabel: 'Canal',
+    tipoOptions: CANAL_OPTIONS,
   },
   kpis: [
     { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', variation: 'saldo em aberto' },

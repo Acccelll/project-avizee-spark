@@ -110,10 +110,11 @@ export function useActiveFilterChips({
       });
     }
     if (filtrosState.tipos.length) {
+      const tipoOpts = selectedMeta?.filters.tipoOptions ?? [];
       out.push({
         id: 'tp',
-        label: 'Tipos',
-        value: filtrosState.tipos.join(', '),
+        label: selectedMeta?.filters.tipoLabel ?? 'Tipos',
+        value: filtrosState.tipos.map((t) => tipoOpts.find((o) => o.value === t)?.label ?? t).join(', '),
         tone: semantics?.highlightFilters?.includes('tipo') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ tipos: [] }),
       });

@@ -42,6 +42,8 @@ export interface FiltroRelatorio {
   fornecedorIds?: string[];
   grupoProdutoIds?: string[];
   tiposFinanceiros?: string[];
+  /** Valores do filtro de tipos quando o relatório define `tipoOptions` (ex.: canais de venda). */
+  tipos?: string[];
   /**
    * Regime do DRE: 'caixa' (default) usa data_pagamento e considera
    * apenas pago/parcial; 'competencia' usa data_emissao e considera

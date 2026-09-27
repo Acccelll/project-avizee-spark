@@ -7511,6 +7511,7 @@ export type Database = {
           cliente_id: string | null
           cliente_resposta_comentario: string | null
           cliente_resposta_em: string | null
+          canal: string
           cliente_snapshot: Json | null
           comprimento_cm: number | null
           created_at: string
@@ -7564,6 +7565,7 @@ export type Database = {
           cliente_id?: string | null
           cliente_resposta_comentario?: string | null
           cliente_resposta_em?: string | null
+          canal?: string
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -7617,6 +7619,7 @@ export type Database = {
           cliente_id?: string | null
           cliente_resposta_comentario?: string | null
           cliente_resposta_em?: string | null
+          canal?: string
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -12988,6 +12991,19 @@ export type Database = {
           id: string
           numero: string
         }[]
+      }
+      criar_pedido_direto: {
+        Args: {
+          p_canal: string
+          p_cliente_id: string
+          p_data_pedido?: string
+          p_frete_valor?: number
+          p_itens: Json
+          p_observacoes?: string
+          p_pedido_cliente?: string
+          p_previsao_despacho?: string
+        }
+        Returns: Json
       }
       criar_revisao_orcamento: {
         Args: { p_orcamento_id: string }

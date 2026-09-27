@@ -160,12 +160,14 @@ export function FiltrosRelatorio({
 
         {filters.showTipos && (
           <div className={cn('space-y-1', isStacked && 'w-full', highlightFilters.includes('tipo') && highlightClass)}>
-            <Label className="text-xs">Tipos</Label>
+            <Label className="text-xs">{filters.tipoLabel ?? "Tipos"}</Label>
             <MultiSelect
-              options={[
-                { label: "A Receber", value: "receber" },
-                { label: "A Pagar", value: "pagar" },
-              ]}
+              options={
+                filters.tipoOptions ?? [
+                  { label: "A Receber", value: "receber" },
+                  { label: "A Pagar", value: "pagar" },
+                ]
+              }
               selected={state.tipos}
               onChange={(v) => onChange({ tipos: v })}
               placeholder="Todos"

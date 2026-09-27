@@ -4,6 +4,7 @@ import { calculateDaysBetween, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { getAnexoPedidoUrl } from "@/services/comercial/pedidoOrcamento.service";
+import { CANAL_LABEL, type CanalVenda } from "@/services/comercial/pedidoDireto.service";
 
 interface Props {
   orcamento: {
@@ -14,6 +15,7 @@ interface Props {
     previsao_despacho?: string | null;
     pedido_anexo_path?: string | null;
     pedido_registrado_em?: string | null;
+    canal?: string | null;
   };
   onEditar?: () => void;
 }
@@ -46,6 +48,12 @@ export function PedidoClienteResumo({ orcamento, onEditar }: Props) {
           {orcamento.pedido_cliente}
           {semNumero && <span className="ml-1.5 font-sans font-normal text-muted-foreground">(sem número do cliente)</span>}
         </dd>
+        {orcamento.canal && orcamento.canal !== "orcamento" && (
+          <>
+            <dt className="text-muted-foreground">Canal</dt>
+            <dd>{CANAL_LABEL[orcamento.canal as CanalVenda] ?? orcamento.canal} · pedido direto, sem proposta</dd>
+          </>
+        )}
         {orcamento.data_pedido_cliente && (
           <>
             <dt className="text-muted-foreground">Data do pedido</dt>

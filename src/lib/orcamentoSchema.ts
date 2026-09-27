@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const orcamentoSchema = z.object({
-  numero: z.string().min(1, 'Número obrigatório'),
+  // Gerado pelo banco ao salvar (proximo_numero_orcamento); a tela só mostra.
+  numero: z.string(),
   dataOrcamento: z.string(),
   status: z.enum([
     'rascunho',

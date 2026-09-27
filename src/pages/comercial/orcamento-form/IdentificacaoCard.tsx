@@ -1,12 +1,9 @@
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import { Controller } from "react-hook-form";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import { existeOrcamentoComNumero } from "@/services/orcamentos.service";
 import { StatusStepper } from "./StatusStepper";
 
 interface Props {
@@ -22,31 +19,28 @@ interface Props {
 
 /** Card de identificação do orçamento — número, data, status e validade. */
 export function IdentificacaoCard({
-  register, control, fieldErrors, numero, status, id, isLocked, statusOptions,
+  register, control, numero, status, id, isLocked, statusOptions,
 }: Props) {
   return (
     <div className="bg-card rounded-xl border shadow-soft p-5">
       <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">Nº Orçamento</Label>
-          <div className="relative">
-            <Input
-              {...register('numero')}
-              onBlur={async (e) => {
-                const val = e.target.value?.trim();
-                if (!val) return;
-                const existe = await existeOrcamentoComNumero(val, id || null).catch(() => false);
-                if (existe) {
-                  toast.error('Este número de orçamento já está em uso. Escolha outro.');
-                }
-              }}
-              className={`font-mono pr-8 ${fieldErrors.numero ? "border-destructive" : numero ? "border-success" : ""}`}
-            />
-            {numero && !fieldErrors.numero && <CheckCircle2 className="h-4 w-4 text-success absolute right-2 top-1/2 -translate-y-1/2" />}
-            {fieldErrors.numero && <AlertTriangle className="h-4 w-4 text-destructive absolute right-2 top-1/2 -translate-y-1/2" />}
-          </div>
-          {fieldErrors.numero && <p className="text-[11px] text-destructive">{fieldErrors.numero.message}</p>}
+          <Label className="text-xs" htmlFor="orcamento-numero">Nº Orçamento</Label>
+          {/* O número é gerado pelo banco ao salvar; aqui só é exibido. */}
+          <Input
+            id="orcamento-numero"
+            {...register('numero')}
+            readOnly
+            tabIndex={-1}
+            placeholder="Gerado ao salvar"
+            className="font-mono bg-muted/40"
+          />
+          {!id && (
+            <p className="text-[11px] text-muted-foreground">
+              {numero ? "Previsto · o número definitivo é gerado ao salvar." : "Gerado ao salvar."}
+            </p>
+          )}
         </div>
         <div className="space-y-1.5"><Label className="text-xs">Data de Emissão</Label><Input type="date" {...register('dataOrcamento')} /></div>
         <div className="space-y-1.5">
