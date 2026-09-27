@@ -72,6 +72,10 @@ vínculo, desvínculo ou cancelamento de nota (`aberto → parcial → faturado`
 
 Constraint: `chk_ordens_venda_matriz_status`
 
+## Canal de venda
+
+`orcamentos.canal`: `orcamento` (proposta enviada, padrão), `whatsapp`, `mercado_livre`, `email` (OC) ou `telefone`. Os pedidos diretos aparecem com o selo do canal na lista e nos relatórios (Pedidos a Faturar, Vendas, Vendas por Cliente têm o filtro "Canal"). Na importação da NF, o nº da venda do Mercado Livre liga a nota ao pedido mesmo quando o destinatário não bate com o comprador cadastrado.
+
 ## Trilha relacional
 
 `orcamentos` ←(cotacao_id)→ `ordens_venda` ←(ordem_venda_id)→ `notas_fiscais`
@@ -83,6 +87,8 @@ View `v_trilha_comercial` consolida orçamento + pedido + NF + cliente para cons
 - `registrar_pedido_orcamento(p_id, p_pedido_cliente, p_data_pedido, p_previsao_despacho, p_anexo_path)` — rascunho/pendente → `aprovado`, grava o pedido do cliente, encerra a versão anterior numa revisão, auditoria.
 - `vincular_nf_orcamento`, `desvincular_nf_orcamento`, `vincular_nf_automatico`, `sugerir_pedidos_nf`, `encerrar_saldo_orcamento` — vínculo NF ↔ pedido e saldo.
 - `atualizar_pedido_orcamento(...)` — edita número, datas e anexo de um pedido já registrado, sem mexer nos itens.
+- `criar_pedido_direto(p_cliente_id, p_canal, p_itens, p_pedido_cliente, p_data_pedido, p_previsao_despacho, p_frete_valor, p_observacoes)` — pedido que chega sem proposta (WhatsApp, Mercado Livre, OC por e-mail, telefone): cria orçamento + itens e registra o pedido numa só operação. Mercado Livre e OC exigem o número; nos demais canais, sem número, vale o ORC.
+- `proximo_numero_orcamento()` — único gerador do número ORC (advisory lock + sequence ressincronizada com o maior `ORC<n>`; revisões `ORC<n>.<r>` ficam fora). `salvar_orcamento` sempre gera o número na criação e nunca o troca na edição; a tela só mostra o número previsto.
 - `converter_orcamento_em_ov(p_orcamento_id, p_po_number, p_data_po, p_forcar)` — gate `aprovado`, idempotente, auditoria.
 - `gerar_nf_de_pedido(p_pedido_id)` — advisory lock, gate operacional, retorna `status_faturamento_novo`.
 - `cancelar_orcamento(p_id, p_motivo)` — cancelamento lógico com auditoria.

@@ -6,7 +6,7 @@ import { agruparPorCliente, agruparPorProduto, alocarEstoque, type ItemPendente 
 
 function item(p: Partial<ItemPendente>): ItemPendente {
   return {
-    itemId: "i", orcamentoId: "o", pedido: "4500", orcamento: "ORC1", clienteId: "c", cliente: "C",
+    itemId: "i", orcamentoId: "o", pedido: "4500", orcamento: "ORC1", canal: "Orçamento", clienteId: "c", cliente: "C",
     emissao: "2026-09-01", previsao: null, produtoId: "p1", codigo: null, produto: "Agulha",
     unidade: "DZ", qtdPedida: 10, qtdFaturada: 0, qtdPendente: 10, valorUnitario: 10,
     estoqueDisponivel: 0, ...p,

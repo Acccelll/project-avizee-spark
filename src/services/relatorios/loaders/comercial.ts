@@ -14,6 +14,7 @@ import {
   pedidoFaturamentoStatusMap,
   resolveStatus,
 } from "@/services/relatorios/lib/statusMap";
+import { CANAL_LABEL, type CanalVenda } from "@/services/comercial/pedidoDireto.service";
 import {
   withDateRange,
   type FiltroRelatorio,
@@ -33,12 +34,13 @@ export async function loadVendas(filtros: FiltroRelatorio): Promise<RelatorioRes
   const data = await fetchAllPages<Record<string, unknown>>(() => {
     let q = supabase
       .from("orcamentos")
-      .select("id, cliente_id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, valor_total, status, faturamento_status, clientes(nome_razao_social)")
+      .select("id, cliente_id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, valor_total, status, faturamento_status, canal, clientes(nome_razao_social)")
       .eq("ativo", true)
       .or(PEDIDOS_FILTRO_OR)
       .order("data_orcamento", { ascending: false });
     q = withDateRange(q, "data_orcamento", filtros);
     if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
+    if (filtros.tipos?.length) q = q.in('canal', filtros.tipos);
     return q;
   });
 
@@ -50,6 +52,7 @@ export async function loadVendas(filtros: FiltroRelatorio): Promise<RelatorioRes
       clienteId: (item.cliente_id as string | null) ?? undefined,
       numero: (item.pedido_cliente as string | null) || (item.numero as string),
       orcamento: item.numero,
+      canal: CANAL_LABEL[((item.canal as string | null) ?? "orcamento") as CanalVenda] ?? (item.canal as string),
       cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
       emissao: (item.data_pedido_cliente as string | null) ?? item.data_orcamento,
       valor: Number(item.valor_total || 0),
@@ -183,6 +186,7 @@ export async function loadVendasCliente(filtros: FiltroRelatorio): Promise<Relat
       .order("data_orcamento", { ascending: false });
     q = withDateRange(q, "data_orcamento", filtros);
     if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
+    if (filtros.tipos?.length) q = q.in('canal', filtros.tipos);
     return q;
   });
 

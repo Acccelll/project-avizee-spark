@@ -22,6 +22,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FiltroRelatorio, RelatorioResultado } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
+import { CANAL_LABEL, type CanalVenda } from "@/services/comercial/pedidoDireto.service";
 
 /** Status do orçamento que representam pedido registrado. */
 export const ORCAMENTO_STATUS_PEDIDO = ["aprovado", "convertido"] as const;
@@ -58,6 +59,8 @@ export interface ItemPendente {
   /** Nº do pedido do cliente (ou OC); cai para o nº do orçamento. */
   pedido: string;
   orcamento: string;
+  /** Canal de venda (rótulo): Orçamento, WhatsApp, Mercado Livre… */
+  canal: string;
   clienteId?: string;
   cliente: string;
   emissao: string | null;
@@ -279,6 +282,7 @@ interface RawOrcamento {
   data_orcamento: string | null;
   previsao_despacho: string | null;
   cliente_id: string | null;
+  canal: string | null;
   clientes: { nome_razao_social: string | null; nome_fantasia: string | null } | null;
 }
 
@@ -310,7 +314,7 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
     let q = supabase
       .from("orcamentos")
       .select(
-        `id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, previsao_despacho, cliente_id,
+        `id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, previsao_despacho, cliente_id, canal,
          clientes(nome_razao_social, nome_fantasia)`,
       )
       .eq("ativo", true)
@@ -318,6 +322,7 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
       .in("faturamento_status", [...FATURAMENTO_EM_ABERTO])
       .order("data_orcamento", { ascending: true });
     if (filtros.clienteIds?.length) q = q.in("cliente_id", filtros.clienteIds);
+    if (filtros.tipos?.length) q = q.in("canal", filtros.tipos);
     return q;
   });
 
@@ -371,6 +376,7 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
       orcamentoId: orc.id,
       pedido: orc.pedido_cliente || orc.numero,
       orcamento: orc.numero,
+      canal: CANAL_LABEL[(orc.canal ?? "orcamento") as CanalVenda] ?? orc.canal ?? "",
       clienteId: orc.cliente_id ?? undefined,
       cliente: orc.clientes?.nome_fantasia || orc.clientes?.nome_razao_social || "-",
       emissao: orc.data_pedido_cliente ?? orc.data_orcamento,

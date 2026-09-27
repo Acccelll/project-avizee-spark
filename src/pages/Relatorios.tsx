@@ -114,6 +114,7 @@ export default function Relatorios() {
       fornecedorIds: filtrosState.fornecedorIds.length ? filtrosState.fornecedorIds : undefined,
       grupoProdutoIds: filtrosState.grupoIds.length ? filtrosState.grupoIds : undefined,
       tiposFinanceiros: filtrosState.tipos.length ? filtrosState.tipos : undefined,
+      tipos: filtrosState.tipos.length ? filtrosState.tipos : undefined,
     };
   }, [tipo, dataInicio, dataFim, filtrosState]);
 

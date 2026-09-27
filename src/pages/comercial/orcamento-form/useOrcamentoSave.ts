@@ -73,14 +73,10 @@ export function useOrcamentoSave(args: UseOrcamentoSaveArgs): UseOrcamentoSaveAp
       toast.error("Conversão em pedido deve ser feita pela lista de orçamentos.");
       return;
     }
-    const valid = await trigger(['numero', 'clienteId']);
-    if (!valid) {
-      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
-      return;
-    }
-    const { numero, clienteId } = getValues();
-    if (!numero || !clienteId) {
-      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
+    const valid = await trigger(['clienteId']);
+    const { numero: numeroPrevisto, clienteId } = getValues();
+    if (!valid || !clienteId) {
+      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Selecione o cliente." });
       return;
     }
 
@@ -107,7 +103,12 @@ export function useOrcamentoSave(args: UseOrcamentoSaveArgs): UseOrcamentoSaveAp
           await deleteOrcamentoDraft(userId, draftKey);
         } catch {/* ignore */}
       }
-      if (!isEdit && numeroSalvo) setValue("numero", numeroSalvo);
+      if (!isEdit && numeroSalvo) {
+        setValue("numero", numeroSalvo);
+        if (numeroPrevisto && numeroPrevisto !== numeroSalvo) {
+          toast.info(`O ${numeroPrevisto} foi usado por outro orçamento salvo antes; este ficou ${numeroSalvo}.`);
+        }
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
