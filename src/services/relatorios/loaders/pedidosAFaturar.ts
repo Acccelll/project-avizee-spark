@@ -1,9 +1,10 @@
 /**
  * Loader do relatório "Pedidos a Faturar".
  *
- * Fonte canônica: itens de ordens de venda (orçamento aprovado →
- * `converter_orcamento_em_ov` → OV) que ainda têm saldo a faturar
- * (`quantidade - quantidade_faturada > 0`).
+ * Fonte canônica: itens de orçamentos com o pedido do cliente registrado
+ * (status `aprovado`, ou `convertido` legado) cujo faturamento ainda está
+ * `aberto` ou `parcial`. O saldo de cada item vem de `vw_orcamento_itens_saldo`
+ * (quantidade do orçamento − quantidade das NFs vinculadas).
  *
  * Para responder "quantos itens são necessários para despachar", o saldo
  * pendente é confrontado com o estoque disponível do produto
@@ -11,17 +12,21 @@
  * prioridade (previsão de despacho mais próxima primeiro; sem previsão por
  * último), então cada linha mostra quanto já está coberto e quanto falta.
  *
+ * Além da lista por item, o resultado traz as visões "Por cliente" e
+ * "Por produto" (`views`), montadas sobre as mesmas linhas já alocadas.
+ *
  * Quantidades NÃO são totalizadas no rodapé: o relatório mistura unidades
  * (DZ, UN, CX…), e somá-las não tem significado.
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { resolveStatus, ordemVendaStatusMap } from "@/services/relatorios/lib/statusMap";
 import type { FiltroRelatorio, RelatorioResultado } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
-/** Status de OV que representam compromisso de despacho ainda em aberto. */
-export const OV_STATUS_A_FATURAR = ["aprovada", "em_separacao", "faturada_parcial"] as const;
+/** Status do orçamento que representam pedido registrado. */
+export const ORCAMENTO_STATUS_PEDIDO = ["aprovado", "convertido"] as const;
+/** Situações de faturamento que ainda têm saldo a despachar. */
+export const FATURAMENTO_EM_ABERTO = ["aberto", "parcial"] as const;
 
 export type SituacaoEstoque = "atendido" | "parcial" | "sem_estoque" | "sem_cadastro";
 
@@ -39,11 +44,20 @@ const SITUACAO_KIND: Record<SituacaoEstoque, "success" | "warning" | "critical" 
   sem_cadastro: "neutral",
 };
 
+/** Gravidade para resumir várias linhas numa só (visões por cliente/produto). */
+const SITUACAO_PESO: Record<SituacaoEstoque, number> = {
+  atendido: 0,
+  sem_cadastro: 1,
+  parcial: 2,
+  sem_estoque: 3,
+};
+
 export interface ItemPendente {
   itemId: string;
-  ordemVendaId: string;
-  numero: string;
-  statusOv: string;
+  orcamentoId: string;
+  /** Nº do pedido do cliente (ou OC); cai para o nº do orçamento. */
+  pedido: string;
+  orcamento: string;
   clienteId?: string;
   cliente: string;
   emissao: string | null;
@@ -70,6 +84,36 @@ export interface LinhaPedidoAFaturar extends Omit<ItemPendente, "estoqueDisponiv
   statusKind: "success" | "warning" | "critical" | "neutral";
 }
 
+export interface LinhaPorCliente {
+  clienteId?: string;
+  cliente: string;
+  pedidos: number;
+  itens: number;
+  previsao: string | null;
+  valorPendente: number;
+  itensComFalta: number;
+  atrasados: number;
+  situacao: string;
+  statusKey: SituacaoEstoque;
+  statusKind: LinhaPedidoAFaturar["statusKind"];
+}
+
+export interface LinhaPorProduto {
+  produtoId: string | null;
+  codigo: string | null;
+  produto: string;
+  unidade: string;
+  pedidos: number;
+  previsao: string | null;
+  qtdPendente: number;
+  estoqueDisponivel: number | null;
+  falta: number;
+  valorPendente: number;
+  situacao: string;
+  statusKey: SituacaoEstoque;
+  statusKind: LinhaPedidoAFaturar["statusKind"];
+}
+
 /** Ordem de prioridade: previsão mais próxima; sem previsão por último; depois emissão e nº. */
 function compararPrioridade(a: ItemPendente, b: ItemPendente): number {
   if (a.previsao !== b.previsao) {
@@ -79,7 +123,7 @@ function compararPrioridade(a: ItemPendente, b: ItemPendente): number {
   }
   const e = (a.emissao ?? "").localeCompare(b.emissao ?? "");
   if (e !== 0) return e;
-  return a.numero.localeCompare(b.numero);
+  return a.orcamento.localeCompare(b.orcamento);
 }
 
 /**
@@ -122,6 +166,91 @@ export function alocarEstoque(itens: ItemPendente[], hojeIso: string): LinhaPedi
   });
 }
 
+function piorSituacao(atual: SituacaoEstoque | undefined, nova: SituacaoEstoque): SituacaoEstoque {
+  return !atual || SITUACAO_PESO[nova] > SITUACAO_PESO[atual] ? nova : atual;
+}
+
+function menorData(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+
+/** Visão "Por cliente": carteira de cada cliente, com a pior situação de estoque. */
+export function agruparPorCliente(rows: LinhaPedidoAFaturar[]): LinhaPorCliente[] {
+  const grupos = new Map<string, { base: LinhaPorCliente; pedidos: Set<string>; atrasados: Set<string> }>();
+  for (const r of rows) {
+    const chave = r.clienteId ?? `nome:${r.cliente}`;
+    let g = grupos.get(chave);
+    if (!g) {
+      g = {
+        base: {
+          clienteId: r.clienteId, cliente: r.cliente, pedidos: 0, itens: 0, previsao: null,
+          valorPendente: 0, itensComFalta: 0, atrasados: 0,
+          situacao: "", statusKey: r.statusKey, statusKind: r.statusKind,
+        },
+        pedidos: new Set(),
+        atrasados: new Set(),
+      };
+      grupos.set(chave, g);
+    }
+    const b = g.base;
+    g.pedidos.add(r.orcamentoId);
+    if (r.atrasado) g.atrasados.add(r.orcamentoId);
+    b.itens += 1;
+    b.valorPendente += r.valorPendente;
+    if (r.falta > 0) b.itensComFalta += 1;
+    b.previsao = menorData(b.previsao, r.previsao);
+    b.statusKey = piorSituacao(b.statusKey, r.statusKey);
+  }
+  return [...grupos.values()]
+    .map(({ base, pedidos, atrasados }) => ({
+      ...base,
+      pedidos: pedidos.size,
+      atrasados: atrasados.size,
+      valorPendente: round2(base.valorPendente),
+      situacao: SITUACAO_LABEL[base.statusKey],
+      statusKind: SITUACAO_KIND[base.statusKey],
+    }))
+    .sort((a, b) => b.valorPendente - a.valorPendente);
+}
+
+/** Visão "Por produto": quanto está pedido, quanto há em estoque e quanto falta. */
+export function agruparPorProduto(rows: LinhaPedidoAFaturar[]): LinhaPorProduto[] {
+  const grupos = new Map<string, { base: LinhaPorProduto; pedidos: Set<string> }>();
+  for (const r of rows) {
+    const chave = r.produtoId ? `${r.produtoId}|${r.unidade}` : `sem:${r.codigo ?? ""}|${r.produto}|${r.unidade}`;
+    let g = grupos.get(chave);
+    if (!g) {
+      g = {
+        base: {
+          produtoId: r.produtoId, codigo: r.codigo, produto: r.produto, unidade: r.unidade,
+          pedidos: 0, previsao: null, qtdPendente: 0, estoqueDisponivel: r.estoqueDisponivel,
+          falta: 0, valorPendente: 0, situacao: "", statusKey: r.statusKey, statusKind: r.statusKind,
+        },
+        pedidos: new Set(),
+      };
+      grupos.set(chave, g);
+    }
+    const b = g.base;
+    g.pedidos.add(r.orcamentoId);
+    b.qtdPendente += r.qtdPendente;
+    b.falta += r.falta;
+    b.valorPendente += r.valorPendente;
+    b.previsao = menorData(b.previsao, r.previsao);
+    b.statusKey = piorSituacao(b.statusKey, r.statusKey);
+  }
+  return [...grupos.values()]
+    .map(({ base, pedidos }) => ({
+      ...base,
+      pedidos: pedidos.size,
+      valorPendente: round2(base.valorPendente),
+      situacao: SITUACAO_LABEL[base.statusKey],
+      statusKind: SITUACAO_KIND[base.statusKey],
+    }))
+    .sort((a, b) => b.falta - a.falta || b.valorPendente - a.valorPendente);
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -133,25 +262,36 @@ function hojeLocalIso(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** `.in()` vai na URL: consulta em blocos para não estourar o tamanho. */
+const LOTE_IDS = 150;
+
+function lotes<T>(lista: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < lista.length; i += LOTE_IDS) out.push(lista.slice(i, i + LOTE_IDS));
+  return out;
+}
+
+interface RawOrcamento {
+  id: string;
+  numero: string;
+  pedido_cliente: string | null;
+  data_pedido_cliente: string | null;
+  data_orcamento: string | null;
+  previsao_despacho: string | null;
+  cliente_id: string | null;
+  clientes: { nome_razao_social: string | null; nome_fantasia: string | null } | null;
+}
+
 interface RawItem {
   id: string;
+  orcamento_id: string;
   produto_id: string | null;
   codigo_snapshot: string | null;
   descricao_snapshot: string | null;
   variacao: string | null;
   quantidade: number | null;
-  quantidade_faturada: number | null;
   unidade: string | null;
   valor_unitario: number | null;
-  ordens_venda: {
-    id: string;
-    numero: string;
-    status: string | null;
-    data_emissao: string | null;
-    data_prometida_despacho: string | null;
-    cliente_id: string | null;
-    clientes: { nome_razao_social: string | null; nome_fantasia: string | null } | null;
-  } | null;
   produtos: {
     codigo_interno: string | null;
     nome: string | null;
@@ -160,30 +300,63 @@ interface RawItem {
   } | null;
 }
 
+interface RawSaldo {
+  orcamento_item_id: string | null;
+  quantidade_faturada: number | null;
+}
+
 export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  const data = await fetchAllPages<RawItem>(() => {
+  const orcamentos = await fetchAllPages<RawOrcamento>(() => {
     let q = supabase
-      .from("ordens_venda_itens")
+      .from("orcamentos")
       .select(
-        `id, produto_id, codigo_snapshot, descricao_snapshot, variacao, quantidade,
-         quantidade_faturada, unidade, valor_unitario,
-         ordens_venda!inner(id, numero, status, data_emissao, data_prometida_despacho, cliente_id,
-           clientes(nome_razao_social, nome_fantasia)),
-         produtos(codigo_interno, nome, estoque_atual, estoque_reservado)`,
+        `id, numero, pedido_cliente, data_pedido_cliente, data_orcamento, previsao_despacho, cliente_id,
+         clientes(nome_razao_social, nome_fantasia)`,
       )
-      .eq("ordens_venda.ativo", true)
-      .in("ordens_venda.status", [...OV_STATUS_A_FATURAR])
-      .order("created_at", { ascending: true });
-    if (filtros.clienteIds?.length) q = q.in("ordens_venda.cliente_id", filtros.clienteIds);
+      .eq("ativo", true)
+      .in("status", [...ORCAMENTO_STATUS_PEDIDO])
+      .in("faturamento_status", [...FATURAMENTO_EM_ABERTO])
+      .order("data_orcamento", { ascending: true });
+    if (filtros.clienteIds?.length) q = q.in("cliente_id", filtros.clienteIds);
     return q;
   });
 
+  const porId = new Map(orcamentos.map((o) => [o.id, o]));
+  const ids = [...porId.keys()];
+  const itensRaw: RawItem[] = [];
+  const faturadoPorItem = new Map<string, number>();
+
+  for (const lote of lotes(ids)) {
+    const [itens, saldos] = await Promise.all([
+      fetchAllPages<RawItem>(() =>
+        supabase
+          .from("orcamentos_itens")
+          .select(
+            `id, orcamento_id, produto_id, codigo_snapshot, descricao_snapshot, variacao, quantidade,
+             unidade, valor_unitario, produtos(codigo_interno, nome, estoque_atual, estoque_reservado)`,
+          )
+          .in("orcamento_id", lote)
+          .order("created_at", { ascending: true }),
+      ),
+      fetchAllPages<RawSaldo>(() =>
+        supabase
+          .from("vw_orcamento_itens_saldo")
+          .select("orcamento_item_id, quantidade_faturada")
+          .in("orcamento_id", lote),
+      ),
+    ]);
+    itensRaw.push(...itens);
+    for (const s of saldos) {
+      if (s.orcamento_item_id) faturadoPorItem.set(s.orcamento_item_id, Number(s.quantidade_faturada ?? 0));
+    }
+  }
+
   const itens: ItemPendente[] = [];
-  for (const raw of data) {
-    const ov = raw.ordens_venda;
-    if (!ov) continue;
+  for (const raw of itensRaw) {
+    const orc = porId.get(raw.orcamento_id);
+    if (!orc) continue;
     const qtdPedida = Number(raw.quantidade ?? 0);
-    const qtdFaturada = Number(raw.quantidade_faturada ?? 0);
+    const qtdFaturada = faturadoPorItem.get(raw.id) ?? 0;
     const qtdPendente = qtdPedida - qtdFaturada;
     if (qtdPendente <= 0) continue;
 
@@ -195,13 +368,13 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
 
     itens.push({
       itemId: raw.id,
-      ordemVendaId: ov.id,
-      numero: ov.numero,
-      statusOv: resolveStatus(ordemVendaStatusMap, ov.status).key,
-      clienteId: ov.cliente_id ?? undefined,
-      cliente: ov.clientes?.nome_fantasia || ov.clientes?.nome_razao_social || "-",
-      emissao: ov.data_emissao,
-      previsao: ov.data_prometida_despacho,
+      orcamentoId: orc.id,
+      pedido: orc.pedido_cliente || orc.numero,
+      orcamento: orc.numero,
+      clienteId: orc.cliente_id ?? undefined,
+      cliente: orc.clientes?.nome_fantasia || orc.clientes?.nome_razao_social || "-",
+      emissao: orc.data_pedido_cliente ?? orc.data_orcamento,
+      previsao: orc.previsao_despacho,
       produtoId: raw.produto_id,
       codigo: raw.codigo_snapshot || raw.produtos?.codigo_interno || null,
       produto,
@@ -215,23 +388,25 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
   }
 
   const rows = alocarEstoque(itens, hojeLocalIso());
+  const porCliente = agruparPorCliente(rows);
+  const porProduto = agruparPorProduto(rows);
 
   const valorPendente = round2(rows.reduce((s, r) => s + r.valorPendente, 0));
-  const pedidos = new Set(rows.map((r) => r.ordemVendaId)).size;
+  const pedidos = new Set(rows.map((r) => r.orcamentoId)).size;
   const itensComFalta = rows.filter((r) => r.falta > 0).length;
-  const atrasados = new Set(rows.filter((r) => r.atrasado).map((r) => r.ordemVendaId)).size;
+  const atrasados = new Set(rows.filter((r) => r.atrasado).map((r) => r.orcamentoId)).size;
 
-  const porCliente = new Map<string, number>();
-  for (const r of rows) porCliente.set(r.cliente, (porCliente.get(r.cliente) ?? 0) + r.valorPendente);
-  const chartData = [...porCliente.entries()]
-    .map(([name, value]) => ({ name, value: round2(value) }))
-    .sort((a, b) => b.value - a.value);
+  const chartData = porCliente.map((c) => ({ name: c.cliente, value: c.valorPendente }));
 
   return {
     title: "Pedidos a faturar",
     subtitle:
-      "Itens de pedidos de venda aprovados com saldo a faturar, confrontados com o estoque disponível.",
+      "Itens de pedidos registrados nos orçamentos com saldo a faturar, confrontados com o estoque disponível.",
     rows: rows as unknown as Record<string, unknown>[],
+    views: {
+      cliente: porCliente as unknown as Record<string, unknown>[],
+      produto: porProduto as unknown as Record<string, unknown>[],
+    },
     chartData,
     totals: { valorPendente },
     kpis: { valorPendente, pedidos, itensComFalta, atrasados },

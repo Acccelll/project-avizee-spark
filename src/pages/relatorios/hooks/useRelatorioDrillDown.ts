@@ -30,12 +30,13 @@ export function useRelatorioDrillDown(tipo: TipoRelatorio | undefined) {
         .map((a) => {
           const id = row[a.targetField as string];
           if (id == null || id === '') return null;
-          // Roteamento simples: rota base + ?focus=<id>. Telas-destino que ainda
-          // não consomem `focus` apenas ignoram o parâmetro — comportamento
-          // seguro e progressivo.
+          // Rota com `:id` recebe o ID no caminho; nas demais vai como
+          // ?focus=<id>. Telas-destino que ainda não consomem `focus` apenas
+          // ignoram o parâmetro — comportamento seguro e progressivo.
           const route = a.route as string;
+          const encoded = encodeURIComponent(String(id));
           const sep = route.includes('?') ? '&' : '?';
-          const href = `${route}${sep}focus=${encodeURIComponent(String(id))}`;
+          const href = route.includes(':id') ? route.replace(':id', encoded) : `${route}${sep}focus=${encoded}`;
           return { ...a, href } as ResolvedDrillAction;
         })
         .filter((x): x is ResolvedDrillAction => x !== null);
