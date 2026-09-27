@@ -55,8 +55,14 @@ export type FechamentoMetrica =
   | 'estoque_produtos'
   | 'seguidores_linkedin'
   | 'seguidores_instagram'
+  /** Caixa final informado (extrato) menos o calculado; vai para a coluna AO da BASE. */
+  | 'ajuste_caixa'
+  /** Caixa no fim do mês: o informado no fechamento ou, sem ele, o calculado. */
+  | 'caixa_final'
+  /** Caixa no fim do mês pelo ERP, antes do ajuste do próprio mês. */
+  | 'caixa_final_calculado'
   | `aging_cr_${(typeof AGING_FAIXAS)[number]}`
   | `aging_cp_${(typeof AGING_FAIXAS)[number]}`;
 
 /** Métricas digitadas no fechamento (não calculadas pelo ERP). */
-export const METRICAS_MANUAIS = ['seguidores_linkedin', 'seguidores_instagram'] as const;
+export const METRICAS_MANUAIS = ['seguidores_linkedin', 'seguidores_instagram', 'caixa_final', 'bloqueado'] as const;
