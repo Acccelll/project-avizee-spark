@@ -54,6 +54,11 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
   title: string;
   subtitle: string;
   rows: T[];
+  /**
+   * Linhas de visões alternativas (ex.: "Por cliente"), por chave de
+   * `ReportConfig.views`. A primeira visão do config usa `rows`.
+   */
+  views?: Record<string, T[]>;
   chartData?: Array<{ name: string; value: number }>;
   totals?: Record<string, number>;
   /** Rich KPI values keyed by the ReportKpiDef.key for the current report */

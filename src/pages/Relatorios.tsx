@@ -33,7 +33,8 @@ import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Hash } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
-import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
+import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, resolveReportView } from '@/config/relatoriosConfig';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { buildKpiCards, deriveMobileTableProps } from '@/services/relatorios/lib/derivations';
 import { type TipoRelatorio } from '@/services/relatorios.service';
@@ -121,9 +122,16 @@ export default function Relatorios() {
   const reportMeta = resultado?.meta;
   const isQtyReport = reportMeta?.valueNature === 'quantidade';
   const isDreReport = reportMeta?.kind === 'dre';
-  const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
-
   const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
+  // Visão ativa (?vs=). A primeira visão do config usa `rows`; as demais, `views[key]`.
+  const activeView = resolveReportView(selectedMeta, searchParams.get('vs'));
+  const isDefaultView = !activeView || activeView.key === selectedMeta?.views?.[0]?.key;
+  const rows = useMemo(
+    () => ((isDefaultView ? resultado?.rows : resultado?.views?.[activeView.key]) ?? []) as Record<string, unknown>[],
+    [isDefaultView, activeView?.key, resultado?.rows, resultado?.views],
+  );
+  const viewColumns = activeView?.columns ?? selectedMeta?.columns;
+
   const semantics = tipo ? reportRuntimeSemantics[tipo as TipoRelatorio] : undefined;
   const filteredRows = useMemo(
     () => filtrarPorStatus(rows, filtrosState.statusFiltro, { statusField: semantics?.statusField }),
@@ -153,9 +161,8 @@ export default function Relatorios() {
 
   const columns = useMemo(() => {
     if (!sortedRows.length || !tipo) return [];
-    const cfg = reportConfigs[tipo as TipoRelatorio];
     const rowKeys = Object.keys(sortedRows[0]);
-    const colDefs = (cfg?.columns ?? rowKeys.map((k) => ({ key: k, label: k }))).filter((c) => rowKeys.includes(c.key));
+    const colDefs = (viewColumns ?? rowKeys.map((k) => ({ key: k, label: k }))).filter((c) => rowKeys.includes(c.key));
     return colDefs.map((colDef) => ({
       key: colDef.key,
       label: colDef.label,
@@ -193,7 +200,7 @@ export default function Relatorios() {
         }) as React.ReactNode;
       },
     }));
-  }, [sortedRows, isQtyReport, tipo]);
+  }, [sortedRows, isQtyReport, tipo, viewColumns]);
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
@@ -251,6 +258,7 @@ export default function Relatorios() {
     resultado,
     sortedRows,
     visibleColumns,
+    columnDefs: viewColumns,
     empresaConfig,
     dataInicio,
     dataFim,
@@ -303,7 +311,7 @@ export default function Relatorios() {
     setSearchParams({ tipo });
   };
 
-  const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
+  const footerCols = (viewColumns ?? []).filter((c) => c.footerTotal);
 
   const activeFiltersCount = activeFilterChips.length;
 
@@ -442,6 +450,19 @@ export default function Relatorios() {
                   />
                 }
               />
+
+              {selectedMeta.views && activeView && (
+                <Tabs
+                  value={activeView.key}
+                  onValueChange={(v) => updateParams({ vs: v === selectedMeta.views?.[0]?.key ? undefined : v })}
+                >
+                  <TabsList>
+                    {selectedMeta.views.map((v) => (
+                      <TabsTrigger key={v.key} value={v.key}>{v.label}</TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              )}
 
               <RelatorioBody
                 isMobile={isMobile}

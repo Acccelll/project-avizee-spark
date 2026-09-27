@@ -18,7 +18,7 @@ import {
   exportarParaPdf,
   type ExportColumnDef,
 } from '@/services/export.service';
-import { reportConfigs } from '@/config/relatoriosConfig';
+import { reportConfigs, type ReportColumnDef } from '@/config/relatoriosConfig';
 import type {
   RelatorioResultado,
   TipoRelatorio,
@@ -42,6 +42,8 @@ interface UseRelatorioExportArgs {
   resultado?: RelatorioResultado;
   sortedRows: Record<string, unknown>[];
   visibleColumns: VisibleColumn[];
+  /** Colunas da visão ativa; sem visão, as do config do relatório. */
+  columnDefs?: ReportColumnDef[];
   empresaConfig: unknown;
   dataInicio: string;
   dataFim: string;
@@ -52,6 +54,7 @@ export function useRelatorioExport({
   resultado,
   sortedRows,
   visibleColumns,
+  columnDefs,
   empresaConfig,
   dataInicio,
   dataFim,
@@ -73,13 +76,13 @@ export function useRelatorioExport({
 
   const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
     if (!tipo) return undefined;
-    const cfg = reportConfigs[tipo as TipoRelatorio];
-    if (!cfg?.columns?.length) return undefined;
+    const cols = columnDefs ?? reportConfigs[tipo as TipoRelatorio]?.columns;
+    if (!cols?.length) return undefined;
     return visibleColumns.map((vc) => {
-      const cfgCol = cfg.columns.find((c) => c.key === vc.key);
+      const cfgCol = cols.find((c) => c.key === vc.key);
       return { key: vc.key, label: vc.label, format: cfgCol?.format };
     });
-  }, [visibleColumns, tipo]);
+  }, [visibleColumns, tipo, columnDefs]);
 
   const handleExportCsv = async () => {
     if (!sortedRows.length) {

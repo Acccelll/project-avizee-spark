@@ -90,7 +90,10 @@ export interface ReportFiltersDef {
 export interface ReportDrillDownAction {
   key: string;
   label: string;
-  /** Prepared for future navigation — may not be wired yet */
+  /**
+   * Rota de destino. Com `:id` o ID entra no caminho (ex.: `/orcamentos/:id`);
+   * sem, vai como `?focus=<id>`.
+   */
   route?: string;
   /** Hidden row field carrying the ID to use when constructing the navigation. */
   targetField?: string;
@@ -102,6 +105,17 @@ export interface ReportTimeAxisDef {
   field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia';
   label: string;
   required: boolean;
+}
+
+/**
+ * Visão alternativa de um relatório (ex.: "Por cliente"). A primeira visão da
+ * lista é a padrão e usa `RelatorioResultado.rows`; as demais leem
+ * `RelatorioResultado.views[key]`.
+ */
+export interface ReportViewDef {
+  key: string;
+  label: string;
+  columns: ReportColumnDef[];
 }
 
 export interface ReportConfig {
@@ -122,6 +136,14 @@ export interface ReportConfig {
    */
   timeAxis?: ReportTimeAxisDef;
   drillDown?: ReportDrillDownAction[];
+  /** Visões do relatório; ausente = só a lista de `columns`. */
+  views?: ReportViewDef[];
+}
+
+/** Visão ativa do relatório (a primeira quando a chave não existe). */
+export function resolveReportView(cfg: ReportConfig | undefined, key: string | null | undefined): ReportViewDef | undefined {
+  if (!cfg?.views?.length) return undefined;
+  return cfg.views.find((v) => v.key === key) ?? cfg.views[0];
 }
 
 export interface ReportRuntimeSemantics {
@@ -693,28 +715,64 @@ const xmlsArquivadosConfig: ReportConfig = {
   drillDown: [],
 };
 
+const pedidosAFaturarItensColumns: ReportColumnDef[] = [
+  { key: 'pedido', label: 'Pedido' },
+  { key: 'orcamento', label: 'Orçamento' },
+  { key: 'cliente', label: 'Cliente' },
+  { key: 'previsao', label: 'Previsão Despacho', format: 'date' },
+  { key: 'codigo', label: 'Código' },
+  { key: 'produto', label: 'Produto' },
+  { key: 'unidade', label: 'UN' },
+  { key: 'qtdPendente', label: 'Qtd a Faturar', format: 'quantity', align: 'right' },
+  { key: 'valorUnitario', label: 'Valor Un', format: 'currency', align: 'right' },
+  { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', align: 'right', footerTotal: true },
+  { key: 'estoqueDisponivel', label: 'Estoque Disp.', format: 'quantity', align: 'right' },
+  { key: 'falta', label: 'Falta', format: 'quantity', align: 'right' },
+  { key: 'situacao', label: 'Situação', format: 'badge' },
+];
+
 const pedidosAFaturarConfig: ReportConfig = {
   id: 'pedidos_a_faturar',
   title: 'Pedidos a Faturar',
-  description: 'Itens de pedidos aprovados ainda não faturados, com cobertura de estoque',
+  description: 'Itens de pedidos registrados ainda não faturados, com cobertura de estoque',
   objective: 'O que precisa ser despachado/faturado e quanto falta em estoque para atender',
   category: 'comercial',
   priority: true,
   icon: PackageCheck,
   chartType: 'bar',
-  columns: [
-    { key: 'numero', label: 'Pedido' },
-    { key: 'cliente', label: 'Cliente' },
-    { key: 'previsao', label: 'Previsão Despacho', format: 'date' },
-    { key: 'codigo', label: 'Código' },
-    { key: 'produto', label: 'Produto' },
-    { key: 'unidade', label: 'UN' },
-    { key: 'qtdPendente', label: 'Qtd a Faturar', format: 'quantity', align: 'right' },
-    { key: 'valorUnitario', label: 'Valor Un', format: 'currency', align: 'right' },
-    { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', align: 'right', footerTotal: true },
-    { key: 'estoqueDisponivel', label: 'Estoque Disp.', format: 'quantity', align: 'right' },
-    { key: 'falta', label: 'Falta', format: 'quantity', align: 'right' },
-    { key: 'situacao', label: 'Situação', format: 'badge' },
+  columns: pedidosAFaturarItensColumns,
+  views: [
+    { key: 'itens', label: 'Itens', columns: pedidosAFaturarItensColumns },
+    {
+      key: 'cliente',
+      label: 'Por cliente',
+      columns: [
+        { key: 'cliente', label: 'Cliente' },
+        { key: 'pedidos', label: 'Pedidos', format: 'number', align: 'right', footerTotal: true },
+        { key: 'itens', label: 'Itens', format: 'number', align: 'right', footerTotal: true },
+        { key: 'previsao', label: 'Próxima Previsão', format: 'date' },
+        { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', align: 'right', footerTotal: true },
+        { key: 'itensComFalta', label: 'Itens com Falta', format: 'number', align: 'right', footerTotal: true },
+        { key: 'atrasados', label: 'Pedidos Atrasados', format: 'number', align: 'right', footerTotal: true },
+        { key: 'situacao', label: 'Situação', format: 'badge' },
+      ],
+    },
+    {
+      key: 'produto',
+      label: 'Por produto',
+      columns: [
+        { key: 'codigo', label: 'Código' },
+        { key: 'produto', label: 'Produto' },
+        { key: 'unidade', label: 'UN' },
+        { key: 'pedidos', label: 'Pedidos', format: 'number', align: 'right' },
+        { key: 'previsao', label: 'Próxima Previsão', format: 'date' },
+        { key: 'qtdPendente', label: 'Qtd a Faturar', format: 'quantity', align: 'right' },
+        { key: 'estoqueDisponivel', label: 'Estoque Disp.', format: 'quantity', align: 'right' },
+        { key: 'falta', label: 'Falta', format: 'quantity', align: 'right' },
+        { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', align: 'right', footerTotal: true },
+        { key: 'situacao', label: 'Situação', format: 'badge' },
+      ],
+    },
   ],
   filters: {
     showDateRange: false,
@@ -733,13 +791,14 @@ const pedidosAFaturarConfig: ReportConfig = {
   },
   kpis: [
     { key: 'valorPendente', label: 'Valor a Faturar', format: 'currency', variation: 'saldo em aberto' },
-    { key: 'pedidos', label: 'Pedidos em Aberto', format: 'number', variation: 'aprovados' },
+    { key: 'pedidos', label: 'Pedidos em Aberto', format: 'number', variation: 'registrados' },
     { key: 'itensComFalta', label: 'Itens com Falta', format: 'number', variant: 'danger', variation: 'estoque insuficiente' },
     { key: 'atrasados', label: 'Pedidos Atrasados', format: 'number', variant: 'warning', variation: 'previsão vencida' },
   ],
   drillDown: [
-    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/orcamentos/:id', targetField: 'orcamentoId', available: true },
     { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
   ],
 };
 
@@ -1261,7 +1320,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     periodAxisLabel: 'posição atual da carteira',
     statusMeaning: 'Situação indica se o estoque disponível cobre o saldo a faturar (alocado pela previsão de despacho mais próxima).',
     highlightFilters: ['clientes', 'status'],
-    investigableField: 'numero',
+    investigableField: 'pedido',
   },
   vendas_cliente: { valueSortField: 'valorTotal', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (por cliente)', highlightFilters: ['periodo', 'clientes'], investigableField: 'cliente' },
   // `compras` filtra/lista por data de compra (campo `compra` na linha) — alinhado a `timeAxis.field = 'criacao'` (data de compra) no config.
