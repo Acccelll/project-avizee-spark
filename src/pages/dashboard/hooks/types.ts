@@ -1,4 +1,4 @@
-import type { Orcamento, OrdemVenda, PedidoCompra } from "@/types/domain";
+import type { Orcamento, PedidoCompra } from "@/types/domain";
 
 export interface DashboardDateRange {
   dateFrom?: string;
@@ -6,7 +6,17 @@ export interface DashboardDateRange {
 }
 
 export type RecentOrcamento = Orcamento;
-export type BacklogOv = OrdemVenda;
+/** Pedido (orçamento com pedido registrado) ainda com saldo a faturar. */
+export interface BacklogOv {
+  id: string;
+  numero: string;
+  pedido_cliente: string | null;
+  valor_total: number | null;
+  data_pedido_cliente: string | null;
+  previsao_despacho: string | null;
+  faturamento_status: string | null;
+  clientes: { nome_razao_social: string | null } | null;
+}
 export type CompraAguardando = PedidoCompra;
 
 export interface FinRow {

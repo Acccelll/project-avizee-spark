@@ -47,13 +47,13 @@ const CARDS: HubCard[] = [
     cta: "Iniciar emissão",
   },
   {
-    title: "Backlog de faturamento",
+    title: "Pedidos a faturar",
     description:
-      "Pedidos aprovados elegíveis para gerar NF-e — fila ordenada por SLA com atalho direto para o wizard.",
+      "Pedidos registrados nos orçamentos com saldo a faturar, por item, cliente e produto, com a cobertura de estoque.",
     icon: PackageCheck,
-    path: "/faturamento/backlog",
+    path: "/relatorios?tipo=pedidos_a_faturar",
     action: "visualizar",
-    cta: "Abrir backlog",
+    cta: "Abrir relatório",
   },
   {
     title: "Cadastros fiscais",
@@ -79,16 +79,16 @@ export default function FaturamentoIndex() {
   const navigate = useNavigate();
   const { can } = useCan();
 
-  // Count do backlog para badge visual no card correspondente.
+  // Pedidos com saldo a faturar, para o badge do card correspondente.
   const { data: backlogCount } = useQuery({
     queryKey: ["faturamento-backlog-count-hub"],
     queryFn: async () => {
       const { count } = await supabase
-        .from("ordens_venda")
+        .from("orcamentos")
         .select("id", { count: "exact", head: true })
         .eq("ativo", true)
-        .in("status_faturamento", ["pendente", "parcial"])
-        .in("status", ["aprovado", "em_separacao", "separado", "em_producao"]);
+        .in("status", ["aprovado", "convertido"])
+        .in("faturamento_status", ["aberto", "parcial"]);
       return count ?? 0;
     },
     staleTime: 60_000,
@@ -108,7 +108,7 @@ export default function FaturamentoIndex() {
           const allowed = can(`faturamento_fiscal:${card.action}` as never);
           const Icon = card.icon;
           const showBacklogBadge =
-            card.path === "/faturamento/backlog" &&
+            card.path === "/relatorios?tipo=pedidos_a_faturar" &&
             typeof backlogCount === "number" &&
             backlogCount > 0;
           const buttonEl = (

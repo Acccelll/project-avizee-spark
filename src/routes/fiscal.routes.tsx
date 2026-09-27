@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Route } from "react-router-dom";
+import { Navigate, Route } from "react-router-dom";
 import { PermissionRoute } from "@/components/PermissionRoute";
 import { LazyPage } from "./LazyPage";
 
@@ -19,7 +19,6 @@ const EmBreve = lazy(() =>
 const FaturamentoIndex = lazy(() => import("@/pages/faturamento/FaturamentoIndex"));
 const EmitirNFeWizard = lazy(() => import("@/pages/faturamento/EmitirNFeWizard"));
 const FaturamentoCadastros = lazy(() => import("@/pages/faturamento/FaturamentoCadastros"));
-const BacklogFaturamento = lazy(() => import("@/pages/faturamento/BacklogFaturamento"));
 const ConsultaDocumentos = lazy(() => import("@/pages/faturamento/ConsultaDocumentos"));
 
 /**
@@ -44,7 +43,8 @@ export const fiscalRoutes = (
       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
     </Route>
     <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoIndex /></LazyPage></PermissionRoute>} />
-    <Route path="/faturamento/backlog" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><BacklogFaturamento /></LazyPage></PermissionRoute>} />
+    {/* O backlog lia OVs; foi substituído pelo relatório Pedidos a Faturar. */}
+    <Route path="/faturamento/backlog" element={<Navigate to="/relatorios?tipo=pedidos_a_faturar" replace />} />
     <Route path="/faturamento/documentos" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><ConsultaDocumentos /></LazyPage></PermissionRoute>} />
     <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoCadastros /></LazyPage></PermissionRoute>} />
     <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmitirNFeWizard /></LazyPage></PermissionRoute>} />

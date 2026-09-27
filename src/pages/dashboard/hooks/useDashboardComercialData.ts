@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValues } from "@/lib/dashboard/aggregations";
-import {
-  BACKLOG_FATURAMENTO_STATUSES,
-  BACKLOG_OV_STATUSES,
-  OPEN_ORCAMENTO_STATUSES,
-} from "@/lib/comercialStatuses";
+import { OPEN_ORCAMENTO_STATUSES } from "@/lib/comercialStatuses";
 import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
 import { logger } from "@/lib/logger";
+
+/** Pedidos registrados no orçamento que ainda têm saldo a faturar. */
+const PEDIDO_STATUSES = ["aprovado", "convertido"];
+const PEDIDO_EM_ABERTO = ["aberto", "parcial"];
 
 interface ComercialData {
   /** Cotações abertas (non-terminal) in the selected period. */
@@ -70,20 +70,20 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .limit(5),
         // Preview list (capped at 15) for the UI detail view.
         supabase
-          .from("ordens_venda")
-          .select("id, numero, valor_total, data_emissao, data_prometida_despacho, prazo_despacho_dias, status, status_faturamento, clientes(nome_razao_social)")
+          .from("orcamentos")
+          .select("id, numero, pedido_cliente, valor_total, data_pedido_cliente, previsao_despacho, faturamento_status, clientes(nome_razao_social)")
           .eq("ativo", true)
-          .in("status", BACKLOG_OV_STATUSES)
-          .in("status_faturamento", BACKLOG_FATURAMENTO_STATUSES)
-          .order("data_emissao", { ascending: true })
+          .in("status", PEDIDO_STATUSES)
+          .in("faturamento_status", PEDIDO_EM_ABERTO)
+          .order("previsao_despacho", { ascending: true, nullsFirst: false })
           .limit(15),
         // Real total count for alert/KPI badges.
         supabase
-          .from("ordens_venda")
-          .select("*", { count: "exact", head: true })
+          .from("orcamentos")
+          .select("id", { count: "exact", head: true })
           .eq("ativo", true)
-          .in("status", BACKLOG_OV_STATUSES)
-          .in("status_faturamento", BACKLOG_FATURAMENTO_STATUSES),
+          .in("status", PEDIDO_STATUSES)
+          .in("faturamento_status", PEDIDO_EM_ABERTO),
         supabase
           .from("notas_fiscais")
           .select("valor_total")

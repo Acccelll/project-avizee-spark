@@ -461,17 +461,17 @@ const fluxoCaixaConfig: ReportConfig = {
 const vendasConfig: ReportConfig = {
   id: 'vendas',
   title: 'Vendas',
-  description: 'Ordens por período com status comercial e faturamento',
-  objective: 'Pedidos e ordens de venda com leitura comercial',
+  description: 'Pedidos por período com a situação de faturamento',
+  objective: 'Pedidos registrados nos orçamentos e quanto já foi faturado',
   category: 'comercial',
   icon: ShoppingCart,
   chartType: 'line',
   columns: [
-    { key: 'numero', label: 'Nº Pedido' },
+    { key: 'numero', label: 'Pedido' },
+    { key: 'orcamento', label: 'Orçamento' },
     { key: 'cliente', label: 'Cliente' },
-    { key: 'emissao', label: 'Emissão', format: 'date' },
+    { key: 'emissao', label: 'Data do Pedido', format: 'date' },
     { key: 'valor', label: 'Valor', format: 'currency', align: 'right', footerTotal: true },
-    { key: 'status', label: 'Status Comercial', format: 'badge' },
     { key: 'faturamento', label: 'Faturamento', format: 'badge' },
   ],
   filters: {
@@ -482,9 +482,10 @@ const vendasConfig: ReportConfig = {
     showStatus: true,
     statusOptions: [
       { value: 'todos', label: 'Todos' },
-      { value: 'rascunho', label: 'Rascunho' },
-      { value: 'confirmado', label: 'Confirmado' },
-      { value: 'cancelado', label: 'Cancelado' },
+      { value: 'aberto', label: 'A faturar' },
+      { value: 'parcial', label: 'Faturado parcial' },
+      { value: 'faturado', label: 'Faturado' },
+      { value: 'encerrado', label: 'Saldo encerrado' },
     ],
     showTipos: false,
   },
@@ -496,7 +497,8 @@ const vendasConfig: ReportConfig = {
     { key: 'aguardandoFaturamento', label: 'Aguard. Faturamento', format: 'number', variant: 'warning', variation: 'pedidos' },
   ],
   drillDown: [
-    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/orcamentos/:id', targetField: 'orcamentoId', available: true },
+    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
   ],
 };
 
@@ -816,7 +818,7 @@ const faturamentoConfig: ReportConfig = {
     { key: 'nf', label: 'NF / Série' },
     { key: 'modelo', label: 'Modelo' },
     { key: 'cliente', label: 'Cliente' },
-    { key: 'ov', label: 'Pedido' },
+    { key: 'pedido', label: 'Pedido' },
     { key: 'valorTotal', label: 'Valor Bruto', format: 'currency', align: 'right', footerTotal: true },
     { key: 'desconto', label: 'Desconto', format: 'currency', align: 'right', footerTotal: true },
     { key: 'frete', label: 'Frete', format: 'currency', align: 'right' },
@@ -841,7 +843,7 @@ const faturamentoConfig: ReportConfig = {
   drillDown: [
     { key: 'nf', label: 'Abrir NF', route: '/fiscal', targetField: 'notaFiscalId', available: true },
     { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
-    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/orcamentos/:id', targetField: 'orcamentoId', available: true },
   ],
 };
 
@@ -1312,7 +1314,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     highlightFilters: ['status'],
     investigableField: 'referencia',
   },
-  vendas: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão' },
+  vendas: { statusField: 'statusKey', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data do orçamento', statusMeaning: 'Situação de faturamento do pedido (notas vinculadas ao orçamento).' },
   pedidos_a_faturar: {
     statusField: 'statusKey',
     valueSortField: 'valorPendente',

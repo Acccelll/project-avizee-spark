@@ -76,7 +76,7 @@ type ContextualTab = {
 const CONTEXTUAL_TABS_BY_SECTION: Partial<Record<NavSectionKey, ContextualTab[]>> = {
   comercial: [
     { key: 'orcamentos', title: 'Orçamentos', icon: FileText, path: '/orcamentos', permission: 'orcamentos:visualizar' },
-    { key: 'pedidos', title: 'Pedidos', icon: ClipboardList, path: '/pedidos', permission: 'pedidos:visualizar' },
+    { key: 'pedidos', title: 'Pedidos', icon: ClipboardList, path: '/orcamentos?aba=pedidos', permission: 'orcamentos:visualizar' },
     { key: 'cotacoes-compra', title: 'Cotações compra', icon: ShoppingCart, path: '/cotacoes-compra' },
     { key: 'pedidos-compra', title: 'Pedidos compra', icon: ClipboardList, path: '/pedidos-compra' },
   ],
