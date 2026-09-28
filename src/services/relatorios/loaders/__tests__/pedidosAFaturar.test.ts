@@ -9,7 +9,7 @@ function item(p: Partial<ItemPendente>): ItemPendente {
     itemId: "i", orcamentoId: "o", pedido: "4500", orcamento: "ORC1", canal: "Orçamento", clienteId: "c", cliente: "C",
     emissao: "2026-09-01", previsao: null, produtoId: "p1", codigo: null, produto: "Agulha",
     unidade: "DZ", qtdPedida: 10, qtdFaturada: 0, qtdPendente: 10, valorUnitario: 10,
-    estoqueDisponivel: 0, ...p,
+    estoqueDisponivel: 0, aviso: "", ...p,
   };
 }
 
@@ -67,9 +67,9 @@ describe("visões por cliente e por produto", () => {
   const hoje = "2026-09-26";
   const rows = alocarEstoque(
     [
-      item({ itemId: "1", orcamentoId: "o1", clienteId: "c1", cliente: "Cobb", produtoId: "p1", previsao: "2026-09-20", qtdPendente: 10, valorUnitario: 10, estoqueDisponivel: 12 }),
+      item({ itemId: "1", orcamentoId: "o1", clienteId: "c1", cliente: "Cobb", produtoId: "p1", previsao: "2026-09-20", qtdPendente: 10, valorUnitario: 10, estoqueDisponivel: 12, aviso: "Informar o lote" }),
       item({ itemId: "2", orcamentoId: "o2", clienteId: "c1", cliente: "Cobb", produtoId: "p2", previsao: "2026-10-10", qtdPendente: 4, valorUnitario: 50, estoqueDisponivel: 0 }),
-      item({ itemId: "3", orcamentoId: "o3", clienteId: "c2", cliente: "Nutriza", produtoId: "p1", previsao: "2026-10-01", qtdPendente: 5, valorUnitario: 10, estoqueDisponivel: 12 }),
+      item({ itemId: "3", orcamentoId: "o3", clienteId: "c2", cliente: "Nutriza", produtoId: "p1", previsao: "2026-10-01", qtdPendente: 5, valorUnitario: 10, estoqueDisponivel: 12, aviso: "Informar o lote" }),
     ],
     hoje,
   );
@@ -88,8 +88,8 @@ describe("visões por cliente e por produto", () => {
     const porProduto = agruparPorProduto(rows);
     const p1 = porProduto.find((p) => p.produtoId === "p1");
     const p2 = porProduto.find((p) => p.produtoId === "p2");
-    expect(p1).toMatchObject({ pedidos: 2, qtdPendente: 15, estoqueDisponivel: 12, falta: 3, statusKey: "parcial" });
-    expect(p2).toMatchObject({ pedidos: 1, qtdPendente: 4, falta: 4, statusKey: "sem_estoque" });
+    expect(p1).toMatchObject({ pedidos: 2, qtdPendente: 15, estoqueDisponivel: 12, falta: 3, statusKey: "parcial", aviso: "Informar o lote" });
+    expect(p2).toMatchObject({ pedidos: 1, qtdPendente: 4, falta: 4, statusKey: "sem_estoque", aviso: "" });
     // Ordena pelo que mais falta.
     expect(porProduto[0].produtoId).toBe("p2");
   });

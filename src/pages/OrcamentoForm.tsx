@@ -11,6 +11,7 @@ import { EditMetaBanner } from "@/pages/comercial/orcamento-form/EditMetaBanner"
 import { ShareCard } from "@/pages/comercial/orcamento-form/ShareCard";
 import { ItensSection } from "@/pages/comercial/orcamento-form/ItensSection";
 import { ObservacoesSection } from "@/pages/comercial/orcamento-form/ObservacoesSection";
+import { AvisosInternosAlert } from "@/components/Orcamento/AvisosInternosAlert";
 import { MidSummaryBar } from "@/pages/comercial/orcamento-form/MidSummaryBar";
 import { FreteSection } from "@/pages/comercial/orcamento-form/FreteSection";
 import { CondicoesSection } from "@/pages/comercial/orcamento-form/CondicoesSection";
@@ -129,6 +130,7 @@ export default function OrcamentoForm() {
                 v.setFreteSimulacaoId(null);
               }}
             />
+            <AvisosInternosAlert produtoIds={v.items.map((i) => i.produto_id)} />
             <FreteSection
               orcamentoId={v.id || null} clienteId={v.clienteId}
               cepDestino={v.clienteSnapshot.cep}

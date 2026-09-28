@@ -10,7 +10,7 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase
 export async function listGruposAtivos() {
   const { data, error } = await supabase
     .from("grupos_produto")
-    .select("id, nome, sigla")
+    .select("id, nome, sigla, aviso_interno")
     .eq("ativo", true)
     .order("nome");
   if (error) throw error;
@@ -56,6 +56,51 @@ export async function proximoSkuDoGrupo(grupoId: string): Promise<string> {
   const { data, error } = await supabase.rpc("proximo_sku_grupo", { _grupo_id: grupoId });
   if (error) throw new Error(error.message);
   return String(data || "");
+}
+
+/** Atualiza o aviso interno de um grupo de produto (vazio remove o aviso). */
+export async function updateGrupoAvisoInterno(grupoId: string, aviso: string | null): Promise<void> {
+  const value = aviso?.trim() || null;
+  const { error } = await supabase
+    .from("grupos_produto")
+    .update({ aviso_interno: value })
+    .eq("id", grupoId);
+  if (error) throw error;
+}
+
+export interface AvisoInternoItem {
+  produtoId: string;
+  codigo: string | null;
+  nome: string;
+  grupo: string;
+  aviso: string;
+}
+
+/**
+ * Avisos internos dos grupos dos produtos informados (ex.: agulhas → "Informar o lote").
+ * Só retorna produtos cujo grupo tem aviso.
+ */
+export async function listAvisosInternosProdutos(produtoIds: string[]): Promise<AvisoInternoItem[]> {
+  const ids = [...new Set(produtoIds.filter(Boolean))];
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("id, sku, nome, grupos_produto!inner(nome, aviso_interno)")
+    .in("id", ids)
+    .not("grupos_produto.aviso_interno", "is", null);
+  if (error) throw error;
+  return (data ?? [])
+    .map((p) => {
+      const g = p.grupos_produto as unknown as { nome: string; aviso_interno: string | null } | null;
+      return {
+        produtoId: p.id,
+        codigo: p.sku,
+        nome: p.nome,
+        grupo: g?.nome ?? "",
+        aviso: g?.aviso_interno?.trim() ?? "",
+      };
+    })
+    .filter((a) => a.aviso);
 }
 
 /** Atualiza a sigla de um grupo de produto (admin/editor). */

@@ -32,6 +32,7 @@ import { enviarOrcamentoAprovacao } from "@/services/comercial/orcamentosLifecyc
 import { canRegistrarPedido, canSendOrcamento, isPedidoOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { RegistrarPedidoDialog } from "@/components/orcamentos/RegistrarPedidoDialog";
 import { PedidoClienteResumo } from "@/components/orcamentos/PedidoClienteResumo";
+import { AvisosInternosAlert } from "@/components/Orcamento/AvisosInternosAlert";
 import { FaturamentoBadge, FaturamentoPedido } from "@/components/orcamentos/FaturamentoPedido";
 import type { OrcamentoDetail } from "@/types/comercial";
 import {
@@ -376,6 +377,7 @@ export function OrcamentoView({ id }: Props) {
 
         {/* --- RESUMO --- */}
         <TabsContent value="resumo" className="space-y-3 mt-3 text-sm">
+          <AvisosInternosAlert produtoIds={items.map((i) => i.produto_id)} />
           {isExpired && (
             <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -479,6 +481,7 @@ export function OrcamentoView({ id }: Props) {
 
         {/* --- ITENS --- */}
         <TabsContent value="itens" className="space-y-3 mt-3">
+          <AvisosInternosAlert produtoIds={items.map((i) => i.produto_id)} />
           {/* Tabela: telas ≥sm */}
           <div className="rounded-lg border overflow-hidden hidden sm:block">
             <table className="w-full text-xs">

@@ -743,6 +743,7 @@ const pedidosAFaturarItensColumns: ReportColumnDef[] = [
   { key: 'previsao', label: 'Previsão Despacho', format: 'date' },
   { key: 'codigo', label: 'Código' },
   { key: 'produto', label: 'Produto' },
+  { key: 'aviso', label: 'Aviso interno' },
   { key: 'unidade', label: 'UN' },
   { key: 'qtdPendente', label: 'Qtd a Faturar', format: 'quantity', align: 'right' },
   { key: 'valorUnitario', label: 'Valor Un', format: 'currency', align: 'right' },
@@ -784,6 +785,7 @@ const pedidosAFaturarConfig: ReportConfig = {
       columns: [
         { key: 'codigo', label: 'Código' },
         { key: 'produto', label: 'Produto' },
+        { key: 'aviso', label: 'Aviso interno' },
         { key: 'unidade', label: 'UN' },
         { key: 'pedidos', label: 'Pedidos', format: 'number', align: 'right' },
         { key: 'previsao', label: 'Próxima Previsão', format: 'date' },

@@ -5507,6 +5507,7 @@ export type Database = {
       grupos_produto: {
         Row: {
           ativo: boolean
+          aviso_interno: string | null
           conta_contabil_id: string | null
           created_at: string
           descricao: string | null
@@ -5516,6 +5517,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          aviso_interno?: string | null
           conta_contabil_id?: string | null
           created_at?: string
           descricao?: string | null
@@ -5525,6 +5527,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          aviso_interno?: string | null
           conta_contabil_id?: string | null
           created_at?: string
           descricao?: string | null
@@ -7451,6 +7454,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orcamento_nf_vinculo_itens_orcamento_item_id_fkey"
+            columns: ["orcamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_itens_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculo_itens_orcamento_item_id_fkey"
+            columns: ["orcamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "vw_orcamento_itens_saldo"
+            referencedColumns: ["orcamento_item_id"]
+          },
+          {
             foreignKeyName: "orcamento_nf_vinculo_itens_vinculo_id_fkey"
             columns: ["vinculo_id"]
             isOneToOne: false
@@ -7496,11 +7513,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orcamento_nf_vinculos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "orcamento_nf_vinculos_orcamento_id_fkey"
             columns: ["orcamento_id"]
             isOneToOne: false
             referencedRelation: "orcamentos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculos_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_nf_vinculos_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
           },
         ]
       }
@@ -7508,10 +7553,10 @@ export type Database = {
         Row: {
           altura_cm: number | null
           ativo: boolean
+          canal: string
           cliente_id: string | null
           cliente_resposta_comentario: string | null
           cliente_resposta_em: string | null
-          canal: string
           cliente_snapshot: Json | null
           comprimento_cm: number | null
           created_at: string
@@ -7562,10 +7607,10 @@ export type Database = {
         Insert: {
           altura_cm?: number | null
           ativo?: boolean
+          canal?: string
           cliente_id?: string | null
           cliente_resposta_comentario?: string | null
           cliente_resposta_em?: string | null
-          canal?: string
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -7616,10 +7661,10 @@ export type Database = {
         Update: {
           altura_cm?: number | null
           ativo?: boolean
+          canal?: string
           cliente_id?: string | null
           cliente_resposta_comentario?: string | null
           cliente_resposta_em?: string | null
-          canal?: string
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -12218,6 +12263,62 @@ export type Database = {
             referencedRelation: "orcamentos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       vw_recebimentos_consolidado: {
@@ -12745,16 +12846,6 @@ export type Database = {
         Args: { p_retirada_id: string }
         Returns: undefined
       }
-      atualizar_pedido_orcamento: {
-        Args: {
-          p_anexo_path?: string
-          p_data_pedido?: string
-          p_id: string
-          p_pedido_cliente?: string
-          p_previsao_despacho?: string
-        }
-        Returns: Json
-      }
       atualizar_financeiro_nota: {
         Args: {
           p_condicao_pagamento: string
@@ -12766,6 +12857,16 @@ export type Database = {
           lancamento_id: string
           parcela: number
         }[]
+      }
+      atualizar_pedido_orcamento: {
+        Args: {
+          p_anexo_path?: string
+          p_data_pedido?: string
+          p_id: string
+          p_pedido_cliente?: string
+          p_previsao_despacho?: string
+        }
+        Returns: Json
       }
       backfill_nfe_distribuicao_destinatario: { Args: never; Returns: number }
       baixar_fatura_cartao: {
@@ -13014,6 +13115,10 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      desvincular_nf_orcamento: {
+        Args: { p_nf_id: string; p_orcamento_id: string }
+        Returns: Json
+      }
       detectar_divergencia_preco_compra: {
         Args: { p_janela?: number; p_limite_desvio?: number }
         Returns: {
@@ -13055,10 +13160,6 @@ export type Database = {
           serie: string
           valor_total: number
         }[]
-      }
-      desvincular_nf_orcamento: {
-        Args: { p_nf_id: string; p_orcamento_id: string }
-        Returns: Json
       }
       duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
       editar_baixa_admin: {
@@ -13541,6 +13642,7 @@ export type Database = {
       proximo_numero_pedido_compra: { Args: never; Returns: string }
       proximo_sku_grupo: { Args: { _grupo_id: string }; Returns: string }
       purge_dups_confirmado: { Args: { p_audit_id: string }; Returns: number }
+      raiz_documento: { Args: { p: string }; Returns: string }
       reabrir_apuracao_societaria: {
         Args: { p_apuracao_id: string; p_motivo: string }
         Returns: undefined
@@ -13553,7 +13655,6 @@ export type Database = {
           read_ct: number
         }[]
       }
-      raiz_documento: { Args: { p: string }; Returns: string }
       recalcular_apuracao_societaria: {
         Args: { p_apuracao_id: string }
         Returns: undefined
@@ -13878,6 +13979,21 @@ export type Database = {
           score: number
         }[]
       }
+      sugerir_pedidos_nf: {
+        Args: { p_nf_id: string }
+        Returns: {
+          faturamento_status: string
+          motivo: string
+          numero: string
+          orcamento_id: string
+          pedido_cliente: string
+          referencia: string
+          registrado: boolean
+          status: string
+          valor_total: number
+          vinculado: boolean
+        }[]
+      }
       suporte_assumir_chamado: {
         Args: { p_chamado_id: string }
         Returns: undefined
@@ -13923,21 +14039,6 @@ export type Database = {
       touch_cron_health: {
         Args: { p_error?: string; p_job: string; p_status: string }
         Returns: undefined
-      }
-      sugerir_pedidos_nf: {
-        Args: { p_nf_id: string }
-        Returns: {
-          faturamento_status: string
-          motivo: string
-          numero: string
-          orcamento_id: string
-          pedido_cliente: string
-          referencia: string
-          registrado: boolean
-          status: string
-          valor_total: number
-          vinculado: boolean
-        }[]
       }
       unaccent: { Args: { "": string }; Returns: string }
       vincular_nf_automatico: {
