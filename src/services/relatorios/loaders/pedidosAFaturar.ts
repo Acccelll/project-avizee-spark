@@ -74,6 +74,8 @@ export interface ItemPendente {
   qtdPendente: number;
   valorUnitario: number;
   estoqueDisponivel: number | null;
+  /** Aviso interno do grupo do produto (ex.: "Informar o lote"); vazio quando não há. */
+  aviso: string;
 }
 
 export interface LinhaPedidoAFaturar extends Omit<ItemPendente, "estoqueDisponivel"> {
@@ -105,6 +107,7 @@ export interface LinhaPorProduto {
   produtoId: string | null;
   codigo: string | null;
   produto: string;
+  aviso: string;
   unidade: string;
   pedidos: number;
   previsao: string | null;
@@ -227,7 +230,7 @@ export function agruparPorProduto(rows: LinhaPedidoAFaturar[]): LinhaPorProduto[
     if (!g) {
       g = {
         base: {
-          produtoId: r.produtoId, codigo: r.codigo, produto: r.produto, unidade: r.unidade,
+          produtoId: r.produtoId, codigo: r.codigo, produto: r.produto, aviso: r.aviso, unidade: r.unidade,
           pedidos: 0, previsao: null, qtdPendente: 0, estoqueDisponivel: r.estoqueDisponivel,
           falta: 0, valorPendente: 0, situacao: "", statusKey: r.statusKey, statusKind: r.statusKind,
         },
@@ -301,6 +304,7 @@ interface RawItem {
     nome: string | null;
     estoque_atual: number | null;
     estoque_reservado: number | null;
+    grupos_produto: { aviso_interno: string | null } | null;
   } | null;
 }
 
@@ -338,7 +342,8 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
           .from("orcamentos_itens")
           .select(
             `id, orcamento_id, produto_id, codigo_snapshot, descricao_snapshot, variacao, quantidade,
-             unidade, valor_unitario, produtos(codigo_interno, nome, estoque_atual, estoque_reservado)`,
+             unidade, valor_unitario,
+             produtos(codigo_interno, nome, estoque_atual, estoque_reservado, grupos_produto(aviso_interno))`,
           )
           .in("orcamento_id", lote)
           .order("created_at", { ascending: true }),
@@ -390,6 +395,7 @@ export async function loadPedidosAFaturar(filtros: FiltroRelatorio): Promise<Rel
       qtdPendente,
       valorUnitario: Number(raw.valor_unitario ?? 0),
       estoqueDisponivel: estoque,
+      aviso: raw.produtos?.grupos_produto?.aviso_interno?.trim() ?? "",
     });
   }
 

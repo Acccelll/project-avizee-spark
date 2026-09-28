@@ -58,6 +58,7 @@ import {
   createUnidadeMedida,
   proximoSkuDoGrupo,
   updateGrupoSigla,
+  updateGrupoAvisoInterno,
   createGrupoProduto,
 } from "@/services/produtos.service";
 
@@ -147,7 +148,7 @@ export default function ProdutoForm({
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [margemOverride, setMargemOverride] = useState<number | null>(mode === "create" ? 30 : null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [grupos, setGrupos] = useState<{ id: string; nome: string; sigla?: string | null }[]>([]);
+  const [grupos, setGrupos] = useState<{ id: string; nome: string; sigla?: string | null; aviso_interno?: string | null }[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const [unidadesMedida, setUnidadesMedida] = useState<UnidadeMedidaOption[]>([]);
   const { buscarNcm, loading: ncmLoading } = useNcmLookup();
@@ -180,6 +181,7 @@ export default function ProdutoForm({
   const [siglaDialogOpen, setSiglaDialogOpen] = useState(false);
   const [siglaInput, setSiglaInput] = useState("");
   const [savingSigla, setSavingSigla] = useState(false);
+  const [avisoInput, setAvisoInput] = useState("");
   // Dialog: Novo Grupo
   const [novoGrupoDialogOpen, setNovoGrupoDialogOpen] = useState(false);
   const [novoGrupoForm, setNovoGrupoForm] = useState({ nome: "", sigla: "" });
@@ -672,16 +674,17 @@ export default function ProdutoForm({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                              aria-label="Editar sigla do grupo"
+                              aria-label="Editar grupo de produto"
                               onClick={() => {
                                 const g = grupos.find(g => g.id === form.grupo_id);
                                 setSiglaInput(g?.sigla || "");
+                                setAvisoInput(g?.aviso_interno || "");
                                 setSiglaDialogOpen(true);
                               }}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Editar sigla do grupo (usada para gerar SKU)</TooltipContent>
+                          <TooltipContent>Editar grupo: sigla do SKU e aviso interno</TooltipContent>
                         </Tooltip>
                       )}
                       <Tooltip>
@@ -1223,7 +1226,7 @@ export default function ProdutoForm({
       {/* Dialog: Sigla do Grupo */}
       <Dialog open={siglaDialogOpen} onOpenChange={(v) => { if (!v) setSiglaDialogOpen(false); }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Sigla do Grupo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Grupo de produto</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-1">
             <p className="text-xs text-muted-foreground">
               A sigla é usada como prefixo do SKU dos produtos deste grupo.
@@ -1236,19 +1239,32 @@ export default function ProdutoForm({
                 placeholder="Ex: AG" maxLength={4} autoFocus className="font-mono" />
               <p className="text-[11px] text-muted-foreground">2 a 4 caracteres (letras/números). Maiúsculas.</p>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="grupo-aviso-interno">Aviso interno</Label>
+              <Textarea id="grupo-aviso-interno" value={avisoInput}
+                onChange={(e) => setAvisoInput(e.target.value.slice(0, 200))}
+                placeholder="Ex: Informar o lote" className="min-h-[60px]" />
+              <p className="text-[11px] text-muted-foreground">
+                Lembrete para a equipe no orçamento, no pedido e em Pedidos a Faturar quando houver item deste grupo.
+                Não aparece para o cliente. Deixe vazio para não avisar.
+              </p>
+            </div>
             <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline"
                 onClick={() => setSiglaDialogOpen(false)}
                 className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
-              <Button type="button" disabled={savingSigla || siglaInput.length < 2}
+              <Button type="button" disabled={savingSigla || siglaInput.length === 1}
                 className="gap-1.5 max-sm:h-11 max-sm:w-full"
                 onClick={async () => {
                   if (!form.grupo_id) return;
                   setSavingSigla(true);
                   try {
-                    await updateGrupoSigla(form.grupo_id, siglaInput);
-                    setGrupos((prev) => prev.map(g => g.id === form.grupo_id ? { ...g, sigla: siglaInput } : g));
-                    toast.success("Sigla atualizada.");
+                    const atual = grupos.find(g => g.id === form.grupo_id);
+                    if ((atual?.sigla || "") !== siglaInput) await updateGrupoSigla(form.grupo_id, siglaInput || null);
+                    if ((atual?.aviso_interno || "") !== avisoInput.trim()) await updateGrupoAvisoInterno(form.grupo_id, avisoInput);
+                    setGrupos((prev) => prev.map(g => g.id === form.grupo_id
+                      ? { ...g, sigla: siglaInput || null, aviso_interno: avisoInput.trim() || null } : g));
+                    toast.success("Grupo atualizado.");
                     setSiglaDialogOpen(false);
                   } catch (err) {
                     toast.error((err as Error).message);
