@@ -8,13 +8,12 @@ import type { ProductWithForn } from "@/components/ui/DataSelector";
 import {
   getOrcamentoById,
   listOrcamentoItens,
-  listClientesAtivosOrcamento,
-  listProdutosAtivosComFornecedores,
 } from "@/services/orcamentos.service";
 import { peekProximoNumeroOrcamento } from "@/types/rpc";
 import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import type { ClienteSnapshot } from "./types";
 import { logger } from "@/lib/logger";
+import { clientesOrcamentoQuery, produtosOrcamentoQuery } from "@/hooks/useOrcamentoLookups";
 
 interface LoadArgs {
   id: string | undefined;
@@ -59,14 +58,8 @@ export function useOrcamentoLoad(args: LoadArgs) {
     const loadData = async () => {
       try {
         await Promise.all([
-          queryClient.ensureQueryData({
-            queryKey: ["orcamento-form", "clientes-ativos"],
-            queryFn: () => listClientesAtivosOrcamento(),
-          }),
-          queryClient.ensureQueryData({
-            queryKey: ["orcamento-form", "produtos-ativos"],
-            queryFn: () => listProdutosAtivosComFornecedores(),
-          }),
+          queryClient.ensureQueryData(clientesOrcamentoQuery),
+          queryClient.ensureQueryData(produtosOrcamentoQuery),
         ]);
 
         if (isEdit) {
