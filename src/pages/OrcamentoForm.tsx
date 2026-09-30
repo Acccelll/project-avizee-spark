@@ -25,6 +25,7 @@ import { MobileStickyFooter } from "@/pages/comercial/orcamento-form/MobileStick
 import { STATUS_LABEL } from "@/pages/comercial/orcamento-form/types";
 import { notifyError } from "@/utils/errorMessages";
 import { criarRevisaoOrcamento } from "@/services/orcamentos.service";
+import { ORCAMENTO_CLIENTES_KEY } from "@/hooks/useOrcamentoLookups";
 
 export default function OrcamentoForm() {
   const v = useOrcamentoForm();
@@ -214,7 +215,7 @@ export default function OrcamentoForm() {
       <QuickAddClientModal
         open={v.quickAddOpen} onClose={() => v.setQuickAddOpen(false)}
         onCreated={async (newId) => {
-          await v.queryClient.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
+          await v.queryClient.invalidateQueries({ queryKey: ORCAMENTO_CLIENTES_KEY });
           v.handleClienteChange(newId);
         }}
       />

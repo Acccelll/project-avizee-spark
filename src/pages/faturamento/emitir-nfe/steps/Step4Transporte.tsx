@@ -17,6 +17,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDebounce } from "@/hooks/useDebounce";
 import { FORMA_PAGAMENTO, type WizardData } from "../schema";
+import { buildNomeDocumentoOrFilter } from "@/utils/searchMatch";
 
 interface TransportadoraRow {
   id: string;
@@ -43,9 +44,8 @@ function TransportadoraPicker() {
         .eq("transportadora", true)
         .order("nome_razao_social")
         .limit(20);
-      if (debounced) {
-        q = q.or(`nome_razao_social.ilike.%${debounced}%,cpf_cnpj.ilike.%${debounced}%`);
-      }
+      const filtro = buildNomeDocumentoOrFilter(debounced, ["nome_razao_social", "nome_fantasia"]);
+      if (filtro) q = q.or(filtro);
       const { data, error } = await q;
       if (error) throw error;
       return data as TransportadoraRow[];

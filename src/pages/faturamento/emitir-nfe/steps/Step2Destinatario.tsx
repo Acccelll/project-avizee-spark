@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useDebounce } from "@/hooks/useDebounce";
 import { useMunicipioIbge } from "@/hooks/useMunicipioIbge";
 import type { WizardData } from "../schema";
+import { buildNomeDocumentoOrFilter } from "@/utils/searchMatch";
 
 interface ClienteRow {
   id: string;
@@ -49,9 +50,8 @@ export function Step2Destinatario() {
         .eq("ativo", true)
         .order("nome_razao_social")
         .limit(20);
-      if (debouncedBusca) {
-        q = q.or(`nome_razao_social.ilike.%${debouncedBusca}%,cpf_cnpj.ilike.%${debouncedBusca}%`);
-      }
+      const filtro = buildNomeDocumentoOrFilter(debouncedBusca, ["nome_razao_social", "nome_fantasia"]);
+      if (filtro) q = q.or(filtro);
       const { data, error } = await q;
       if (error) throw error;
       return data as ClienteRow[];

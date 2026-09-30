@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, PlusCircle } from "lucide-react";
+import { matchesSearch } from "@/utils/searchMatch";
 
 export interface AutocompleteOption {
   id: string;
@@ -44,14 +45,9 @@ export function AutocompleteSearch({
   const selected = options.find((o) => o.id === value);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => {
-      if (o.label.toLowerCase().includes(q)) return true;
-      if (o.sublabel && o.sublabel.toLowerCase().includes(q)) return true;
-      if (o.searchTerms?.some((t) => t.toLowerCase().includes(q))) return true;
-      return false;
-    });
+    if (!query.trim()) return options;
+    // CNPJ/CPF com ou sem pontuação encontram o mesmo registro.
+    return options.filter((o) => matchesSearch([o.label, o.sublabel, ...(o.searchTerms ?? [])], query));
   }, [options, query]);
 
   useEffect(() => {
