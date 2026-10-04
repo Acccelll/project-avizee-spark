@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import { type OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
@@ -17,12 +17,13 @@ import { TemplateConfig } from "@/types/orcamento";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import { getFormaPagamentoDescricao } from "@/services/orcamentos.service";
 import {
-  listClientesAtivosOrcamento,
-  listProdutosAtivosComFornecedores,
-  getFormaPagamentoDescricao,
-  listPrecosEspeciaisAtuais,
-} from "@/services/orcamentos.service";
+  precosEspeciaisOrcamentoQuery,
+  useClientesOrcamento,
+  usePrecosEspeciaisOrcamento,
+  useProdutosOrcamento,
+} from "@/hooks/useOrcamentoLookups";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { type RegraPrecoEspecial } from "@/lib/precos-especiais";
 import {
@@ -74,20 +75,10 @@ export function useOrcamentoForm() {
 
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
   const queryClient = useQueryClient();
-  // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
-  const { data: clientes = [] } = useQuery<Tables<"clientes">[]>({
-    queryKey: ["orcamento-form", "clientes-ativos"],
-    queryFn: () => listClientesAtivosOrcamento(),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-  const { data: produtos = [] } = useQuery<ProductWithForn[]>({
-    queryKey: ["orcamento-form", "produtos-ativos"],
-    queryFn: () => listProdutosAtivosComFornecedores() as unknown as Promise<ProductWithForn[]>,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-  const [precosEspeciais, setPrecosEspeciais] = useState<Tables<"precos_especiais">[]>([]);
+  // Cadastros sempre atuais: recarregam ao abrir o form, ao voltar para a aba
+  // e quando o cadastro de clientes/produtos/preços é salvo (ver useOrcamentoLookups).
+  const { data: clientes = [] } = useClientesOrcamento();
+  const { data: produtos = [] } = useProdutosOrcamento<ProductWithForn>();
   const [clienteSnapshot, setClienteSnapshot] = useState<ClienteSnapshot>(emptyCliente);
   const [items, setItems] = useState<OrcamentoItem[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -158,6 +149,24 @@ export function useOrcamentoForm() {
     observacoes,
     observacoesInternas,
   } = watch();
+
+  // Regras de preço especial do cliente: também ao abrir um orçamento salvo
+  // (antes só eram carregadas ao trocar o cliente).
+  const { data: precosEspeciais = [] } = usePrecosEspeciaisOrcamento(clienteId);
+
+  // Em rascunho, o quadro do cliente acompanha o cadastro: se o cliente for
+  // alterado (endereço, e-mail, CNPJ...), o orçamento mostra e salva o dado novo.
+  // Depois de enviado, o snapshot gravado no orçamento é preservado.
+  useEffect(() => {
+    if (status !== "rascunho" || !clienteId) return;
+    const c = clientes.find((cl) => cl.id === clienteId);
+    if (!c) return;
+    const atual = mapClienteToSnapshot(c);
+    setClienteSnapshot((prev) => {
+      const mudou = (Object.keys(atual) as (keyof ClienteSnapshot)[]).some((k) => (prev[k] ?? "") !== atual[k]);
+      return mudou ? { ...prev, ...atual } : prev;
+    });
+  }, [clientes, clienteId, status]);
 
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
@@ -260,10 +269,10 @@ export function useOrcamentoForm() {
       if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} DDL`);
       if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
 
-      listPrecosEspeciaisAtuais(cId)
+      queryClient
+        .fetchQuery({ ...precosEspeciaisOrcamentoQuery(cId), staleTime: 0 })
         .then((rules) => {
           const tipadas = rules as Tables<"precos_especiais">[];
-          setPrecosEspeciais(tipadas);
           const { items: next, changedCount } = recalcItemsWithSpecialPrices(
             items,
             tipadas as RegraPrecoEspecial[],
@@ -277,10 +286,8 @@ export function useOrcamentoForm() {
           logger.error("[orcamento] preços especiais:", err);
           notifyError(err);
         });
-    } else {
-      setPrecosEspeciais([]);
     }
-  }, [clientes, pagamento, prazoPagamento, items, setValue]);
+  }, [clientes, pagamento, prazoPagamento, items, setValue, queryClient]);
 
   const buildDraftPayload = useCallback(() => ({
     ...getValues(),

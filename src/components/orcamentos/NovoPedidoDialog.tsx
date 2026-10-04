@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { getOrcamentoStatusLabel } from "@/lib/comercialWorkflow";
-import { listClientesAtivosOrcamento, listProdutosAtivosComFornecedores } from "@/services/orcamentos.service";
+import { ORCAMENTO_CLIENTES_KEY, useClientesOrcamento, useProdutosOrcamento } from "@/hooks/useOrcamentoLookups";
 import { buscarPedidosDuplicados, type PedidoDuplicado } from "@/services/comercial/pedidoOrcamento.service";
 import {
   CANAIS_PEDIDO_DIRETO,
@@ -66,18 +66,8 @@ export function NovoPedidoDialog({ open, onClose, onDone }: Props) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  const { data: clientes = [] } = useQuery({
-    queryKey: ["orcamento-form", "clientes-ativos"],
-    queryFn: () => listClientesAtivosOrcamento(),
-    staleTime: 5 * 60 * 1000,
-    enabled: open,
-  });
-  const { data: produtos = [] } = useQuery({
-    queryKey: ["orcamento-form", "produtos-ativos"],
-    queryFn: () => listProdutosAtivosComFornecedores(),
-    staleTime: 5 * 60 * 1000,
-    enabled: open,
-  });
+  const { data: clientes = [] } = useClientesOrcamento(open);
+  const { data: produtos = [] } = useProdutosOrcamento(open);
   const { data: ultimosPrecos } = useQuery({
     queryKey: ["pedido-direto", "ultimos-precos", clienteId],
     queryFn: () => ultimosPrecosDoCliente(clienteId),
@@ -382,7 +372,7 @@ export function NovoPedidoDialog({ open, onClose, onDone }: Props) {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onCreated={(id) => {
-          void qc.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
+          void qc.invalidateQueries({ queryKey: ORCAMENTO_CLIENTES_KEY });
           setClienteId(id);
           setQuickAddOpen(false);
         }}

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatCurrency } from "@/lib/format";
 import { Tables } from "@/integrations/supabase/types";
+import { matchesSearch } from "@/utils/searchMatch";
 
 export interface ProductWithForn extends Tables<"produtos"> {
   produtos_fornecedores?: (Tables<"produtos_fornecedores"> & {
@@ -121,13 +122,8 @@ export function ClientSelector({ clientes, onSelect, trigger }: ClientSelectorPr
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return clientes;
-    return clientes.filter(c =>
-      (c.nome_razao_social || "").toLowerCase().includes(q) ||
-      (c.nome_fantasia || "").toLowerCase().includes(q) ||
-      (c.cpf_cnpj || "").toLowerCase().includes(q)
-    );
+    if (!search.trim()) return clientes;
+    return clientes.filter(c => matchesSearch([c.nome_razao_social, c.nome_fantasia, c.cpf_cnpj], search));
   }, [clientes, search]);
 
   const handleSelect = (c: any) => {
