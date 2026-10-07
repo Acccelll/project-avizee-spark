@@ -119,7 +119,9 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
 
   /**
    * CNPJ/CPF já cadastrado (índice único `ux_clientes_cpf_cnpj_ativo`): em vez
-   * de tentar inserir e receber 409, oferece usar o cadastro existente.
+   * de tentar inserir e receber 409, avisa quem é o titular do documento e só
+   * usa o cadastro existente se o usuário confirmar (o documento pode ter sido
+   * digitado errado aqui ou no cadastro antigo).
    */
   const buscarClienteAtivoPorDocumento = async (doc: string) => {
     const { data, error } = await supabase
@@ -133,12 +135,18 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   };
 
   const usarClienteExistente = (existente: { id: string; nome_razao_social: string }) => {
-    toast.info(`CNPJ/CPF já cadastrado: ${existente.nome_razao_social}`, {
-      description: "Usando o cadastro existente; os dados digitados não foram gravados.",
-    });
     onCreated(existente.id, { reused: true, nome: existente.nome_razao_social });
     reset();
     onClose();
+  };
+
+  const avisarDocumentoDuplicado = (existente: { id: string; nome_razao_social: string }) => {
+    const rotulo = form.tipo_pessoa === "F" ? "CPF" : "CNPJ";
+    toast.error(`${rotulo} já cadastrado para ${existente.nome_razao_social}`, {
+      description: `Confira o ${rotulo} digitado ou use o cadastro existente.`,
+      duration: 10000,
+      action: { label: "Usar este cliente", onClick: () => usarClienteExistente(existente) },
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,7 +162,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
         if (documento) {
           const existente = await buscarClienteAtivoPorDocumento(documento);
           if (existente) {
-            usarClienteExistente(existente);
+            avisarDocumentoDuplicado(existente);
             return;
           }
         }
@@ -185,7 +193,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
           if (error.code === "23505" && documento) {
             const existente = await buscarClienteAtivoPorDocumento(documento);
             if (existente) {
-              usarClienteExistente(existente);
+              avisarDocumentoDuplicado(existente);
               return;
             }
           }
