@@ -107,41 +107,88 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
     onClose();
   };
 
+  /**
+   * CNPJ/CPF já cadastrado (índice único `ux_clientes_cpf_cnpj_ativo`): em vez
+   * de tentar inserir e receber 409, oferece usar o cadastro existente.
+   */
+  const buscarClienteAtivoPorDocumento = async (doc: string) => {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id, nome_razao_social")
+      .eq("cpf_cnpj", doc)
+      .eq("ativo", true)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  };
+
+  const usarClienteExistente = (existente: { id: string; nome_razao_social: string }) => {
+    toast.info(`CNPJ/CPF já cadastrado: ${existente.nome_razao_social}`, {
+      description: "O cadastro existente foi selecionado.",
+    });
+    onCreated(existente.id);
+    reset();
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome_razao_social.trim()) {
       toast.error("Nome / Razão Social é obrigatório");
       return;
     }
-    await submit(async () => {
-      const { data, error } = await supabase
-        .from("clientes")
-        .insert({
-          nome_razao_social: form.nome_razao_social,
-          nome_fantasia: form.nome_fantasia || null,
-          cpf_cnpj: form.cpf_cnpj || null,
-          tipo_pessoa: form.tipo_pessoa,
-          inscricao_estadual: form.inscricao_estadual || null,
-          email: form.email || null,
-          telefone: form.telefone || null,
-          celular: form.celular || null,
-          contato: form.contato || null,
-          cep: form.cep || null,
-          logradouro: form.logradouro || null,
-          numero: form.numero || null,
-          complemento: form.complemento || null,
-          bairro: form.bairro || null,
-          cidade: form.cidade || null,
-          uf: form.uf || null,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      toast.success("Cliente cadastrado!");
-      onCreated(data.id);
-      reset();
-      onClose();
-    });
+    // O banco normaliza o documento para dígitos (trg_normaliza_documento).
+    const documento = form.cpf_cnpj.replace(/\D/g, "");
+    try {
+      await submit(async () => {
+        if (documento) {
+          const existente = await buscarClienteAtivoPorDocumento(documento);
+          if (existente) {
+            usarClienteExistente(existente);
+            return;
+          }
+        }
+        const { data, error } = await supabase
+          .from("clientes")
+          .insert({
+            nome_razao_social: form.nome_razao_social,
+            nome_fantasia: form.nome_fantasia || null,
+            cpf_cnpj: documento || null,
+            tipo_pessoa: form.tipo_pessoa,
+            inscricao_estadual: form.inscricao_estadual || null,
+            email: form.email || null,
+            telefone: form.telefone || null,
+            celular: form.celular || null,
+            contato: form.contato || null,
+            cep: form.cep || null,
+            logradouro: form.logradouro || null,
+            numero: form.numero || null,
+            complemento: form.complemento || null,
+            bairro: form.bairro || null,
+            cidade: form.cidade || null,
+            uf: form.uf || null,
+          })
+          .select("id")
+          .single();
+        if (error) {
+          // Corrida: outro usuário cadastrou o mesmo documento entre a checagem e o insert.
+          if (error.code === "23505" && documento) {
+            const existente = await buscarClienteAtivoPorDocumento(documento);
+            if (existente) {
+              usarClienteExistente(existente);
+              return;
+            }
+          }
+          throw error;
+        }
+        toast.success("Cliente cadastrado!");
+        onCreated(data.id);
+        reset();
+        onClose();
+      });
+    } catch {
+      // Erro já exibido em toast pelo useSubmitLock; o modal permanece aberto para correção.
+    }
   };
 
   return (

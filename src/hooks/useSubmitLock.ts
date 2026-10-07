@@ -40,7 +40,14 @@ export function useSubmitLock(opts: UseSubmitLockOptions = {}): UseSubmitLockApi
         return await fn();
       } catch (err) {
         if (toastOnError) {
-          const msg = err instanceof Error ? err.message : String(err);
+          // Erros do Supabase (PostgrestError/AuthError) chegam como objetos
+          // simples com `message`; String(obj) resultaria em "[object Object]".
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === "object" && err !== null && "message" in err
+                ? String((err as { message: unknown }).message)
+                : String(err);
           toast.error(`${errorPrefix}: ${msg}`);
         }
         throw err;
