@@ -17,7 +17,12 @@ import { Search } from "lucide-react";
 interface QuickAddClientModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (clienteId: string) => void;
+  /**
+   * Chamado com o cliente a usar. `info.reused = true` quando o CNPJ/CPF já
+   * pertencia a um cliente ativo: nada foi gravado e o cadastro existente é
+   * devolvido (os dados digitados no modal são descartados).
+   */
+  onCreated: (clienteId: string, info: QuickAddClientResult) => void;
   /** Pré-preenchimento opcional (ex.: cliente extraído do XML da NF-e). */
   defaults?: Partial<{
     nome_razao_social: string;
@@ -37,6 +42,11 @@ interface QuickAddClientModalProps {
 }
 
 type TipoPessoa = "F" | "J";
+
+export interface QuickAddClientResult {
+  reused: boolean;
+  nome: string;
+}
 
 const emptyForm = {
   nome_razao_social: "",
@@ -124,9 +134,9 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
 
   const usarClienteExistente = (existente: { id: string; nome_razao_social: string }) => {
     toast.info(`CNPJ/CPF já cadastrado: ${existente.nome_razao_social}`, {
-      description: "O cadastro existente foi selecionado.",
+      description: "Usando o cadastro existente; os dados digitados não foram gravados.",
     });
-    onCreated(existente.id);
+    onCreated(existente.id, { reused: true, nome: existente.nome_razao_social });
     reset();
     onClose();
   };
@@ -182,7 +192,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
           throw error;
         }
         toast.success("Cliente cadastrado!");
-        onCreated(data.id);
+        onCreated(data.id, { reused: false, nome: form.nome_razao_social });
         reset();
         onClose();
       });

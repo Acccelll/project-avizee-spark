@@ -39,7 +39,7 @@ describe("QuickAddClientModal — CNPJ já cadastrado", () => {
     maybeSingle.mockResolvedValue({ data: { id: "c-1", nome_razao_social: "SSA" }, error: null });
     const { onCreated, onClose } = renderModal();
     submitForm();
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-1"));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-1", { reused: true, nome: "SSA" }));
     expect(insertSingle).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalled();
@@ -52,7 +52,7 @@ describe("QuickAddClientModal — CNPJ já cadastrado", () => {
     insertSingle.mockResolvedValue({ data: null, error: { code: "23505", message: "duplicate key" } });
     const { onCreated } = renderModal();
     submitForm();
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-2"));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-2", { reused: true, nome: "SSA" }));
   });
 
   it("exibe a mensagem do erro do Supabase sem rejeição não tratada", async () => {
