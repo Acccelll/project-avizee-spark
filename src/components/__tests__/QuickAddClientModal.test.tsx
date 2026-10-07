@@ -13,7 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@/hooks/useCnpjLookup", () => ({ useCnpjLookup: () => ({ buscarCnpj: vi.fn(), loading: false }) }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn(() => "toast-dup"), dismiss: vi.fn() } }));
 
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { toast } from "sonner";
@@ -35,24 +35,45 @@ function submitForm() {
 describe("QuickAddClientModal — CNPJ já cadastrado", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("seleciona o cliente existente sem tentar inserir", async () => {
+  it("avisa o titular do documento e não seleciona sem confirmação", async () => {
     maybeSingle.mockResolvedValue({ data: { id: "c-1", nome_razao_social: "SSA" }, error: null });
     const { onCreated, onClose } = renderModal();
     submitForm();
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-1", { reused: true, nome: "SSA" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const [msg, opts] = vi.mocked(toast.error).mock.calls[0] as unknown as [string, { action: { onClick: () => void } }];
+    expect(msg).toBe("CNPJ já cadastrado para SSA");
     expect(insertSingle).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    opts.action.onClick();
+    expect(onCreated).toHaveBeenCalledWith("c-1", { reused: true, nome: "SSA" });
     expect(onClose).toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalled();
   });
 
-  it("trata 23505 em corrida usando o cadastro existente", async () => {
+  it("descarta o aviso e ignora a ação antiga quando o documento muda", async () => {
+    maybeSingle.mockResolvedValue({ data: { id: "c-1", nome_razao_social: "SSA" }, error: null });
+    const { onCreated } = renderModal();
+    submitForm();
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const [, opts] = vi.mocked(toast.error).mock.calls[0] as unknown as [string, { action: { onClick: () => void } }];
+
+    fireEvent.change(screen.getByDisplayValue("33.873.960/0001-60"), { target: { value: "11.222.333/0001-81" } });
+    expect(toast.dismiss).toHaveBeenCalledWith("toast-dup");
+
+    opts.action.onClick();
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it("trata 23505 em corrida com o mesmo aviso", async () => {
     maybeSingle
       .mockResolvedValueOnce({ data: null, error: null })
       .mockResolvedValueOnce({ data: { id: "c-2", nome_razao_social: "SSA" }, error: null });
     insertSingle.mockResolvedValue({ data: null, error: { code: "23505", message: "duplicate key" } });
     const { onCreated } = renderModal();
     submitForm();
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("c-2", { reused: true, nome: "SSA" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("CNPJ já cadastrado para SSA", expect.anything()));
+    expect(onCreated).not.toHaveBeenCalled();
   });
 
   it("exibe a mensagem do erro do Supabase sem rejeição não tratada", async () => {
