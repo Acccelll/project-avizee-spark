@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, Phone } from "lucide-react";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
@@ -72,6 +72,24 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const [form, setForm] = useState({ ...emptyForm });
   const [isDirty, setIsDirty] = useState(false);
+  // Aviso de documento duplicado ativo (toast com ação "Usar este cliente").
+  // É descartado sempre que deixa de valer: documento alterado, nova tentativa,
+  // modal fechado/resetado ou desmontado — para a ação não selecionar um
+  // cliente de uma tentativa antiga.
+  const avisoDuplicadoRef = useRef<string | number | null>(null);
+
+  const descartarAvisoDuplicado = () => {
+    if (avisoDuplicadoRef.current !== null) {
+      toast.dismiss(avisoDuplicadoRef.current);
+      avisoDuplicadoRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!open) descartarAvisoDuplicado();
+  }, [open]);
+
+  useEffect(() => () => descartarAvisoDuplicado(), []);
 
   useEffect(() => {
     if (open && defaults) {
@@ -81,6 +99,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   }, [open, defaults]);
 
   const update = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    if (key === "cpf_cnpj" || key === "tipo_pessoa") descartarAvisoDuplicado();
     setForm((prev) => ({ ...prev, [key]: value }));
     setIsDirty(true);
   };
@@ -88,6 +107,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   const handleCnpjLookup = async () => {
     const result = await buscarCnpj(form.cpf_cnpj);
     if (result) {
+      descartarAvisoDuplicado();
       setForm((prev) => ({
         ...prev,
         nome_razao_social: result.razao_social || prev.nome_razao_social,
@@ -108,6 +128,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   };
 
   const reset = () => {
+    descartarAvisoDuplicado();
     setForm({ ...emptyForm });
     setIsDirty(false);
   };
@@ -141,12 +162,22 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
   };
 
   const avisarDocumentoDuplicado = (existente: { id: string; nome_razao_social: string }) => {
+    descartarAvisoDuplicado();
     const rotulo = form.tipo_pessoa === "F" ? "CPF" : "CNPJ";
-    toast.error(`${rotulo} já cadastrado para ${existente.nome_razao_social}`, {
+    const id = toast.error(`${rotulo} já cadastrado para ${existente.nome_razao_social}`, {
       description: `Confira o ${rotulo} digitado ou use o cadastro existente.`,
       duration: 10000,
-      action: { label: "Usar este cliente", onClick: () => usarClienteExistente(existente) },
+      action: {
+        label: "Usar este cliente",
+        onClick: () => {
+          // Só vale enquanto este for o aviso vigente da tentativa atual.
+          if (avisoDuplicadoRef.current !== id) return;
+          avisoDuplicadoRef.current = null;
+          usarClienteExistente(existente);
+        },
+      },
     });
+    avisoDuplicadoRef.current = id;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -157,6 +188,7 @@ export function QuickAddClientModal({ open, onClose, onCreated, defaults }: Quic
     }
     // O banco normaliza o documento para dígitos (trg_normaliza_documento).
     const documento = form.cpf_cnpj.replace(/\D/g, "");
+    descartarAvisoDuplicado();
     try {
       await submit(async () => {
         if (documento) {

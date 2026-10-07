@@ -13,7 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 vi.mock("@/hooks/useCnpjLookup", () => ({ useCnpjLookup: () => ({ buscarCnpj: vi.fn(), loading: false }) }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn(() => "toast-dup"), dismiss: vi.fn() } }));
 
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { toast } from "sonner";
@@ -49,6 +49,20 @@ describe("QuickAddClientModal — CNPJ já cadastrado", () => {
     opts.action.onClick();
     expect(onCreated).toHaveBeenCalledWith("c-1", { reused: true, nome: "SSA" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("descarta o aviso e ignora a ação antiga quando o documento muda", async () => {
+    maybeSingle.mockResolvedValue({ data: { id: "c-1", nome_razao_social: "SSA" }, error: null });
+    const { onCreated } = renderModal();
+    submitForm();
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const [, opts] = vi.mocked(toast.error).mock.calls[0] as unknown as [string, { action: { onClick: () => void } }];
+
+    fireEvent.change(screen.getByDisplayValue("33.873.960/0001-60"), { target: { value: "11.222.333/0001-81" } });
+    expect(toast.dismiss).toHaveBeenCalledWith("toast-dup");
+
+    opts.action.onClick();
+    expect(onCreated).not.toHaveBeenCalled();
   });
 
   it("trata 23505 em corrida com o mesmo aviso", async () => {
