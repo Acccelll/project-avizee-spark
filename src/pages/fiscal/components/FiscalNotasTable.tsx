@@ -13,6 +13,7 @@ export interface FiscalNotasTableProps {
   setPage: (n: number) => void;
   pageSize: number;
   totalCount: number;
+  exportRows: () => Promise<NotaFiscal[]>;
   sortKey: FiscalSortKey;
   sortAsc: boolean;
   onServerSort: (key: string | null, dir: "asc" | "desc" | null) => void;
@@ -32,7 +33,7 @@ export interface FiscalNotasTableProps {
 export function FiscalNotasTable(props: FiscalNotasTableProps) {
   const {
     columns, data, loading,
-    page, setPage, pageSize, totalCount,
+    page, setPage, pageSize, totalCount, exportRows,
     sortKey, sortAsc, onServerSort,
     moduleKey, onView, onEdit,
     hasFilters, onClearFilters,
@@ -46,6 +47,7 @@ export function FiscalNotasTable(props: FiscalNotasTableProps) {
         data={data}
         loading={loading}
         pageSize={pageSize}
+        exportRows={exportRows}
         serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * pageSize < totalCount }}
         defaultSortKey={sortKey}
         defaultSortDir={sortAsc ? "asc" : "desc"}

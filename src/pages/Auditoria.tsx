@@ -3,12 +3,13 @@
  *
  * Lê `v_admin_audit_unified` (UNION de `auditoria_logs` + `permission_audit`)
  * via `useAdminAuditUnificada`, com filtros server-side, paginação por range
- * e exportação Excel/PDF dos eventos da página atual.
+ * e exportação Excel/PDF de todo o conjunto que atende aos filtros ativos.
  *
  * Filtros são serializados em URL via `useUrlListState` para deep-link.
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
@@ -136,7 +137,7 @@ export default function Auditoria() {
     return new Date(periodToDateFrom(period)).toISOString();
   }, [period]);
 
-  const { rows, totalCount, totalPages, isLoading, isFetching } =
+  const { rows, totalCount, totalPages, isLoading, isFetching, fetchAllRows } =
     useAdminAuditUnificada({
       dateFrom,
       origem: origem === "todas" ? null : origem,
@@ -172,12 +173,13 @@ export default function Auditoria() {
     return profileMap.get(userId) ?? null;
   }
 
-  // Filtro client-side: apenas busca textual sobre a página atual.
-  // Criticidade agora é server-side (ver `useAdminAuditUnificada`).
-  const visibleRows = useMemo(() => {
+  // A tabela mantém a busca textual client-side por página para não ampliar o
+  // custo normal de navegação. A exportação reutiliza a mesma função sobre o
+  // conjunto completo carregado sob demanda.
+  const filterRowsBySearch = (sourceRows: AdminAuditRow[]) => {
     const q = searchTerm.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (!q) return true;
+    if (!q) return sourceRows;
+    return sourceRows.filter((r) => {
       const ator = getProfile(r.ator_id);
       const alvo = getProfile(r.target_user_id);
       const meta = getTableMeta(r.entidade);
@@ -199,7 +201,13 @@ export default function Auditoria() {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, searchTerm, profileMap]);
+  };
+
+  const visibleRows = useMemo(
+    () => filterRowsBySearch(rows),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helper usa apenas searchTerm/profileMap do mesmo render
+    [rows, searchTerm, profileMap],
+  );
 
   // KPIs (página atual)
   const kpis = useMemo(() => {
@@ -279,10 +287,10 @@ export default function Auditoria() {
     return chips;
   }, [origem, entidade, tipoAcao, criticidade, atorId, targetUserId, ipAddress, registroId, profileMap]);
 
-  // Exportações (sobre a página atual)
+  // Exportações sobre todo o universo filtrado (busca textual incluída).
   const [exporting, setExporting] = useState(false);
-  function rowsForExport() {
-    return visibleRows.map((r) => {
+  function rowsForExport(sourceRows: AdminAuditRow[]) {
+    return filterRowsBySearch(sourceRows).map((r) => {
       const meta = getTableMeta(r.entidade);
       const acaoMeta = getAcaoMeta(r.tipo_acao);
       const ator = getProfile(r.ator_id);
@@ -308,10 +316,13 @@ export default function Auditoria() {
   async function handleExportarExcel() {
     setExporting(true);
     try {
+      const allRows = await fetchAllRows();
       await exportarParaExcel({
         titulo: "auditoria-trilha-unificada",
-        rows: rowsForExport(),
+        rows: rowsForExport(allRows),
       });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao exportar auditoria.");
     } finally {
       setExporting(false);
     }
@@ -319,10 +330,13 @@ export default function Auditoria() {
   async function handleExportarPdf() {
     setExporting(true);
     try {
+      const allRows = await fetchAllRows();
       await exportarParaPdf({
         titulo: "Trilha de Auditoria",
-        rows: rowsForExport(),
+        rows: rowsForExport(allRows),
       });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao exportar auditoria.");
     } finally {
       setExporting(false);
     }
@@ -778,7 +792,7 @@ export default function Auditoria() {
               variant="outline"
               size="sm"
               onClick={handleExportarExcel}
-              disabled={exporting || visibleRows.length === 0}
+              disabled={exporting || totalCount === 0}
             >
               <Download className="h-4 w-4 mr-1" />
               Excel
@@ -787,7 +801,7 @@ export default function Auditoria() {
               variant="outline"
               size="sm"
               onClick={handleExportarPdf}
-              disabled={exporting || visibleRows.length === 0}
+              disabled={exporting || totalCount === 0}
             >
               <Download className="h-4 w-4 mr-1" />
               PDF
@@ -800,8 +814,8 @@ export default function Auditoria() {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs text-xs">
-                  A exportação inclui apenas os {visibleRows.length} registros desta página
-                  (pág. {page} de {totalPages}). Para exportar mais, navegue pelas páginas ou amplie o período.
+                  A exportação inclui todos os eventos que atendem aos filtros e à busca textual,
+                  independentemente da página atual.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -847,8 +861,8 @@ export default function Auditoria() {
           <div className="mb-3 flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-foreground/90">
             <Info className="h-4 w-4 shrink-0 text-info mt-0.5" />
             <span>
-              A busca textual cobre apenas esta página ({ADMIN_AUDIT_PAGE_SIZE} eventos).
-              Para buscar em todo o histórico, use os filtros estruturados de Ator, Entidade, IP ou ID do registro.
+              Na tabela, a busca textual cobre apenas esta página ({ADMIN_AUDIT_PAGE_SIZE} eventos).
+              A exportação reaplica essa busca em todos os eventos que atendem aos filtros estruturados.
             </span>
           </div>
         )}
@@ -858,6 +872,7 @@ export default function Auditoria() {
           data={visibleRows}
           loading={isLoading}
           moduleKey="auditoria"
+          exportRows={async () => filterRowsBySearch(await fetchAllRows())}
           mobileStatusKey="criticidade"
           mobileIdentifierKey="tipo_acao"
           mobilePrimaryAction={(r: AdminAuditRow) => (

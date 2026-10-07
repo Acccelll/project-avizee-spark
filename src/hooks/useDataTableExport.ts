@@ -11,7 +11,14 @@ import { logger } from "@/lib/logger";
  * God component (Fase 11 do roadmap de Design System).
  */
 export interface UseDataTableExportOptions<T> {
+  /** Linhas já carregadas. Usadas diretamente quando `loadRows` não existe. */
   rows: T[];
+  /**
+   * Fonte assíncrona opcional do conjunto completo a exportar.
+   * Em listas com paginação server-side deve reaplicar os filtros/ordenação
+   * atuais e buscar todas as páginas, sem alterar a página visível na UI.
+   */
+  loadRows?: () => Promise<T[]>;
   columns: { key: string; label: string }[];
   titulo: string;
   /** Tamanho do chunk (linhas) — afeta granularidade do progresso. */
@@ -28,6 +35,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function useDataTableExport<T extends Record<string, unknown>>({
   rows,
+  loadRows,
   columns,
   titulo,
   chunkSize = 1000,
@@ -42,24 +50,32 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         });
         return;
       }
-      if (rows.length === 0) {
-        toast.warning('Nenhum dado para exportar.');
-        return;
-      }
-      const toastId = toast.loading(`Iniciando exportação ${format.toUpperCase()}... 0%`);
+
+      const toastId = toast.loading(
+        loadRows
+          ? `Preparando dados completos para ${format.toUpperCase()}...`
+          : `Iniciando exportação ${format.toUpperCase()}... 0%`,
+      );
+
       try {
+        const sourceRows = loadRows ? await loadRows() : rows;
+        if (sourceRows.length === 0) {
+          toast.warning('Nenhum dado para exportar.', { id: toastId });
+          return;
+        }
+
         const built: Record<string, unknown>[] = [];
         const startedAt = Date.now();
-        for (let i = 0; i < rows.length; i += chunkSize) {
-          const chunk = rows
+        for (let i = 0; i < sourceRows.length; i += chunkSize) {
+          const chunk = sourceRows
             .slice(i, i + chunkSize)
             .map((row) => Object.fromEntries(columns.map((col) => [col.key, row[col.key]])));
           built.push(...chunk);
-          const processed = Math.min(i + chunk.length, rows.length);
-          const progress = Math.round((processed / rows.length) * 100);
+          const processed = Math.min(i + chunk.length, sourceRows.length);
+          const progress = Math.round((processed / sourceRows.length) * 100);
           const elapsed = Date.now() - startedAt;
-          const showEta = rows.length > 10000 && processed > 0;
-          const etaMs = showEta ? Math.max(0, Math.round((elapsed / processed) * (rows.length - processed))) : 0;
+          const showEta = sourceRows.length > 10000 && processed > 0;
+          const etaMs = showEta ? Math.max(0, Math.round((elapsed / processed) * (sourceRows.length - processed))) : 0;
           const etaText = showEta ? ` · ETA ~${Math.ceil(etaMs / 1000)}s` : '';
           toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
           await sleep(0);
@@ -79,13 +95,15 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         toast.success('Exportação PDF concluída', { id: toastId });
       } catch (error) {
         logger.error('Erro ao exportar dados', error);
+        const description = error instanceof Error ? error.message : undefined;
         toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
           id: toastId,
+          description,
           action: { label: 'Tentar novamente', onClick: () => { void exportData(format); } },
         });
       }
     },
-    [rows, columns, titulo, chunkSize, permission, can],
+    [rows, loadRows, columns, titulo, chunkSize, permission, can],
   );
 
   return { exportData };

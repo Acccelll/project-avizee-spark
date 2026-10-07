@@ -183,6 +183,108 @@ export function useSupabaseCrud<R = any>({
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
 
+  // Monta sempre uma query nova, para que listagem paginada e exportação
+  // usem exatamente os mesmos filtros, busca e ordenação sem compartilhar
+  // estado mutável do builder do PostgREST.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buildListQuery = (signal?: AbortSignal): any => {
+    // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
+    let query: any = fromUntyped(table)
+      .select(select, { count: "exact" })
+      .order(orderBy, { ascending });
+    query = applyFilters(query, filter);
+    if (dateRange?.column) {
+      if (dateRange.from) query = query.gte(dateRange.column, dateRange.from);
+      if (dateRange.to) query = query.lte(dateRange.column, dateRange.to);
+    }
+    if (statusFilter && statusFilter.values.length > 0) {
+      query = query.in(statusFilter.column, statusFilter.values);
+    }
+    if (orFilters && orFilters.length > 0) {
+      for (const expr of orFilters) {
+        if (expr) query = query.or(expr);
+      }
+    }
+    const trimmedSearch = searchTerm.trim();
+    if (trimmedSearch && searchColumns.length > 0) {
+      // Para colunas de documento (cpf_cnpj, cnpj, cpf) geramos variantes
+      // com e sem máscara para que a busca tolere o formato digitado.
+      const isDocColumn = (col: string) => /(^|_)(cpf_cnpj|cnpj|cpf)$/i.test(col);
+      const digits = trimmedSearch.replace(/\D/g, "");
+      const parts: string[] = [];
+      for (const col of searchColumns) {
+        if (isDocColumn(col) && digits) {
+          const variants = new Set<string>([trimmedSearch, digits]);
+          // versão "com máscara" (apenas pontos/barras/hífen)
+          if (digits.length <= 11) {
+            variants.add(
+              digits
+                .replace(/(\d{3})(\d)/, "$1.$2")
+                .replace(/(\d{3})(\d)/, "$1.$2")
+                .replace(/(\d{3})(\d{1,2})$/, "$1-$2"),
+            );
+          }
+          if (digits.length >= 2) {
+            variants.add(
+              digits
+                .slice(0, 14)
+                .replace(/(\d{2})(\d)/, "$1.$2")
+                .replace(/(\d{3})(\d)/, "$1.$2")
+                .replace(/(\d{3})(\d)/, "$1/$2")
+                .replace(/(\d{4})(\d{1,2})$/, "$1-$2"),
+            );
+          }
+          for (const v of variants) {
+            if (v) parts.push(`${col}.ilike.%${v}%`);
+          }
+        } else {
+          parts.push(`${col}.ilike.%${trimmedSearch}%`);
+        }
+      }
+      query = query.or(parts.join(","));
+    }
+    if (shouldFilterAtivo) query = query.eq("ativo", true);
+    if (signal) query = query.abortSignal(signal);
+    return query;
+  };
+
+  /**
+   * Busca sob demanda o conjunto completo correspondente à visão atual.
+   * Não altera `page` nem o cache da listagem; é destinado a exportações.
+   * Se ultrapassar o hard cap, falha explicitamente em vez de devolver um
+   * arquivo silenciosamente truncado.
+   */
+  const fetchAllRows = async (): Promise<R[]> => {
+    if (!supabase) return [] as R[];
+
+    const all: R[] = [];
+    let total: number | null = null;
+    let from = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const to = from + allChunkSize - 1;
+      const { data: result, error, count } = await buildListQuery().range(from, to);
+      if (error) throw error;
+
+      const chunk = (result ?? []) as R[];
+      if (total === null) total = count ?? null;
+      all.push(...chunk);
+
+      if (chunk.length < allChunkSize) break;
+      if (total !== null && all.length >= total) break;
+      if (all.length >= CHUNK_FETCH_HARD_CAP) {
+        throw new Error(
+          `A exportação excede o limite seguro de ${CHUNK_FETCH_HARD_CAP.toLocaleString("pt-BR")} registros. Aplique filtros mais específicos e tente novamente.`,
+        );
+      }
+      from += allChunkSize;
+    }
+
+    return all;
+  };
+
+
   const queryResult = useQuery({
     queryKey,
     queryFn: async ({ signal }): Promise<QueryResult> => {
@@ -190,78 +292,10 @@ export function useSupabaseCrud<R = any>({
         return { rows: [] as R[], totalCount: null, hasMore: false, truncated: false };
       }
 
-      // Helper to assemble a fresh query — needed because we reuse it per chunk in 'all' mode.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const buildQuery = (): any => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        // fromUntyped aceito: tabela é dinâmica (parâmetro da chamada)
-        let query: any = fromUntyped(table)
-          .select(select, { count: "exact" })
-          .order(orderBy, { ascending });
-        query = applyFilters(query, filter);
-        if (dateRange?.column) {
-          if (dateRange.from) query = query.gte(dateRange.column, dateRange.from);
-          if (dateRange.to) query = query.lte(dateRange.column, dateRange.to);
-        }
-        if (statusFilter && statusFilter.values.length > 0) {
-          query = query.in(statusFilter.column, statusFilter.values);
-        }
-        if (orFilters && orFilters.length > 0) {
-          for (const expr of orFilters) {
-            if (expr) query = query.or(expr);
-          }
-        }
-        const trimmedSearch = searchTerm.trim();
-        if (trimmedSearch && searchColumns.length > 0) {
-          // Para colunas de documento (cpf_cnpj, cnpj, cpf) geramos variantes
-          // com e sem máscara para que a busca tolere o formato digitado.
-          const isDocColumn = (col: string) => /(^|_)(cpf_cnpj|cnpj|cpf)$/i.test(col);
-          const digits = trimmedSearch.replace(/\D/g, "");
-          const parts: string[] = [];
-          for (const col of searchColumns) {
-            if (isDocColumn(col) && digits) {
-              const variants = new Set<string>([trimmedSearch, digits]);
-              // versão "com máscara" (apenas pontos/barras/hífen)
-              if (digits.length <= 11) {
-                variants.add(
-                  digits
-                    .replace(/(\d{3})(\d)/, "$1.$2")
-                    .replace(/(\d{3})(\d)/, "$1.$2")
-                    .replace(/(\d{3})(\d{1,2})$/, "$1-$2"),
-                );
-              }
-              if (digits.length >= 2) {
-                variants.add(
-                  digits
-                    .slice(0, 14)
-                    .replace(/(\d{2})(\d)/, "$1.$2")
-                    .replace(/(\d{3})(\d)/, "$1.$2")
-                    .replace(/(\d{3})(\d)/, "$1/$2")
-                    .replace(/(\d{4})(\d{1,2})$/, "$1-$2"),
-                );
-              }
-              for (const v of variants) {
-                if (v) parts.push(`${col}.ilike.%${v}%`);
-              }
-            } else {
-              parts.push(`${col}.ilike.%${trimmedSearch}%`);
-            }
-          }
-          const orFilter = parts.join(",");
-          query = query.or(orFilter);
-        }
-        if (shouldFilterAtivo) query = query.eq("ativo", true);
-        // Propaga o AbortSignal do React Query — quando a query é
-        // cancelada (componente desmontado, filtro mudado), o fetch é
-        // abortado em vez de continuar até o fim e tentar setState órfão.
-        if (signal) query = query.abortSignal(signal);
-        return query;
-      };
-
       // ── Paged mode ────────────────────────────────────────────────────────
       if (effectiveMode === "paged" && pageSize) {
         const from = effectivePage * pageSize;
-        const { data: result, error, count } = await buildQuery().range(from, from + pageSize - 1);
+        const { data: result, error, count } = await buildListQuery(signal).range(from, from + pageSize - 1);
         if (error) {
           // PGRST103 = Requested range not satisfiable. Acontece quando a página
           // pedida ficou fora do total após shrink do dataset (filtro/busca novos).
@@ -304,7 +338,7 @@ export function useSupabaseCrud<R = any>({
           return { rows: all, totalCount: total, hasMore: false, truncated };
         }
         const to = from + allChunkSize - 1;
-        const { data: result, error, count } = await buildQuery().range(from, to);
+        const { data: result, error, count } = await buildListQuery(signal).range(from, to);
         if (error) {
           if (showToasts) notifyError(error);
           throw error;
@@ -473,6 +507,7 @@ export function useSupabaseCrud<R = any>({
     fetchData: async () => {
       await queryResult.refetch();
     },
+    fetchAllRows,
     create,
     update,
     remove,

@@ -9,6 +9,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { Criticality } from "@/lib/audit/metadata";
+import { fetchAllPages, REPORT_HARD_CAP } from "@/services/_lib/fetchAllPages";
 
 // Espelha as listas de `getCriticality` em `@/lib/audit/metadata` para
 // permitir o filtro server-side por criticidade. Mantenha sincronizado
@@ -111,6 +112,48 @@ export function useAdminAuditUnificada(filtros: AdminAuditFilters = {}) {
     staleTime: 60 * 1000,
   });
 
+  const fetchAllRows = async (): Promise<AdminAuditRow[]> => {
+    let truncatedAt: number | null = null;
+    const result = await fetchAllPages<AdminAuditRow>(
+      () => {
+        let q = supabase
+          .from("v_admin_audit_unified")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (filtros.dateFrom) q = q.gte("created_at", filtros.dateFrom);
+        if (filtros.origem) q = q.eq("origem", filtros.origem);
+        if (filtros.tipoAcao) q = q.eq("tipo_acao", filtros.tipoAcao);
+        if (filtros.entidade) q = q.eq("entidade", filtros.entidade);
+        if (filtros.atorId) q = q.eq("ator_id", filtros.atorId);
+        if (filtros.targetUserId) q = q.eq("target_user_id", filtros.targetUserId);
+        if (filtros.ipAddress) q = q.eq("ip_address", filtros.ipAddress);
+        if (filtros.registroId) q = q.eq("entidade_id", filtros.registroId);
+
+        const crit = filtros.criticidade && filtros.criticidade !== "todas" ? filtros.criticidade : null;
+        if (crit === "alta") {
+          q = q.or(`tipo_acao.in.${csv(HIGH_ACOES)},entidade.in.${csv(SENSITIVE_ENTIDADES)}`);
+        } else if (crit === "media") {
+          q = q
+            .in("tipo_acao", MEDIUM_ACOES)
+            .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+        } else if (crit === "baixa") {
+          q = q
+            .not("tipo_acao", "in", csv([...HIGH_ACOES, ...MEDIUM_ACOES]))
+            .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+        }
+        return q;
+      },
+      { onTruncated: (limit) => { truncatedAt = limit; } },
+    );
+    if (truncatedAt !== null) {
+      throw new Error(
+        `A exportação excede o limite seguro de ${REPORT_HARD_CAP.toLocaleString("pt-BR")} eventos. Aplique filtros mais específicos e tente novamente.`,
+      );
+    }
+    return result;
+  };
+
   const totalPages = Math.max(1, Math.ceil((query.data?.count ?? 0) / pageSize));
 
   return {
@@ -123,5 +166,6 @@ export function useAdminAuditUnificada(filtros: AdminAuditFilters = {}) {
     page,
     pageSize,
     totalPages,
+    fetchAllRows,
   };
 }

@@ -134,6 +134,7 @@ export default function Transportadoras() {
     update,
     remove,
     fetchData,
+    fetchAllRows,
     page,
     setPage,
     totalCount,
@@ -619,6 +620,7 @@ export default function Transportadoras() {
             )}
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
+            exportRows={fetchAllRows}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}

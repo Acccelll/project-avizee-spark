@@ -132,6 +132,7 @@ const Fornecedores = () => {
     update,
     remove,
     fetchData,
+    fetchAllRows,
     page,
     setPage,
     totalCount,
@@ -531,6 +532,7 @@ const Fornecedores = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            exportRows={fetchAllRows}
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
