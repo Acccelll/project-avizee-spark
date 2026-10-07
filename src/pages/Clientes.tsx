@@ -734,9 +734,9 @@ const Clientes = () => {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onCreated={() => {
+          // O próprio modal já informa "cadastrado" ou "CNPJ/CPF já cadastrado".
           setQuickAddOpen(false);
           fetchData();
-          toast.success("Cliente cadastrado com sucesso");
         }}
       />
 

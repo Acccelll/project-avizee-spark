@@ -356,13 +356,14 @@ export function useFiscalXmlImport(args: UseFiscalXmlImportArgs) {
     }
   };
 
-  const handleQuickClienteCreated = async (clienteId: string) => {
+  const handleQuickClienteCreated = async (clienteId: string, info?: { reused: boolean; nome: string }) => {
     await refetchClientes(); setQuickClienteOpen(false);
+    const reused = info?.reused === true;
     if (pendingXmlImport && pendingXmlImport.tipo === "saida") {
-      const clienteNome = quickClienteDefaults.nome_razao_social || "";
+      const clienteNome = (reused ? info?.nome : quickClienteDefaults.nome_razao_social) || "";
       void aplicarImportacaoXml(pendingXmlImport.nfe, "saida", "", "", clienteId, clienteNome, traducaoLinhas, pendingXmlImport.fiscalMap, pendingXmlImport.xmlText, pendingXmlImport.anexarNa);
-      setPendingXmlImport(null); toast.success("Cliente cadastrado. NF de saída pronta para revisão.");
-    } else { setForm((prev) => ({ ...prev, cliente_id: clienteId })); toast.success("Cliente cadastrado e selecionado."); }
+      setPendingXmlImport(null); toast.success(reused ? "Cliente existente vinculado. NF de saída pronta para revisão." : "Cliente cadastrado. NF de saída pronta para revisão.");
+    } else { setForm((prev) => ({ ...prev, cliente_id: clienteId })); toast.success(reused ? "Cliente existente selecionado." : "Cliente cadastrado e selecionado."); }
   };
 
   const handleQuickProdutoCreated = async (produtoId: string) => {
