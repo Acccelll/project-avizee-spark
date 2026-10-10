@@ -25,7 +25,7 @@ export function HistoricoVersoes({ itens, canDownload, onDownload }: { itens: Ve
                 {r.total_slides ? <span className="text-muted-foreground">· {r.total_slides} slides</span> : null}
               </div>
               {canDownload && r.arquivo_path && (
-                <Button variant="ghost" size="sm" className="h-8" onClick={() => onDownload(r)}>
+                <Button variant="ghost" size="sm" className="min-h-11 sm:min-h-0 sm:h-8" onClick={() => onDownload(r)}>
                   <Download className="mr-1 h-4 w-4" />
                   .pptx
                 </Button>

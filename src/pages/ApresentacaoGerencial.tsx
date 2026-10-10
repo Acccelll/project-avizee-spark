@@ -190,7 +190,7 @@ export default function ApresentacaoGerencial() {
         headerActions={
           <div className="flex flex-wrap items-center gap-2">
             <Select value={competencia} onValueChange={trocarCompetencia}>
-              <SelectTrigger className="h-9 w-[190px]" aria-label="Mês do fechamento">
+              <SelectTrigger className="h-11 w-[190px] sm:h-9" aria-label="Mês do fechamento">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -201,23 +201,23 @@ export default function ApresentacaoGerencial() {
             </Select>
             {versoes.length > 1 && (
               <ToggleGroup type="single" value={versao} onValueChange={(v) => v && setVersao(v as VersaoApresentacao)} variant="outline" size="sm" aria-label="Versão">
-                {versoes.map((v) => <ToggleGroupItem key={v} value={v} className="h-9 px-3">{NOME_VERSAO[v]}</ToggleGroupItem>)}
+                {versoes.map((v) => <ToggleGroupItem key={v} value={v} className="h-11 px-3 sm:h-9">{NOME_VERSAO[v]}</ToggleGroupItem>)}
               </ToggleGroup>
             )}
             {canFinal && !congelado && (
-              <Button variant="outline" size="sm" className="h-9" disabled={!deckTela || finalizar.isPending} onClick={() => setConfirmarFinal(true)}>
+              <Button variant="outline" size="sm" className="h-11 sm:h-9" disabled={!deckTela || finalizar.isPending} onClick={() => setConfirmarFinal(true)}>
                 <Stamp className="mr-1 h-4 w-4" />
                 Marcar como final
               </Button>
             )}
             {canBaixar && (
-              <Button size="sm" className="h-9" disabled={!deckTela || baixar.isPending} onClick={() => baixar.mutate()}>
+              <Button size="sm" className="h-11 sm:h-9" disabled={!deckTela || baixar.isPending} onClick={() => baixar.mutate()}>
                 {baixar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
                 Baixar apresentação
               </Button>
             )}
             {canConfig && (
-              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Geração automática" onClick={() => setAutomacaoOpen(true)}>
+              <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-9 sm:w-9" aria-label="Geração automática" onClick={() => setAutomacaoOpen(true)}>
                 <Settings2 className="h-4 w-4" />
               </Button>
             )}

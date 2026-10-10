@@ -48,7 +48,7 @@ export interface OpcoesDeck {
 }
 
 const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const ok = <T,>(xs: Array<T | null | undefined | false>): T[] => xs.filter((x): x is T => !!x);
+const ok = <T,>(xs: Array<T | null | undefined | false | 0 | ''>): T[] => xs.filter((x): x is T => !!x);
 
 /** "2,7 vezes setembro de 2025", "+12% sobre setembro de 2025". */
 function comparacao(atual: number, base: number, alvo: string): string {
