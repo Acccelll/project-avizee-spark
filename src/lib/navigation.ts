@@ -241,7 +241,7 @@ export const navSections: NavSection[] = [
         items: [
           { title: 'Relatórios Operacionais', path: '/relatorios', icon: BarChart3, keywords: ['estoque', 'vendas', 'compras', 'financeiro'] },
           { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', icon: FileSpreadsheet, keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
-          { title: 'Apresentação Gerencial', path: '/relatorios/apresentacao-gerencial', icon: Presentation, keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial'] },
+          { title: 'Apresentação de fechamento', path: '/relatorios/apresentacao-gerencial', icon: Presentation, keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial', 'apresentação gerencial', 'trimestral', 'anual'] },
         ],
       },
     ],

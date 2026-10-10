@@ -302,24 +302,32 @@ export const workbookHelp: HelpEntry = {
 
 export const apresentacaoHelp: HelpEntry = {
   route: '/relatorios/apresentacao-gerencial',
-  title: 'Apresentação gerencial',
-  summary: 'Apresentação em slides (PPTX) com KPIs e gráficos do período — pronta para reunião de diretoria.',
+  title: 'Apresentação de fechamento',
+  summary: 'Deck do fechamento em .pptx, com a marca AviZee: mensal todo mês, trimestral em março, junho e setembro, e anual em dezembro.',
   sections: [
     {
-      heading: 'Geração',
-      body: 'Os slides são compostos a partir de templates configuráveis. Usa a mesma fonte de dados do Workbook gerencial — números batem.',
+      heading: 'Três passos',
+      body: 'Escolha o mês (a página abre no último mês fechado), revise os slides na prévia e clique em Baixar apresentação. A versão sugerida para o mês já vem marcada; a mensal sempre pode ser gerada.',
     },
     {
-      heading: 'Estrutura padrão',
-      body: 'Capa → Sumário executivo → Bloco comercial → Bloco financeiro → Bloco fiscal → Conclusões/próximos passos. Cada slide pode ser editado antes do download.',
+      heading: 'De onde vêm os números',
+      body: 'Da mesma fonte do Workbook de Fechamento: faturamento pelas notas emitidas, caixa pelos recebimentos e pagamentos, capital de giro e estoque no fim do mês. O detalhe por cliente, estado e categoria só reparte esses totais.',
     },
     {
-      heading: 'Comentários automáticos',
-      body: 'Algumas seções têm comentários sugeridos com base em regras (variações % vs período anterior, metas atingidas, alertas). Você pode editar antes de exportar.',
+      heading: 'Títulos e comentários',
+      body: 'Cada slide tem um título que conclui e até três comentários com fatos. Clique no slide para editar o título e os comentários ali mesmo, ou para ocultar o slide. Slides sem dado saem do deck sozinhos.',
     },
     {
-      heading: 'Cadência (envio automático)',
-      body: 'É possível agendar geração automática (semanal/mensal) com envio por e-mail aos destinatários cadastrados. Configurado pela edge function `apresentacao-cadencia-runner`.',
+      heading: 'Pendências',
+      body: 'O quadro "Dados do mês" mostra o que falta no fechamento (extrato pendente, caixa final, valor bloqueado, seguidores). O aviso não bloqueia o download.',
+    },
+    {
+      heading: 'Marcar como final',
+      body: 'Congela os números e os textos da versão e guarda o .pptx no histórico. Se precisar mudar depois, use "Editar nova versão".',
+    },
+    {
+      heading: 'Geração automática',
+      body: 'Na engrenagem (administradores), ative a criação do rascunho do mês anterior no dia escolhido, com aviso por e-mail.',
     },
   ],
   related: [
@@ -329,16 +337,16 @@ export const apresentacaoHelp: HelpEntry = {
   tour: [
     {
       target: '',
-      title: 'Apresentação gerencial',
-      body: 'PPTX com capa, KPIs, gráficos e comentários automáticos. Mesma fonte de dados do Workbook — números batem.',
+      title: 'Apresentação de fechamento',
+      body: 'Escolha o mês, revise a prévia e baixe o .pptx. Os números são os do Workbook de Fechamento.',
     },
     {
       target: '',
-      title: 'Cadência automática',
-      body: 'Agende geração e envio por e-mail (semanal/mensal). Configurado em Administração → Apresentação.',
+      title: 'Edite no próprio slide',
+      body: 'Clique em um slide para mudar o título e os comentários, ou para ocultá-lo do deck.',
     },
   ],
-  version: 2,
+  version: 3,
 };
 
 export const fornecedoresHelp: HelpEntry = {

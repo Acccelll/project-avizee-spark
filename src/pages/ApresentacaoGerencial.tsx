@@ -1,272 +1,345 @@
-import { useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Download, EyeOff, Loader2, Lock, Settings2, Stamp } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
-import { useCan } from '@/hooks/useCan';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  aprovarEGerarFinal,
-  atualizarComentario,
-  atualizarStatusEditorial,
-  downloadApresentacao,
-  downloadBlob,
-  executarCadenciaAgora,
-  gerarApresentacao,
-  incluirTemplateApresentacao,
-  listarApresentacaoCadencias,
-  listarApresentacaoGeracoes,
-  listarApresentacaoTemplates,
-  listarComentarios,
-  removerApresentacaoCadencia,
-  salvarApresentacaoCadencia,
-  salvarPreferenciasApresentacao,
-  registrarTelemetriaSlides,
-} from '@/services/apresentacaoService';
-import { ApresentacaoGeracaoDialog } from '@/components/apresentacao/ApresentacaoGeracaoDialog';
-import { ApresentacaoSlidesPreview } from '@/components/apresentacao/ApresentacaoSlidesPreview';
-import { ApresentacaoHistoricoTable } from '@/components/apresentacao/ApresentacaoHistoricoTable';
-import { ApresentacaoComentariosEditor } from '@/components/apresentacao/ApresentacaoComentariosEditor';
-import { ApresentacaoTemplateManager } from '@/components/apresentacao/ApresentacaoTemplateManager';
-import { ApresentacaoAprovacaoBar } from '@/components/apresentacao/ApresentacaoAprovacaoBar';
-import { ApresentacaoCadenciaManager } from '@/components/apresentacao/ApresentacaoCadenciaManager';
-import { ApresentacaoTelemetriaPanel } from '@/components/apresentacao/ApresentacaoTelemetriaPanel';
-import type { ApresentacaoGeracao, SlideCodigo } from '@/types/apresentacao';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCan } from '@/hooks/useCan';
+import { cn } from '@/lib/utils';
+import { NOME_VERSAO, ultimoMesFechado, versaoSugerida, versoesDisponiveis } from '@/lib/apresentacao/fechamento/base';
+import { mesAnoExtenso, somarMeses } from '@/lib/apresentacao/fechamento/formato';
+import { aplicarEdicoes, montarDeck, nomeArquivoDeck } from '@/lib/apresentacao/fechamento/modelo';
+import type { Deck, EdicaoSlide, EdicoesDeck, VersaoApresentacao } from '@/lib/apresentacao/fechamento/tipos';
+import {
+  baixarArquivo,
+  baixarBlob,
+  buscarDadosApresentacao,
+  gerarArquivoDeck,
+  listarHistorico,
+  marcarComoFinal,
+  obterTrabalho,
+  reabrirRascunho,
+  salvarEdicoes,
+} from '@/services/apresentacaoFechamentoService';
+import { SlideView } from '@/components/apresentacao/fechamento/SlideView';
+import { EditorSlide } from '@/components/apresentacao/fechamento/EditorSlide';
+import { PendenciasFechamento } from '@/components/apresentacao/fechamento/PendenciasFechamento';
+import { HistoricoVersoes } from '@/components/apresentacao/fechamento/HistoricoVersoes';
+import { AutomacaoDialog } from '@/components/apresentacao/fechamento/AutomacaoDialog';
 
-interface SlidesJsonAtivos { ativos: SlideCodigo[] }
+const WorkbookEntradasFechamentoDialog = lazy(() =>
+  import('@/components/financeiro/WorkbookEntradasFechamentoDialog').then((m) => ({ default: m.WorkbookEntradasFechamentoDialog })),
+);
+
+const MESES_NO_SELETOR = 24;
+
+function semOcultos(e: EdicoesDeck): EdicoesDeck {
+  return Object.fromEntries(Object.entries(e).map(([k, v]) => [k, { ...v, oculto: undefined }]));
+}
 
 export default function ApresentacaoGerencial() {
   const { can } = useCan();
-  const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedGeracaoId, setSelectedGeracaoId] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
+  const qc = useQueryClient();
   const canVisualizar = can('apresentacao:visualizar');
-  const canGerar = can('apresentacao:gerar');
-  const canEditarComentarios = can('apresentacao:editar_comentarios');
-  const canDownload = can('apresentacao:download');
-  const canIncluirTemplate = can('apresentacao:gerenciar_templates') || can('apresentacao:criar');
-  const canAprovar = can('apresentacao:aprovar');
+  const canBaixar = can('apresentacao:gerar') || can('apresentacao:download');
+  const canEditar = can('apresentacao:editar_comentarios');
+  const canFinal = can('apresentacao:aprovar');
+  const canConfig = can('apresentacao:gerenciar_templates');
 
-  const { data: templates = [] } = useQuery({ queryKey: ['apresentacao-templates'], queryFn: listarApresentacaoTemplates, enabled: canVisualizar });
-  const { data: geracoes = [], refetch, isLoading } = useQuery({ queryKey: ['apresentacao-geracoes'], queryFn: listarApresentacaoGeracoes, enabled: canVisualizar });
-  const { data: comentarios = [] } = useQuery({ queryKey: ['apresentacao-comentarios', selectedGeracaoId], queryFn: () => listarComentarios(selectedGeracaoId!), enabled: !!selectedGeracaoId });
-  const { data: cadencias = [] } = useQuery({ queryKey: ['apresentacao-cadencias'], queryFn: listarApresentacaoCadencias, enabled: canVisualizar });
+  const ultimo = ultimoMesFechado();
+  const meses = useMemo(() => Array.from({ length: MESES_NO_SELETOR }, (_, i) => somarMeses(ultimo, -i)), [ultimo]);
+  const [competencia, setCompetencia] = useState(ultimo);
+  const [versao, setVersao] = useState<VersaoApresentacao>(versaoSugerida(ultimo));
+  const [selecionado, setSelecionado] = useState('capa');
+  const [edicoes, setEdicoes] = useState<EdicoesDeck>({});
+  const [confirmarFinal, setConfirmarFinal] = useState(false);
+  const [entradasOpen, setEntradasOpen] = useState(false);
+  const [automacaoOpen, setAutomacaoOpen] = useState(false);
+  const salvarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Salvamentos em fila: o primeiro cria o rascunho e os seguintes usam o id dele.
+  const filaSalvar = useRef<Promise<void>>(Promise.resolve());
+  const rascunhoRef = useRef<string | null>(null);
 
-  const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
-  const selectedSlides = useMemo<SlideCodigo[]>(
-    () => (selectedGeracao?.slides_json as unknown as SlidesJsonAtivos | null)?.ativos ?? [],
-    [selectedGeracao],
-  );
-
-  // Onda 9 C-03 — disponibilidade EXCLUSIVAMENTE estrutural via tags_json.tags.
-  // Migration backfill (20260508_…) populou tags=['indisponivel'] em registros
-  // antigos cujo texto continha 'indispon...'. O fallback substring foi removido
-  // para eliminar o risco de falsos positivos/negativos.
-  const dataAvailability = useMemo<Record<string, boolean>>(() => {
-    const map: Record<string, boolean> = {};
-    for (const c of comentarios) {
-      const tags = (c.tags_json && typeof c.tags_json === 'object'
-        ? (c.tags_json as { tags?: unknown }).tags
-        : null);
-      const isUnavailable = Array.isArray(tags) && tags.includes('indisponivel');
-      map[c.slide_codigo] = !isUnavailable;
-    }
-    return map;
-  }, [comentarios]);
-
-  const gerarMutation = useMutation({
-    mutationFn: async (params: Parameters<typeof gerarApresentacao>[0]) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      return gerarApresentacao(params, undefined, { signal: controller.signal });
-    },
-    onSuccess: ({ blob, geracaoId, aguardandoAprovacao }, variables) => {
-      if (blob) downloadBlob(blob, `apresentacao_gerencial_${geracaoId.slice(0, 8)}.pptx`);
-      toast.success(aguardandoAprovacao ? 'Rascunho criado. Envie para aprovação para gerar versão final.' : 'Apresentação gerada com sucesso.');
-      queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
-      setSelectedGeracaoId(geracaoId);
-      setDialogOpen(false);
-
-      // Persiste preferências e registra telemetria (best-effort)
-      const enabledSlides = (variables.slideConfig ?? []).filter((s) => s.enabled).map((s) => s.codigo);
-      void salvarPreferenciasApresentacao({
-        ultimo_template_id: variables.templateId,
-        ultimo_modo_geracao: variables.modoGeracao,
-        ultimos_slides_codigos: enabledSlides,
-        ultima_competencia_inicial: variables.competenciaInicial,
-        ultima_competencia_final: variables.competenciaFinal,
-        exigir_revisao_padrao: variables.exigirRevisao ?? true,
-      }).catch(() => undefined);
-      void registrarTelemetriaSlides(enabledSlides, 'gerado', geracaoId).catch(() => undefined);
-    },
-    onError: (err) => {
-      const isAbort = err instanceof DOMException && err.name === 'AbortError';
-      if (isAbort) toast.info('Geração cancelada.');
-      else toast.error(`Falha ao gerar apresentação: ${err instanceof Error ? err.message : String(err)}`);
-      abortRef.current = null;
-    },
+  const dadosQ = useQuery({
+    queryKey: ['apresentacao-fechamento-dados', competencia],
+    queryFn: () => buscarDadosApresentacao(competencia),
+    enabled: canVisualizar,
+    staleTime: 60_000,
   });
+  const trabalhoQ = useQuery({
+    queryKey: ['apresentacao-fechamento-trabalho', competencia, versao],
+    queryFn: () => obterTrabalho(competencia, versao),
+    enabled: canVisualizar,
+  });
+  const historicoQ = useQuery({ queryKey: ['apresentacao-fechamento-historico'], queryFn: listarHistorico, enabled: canVisualizar });
 
-  const aprovarMutation = useMutation({
+  // Carrega as edições do rascunho ao trocar de mês ou versão.
+  useEffect(() => {
+    const t = trabalhoQ.data;
+    if (!t) return;
+    rascunhoRef.current = t.rascunho?.id ?? null;
+    setEdicoes(t.rascunho?.slides_json?.edicoes ?? {});
+  }, [trabalhoQ.data]);
+
+  const congelado = !!trabalhoQ.data?.final && !trabalhoQ.data?.rascunho;
+  const deckFinalSalvo: Deck | null = congelado ? trabalhoQ.data?.final?.data_origem_json?.deck ?? null : null;
+
+  const deckBase = useMemo(() => (dadosQ.data ? montarDeck(dadosQ.data, versao) : null), [dadosQ.data, versao]);
+  const deckTela = useMemo(() => deckFinalSalvo ?? (deckBase ? aplicarEdicoes(deckBase, semOcultos(edicoes)) : null), [deckFinalSalvo, deckBase, edicoes]);
+
+  const slideAtual = deckTela?.slides.find((s) => s.codigo === selecionado) ?? deckTela?.slides[0];
+  const numeroAtual = slideAtual ? (deckTela?.slides.indexOf(slideAtual) ?? 0) + 1 : 1;
+  const originalAtual = deckBase?.slides.find((s) => s.codigo === slideAtual?.codigo);
+
+  const trocarCompetencia = (c: string) => {
+    setCompetencia(c);
+    setVersao(versaoSugerida(c));
+    setSelecionado('capa');
+  };
+
+  const editar = (codigo: string, e: EdicaoSlide | undefined) => {
+    const prox = { ...edicoes };
+    if (e) prox[codigo] = e;
+    else delete prox[codigo];
+    setEdicoes(prox);
+    if (salvarTimer.current) clearTimeout(salvarTimer.current);
+    const comp = competencia;
+    const ver = versao;
+    salvarTimer.current = setTimeout(() => {
+      filaSalvar.current = filaSalvar.current
+        .then(async () => {
+          const novo = !rascunhoRef.current;
+          const id = await salvarEdicoes(comp, ver, prox, rascunhoRef.current);
+          rascunhoRef.current = id;
+          if (novo) qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-trabalho', comp, ver] });
+        })
+        .catch((err) => {
+          toast.error(`Não foi possível salvar a edição: ${err instanceof Error ? err.message : String(err)}`);
+        });
+    }, 600);
+  };
+
+  const baixar = useMutation({
     mutationFn: async () => {
-      if (!selectedGeracaoId) throw new Error('Selecione uma geração.');
-      return aprovarEGerarFinal(selectedGeracaoId);
+      const final = trabalhoQ.data?.final;
+      if (congelado && final?.arquivo_path) return { blob: await baixarArquivo(final.arquivo_path), deck: { competencia, versao } };
+      if (!dadosQ.data) throw new Error('Dados ainda não carregados.');
+      // Monta de novo para a capa sair com a data e a hora do download.
+      const deck = aplicarEdicoes(montarDeck(dadosQ.data, versao), edicoes);
+      return { blob: await gerarArquivoDeck(deck), deck };
     },
-    onSuccess: (blob) => {
-      if (selectedGeracaoId) downloadBlob(blob, `apresentacao_gerencial_final_${selectedGeracaoId.slice(0, 8)}.pptx`);
-      queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
-      toast.success('Versão final aprovada e gerada.');
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
+    onSuccess: ({ blob, deck }) => baixarBlob(blob, nomeArquivoDeck(deck)),
+    onError: (e) => toast.error(`Falha ao gerar a apresentação: ${e instanceof Error ? e.message : String(e)}`),
   });
 
-  const templateMutation = useMutation({
-    mutationFn: incluirTemplateApresentacao,
-    onSuccess: () => {
-      toast.success('Template incluído com sucesso.');
-      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
+  const finalizar = useMutation({
+    mutationFn: async () => {
+      if (!dadosQ.data) throw new Error('Dados ainda não carregados.');
+      if (salvarTimer.current) clearTimeout(salvarTimer.current);
+      await filaSalvar.current;
+      const deck = aplicarEdicoes(montarDeck(dadosQ.data, versao), edicoes);
+      const blob = await gerarArquivoDeck(deck);
+      await marcarComoFinal(deck, edicoes, blob, rascunhoRef.current);
+      return { blob, deck };
     },
-    onError: (err) => toast.error(`Falha ao incluir template: ${err instanceof Error ? err.message : String(err)}`),
+    onSuccess: () => {
+      toast.success('Versão final gravada no histórico.');
+      qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-trabalho', competencia, versao] });
+      qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-historico'] });
+      setConfirmarFinal(false);
+    },
+    onError: (e) => toast.error(`Falha ao marcar como final: ${e instanceof Error ? e.message : String(e)}`),
   });
 
-  const cadenciaSaveMutation = useMutation({
-    mutationFn: salvarApresentacaoCadencia,
-    onSuccess: () => {
-      toast.success('Cadência salva.');
-      queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
-    },
-    onError: (err) => toast.error(`Falha ao salvar cadência: ${err instanceof Error ? err.message : String(err)}`),
+  const reabrir = useMutation({
+    mutationFn: async () => reabrirRascunho(trabalhoQ.data!.final!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-trabalho', competencia, versao] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 
   if (!canVisualizar) {
     return (
-      <ModulePage title="Apresentação Gerencial">
-        <div className="rounded-md border border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
-          Sem permissão para visualizar.
-        </div>
+      <ModulePage title="Apresentação de fechamento">
+        <div className="rounded-md border border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">Sem permissão para visualizar.</div>
       </ModulePage>
     );
   }
 
+  const versoes = versoesDisponiveis(competencia);
+  const carregando = dadosQ.isLoading || trabalhoQ.isLoading;
+  const finalSalvo = trabalhoQ.data?.final;
+
   return (
-    <><ModulePage
-        title="Apresentação Gerencial"
+    <>
+      <ModulePage
+        title="Apresentação de fechamento"
+        subtitle={deckTela ? `${deckTela.periodo} · ${deckTela.slides.length} slides` : undefined}
         headerActions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              className="h-11 sm:h-9"
-            >
-              <RefreshCcw className="h-4 w-4 mr-1" />
-              Atualizar
-            </Button>
-            {canGerar && (
-              <Button
-                size="sm"
-                onClick={() => setDialogOpen(true)}
-                className="h-11 sm:h-9"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Novo rascunho
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={competencia} onValueChange={trocarCompetencia}>
+              <SelectTrigger className="h-9 w-[190px]" aria-label="Mês do fechamento">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {meses.map((m) => (
+                  <SelectItem key={m} value={m}>{mesAnoExtenso(m).replace(/^./, (x) => x.toUpperCase())}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {versoes.length > 1 && (
+              <ToggleGroup type="single" value={versao} onValueChange={(v) => v && setVersao(v as VersaoApresentacao)} variant="outline" size="sm" aria-label="Versão">
+                {versoes.map((v) => <ToggleGroupItem key={v} value={v} className="h-9 px-3">{NOME_VERSAO[v]}</ToggleGroupItem>)}
+              </ToggleGroup>
+            )}
+            {canFinal && !congelado && (
+              <Button variant="outline" size="sm" className="h-9" disabled={!deckTela || finalizar.isPending} onClick={() => setConfirmarFinal(true)}>
+                <Stamp className="mr-1 h-4 w-4" />
+                Marcar como final
+              </Button>
+            )}
+            {canBaixar && (
+              <Button size="sm" className="h-9" disabled={!deckTela || baixar.isPending} onClick={() => baixar.mutate()}>
+                {baixar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+                Baixar apresentação
+              </Button>
+            )}
+            {canConfig && (
+              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Geração automática" onClick={() => setAutomacaoOpen(true)}>
+                <Settings2 className="h-4 w-4" />
               </Button>
             )}
           </div>
         }
       >
-        <div className="space-y-4">
-          <ApresentacaoAprovacaoBar
-            geracao={selectedGeracao}
-            canAprovar={canAprovar}
-            comentariosCount={comentarios.length}
-            onEnviarRevisao={async () => {
-              if (!selectedGeracaoId) return;
-              await atualizarStatusEditorial(selectedGeracaoId, 'revisao');
-              queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
-            }}
-            onAprovarGerar={async () => { await aprovarMutation.mutateAsync(); }}
-          />
-
-          {(canAprovar || canIncluirTemplate) && <ApresentacaoTelemetriaPanel />}
-
-          {canIncluirTemplate && (
-            <ApresentacaoTemplateManager
-              templates={templates}
-              isSaving={templateMutation.isPending}
-              onCreate={async (draft, file) => {
-                await templateMutation.mutateAsync({
-                  nome: draft.nome,
-                  codigo: draft.codigo,
-                  versao: draft.versao,
-                  descricao: draft.descricao,
-                  arquivo: file,
-                });
-              }}
-            />
-          )}
-
-          <ApresentacaoCadenciaManager
-            cadencias={cadencias}
-            templates={templates}
-            canManage={canIncluirTemplate}
-            isSaving={cadenciaSaveMutation.isPending}
-            onSave={async (input) => { await cadenciaSaveMutation.mutateAsync(input); }}
-            onRemove={async (id) => {
-              await removerApresentacaoCadencia(id);
-              queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
-            }}
-            onRunNow={async (id) => {
-              await executarCadenciaAgora(id);
-              queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
-              queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
-            }}
-          />
-
-          <ApresentacaoSlidesPreview
-            activeSlides={selectedSlides.length ? selectedSlides : undefined}
-            dataAvailability={dataAvailability}
-          />
-
-          {canEditarComentarios && !!selectedGeracaoId && (
-            <ApresentacaoComentariosEditor comentarios={comentarios} onChange={(id, value) => atualizarComentario(id, value).catch(() => toast.error('Falha ao salvar comentário.'))} />
-          )}
-
-          <ApresentacaoHistoricoTable
-            geracoes={geracoes}
-            isLoading={isLoading}
-            canDownload={canDownload}
-            onDownload={async (g) => {
-              setSelectedGeracaoId(g.id);
-              const blob = await downloadApresentacao(g);
-              downloadBlob(blob, `apresentacao_gerencial_${g.id.slice(0, 8)}.pptx`);
-            }}
-          />
-        </div>
+        {dadosQ.isError ? (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
+            Não foi possível carregar os dados de {mesAnoExtenso(competencia)}: {dadosQ.error instanceof Error ? dadosQ.error.message : String(dadosQ.error)}
+          </div>
+        ) : carregando || !deckTela || !slideAtual ? (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <Skeleton className="aspect-video w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {congelado && finalSalvo && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-4 py-3 text-sm">
+                <span className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Versão final de {new Date(finalSalvo.aprovado_em ?? finalSalvo.updated_at).toLocaleDateString('pt-BR')}: números e textos congelados.
+                </span>
+                {canEditar && (
+                  <Button variant="outline" size="sm" disabled={reabrir.isPending} onClick={() => reabrir.mutate()}>
+                    Editar nova versão
+                  </Button>
+                )}
+              </div>
+            )}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="min-w-0 space-y-3">
+                <SlideView deck={deckTela} slide={slideAtual} numero={numeroAtual} className="w-full rounded-md border shadow-sm" />
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
+                  {deckTela.slides.map((s, i) => {
+                    const oculto = !!edicoes[s.codigo]?.oculto && !congelado;
+                    return (
+                      <button
+                        key={s.codigo}
+                        type="button"
+                        onClick={() => setSelecionado(s.codigo)}
+                        className={cn(
+                          'group relative rounded-md border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          s.codigo === slideAtual.codigo ? 'border-primary ring-1 ring-primary' : 'hover:border-foreground/30',
+                          oculto && 'opacity-40',
+                        )}
+                        aria-label={`Slide ${i + 1}: ${s.rotulo}`}
+                      >
+                        <SlideView deck={deckTela} slide={s} numero={i + 1} className="pointer-events-none w-full rounded-t-md" />
+                        <span className="flex items-center gap-1 truncate px-2 py-1 text-xs">
+                          {oculto && <EyeOff className="h-3 w-3 shrink-0" />}
+                          {i + 1}. {s.rotulo}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <aside className="space-y-4">
+                {dadosQ.data && <PendenciasFechamento dados={dadosQ.data} onInformar={can('workbook:visualizar') ? () => setEntradasOpen(true) : undefined} />}
+                {originalAtual && (
+                  <EditorSlide
+                    original={originalAtual}
+                    edicao={edicoes[originalAtual.codigo]}
+                    disabled={congelado || !canEditar}
+                    onChange={(e) => editar(originalAtual.codigo, e)}
+                  />
+                )}
+                <HistoricoVersoes
+                  itens={(historicoQ.data ?? []).slice(0, 8)}
+                  canDownload={canBaixar}
+                  onDownload={async (r) => {
+                    try {
+                      const blob = await baixarArquivo(r.arquivo_path!);
+                      baixarBlob(blob, r.competencia && r.versao ? nomeArquivoDeck({ competencia: r.competencia, versao: r.versao }) : `apresentacao_${r.id.slice(0, 8)}.pptx`);
+                    } catch (e) {
+                      toast.error(`Falha no download: ${e instanceof Error ? e.message : String(e)}`);
+                    }
+                  }}
+                />
+              </aside>
+            </div>
+          </div>
+        )}
       </ModulePage>
 
-      {canGerar && (
-        <ApresentacaoGeracaoDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          templates={templates}
-          isGenerating={gerarMutation.isPending}
-          onCancel={() => abortRef.current?.abort()}
-          onGerar={async (p) => {
-            await gerarMutation.mutateAsync({
-              templateId: p.templateId,
-              competenciaInicial: p.competenciaInicial,
-              competenciaFinal: p.competenciaFinal,
-              modoGeracao: p.modoGeracao,
-              slideConfig: p.slideConfig,
-              exigirRevisao: p.exigirRevisao,
-            });
-          }}
-        />
+      <AlertDialog open={confirmarFinal} onOpenChange={setConfirmarFinal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marcar {deckTela?.periodo ?? ''} como final?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os números e os textos desta versão ficam congelados e o .pptx vai para o histórico. Depois, dá para abrir uma nova versão se precisar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizar.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={finalizar.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                finalizar.mutate();
+              }}
+            >
+              {finalizar.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Marcar como final
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {entradasOpen && (
+        <Suspense fallback={null}>
+          <WorkbookEntradasFechamentoDialog
+            open={entradasOpen}
+            onOpenChange={(v) => {
+              setEntradasOpen(v);
+              if (!v) qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-dados', competencia] });
+            }}
+          />
+        </Suspense>
       )}
+      {canConfig && <AutomacaoDialog open={automacaoOpen} onOpenChange={setAutomacaoOpen} />}
     </>
   );
 }

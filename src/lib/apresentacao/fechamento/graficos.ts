@@ -363,8 +363,8 @@ function mapa(v: Extract<Visual, { tipo: 'mapa' }>, w = VB_L, h = VB_A): Desenho
     formas.push({ k: 'text', x: x0 + 32 + bw, y: y + 12.5, t: `${mil(val)} mil · ${pct(val, tot)}`, size: VL, color: COR.tinta, bold: true });
   });
   LEGENDA_MAPA.forEach(([c, t], j) => {
-    const lx = x0 + [0, 96, 172][j % 3];
-    const ly = 14 + 6 * 30 + 10 + Math.floor(j / 3) * 17;
+    const lx = x0 + (j % 2) * 104;
+    const ly = 14 + 6 * 30 + 8 + Math.floor(j / 2) * 16;
     formas.push({ k: 'rect', x: lx, y: ly, w: 10, h: 10, fill: c, r: 1.5 });
     formas.push({ k: 'text', x: lx + 14, y: ly + 9, t, size: AX, color: COR.apagado });
   });
