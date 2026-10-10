@@ -171,6 +171,7 @@ export type Database = {
           aprovado_por: string | null
           arquivo_path: string | null
           cadencia_id: string | null
+          competencia: string | null
           competencia_final: string | null
           competencia_inicial: string | null
           created_at: string
@@ -190,15 +191,17 @@ export type Database = {
           slides_json: Json | null
           status: string
           status_editorial: string
-          template_id: string
+          template_id: string | null
           total_slides: number | null
           updated_at: string
+          versao: string | null
         }
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
           arquivo_path?: string | null
           cadencia_id?: string | null
+          competencia?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
@@ -218,15 +221,17 @@ export type Database = {
           slides_json?: Json | null
           status?: string
           status_editorial?: string
-          template_id: string
+          template_id?: string | null
           total_slides?: number | null
           updated_at?: string
+          versao?: string | null
         }
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
           arquivo_path?: string | null
           cadencia_id?: string | null
+          competencia?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
@@ -246,9 +251,10 @@ export type Database = {
           slides_json?: Json | null
           status?: string
           status_editorial?: string
-          template_id?: string
+          template_id?: string | null
           total_slides?: number | null
           updated_at?: string
+          versao?: string | null
         }
         Relationships: [
           {
@@ -11784,303 +11790,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vw_apresentacao_aging_consolidado: {
-        Row: {
-          competencia: string | null
-          cp_aberto: number | null
-          cr_aberto: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_backorder: {
-        Row: {
-          competencia: string | null
-          qtd_pedidos_pendentes: number | null
-          valor_atual: number | null
-          valor_backorder: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_balanco_gerencial: {
-        Row: {
-          ativo_circulante: number | null
-          competencia: string | null
-          passivo_circulante: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_bancos_detalhado: {
-        Row: {
-          banco_nome: string | null
-          competencia: string | null
-          conta_id: string | null
-          descricao: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_bridge_ebitda: {
-        Row: {
-          competencia: string | null
-          impacto_negativo: number | null
-          impacto_positivo: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_bridge_lucro_liquido: {
-        Row: {
-          competencia: string | null
-          despesas: number | null
-          lucro_operacional: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_capital_giro: {
-        Row: {
-          capital_giro_liquido: number | null
-          competencia: string | null
-          cp_aberto: number | null
-          cr_aberto: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_confronto_trimestral: {
-        Row: {
-          ano: string | null
-          despesa: number | null
-          receita: number | null
-          resultado: number | null
-          trimestre: string | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_debt: {
-        Row: {
-          competencia: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_despesas: {
-        Row: {
-          competencia: string | null
-          quantidade: number | null
-          total_pago: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_dre_gerencial: {
-        Row: {
-          competencia: string | null
-          linha: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_dre_waterfall: {
-        Row: {
-          competencia: string | null
-          ordem: number | null
-          rotulo: string | null
-          tipo: string | null
-          valor: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_faturamento: {
-        Row: {
-          competencia: string | null
-          quantidade_nfs: number | null
-          total_faturado: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_fluxo_caixa: {
-        Row: {
-          competencia: string | null
-          entradas: number | null
-          fluxo_liquido: number | null
-          saidas: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_fopag: {
-        Row: {
-          competencia: string | null
-          folha_pagamento: number | null
-          funcionarios: number | null
-          retiradas_socios: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_highlights: {
-        Row: {
-          backorder_pedidos: number | null
-          backorder_valor: number | null
-          caixa_total: number | null
-          competencia: string | null
-          despesa: number | null
-          faturamento: number | null
-          resultado: number | null
-          rol: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_highlights_financeiros: {
-        Row: {
-          competencia: string | null
-          despesa_atual: number | null
-          pago: number | null
-          recebido: number | null
-          receita_atual: number | null
-          resultado: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_inadimplencia: {
-        Row: {
-          competencia: string | null
-          pct_inadimplencia: number | null
-          valor_atual: number | null
-          valor_inadimplente: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_lucro_produto_cliente: {
-        Row: {
-          competencia: string | null
-          maior_cliente: string | null
-          maior_produto: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_lucro_top10: {
-        Row: {
-          dimensao: string | null
-          posicao: number | null
-          rotulo: string | null
-          valor: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_performance_comercial_canal: {
-        Row: {
-          canal: string | null
-          competencia: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_receita_vs_despesa: {
-        Row: {
-          competencia: string | null
-          despesa_atual: number | null
-          receita_atual: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_redes_sociais: {
-        Row: {
-          competencia: string | null
-          indisponivel: boolean | null
-          motivo: string | null
-          seguidores_novos: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_resultado_financeiro: {
-        Row: {
-          competencia: string | null
-          despesas_financeiras: number | null
-          receitas_financeiras: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_rol_caixa: {
-        Row: {
-          cobertura_pct: number | null
-          competencia: string | null
-          rol: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_slide_uso: {
-        Row: {
-          slide_codigo: string | null
-          total_desselecionado: number | null
-          total_gerado: number | null
-          total_selecionado: number | null
-          ultimo_uso_em: string | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_social_evolucao: {
-        Row: {
-          alcance: number | null
-          competencia: string | null
-          engajamento: number | null
-          plataforma: string | null
-          seguidores: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_top_clientes: {
-        Row: {
-          cliente_lider: string | null
-          competencia: string | null
-          valor_atual: number | null
-          valor_lider: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_top_fornecedores: {
-        Row: {
-          competencia: string | null
-          fornecedor_lider: string | null
-          valor_atual: number | null
-          valor_lider: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_tributos: {
-        Row: {
-          competencia: string | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_variacao_estoque: {
-        Row: {
-          competencia: string | null
-          custo_unitario_medio: number | null
-          quantidade_itens: number | null
-          valor_atual: number | null
-        }
-        Relationships: []
-      }
-      vw_apresentacao_venda_estado: {
-        Row: {
-          competencia: string | null
-          estado_lider: string | null
-          valor_atual: number | null
-          valor_lider: number | null
-        }
-        Relationships: []
-      }
       vw_cartao_fatura_total: {
         Row: {
           cartao_fatura_id: string | null
@@ -12792,6 +12501,10 @@ export type Database = {
       }
     }
     Functions: {
+      apresentacao_fechamento_dados: {
+        Args: { p_competencia: string }
+        Returns: Json
+      }
       _set_vault_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string

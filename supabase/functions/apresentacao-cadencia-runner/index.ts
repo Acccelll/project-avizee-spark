@@ -9,26 +9,36 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
  *   - ainda não foram executadas para a competência alvo (mês anterior)
  *
  * Para cada uma:
- *   1. Cria registro `apresentacao_geracoes` com status='pendente' e
- *      status_editorial='revisao' apontando para a competência do mês anterior.
- *   2. Enfileira e-mail para os destinatários listando o link de aprovação.
+ *   1. Cria o rascunho em `apresentacao_geracoes` para o mês anterior, na
+ *      versão que o mês pede: trimestral em mar/jun/set, anual em dez,
+ *      mensal nos demais.
+ *   2. Enfileira e-mail para os destinatários com o link da página.
  *   3. Atualiza `ultima_execucao_*` na cadência.
  *
- * A geração binária do .pptx é feita pelo cliente quando o aprovador
- * acessa o módulo (mantém a engine pptxgenjs no browser).
+ * O .pptx é gerado no navegador, na página da apresentação, a partir do
+ * rascunho (a engine pptxgenjs fica no cliente).
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
 
 let corsHeaders: Record<string, string> = buildCorsHeaders(null);
-function competenciaAlvo(): { inicial: string; final: string; label: string } {
+type Versao = "mensal" | "trimestral" | "anual";
+
+/** Mesma regra da página: trimestral em mar/jun/set, anual em dez. */
+function versaoDoMes(mes: number): Versao {
+  if (mes === 12) return "anual";
+  if (mes % 3 === 0) return "trimestral";
+  return "mensal";
+}
+
+function competenciaAlvo(): { inicial: string; final: string; label: string; versao: Versao } {
   // Mês anterior em horário do Brasil (mesma fonte usada para `today`).
   const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const ref = new Date(nowBrt.getFullYear(), nowBrt.getMonth() - 1, 1);
   const y = ref.getFullYear();
   const m = String(ref.getMonth() + 1).padStart(2, "0");
-  return { inicial: `${y}-${m}`, final: `${y}-${m}`, label: `${m}/${y}` };
+  return { inicial: `${y}-${m}`, final: `${y}-${m}`, label: `${m}/${y}`, versao: versaoDoMes(ref.getMonth() + 1) };
 }
 
 Deno.serve(async (req) => {
@@ -94,56 +104,56 @@ Deno.serve(async (req) => {
 
   for (const cad of cadencias ?? []) {
     try {
-      // Idempotência: já existe geração desta cadência para a competência?
-      const { data: existente } = await supabase
+      // Um só rascunho por competência + versão. Se outra cadência (ou alguém
+      // na página) já criou, reaproveita e só avisa os destinatários desta.
+      const { data: daCompetencia } = await supabase
         .from("apresentacao_geracoes")
-        .select("id")
-        .eq("cadencia_id", cad.id)
-        .eq("competencia_inicial", `${competencia.inicial}-01`)
-        .maybeSingle();
+        .select("id, cadencia_id")
+        .eq("competencia", competencia.inicial)
+        .eq("versao", competencia.versao)
+        .order("created_at", { ascending: false });
+      const registros = (daCompetencia ?? []) as Array<{ id: string; cadencia_id: string | null }>;
+      const existente = registros[0];
 
-      if (existente) {
-        resultados.push({ cadencia_id: cad.id, status: "ja_existe", geracao_id: existente.id });
+      // Idempotência por cadência: esta cadência já criou ou já avisou sobre um rascunho da competência?
+      const jaAvisado = registros.find((r) => r.cadencia_id === cad.id || r.id === cad.ultima_execucao_geracao_id);
+      if (jaAvisado) {
+        resultados.push({ cadencia_id: cad.id, status: "ja_existe", geracao_id: jaAvisado.id });
         continue;
       }
 
-      const params = {
-        templateId: cad.template_id,
-        competenciaInicial: competencia.inicial,
-        competenciaFinal: competencia.final,
-        modoGeracao: cad.modo_geracao,
-        exigirRevisao: cad.exigir_revisao,
-      };
-
-      const { data: geracao, error: insertError } = await supabase
-        .from("apresentacao_geracoes")
-        .insert({
-          template_id: cad.template_id,
-          cadencia_id: cad.id,
-          competencia_inicial: `${competencia.inicial}-01`,
-          competencia_final: `${competencia.final}-01`,
-          modo_geracao: cad.modo_geracao,
-          status: "pendente",
-          status_editorial: cad.exigir_revisao ? "revisao" : "rascunho",
-          parametros_json: params,
-          observacoes: `Rascunho automático criado pela cadência "${cad.nome}".`,
-        })
-        .select("id")
-        .single();
-
-      if (insertError) throw insertError;
+      let geracaoId = existente?.id;
+      if (!geracaoId) {
+        const { data: geracao, error: insertError } = await supabase
+          .from("apresentacao_geracoes")
+          .insert({
+            template_id: null,
+            cadencia_id: cad.id,
+            competencia: competencia.inicial,
+            versao: competencia.versao,
+            competencia_inicial: `${competencia.inicial}-01`,
+            competencia_final: `${competencia.final}-01`,
+            modo_geracao: "fechado",
+            status: "concluido",
+            status_editorial: "rascunho",
+            is_final: false,
+            slides_json: { edicoes: {} },
+            parametros_json: { competencia: competencia.inicial, versao: competencia.versao, modelo: "fechamento_v3" },
+            observacoes: `Rascunho automático criado pela geração automática "${cad.nome}".`,
+          })
+          .select("id")
+          .single();
+        if (insertError) throw insertError;
+        geracaoId = geracao.id as string;
+      }
 
       // E-mail para aprovadores
       const destinatarios = (cad.destinatarios_emails ?? []).filter(Boolean);
-      const subject = `Apresentação Gerencial ${competencia.label} aguardando aprovação`;
+      const subject = `Apresentação de fechamento ${competencia.label} (${competencia.versao}) pronta para revisar`;
       const html = [
-        `<p>Um rascunho automático da Apresentação Gerencial foi criado pela cadência <strong>${cad.nome}</strong>.</p>`,
-        `<ul>`,
-        `<li><strong>Competência:</strong> ${competencia.label}</li>`,
-        `<li><strong>Modo:</strong> ${cad.modo_geracao}</li>`,
-        `<li><strong>Revisão:</strong> ${cad.exigir_revisao ? "obrigatória antes da versão final" : "não exigida"}</li>`,
-        `</ul>`,
-        `<p>Acesse <a href="${appUrl}/relatorios/apresentacao-gerencial">Apresentação Gerencial</a> para revisar comentários e gerar a versão final.</p>`,
+        `<p>O rascunho da apresentação de fechamento de <strong>${competencia.label}</strong> está pronto.</p>`,
+        `<p>Versão: <strong>${competencia.versao}</strong>.</p>`,
+        `<p>Acesse <a href="${appUrl}/relatorios/apresentacao-gerencial">Apresentação de fechamento</a> para revisar os textos, baixar o .pptx e marcar a versão final.</p>`,
       ].join("");
 
       for (const to of destinatarios) {
@@ -161,11 +171,11 @@ Deno.serve(async (req) => {
         .update({
           ultima_execucao_em: new Date().toISOString(),
           ultima_execucao_status: "ok",
-          ultima_execucao_geracao_id: geracao.id,
+          ultima_execucao_geracao_id: geracaoId,
         })
         .eq("id", cad.id);
 
-      resultados.push({ cadencia_id: cad.id, status: "criado", geracao_id: geracao.id, destinatarios: destinatarios.length });
+      resultados.push({ cadencia_id: cad.id, status: existente ? "reaproveitado" : "criado", geracao_id: geracaoId, destinatarios: destinatarios.length });
     } catch (err) {
       log.error("cadencia processing failed", { cadencia_id: cad.id, error: err instanceof Error ? err.message : String(err) });
       await supabase
