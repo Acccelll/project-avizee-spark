@@ -70,8 +70,11 @@ export default function ApresentacaoGerencial() {
   const [automacaoOpen, setAutomacaoOpen] = useState(false);
   const salvarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Salvamentos em fila: o primeiro cria o rascunho e os seguintes usam o id dele.
+  // O id fica guardado por competência + versão, para que um salvamento pendente
+  // de outro mês ou versão nunca grave no rascunho errado.
   const filaSalvar = useRef<Promise<void>>(Promise.resolve());
-  const rascunhoRef = useRef<string | null>(null);
+  const rascunhos = useRef<Record<string, string>>({});
+  const chave = (c: string, v: VersaoApresentacao) => `${c}|${v}`;
 
   const dadosQ = useQuery({
     queryKey: ['apresentacao-fechamento-dados', competencia],
@@ -90,9 +93,12 @@ export default function ApresentacaoGerencial() {
   useEffect(() => {
     const t = trabalhoQ.data;
     if (!t) return;
-    rascunhoRef.current = t.rascunho?.id ?? null;
+    const k = chave(competencia, versao);
+    if (t.rascunho?.id) rascunhos.current[k] = t.rascunho.id;
+    else delete rascunhos.current[k];
     setEdicoes(t.rascunho?.slides_json?.edicoes ?? {});
-  }, [trabalhoQ.data]);
+    // `trabalhoQ.data` é sempre do mês e da versão atuais (a chave da consulta inclui os dois).
+  }, [trabalhoQ.data, competencia, versao]);
 
   const congelado = !!trabalhoQ.data?.final && !trabalhoQ.data?.rascunho;
   const deckFinalSalvo: Deck | null = congelado ? trabalhoQ.data?.final?.data_origem_json?.deck ?? null : null;
@@ -121,9 +127,10 @@ export default function ApresentacaoGerencial() {
     salvarTimer.current = setTimeout(() => {
       filaSalvar.current = filaSalvar.current
         .then(async () => {
-          const novo = !rascunhoRef.current;
-          const id = await salvarEdicoes(comp, ver, prox, rascunhoRef.current);
-          rascunhoRef.current = id;
+          const k = chave(comp, ver);
+          const novo = !rascunhos.current[k];
+          const id = await salvarEdicoes(comp, ver, prox, rascunhos.current[k] ?? null);
+          rascunhos.current[k] = id;
           if (novo) qc.invalidateQueries({ queryKey: ['apresentacao-fechamento-trabalho', comp, ver] });
         })
         .catch((err) => {
@@ -152,7 +159,7 @@ export default function ApresentacaoGerencial() {
       await filaSalvar.current;
       const deck = aplicarEdicoes(montarDeck(dadosQ.data, versao), edicoes);
       const blob = await gerarArquivoDeck(deck);
-      await marcarComoFinal(deck, edicoes, blob, rascunhoRef.current);
+      await marcarComoFinal(deck, edicoes, blob, rascunhos.current[chave(competencia, versao)] ?? null);
       return { blob, deck };
     },
     onSuccess: () => {

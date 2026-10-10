@@ -2,7 +2,8 @@
 --
 -- `apresentacao_fechamento_dados(p_competencia)` devolve:
 --   workbook     → o mesmo retorno de workbook_fechamento_dados (séries de 37
---                  meses: faturamento, caixa, aging, estoque, sócios, parâmetros).
+--                  meses: faturamento, caixa, aging, estoque, sócios, parâmetros),
+--                  com os parâmetros do ano seguinte acrescentados.
 --                  Todos os números agregados do deck saem daqui, para baterem
 --                  com o Workbook de Fechamento.
 --   detalhe      → por mês, de jan/(ano-1) até a competência: faturamento por
@@ -77,6 +78,12 @@ BEGIN
   v_ini := make_date(extract(year FROM v_comp)::int - 1, 1, 1);
 
   v_wb := workbook_fechamento_dados(p_competencia);
+  -- Parâmetros do ano seguinte, para o slide de metas do deck anual
+  -- (o Workbook só traz de ano-2 até o ano da competência).
+  v_wb := jsonb_set(v_wb, '{parametros}', coalesce(v_wb->'parametros', '{}'::jsonb) || coalesce((
+    SELECT jsonb_object_agg(p.ano::text, jsonb_build_object('crescimento_meta', p.crescimento_meta, 'limite_faturamento', p.limite_faturamento))
+      FROM workbook_parametros_anuais p
+     WHERE p.empresa_id = v_emp AND p.ano = extract(year FROM v_comp)::int + 1), '{}'::jsonb));
 
   WITH nf AS (
     SELECT to_char(n.data_emissao, 'YYYY-MM') AS comp,

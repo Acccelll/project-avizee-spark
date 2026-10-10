@@ -592,7 +592,7 @@ function deckAnual(base: BaseFechamento, c: string, geradoEm: Date): Slide[] {
           ? `Crescimento. Meta de ${numero(metaProx * 100, 1)}% sobre ${a}: ${brl(fat * (1 + metaProx))} no ano, ${brl((fat * (1 + metaProx)) / 12)} por mês.`
           : `Crescimento. Definir a meta de ${a + 1} nos parâmetros do Workbook.`,
         limProx
-          ? `Limite de faturamento. ${brl(limProx, 0)} em ${a + 1}.`
+          ? `Limite de faturamento. ${brl(limProx, limProx >= 1_000_000 ? 1 : 0)} em ${a + 1}.`
           : `Limite de faturamento. Informar o limite de ${a + 1} nos parâmetros do Workbook.`,
         cruzou && `Enquadramento. ${a} passou o limite da ME em ${nomeMes(cruzou)}: decidir o regime de ${a + 1}.`,
       ]),

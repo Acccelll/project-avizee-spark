@@ -104,41 +104,48 @@ Deno.serve(async (req) => {
 
   for (const cad of cadencias ?? []) {
     try {
-      // Idempotência: já existe rascunho ou versão final da competência nessa versão?
-      const { data: existente } = await supabase
+      // Um só rascunho por competência + versão. Se outra cadência (ou alguém
+      // na página) já criou, reaproveita e só avisa os destinatários desta.
+      const { data: daCompetencia } = await supabase
         .from("apresentacao_geracoes")
-        .select("id")
+        .select("id, cadencia_id")
         .eq("competencia", competencia.inicial)
         .eq("versao", competencia.versao)
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
+      const registros = (daCompetencia ?? []) as Array<{ id: string; cadencia_id: string | null }>;
+      const existente = registros[0];
 
-      if (existente) {
-        resultados.push({ cadencia_id: cad.id, status: "ja_existe", geracao_id: existente.id });
+      // Idempotência por cadência: esta cadência já criou ou já avisou sobre um rascunho da competência?
+      const jaAvisado = registros.find((r) => r.cadencia_id === cad.id || r.id === cad.ultima_execucao_geracao_id);
+      if (jaAvisado) {
+        resultados.push({ cadencia_id: cad.id, status: "ja_existe", geracao_id: jaAvisado.id });
         continue;
       }
 
-      const { data: geracao, error: insertError } = await supabase
-        .from("apresentacao_geracoes")
-        .insert({
-          template_id: null,
-          cadencia_id: cad.id,
-          competencia: competencia.inicial,
-          versao: competencia.versao,
-          competencia_inicial: `${competencia.inicial}-01`,
-          competencia_final: `${competencia.final}-01`,
-          modo_geracao: "fechado",
-          status: "concluido",
-          status_editorial: "rascunho",
-          is_final: false,
-          slides_json: { edicoes: {} },
-          parametros_json: { competencia: competencia.inicial, versao: competencia.versao, modelo: "fechamento_v3" },
-          observacoes: `Rascunho automático criado pela geração automática "${cad.nome}".`,
-        })
-        .select("id")
-        .single();
-
-      if (insertError) throw insertError;
+      let geracaoId = existente?.id;
+      if (!geracaoId) {
+        const { data: geracao, error: insertError } = await supabase
+          .from("apresentacao_geracoes")
+          .insert({
+            template_id: null,
+            cadencia_id: cad.id,
+            competencia: competencia.inicial,
+            versao: competencia.versao,
+            competencia_inicial: `${competencia.inicial}-01`,
+            competencia_final: `${competencia.final}-01`,
+            modo_geracao: "fechado",
+            status: "concluido",
+            status_editorial: "rascunho",
+            is_final: false,
+            slides_json: { edicoes: {} },
+            parametros_json: { competencia: competencia.inicial, versao: competencia.versao, modelo: "fechamento_v3" },
+            observacoes: `Rascunho automático criado pela geração automática "${cad.nome}".`,
+          })
+          .select("id")
+          .single();
+        if (insertError) throw insertError;
+        geracaoId = geracao.id as string;
+      }
 
       // E-mail para aprovadores
       const destinatarios = (cad.destinatarios_emails ?? []).filter(Boolean);
@@ -164,11 +171,11 @@ Deno.serve(async (req) => {
         .update({
           ultima_execucao_em: new Date().toISOString(),
           ultima_execucao_status: "ok",
-          ultima_execucao_geracao_id: geracao.id,
+          ultima_execucao_geracao_id: geracaoId,
         })
         .eq("id", cad.id);
 
-      resultados.push({ cadencia_id: cad.id, status: "criado", geracao_id: geracao.id, destinatarios: destinatarios.length });
+      resultados.push({ cadencia_id: cad.id, status: existente ? "reaproveitado" : "criado", geracao_id: geracaoId, destinatarios: destinatarios.length });
     } catch (err) {
       log.error("cadencia processing failed", { cadencia_id: cad.id, error: err instanceof Error ? err.message : String(err) });
       await supabase

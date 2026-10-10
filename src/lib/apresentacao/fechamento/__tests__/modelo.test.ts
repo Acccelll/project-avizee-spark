@@ -129,6 +129,16 @@ describe('deck trimestral e anual', () => {
   });
 });
 
+describe('metas do anual', () => {
+  it('usa os parâmetros do ano seguinte quando informados', () => {
+    const dados = dadosSinteticos('2026-12');
+    dados.workbook.parametros['2027'] = { crescimento_meta: 0.12, limite_faturamento: 4_800_000 };
+    const metas = montarDeck(dados, 'anual', { geradoEm: GERADO }).slides.find((s) => s.codigo === 'metas')!;
+    expect(metas.mensagem).toMatch(/^Meta de 2027: crescer 12,0%/);
+    expect(metas.visual.tipo === 'lista' && metas.visual.itens.join(' ')).toContain('R$ 4,8 mi em 2027');
+  });
+});
+
 describe('alertas', () => {
   it('avisa quando o faturamento passa o limite da ME e quando um cliente concentra', () => {
     const base = new BaseFechamento(dadosSinteticos('2026-09', { limite: 100000 }));
