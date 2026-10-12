@@ -67,6 +67,32 @@ describe('avaliador de fórmulas do fechamento', () => {
     expect(calc('"x"&0.1+0.2')).toBe('x0.3');
   });
 
+  it('SUMIFS com igualdade, faixa de datas e texto', () => {
+    const d = {
+      D: {
+        A1: 100, B1: 'Cliente', C1: 'Ana', D1: 10,
+        A2: 100, B2: 'Cliente', C2: 'Bia', D2: 20,
+        A3: 200, B3: 'Cliente', C3: 'ana', D3: 5,
+        A4: 200, B4: 'Estado', C4: 'SP', D4: 7,
+      },
+    };
+    expect(calc('SUMIFS(D!D1:D4,D!B1:B4,"Cliente",D!C1:C4,"Ana")', d)).toBe(15);
+    expect(calc('SUMIFS(D!D1:D4,D!B1:B4,"Cliente",D!A1:A4,100)', d)).toBe(30);
+    expect(calc('SUMIFS(D!D1:D4,D!A1:A4,">="&150,D!A1:A4,"<=200")', d)).toBe(12);
+    expect(calc('SUMIFS(D!D1:D4,D!B1:B4,"<>Cliente")', d)).toBe(7);
+    expect(calc('SUMIFS(D!D1:D4,D!B1:B3,"Cliente")', d)).toBeInstanceOf(ErroExcel);
+  });
+
+  it('OR, ABS, ROUND e NA', () => {
+    expect(calc('OR(1=2,2=2)')).toBe(true);
+    expect(calc('OR(1=2,"a"="b")')).toBe(false);
+    expect(calc('ABS(-3.5)')).toBe(3.5);
+    expect(calc('ROUND(2.5,0)')).toBe(3);
+    expect(calc('ROUND(-2.345,2)')).toBe(-2.35);
+    expect(calc('ROUND(0.1+0.2-0.3,2)')).toBe(0);
+    expect(calc('NA()')).toBeInstanceOf(ErroExcel);
+  });
+
   it('função desconhecida vira #NAME?', () => {
     const r = calc('XLOOKUP(1,A1:A2,B1:B2)');
     expect(r).toBeInstanceOf(ErroExcel);

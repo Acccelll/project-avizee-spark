@@ -16,7 +16,7 @@ import {
   fluxoCaixaHelp,
   relatoriosHelp,
   workbookHelp,
-  apresentacaoHelp,
+  fechamentoHelp,
   fornecedoresHelp,
 } from './entries/lote2';
 import {
@@ -57,8 +57,8 @@ export const HELP_REGISTRY: Record<string, HelpEntry> = {
   '/conciliacao': conciliacaoHelp,
   '/fluxo-caixa': fluxoCaixaHelp,
   '/relatorios': relatoriosHelp,
-  '/relatorios/workbook-gerencial': workbookHelp,
-  '/relatorios/apresentacao-gerencial': apresentacaoHelp,
+  '/relatorios/fechamento': fechamentoHelp,
+  '/relatorios/workbook-gerencial/modelo-antigo': workbookHelp,
 
   // Lote 3 — auxiliares, manual curto
   '/transportadoras': transportadorasHelp,

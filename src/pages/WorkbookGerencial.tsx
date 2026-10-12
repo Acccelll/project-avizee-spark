@@ -1,6 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCcw, Download, ClipboardEdit } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,6 @@ import { Button } from '@/components/ui/button';
 const WorkbookGeracaoDialog = lazy(() =>
   import('@/components/financeiro/WorkbookGeracaoDialog').then((m) => ({
     default: m.WorkbookGeracaoDialog,
-  })),
-);
-const WorkbookEntradasFechamentoDialog = lazy(() =>
-  import('@/components/financeiro/WorkbookEntradasFechamentoDialog').then((m) => ({
-    default: m.WorkbookEntradasFechamentoDialog,
   })),
 );
 import { WorkbookHistoricoTable } from '@/components/financeiro/WorkbookHistoricoTable';
@@ -25,13 +21,15 @@ import {
   downloadBlob,
   WORKBOOK_FECHAMENTO_CODIGO,
 } from '@/services/workbook';
-import { buildHistoricoCsv } from '@/lib/workbook/historicoCsv';
 import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
 
+/**
+ * Workbook gerencial, modelo antigo (DRE, vendas por vendedor, funil...).
+ * O Workbook de Fechamento é gerado na página Fechamento do mês.
+ */
 export default function WorkbookGerencial() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [entradasOpen, setEntradasOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { can } = useCan();
 
@@ -39,8 +37,8 @@ export default function WorkbookGerencial() {
   const canDownload = can('workbook:visualizar');
 
   const { data: templates = [], isLoading: loadingTemplates } = useQuery({
-    queryKey: ['workbook-templates'],
-    queryFn: listarTemplates,
+    queryKey: ['workbook-templates', 'modelo-antigo'],
+    queryFn: async () => (await listarTemplates()).filter((t) => t.codigo !== WORKBOOK_FECHAMENTO_CODIGO),
   });
 
   const { data: geracoes = [], isLoading: loadingGeracoes, refetch } = useQuery({
@@ -72,9 +70,7 @@ export default function WorkbookGerencial() {
         undefined,
         { signal: controller.signal },
       );
-      const filename = params.templateCodigo === WORKBOOK_FECHAMENTO_CODIGO
-        ? `workbook_fechamento_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`
-        : `workbook_gerencial_${params.competenciaInicial}_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`;
+      const filename = `workbook_gerencial_${params.competenciaInicial}_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`;
       downloadBlob(blob, filename);
       return geracaoId;
     },
@@ -106,25 +102,18 @@ export default function WorkbookGerencial() {
     }
   };
 
-  const handleExportCsv = () => {
-    if (!geracoes.length) {
-      toast.info('Sem gerações para exportar.');
-      return;
-    }
-    const csv = buildHistoricoCsv(geracoes);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
-    downloadBlob(
-      blob,
-      `workbook_historico_${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-    toast.success('CSV exportado.');
-  };
-
   return (
     <><ModulePage
-        title="Workbook Gerencial"
+        title="Workbook gerencial (modelo antigo)"
+        subtitle="O Workbook de Fechamento fica em Fechamento do mês."
         headerActions={
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="ghost" size="sm" className="h-11 sm:h-9">
+              <Link to="/relatorios/fechamento">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Fechamento do mês
+              </Link>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -134,27 +123,6 @@ export default function WorkbookGerencial() {
               <RefreshCcw className="h-4 w-4 mr-1" />
               Atualizar
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCsv}
-              disabled={loadingGeracoes || geracoes.length === 0}
-              className="hidden md:inline-flex h-11 sm:h-9"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Exportar CSV
-            </Button>
-            {canGerar && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEntradasOpen(true)}
-                className="h-11 sm:h-9"
-              >
-                <ClipboardEdit className="h-4 w-4 mr-1" />
-                Entradas do fechamento
-              </Button>
-            )}
             {canGerar && (
               <Button
                 size="sm"
@@ -181,12 +149,6 @@ export default function WorkbookGerencial() {
           canDownload={canDownload}
         />
       </ModulePage>
-
-      {canGerar && entradasOpen && (
-        <Suspense fallback={null}>
-          <WorkbookEntradasFechamentoDialog open={entradasOpen} onOpenChange={setEntradasOpen} />
-        </Suspense>
-      )}
 
       {canGerar && dialogOpen && (
         <Suspense fallback={null}>

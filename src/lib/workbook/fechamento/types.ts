@@ -55,7 +55,7 @@ export type FechamentoMetrica =
   | 'estoque_produtos'
   | 'seguidores_linkedin'
   | 'seguidores_instagram'
-  /** Caixa final informado (extrato) menos o calculado; vai para a coluna AO da BASE. */
+  /** Caixa final informado (extrato) menos o calculado: o ajuste ao extrato do mês. */
   | 'ajuste_caixa'
   /** Caixa no fim do mês: o informado no fechamento ou, sem ele, o calculado. */
   | 'caixa_final'

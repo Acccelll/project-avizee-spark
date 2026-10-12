@@ -240,8 +240,7 @@ export const navSections: NavSection[] = [
         title: 'Análises e exportações',
         items: [
           { title: 'Relatórios Operacionais', path: '/relatorios', icon: BarChart3, keywords: ['estoque', 'vendas', 'compras', 'financeiro'] },
-          { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', icon: FileSpreadsheet, keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
-          { title: 'Apresentação de fechamento', path: '/relatorios/apresentacao-gerencial', icon: Presentation, keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial', 'apresentação gerencial', 'trimestral', 'anual'] },
+          { title: 'Fechamento do mês', path: '/relatorios/fechamento', icon: Presentation, keywords: ['workbook', 'excel', 'xlsx', 'pptx', 'powerpoint', 'apresentação', 'fechamento', 'gerencial', 'trimestral', 'anual'] },
         ],
       },
     ],
@@ -349,8 +348,8 @@ export const parentRouteMap: Record<string, string> = {
   '/fiscal/dashboard':          '/fiscal',
   '/fiscal/distdfe-historico':  '/fiscal',
   '/fiscal/central':            '/fiscal',
-  '/relatorios/workbook-gerencial':     '/relatorios',
-  '/relatorios/apresentacao-gerencial': '/relatorios',
+  '/relatorios/fechamento':     '/relatorios',
+  '/relatorios/workbook-gerencial/modelo-antigo': '/relatorios',
   '/admin/audit-duplicidades':  '/administracao',
   '/configuracoes':             '/',
 };
@@ -430,7 +429,7 @@ export function getRouteLabel(pathname: string) {
 /**
  * Returns the nav-section key for a given route.
  * Priority: leaf-item match (most specific) > directPath match > 'menu' fallback.
- * This ordering corrects /relatorios/workbook-gerencial returning 'relatorios'
+ * This ordering corrects /relatorios/fechamento returning 'relatorios'
  * even though it lives under the (formerly) Financeiro section.
  */
 export function getNavSectionKey(currentRoute: string): NavSectionKey | typeof DASHBOARD_KEY | 'menu' {

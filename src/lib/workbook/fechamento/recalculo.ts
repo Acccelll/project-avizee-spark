@@ -9,6 +9,7 @@ import type JSZip from 'jszip';
 import {
   ErroExcel,
   avaliar,
+  type Matriz,
   colunaParaNumero,
   formatoGeral,
   isErro,
@@ -84,8 +85,23 @@ function lerAba(xml: string, compartilhadas: string[]): Aba {
 class Planilha implements FonteCelulas {
   private calculado = new Map<string, Escalar>();
   private emCurso = new Set<string>();
+  private faixas = new Map<string, Matriz>();
 
   constructor(private abas: Map<string, Aba>) {}
+
+  faixa(nomeAba: string, c1: number, l1: number, c2: number, l2: number): Matriz {
+    const k = `${nomeAba}!${c1}:${l1}:${c2}:${l2}`;
+    const pronta = this.faixas.get(k);
+    if (pronta) return pronta;
+    const m: Matriz = [];
+    for (let l = l1; l <= l2; l++) {
+      const linha: Escalar[] = [];
+      for (let c = c1; c <= c2; c++) linha.push(this.valor(nomeAba, c, l));
+      m.push(linha);
+    }
+    this.faixas.set(k, m);
+    return m;
+  }
 
   valor(nomeAba: string, col: number, lin: number): Escalar {
     const aba = this.abas.get(nomeAba);
