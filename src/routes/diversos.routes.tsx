@@ -8,7 +8,7 @@ import { LazyPage } from "./LazyPage";
 const Index = lazy(() => import("@/pages/Index"));
 const Relatorios = lazy(() => import("@/pages/Relatorios"));
 const WorkbookGerencial = lazy(() => import("@/pages/WorkbookGerencial"));
-const ApresentacaoGerencial = lazy(() => import("@/pages/ApresentacaoGerencial"));
+const FechamentoMes = lazy(() => import("@/pages/FechamentoMes"));
 const Configuracoes = lazy(() => import("@/pages/Configuracoes"));
 const Social = lazy(() => import("@/pages/Social"));
 const Ajuda = lazy(() => import("@/pages/Ajuda"));
@@ -30,15 +30,18 @@ function PerfilRedirect() {
 
 /**
  * Rotas transversais que não pertencem a um único módulo: home, relatórios
- * gerenciais (workbook, apresentação), configurações pessoais, social,
+ * gerenciais (fechamento do mês), configurações pessoais, social,
  * central de ajuda e o catch-all dentro do shell.
  */
 export const diversosRoutes = (
   <>
     <Route path="/" element={<ProtectedRoute><LazyPage><Index /></LazyPage></ProtectedRoute>} />
     <Route path="/relatorios" element={<PermissionRoute resource="relatorios"><LazyPage><Relatorios /></LazyPage></PermissionRoute>} />
-    <Route path="/relatorios/workbook-gerencial" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
-    <Route path="/relatorios/apresentacao-gerencial" element={<PermissionRoute resource="apresentacao"><LazyPage><ApresentacaoGerencial /></LazyPage></PermissionRoute>} />
+    {/* Fechamento do mês: Workbook e apresentação numa página (a página confere as duas permissões). */}
+    <Route path="/relatorios/fechamento" element={<ProtectedRoute><LazyPage><FechamentoMes /></LazyPage></ProtectedRoute>} />
+    <Route path="/relatorios/apresentacao-gerencial" element={<Navigate to="/relatorios/fechamento" replace />} />
+    <Route path="/relatorios/workbook-gerencial" element={<Navigate to="/relatorios/fechamento" replace />} />
+    <Route path="/relatorios/workbook-gerencial/modelo-antigo" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><LazyPage><Configuracoes /></LazyPage></ProtectedRoute>} />
     {/* /perfil é alias legado: redireciona preservando ?tab= para a tela canônica /configuracoes */}
     <Route path="/perfil" element={<PerfilRedirect />} />

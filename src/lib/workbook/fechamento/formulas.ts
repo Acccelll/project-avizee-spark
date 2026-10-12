@@ -1,18 +1,18 @@
 /**
  * Avaliador de fórmulas do Workbook de Fechamento.
  *
- * O modelo tem ~2.300 fórmulas e depende de `fullCalcOnLoad` para o Excel
+ * O modelo tem ~2.600 fórmulas e depende de `fullCalcOnLoad` para o Excel
  * calcular ao abrir. Visualizadores que não recalculam (Modo de Exibição
  * Protegido do Excel, pré-visualização do navegador/Drive/WhatsApp, Excel no
  * celular) mostravam as abas vazias. Este avaliador calcula as fórmulas na
  * geração para gravar o valor junto de cada fórmula.
  *
- * Cobre só o que o modelo usa: referências (com aba e intervalo), operadores
- * aritméticos, `&`, comparações, operações em matriz (idioma
- * `LOOKUP(2,1/(...),faixa)`) e as funções IF, IFERROR, SUM, AVERAGE, AND,
- * ISNUMBER, N, YEAR, MONTH, EOMONTH, VLOOKUP e LOOKUP. Fórmula com algo fora
- * disso é avaliada como erro #NAME? — a célula fica sem valor e o Excel
- * calcula ao abrir, como antes.
+ * Cobre só o que o modelo usa: referências (com aba e intervalo),
+ * operadores aritméticos, `&`, comparações, operações em matriz (idioma
+ * `LOOKUP(2,1/(...),faixa)`) e as funções IF, IFERROR, SUM, AVERAGE, SUMIFS,
+ * AND, OR, ABS, ROUND, NA, ISNUMBER, N, YEAR, MONTH, EOMONTH, VLOOKUP e
+ * LOOKUP. Fórmula com algo fora disso é avaliada como erro #NAME? — a célula
+ * fica sem valor e o Excel calcula ao abrir, como antes.
  */
 
 export class ErroExcel {
@@ -354,6 +354,30 @@ function mapear1(a: Resultado, f: (x: Escalar) => Escalar): Resultado {
 const escalar = (r: Resultado): Escalar => (isMatriz(r) ? (r[0]?.[0] ?? null) : r);
 const achatar = (r: Resultado): Escalar[] => (isMatriz(r) ? r.flat() : [r]);
 
+/** Critério de SUMIFS: "valor", "=valor", "<>valor", ">=n", "<=n", ">n", "<n". */
+function criterio(c: Escalar): (v: Escalar) => boolean {
+  if (typeof c === 'number' || typeof c === 'boolean') return (v) => comparar(v, c, '=') === true && v !== null;
+  const s = String(c ?? '');
+  const m = /^(<=|>=|<>|=|<|>)?([\s\S]*)$/.exec(s)!;
+  const op = m[1] ?? '=';
+  const bruto = m[2];
+  const n = bruto.trim() !== '' && Number.isFinite(Number(bruto)) ? Number(bruto) : null;
+  if (n !== null) {
+    return (v) => {
+      if (typeof v !== 'number') return op === '<>';
+      return comparar(v, n, op) === true;
+    };
+  }
+  if (bruto === '') {
+    if (op === '=') return (v) => v === null || v === '';
+    if (op === '<>') return (v) => !(v === null || v === '');
+  }
+  return (v) => {
+    if (typeof v !== 'string') return op === '<>';
+    return comparar(v, bruto, op) === true;
+  };
+}
+
 // ── Datas (sistema 1900) ─────────────────────────────────────────────────────
 
 const DIA_MS = 86_400_000;
@@ -375,6 +399,8 @@ function dataParaSerial(ano: number, mes0: number, dia: number): number {
 export interface FonteCelulas {
   /** Valor (já calculado, se for fórmula) de uma célula; null se vazia. */
   valor(aba: string, col: number, lin: number): Escalar;
+  /** Intervalo já lido (opcional; acelera SUMIFS repetidos sobre a mesma faixa). */
+  faixa?(aba: string, c1: number, l1: number, c2: number, l2: number): Matriz;
 }
 
 export function avaliar(no: No, abaAtual: string, fonte: FonteCelulas): Resultado {
@@ -387,6 +413,7 @@ export function avaliar(no: No, abaAtual: string, fonte: FonteCelulas): Resultad
     case 'ref': {
       const aba = no.aba ?? abaAtual;
       if (!no.faixa) return fonte.valor(aba, no.c1, no.l1);
+      if (fonte.faixa) return fonte.faixa(aba, no.c1, no.l1, no.c2, no.l2);
       const m: Matriz = [];
       for (let l = no.l1; l <= no.l2; l++) {
         const linha: Escalar[] = [];
@@ -470,6 +497,63 @@ function chamar(nome: string, args: No[], ev: (n: No) => Resultado): Resultado {
         }
       }
       return algum ? true : E.valor;
+    }
+    case 'OR': {
+      let algum = false;
+      for (const a of args) {
+        const r = ev(a);
+        for (const v of a.t === 'ref' || isMatriz(r) ? achatar(r) : [r as Escalar]) {
+          if (isErro(v)) return v;
+          if (a.t === 'ref' || isMatriz(r)) {
+            if (typeof v !== 'boolean' && typeof v !== 'number') continue;
+          }
+          const b = paraLogico(v);
+          if (isErro(b)) return b;
+          algum = true;
+          if (b) return true;
+        }
+      }
+      return algum ? false : E.valor;
+    }
+    case 'ABS':
+      return args.length
+        ? mapear1(ev(args[0]), (x) => {
+            const n = paraNumero(x);
+            return isErro(n) ? n : Math.abs(n);
+          })
+        : E.valor;
+    case 'ROUND': {
+      if (args.length < 1) return E.valor;
+      const n = paraNumero(escalar(ev(args[0])));
+      if (isErro(n)) return n;
+      const casas = args.length > 1 ? paraNumero(escalar(ev(args[1]))) : 0;
+      if (isErro(casas)) return casas;
+      const f = 10 ** Math.trunc(casas);
+      // Excel arredonda metade para longe do zero.
+      return (Math.sign(n) * Math.round(Math.abs(n) * f + 1e-9)) / f;
+    }
+    case 'NA':
+      return E.na;
+    case 'SUMIFS': {
+      if (args.length < 3 || args.length % 2 === 0) return E.valor;
+      const soma = ev(args[0]);
+      const valores = isMatriz(soma) ? soma.flat() : [soma];
+      const filtros: Array<{ faixa: Escalar[]; teste: (v: Escalar) => boolean }> = [];
+      for (let i = 1; i < args.length; i += 2) {
+        const r = ev(args[i]);
+        const faixa = isMatriz(r) ? r.flat() : [r];
+        if (faixa.length !== valores.length) return E.valor;
+        const crit = escalar(ev(args[i + 1]));
+        if (isErro(crit)) return crit;
+        filtros.push({ faixa, teste: criterio(crit) });
+      }
+      let total = 0;
+      for (let k = 0; k < valores.length; k++) {
+        const v = valores[k];
+        if (typeof v !== 'number') continue;
+        if (filtros.every((fl) => fl.teste(fl.faixa[k]))) total += v;
+      }
+      return total;
     }
     case 'ISNUMBER':
       return args.length ? mapear1(ev(args[0]), (v) => typeof v === 'number') : E.valor;

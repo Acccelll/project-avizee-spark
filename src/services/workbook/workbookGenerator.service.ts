@@ -4,6 +4,7 @@ import { hashParametros } from '@/lib/workbook/utils';
 import { fromUntyped } from '@/lib/supabase/fromUntyped';
 import type { WorkbookCaps } from '@/lib/workbook/fetchWorkbookData';
 import { logger } from "@/lib/logger";
+import type { ApresentacaoFechamentoDados } from '@/lib/apresentacao/fechamento/tipos';
 
 /**
  * Lazy-loads the heavy ExcelJS-based workbook generator. Keeps ~400KB out of
@@ -14,17 +15,28 @@ async function loadGenerateWorkbook() {
   return mod.generateWorkbook;
 }
 
-/** Código do template que usa o modelo do Workbook de Fechamento (sem ExcelJS). */
-export const WORKBOOK_FECHAMENTO_CODIGO = 'WB_FECHAMENTO_V1';
+/** Código do template do Workbook de Fechamento (modelo v2, sem ExcelJS). */
+export const WORKBOOK_FECHAMENTO_CODIGO = 'WB_FECHAMENTO_V2';
+/** Modelo anterior do Workbook de Fechamento; gerações antigas sem arquivo são refeitas no v2. */
+const WORKBOOK_FECHAMENTO_V1_CODIGO = 'WB_FECHAMENTO_V1';
 
-async function gerarBlob(
-  parametros: WorkbookParametros,
-  geracaoId: string,
-  options: { signal?: AbortSignal; caps?: WorkbookCaps },
-): Promise<Blob> {
-  if (parametros.templateCodigo === WORKBOOK_FECHAMENTO_CODIGO) {
-    const { gerarWorkbookFechamento } = await import('@/lib/workbook/fechamento');
-    return gerarWorkbookFechamento(parametros.competenciaFinal.slice(0, 7), options.signal);
+export interface OpcoesGeracao {
+  signal?: AbortSignal;
+  caps?: WorkbookCaps;
+  /** Dados do fechamento já carregados na página (evita consultar de novo). */
+  dadosFechamento?: ApresentacaoFechamentoDados;
+}
+
+async function gerarBlob(parametros: WorkbookParametros, geracaoId: string, options: OpcoesGeracao): Promise<Blob> {
+  if (parametros.templateCodigo === WORKBOOK_FECHAMENTO_CODIGO || parametros.templateCodigo === WORKBOOK_FECHAMENTO_V1_CODIGO) {
+    const competencia = parametros.competenciaFinal.slice(0, 7);
+    const [{ gerarWorkbookFechamentoV2 }, dados] = await Promise.all([
+      import('@/lib/workbook/fechamento/v2'),
+      options.dadosFechamento?.competencia === competencia
+        ? Promise.resolve(options.dadosFechamento)
+        : import('@/services/apresentacaoFechamentoService').then((m) => m.buscarDadosApresentacao(competencia)),
+    ]);
+    return gerarWorkbookFechamentoV2(dados, options.signal);
   }
   const generateWorkbook = await loadGenerateWorkbook();
   return generateWorkbook({ parametros, geracaoId, signal: options.signal, caps: options.caps });
@@ -37,6 +49,32 @@ export async function listarTemplates(): Promise<WorkbookTemplate[]> {
     .order('nome');
   if (error) throw error;
   return (data ?? []) as WorkbookTemplate[];
+}
+
+/** Template do Workbook de Fechamento (null se o modelo ainda não estiver registrado). */
+export async function obterTemplateFechamento(): Promise<WorkbookTemplate | null> {
+  const { data, error } = await fromUntyped('workbook_templates')
+    .select('*')
+    .eq('codigo', WORKBOOK_FECHAMENTO_CODIGO)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as WorkbookTemplate | null;
+}
+
+/**
+ * Workbooks de fechamento gerados (modelo atual e anterior), mais recentes
+ * primeiro. Geração sem arquivo guardado continua na lista: `downloadGeracao`
+ * refaz o arquivo pelos parâmetros.
+ */
+export async function listarWorkbooksFechamento(limite = 12): Promise<WorkbookGeracao[]> {
+  const { data, error } = await fromUntyped('workbook_geracoes')
+    .select('*, workbook_templates!inner(nome, versao, codigo)')
+    .in('workbook_templates.codigo', [WORKBOOK_FECHAMENTO_CODIGO, WORKBOOK_FECHAMENTO_V1_CODIGO])
+    .eq('status', 'concluido')
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) throw error;
+  return (data ?? []) as WorkbookGeracao[];
 }
 
 export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
@@ -62,7 +100,7 @@ export async function listarFechamentos(): Promise<FechamentoMensal[]> {
 export async function gerarWorkbook(
   parametros: WorkbookParametros,
   userId: string | undefined,
-  options: { signal?: AbortSignal; caps?: WorkbookCaps } = {},
+  options: OpcoesGeracao = {},
 ): Promise<{ blob: Blob; geracaoId: string }> {
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 

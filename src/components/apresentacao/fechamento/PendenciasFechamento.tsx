@@ -1,10 +1,9 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { nomeMes } from '@/lib/apresentacao/fechamento/formato';
 import { pendenciasDoMes } from '@/lib/apresentacao/fechamento/pendencias';
 import type { ApresentacaoFechamentoDados } from '@/lib/apresentacao/fechamento/tipos';
 
-export function PendenciasFechamento({ dados, onInformar }: { dados: ApresentacaoFechamentoDados; onInformar?: () => void }) {
+export function PendenciasFechamento({ dados }: { dados: ApresentacaoFechamentoDados }) {
   const itens = pendenciasDoMes(dados);
   const faltam = itens.filter((i) => !i.ok).length;
   return (
@@ -20,17 +19,7 @@ export function PendenciasFechamento({ dados, onInformar }: { dados: Apresentaca
           </li>
         ))}
       </ul>
-      {faltam > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          O aviso não bloqueia o download.
-          {onInformar && (
-            <>
-              {' '}
-              <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onInformar}>Informar no Workbook</Button>
-            </>
-          )}
-        </p>
-      )}
+      {faltam > 0 && <p className="mt-3 text-xs text-muted-foreground">Os avisos não bloqueiam os downloads.</p>}
     </section>
   );
 }

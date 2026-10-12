@@ -241,13 +241,12 @@ export const relatoriosHelp: HelpEntry = {
       body: 'Logo, cores e dados da empresa vêm da configuração centralizada em Administração → Empresa. Mudanças refletem em todos os relatórios automaticamente.',
     },
     {
-      heading: 'Workbook e Apresentação',
-      body: 'Para reuniões mensais, prefira o Workbook gerencial (Excel completo) ou a Apresentação gerencial (PPTX) — ambos consolidam vários relatórios em um arquivo só.',
+      heading: 'Fechamento do mês',
+      body: 'Para reuniões mensais, use a página Fechamento do mês: o Workbook (Excel) e a apresentação (PPTX) saem dos mesmos dados.',
     },
   ],
   related: [
-    { label: 'Workbook gerencial', to: '/relatorios/workbook-gerencial' },
-    { label: 'Apresentação gerencial', to: '/relatorios/apresentacao-gerencial' },
+    { label: 'Fechamento do mês', to: '/relatorios/fechamento' },
   ],
   tour: [
     {
@@ -265,80 +264,65 @@ export const relatoriosHelp: HelpEntry = {
 };
 
 export const workbookHelp: HelpEntry = {
-  route: '/relatorios/workbook-gerencial',
-  title: 'Workbook gerencial',
-  summary: 'Planilha Excel completa com indicadores gerenciais consolidados, para análise externa e reuniões mensais.',
+  route: '/relatorios/workbook-gerencial/modelo-antigo',
+  title: 'Workbook gerencial (modelo antigo)',
+  summary: 'Planilha do modelo antigo, com DRE, vendas por vendedor e funil. O Workbook de Fechamento fica em Fechamento do mês.',
   sections: [
     {
       heading: 'Modos de geração',
       body: 'Dinâmico: gera com fórmulas e fonte de dados conectada — números mudam quando o ERP muda. Fechado: snapshot dos valores no momento da geração, sem dependências externas — ideal para arquivar.',
     },
     {
-      heading: 'Conteúdo',
-      body: 'Capa com KPIs, vendas, recebimentos, contas a pagar, fluxo de caixa, comparativos por período, ranking de clientes, ranking de produtos e indicadores fiscais. Cada seção em uma aba.',
-    },
-    {
-      heading: 'Branding',
-      body: 'Logo, cores e dados da empresa vêm da configuração centralizada em Administração → Empresa. As cores aplicam ao cabeçalho e a barras dos gráficos.',
-    },
-    {
-      heading: 'Mesma fonte da Apresentação',
-      body: 'O Workbook e a Apresentação gerencial usam a mesma fonte de dados — números batem por design. Use os dois em conjunto para reuniões.',
+      heading: 'Quando usar',
+      body: 'Para as abas que só existem neste modelo (DRE, vendas por vendedor, funil). Para o fechamento do mês, use o Workbook de Fechamento.',
     },
   ],
   related: [
-    { label: 'Apresentação gerencial', to: '/relatorios/apresentacao-gerencial' },
+    { label: 'Fechamento do mês', to: '/relatorios/fechamento' },
     { label: 'Relatórios', to: '/relatorios' },
   ],
-  tour: [
-    {
-      target: '',
-      title: 'Workbook',
-      body: 'Excel completo com KPIs, vendas, fluxo, rankings e indicadores fiscais. Modo Dinâmico mantém fórmulas vivas; Fechado é snapshot para arquivar.',
-    },
-  ],
-  version: 2,
+  version: 3,
 };
 
-export const apresentacaoHelp: HelpEntry = {
-  route: '/relatorios/apresentacao-gerencial',
-  title: 'Apresentação de fechamento',
-  summary: 'Deck do fechamento em .pptx, com a marca AviZee: mensal todo mês, trimestral em março, junho e setembro, e anual em dezembro.',
+export const fechamentoHelp: HelpEntry = {
+  route: '/relatorios/fechamento',
+  title: 'Fechamento do mês',
+  summary: 'Uma página para o fechamento: entradas do mês, pendências, a apresentação em .pptx e o Workbook em .xlsx, com os mesmos números.',
   sections: [
     {
       heading: 'Três passos',
-      body: 'Escolha o mês (a página abre no último mês fechado), revise os slides na prévia e clique em Baixar apresentação. A versão sugerida para o mês já vem marcada; a mensal sempre pode ser gerada.',
+      body: 'Escolha o mês (a página abre no último mês fechado), confira as pendências e as entradas do fechamento e baixe o Workbook e a apresentação. A versão da apresentação sugerida para o mês já vem marcada.',
+    },
+    {
+      heading: 'Entradas do fechamento',
+      body: 'Informe o caixa disponível do extrato e o bloqueado em garantia: o caixa do mês é a soma dos dois, e a diferença para o calculado pelo ERP aparece como ajuste ao extrato. Seguidores aceitam só números inteiros (4.012) e a página avisa quando o número cai mais da metade ou mais que triplica. Os parâmetros do ano (meta e limite de faturamento) ficam logo abaixo.',
+    },
+    {
+      heading: 'Workbook',
+      body: '12 abas com a marca AviZee: Resumo (indicadores e conferências), Resultado, Faturamento, Caixa, Despesas, Clientes, Estados, Capital de giro, Estoque, Sócios, Redes e Dados. As abas calculam a partir da aba Dados e o arquivo já abre preenchido. Valores em R$ sem centavos; os centavos estão na aba Dados.',
     },
     {
       heading: 'De onde vêm os números',
-      body: 'Da mesma fonte do Workbook de Fechamento: faturamento pelas notas emitidas, caixa pelos recebimentos e pagamentos, capital de giro e estoque no fim do mês. O detalhe por cliente, estado e categoria só reparte esses totais.',
+      body: 'Faturamento pelas notas emitidas, caixa pelos recebimentos e pagamentos, capital de giro e estoque no fim do mês. O detalhe por cliente, estado e categoria reparte esses totais; o Resumo do Workbook confere que as somas batem.',
     },
     {
-      heading: 'Títulos e comentários',
-      body: 'Cada slide tem um título que conclui e até três comentários com fatos. Clique no slide para editar o título e os comentários ali mesmo, ou para ocultar o slide. Slides sem dado saem do deck sozinhos.',
+      heading: 'Apresentação',
+      body: 'Cada slide tem um título que conclui e até três comentários com fatos. Clique no slide para editar o título e os comentários, ou para ocultá-lo. "Marcar como final" congela números e textos e guarda o .pptx no histórico.',
     },
     {
-      heading: 'Pendências',
-      body: 'O quadro "Dados do mês" mostra o que falta no fechamento (extrato pendente, caixa final, valor bloqueado, seguidores). O aviso não bloqueia o download.',
-    },
-    {
-      heading: 'Marcar como final',
-      body: 'Congela os números e os textos da versão e guarda o .pptx no histórico. Se precisar mudar depois, use "Editar nova versão".',
-    },
-    {
-      heading: 'Geração automática',
-      body: 'Na engrenagem (administradores), ative a criação do rascunho do mês anterior no dia escolhido, com aviso por e-mail.',
+      heading: 'Mais opções',
+      body: 'Na engrenagem: a geração automática da apresentação (administradores) e o Workbook gerencial do modelo antigo.',
     },
   ],
   related: [
-    { label: 'Workbook gerencial', to: '/relatorios/workbook-gerencial' },
+    { label: 'Workbook gerencial (modelo antigo)', to: '/relatorios/workbook-gerencial/modelo-antigo' },
     { label: 'Relatórios', to: '/relatorios' },
   ],
   tour: [
     {
       target: '',
-      title: 'Apresentação de fechamento',
-      body: 'Escolha o mês, revise a prévia e baixe o .pptx. Os números são os do Workbook de Fechamento.',
+      title: 'Fechamento do mês',
+      body: 'Escolha o mês, confira as entradas e baixe o Workbook e a apresentação. Os dois usam os mesmos dados.',
     },
     {
       target: '',
@@ -346,7 +330,7 @@ export const apresentacaoHelp: HelpEntry = {
       body: 'Clique em um slide para mudar o título e os comentários, ou para ocultá-lo do deck.',
     },
   ],
-  version: 3,
+  version: 4,
 };
 
 export const fornecedoresHelp: HelpEntry = {

@@ -35,8 +35,8 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
   /**
    * Bases de todos os itens de navegação conhecidos. Usadas para resolver o
    * conflito de prefixo: quando o pathname é, por exemplo,
-   * `/relatorios/workbook-gerencial`, tanto `/relatorios` quanto
-   * `/relatorios/workbook-gerencial` dariam match via `startsWith`. Apenas o
+   * `/relatorios/fechamento`, tanto `/relatorios` quanto
+   * `/relatorios/fechamento` dariam match via `startsWith`. Apenas o
    * item de base **mais longa** deve ser considerado ativo.
    */
   const knownBases = useMemo(

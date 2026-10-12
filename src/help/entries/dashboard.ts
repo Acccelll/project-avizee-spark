@@ -39,8 +39,7 @@ export const dashboardHelp: HelpEntry = {
   ],
   related: [
     { label: 'Relatórios', to: '/relatorios' },
-    { label: 'Workbook gerencial', to: '/relatorios/workbook-gerencial' },
-    { label: 'Apresentação gerencial', to: '/relatorios/apresentacao-gerencial' },
+    { label: 'Fechamento do mês', to: '/relatorios/fechamento' },
   ],
   tour: [
     {
