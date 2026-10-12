@@ -481,18 +481,22 @@ def aba_resumo(wb):
         ('Faturamento por cliente = faturamento do mês', det('Cliente', mes=COMP), vmes('F')),
         ('Faturamento por estado = faturamento do mês', det('Estado', mes=COMP), vmes('F')),
         ('Despesas por categoria = pago no mês', det('Despesa', mes=COMP), vmes('E')),
-        ('Caixa do extrato = caixa calculado pelo ERP', vmes('G'), vmes('H')),
+        # O extrato informado manda: a diferença para o ERP vira o ajuste do mês
+        # (informação, não erro; a ponte abaixo confere que ele fecha).
+        ('Ajuste ao extrato: caixa informado − calculado pelo ERP', vmes('G'), vmes('H'), 'Ajustado'),
         ('Ponte do caixa: inicial + recebido − pago ± ajuste = final',
          f'{vmes("G", MES_ANT)}+{vmes("D")}-{vmes("E")}+{vmes("I")}', vmes('G')),
     ]
-    for desc, va, vb in confs:
+    for desc, va, vb, *alerta in confs:
         r += 1
         ws.merge_cells(f'B{r}:E{r}')
         put(ws, f'B{r}', desc, 'rot')
         put(ws, f'G{r}', f(va), 'num')
         put(ws, f'H{r}', f(vb), 'num')
         put(ws, f'I{r}', f(f'ROUND(G{r}-H{r},2)'), 'num')
-        put(ws, f'F{r}', f(f'IF(ABS(I{r})<1,"OK","Verificar")'), 'texto')
+        # Conferências toleram arredondamento (< R$ 1); o ajuste aparece a partir de 1 centavo.
+        teste = f'I{r}=0' if alerta else f'ABS(I{r})<1'
+        put(ws, f'F{r}', f(f'IF({teste},"OK","{alerta[0] if alerta else "Verificar"}")'), 'texto')
     r += 1
     ws.merge_cells(f'B{r}:E{r}')
     put(ws, f'B{r}', 'Extrato do mês conciliado (linhas pendentes)', 'rot')
@@ -510,6 +514,7 @@ def aba_resumo(wb):
     conf_fim = r
     ws.conditional_formatting.add(f'F19:F{conf_fim}', FormulaRule(formula=['F19="OK"'], font=Font(color=BOM, bold=True)))
     ws.conditional_formatting.add(f'F19:F{conf_fim}', FormulaRule(formula=['F19="Verificar"'], fill=fill(TERRA), font=Font(color=BRANCO, bold=True)))
+    ws.conditional_formatting.add(f'F19:F{conf_fim}', FormulaRule(formula=['F19="Ajustado"'], fill=fill(CREME), font=Font(color=TERRA, bold=True)))
 
     # Índice
     r = conf_fim + 2
