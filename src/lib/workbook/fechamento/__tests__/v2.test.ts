@@ -97,6 +97,18 @@ describe('Workbook de Fechamento v2', () => {
     expect(ufs).toContain('S/UF');
   });
 
+  it('com mais de 4 sócios, a última vaga soma os demais', () => {
+    const dados = dadosSinteticos('2026-09');
+    const extras = ['s3', 's4', 's5'].map((id, i) => ({ id, nome: `S${i}`, nome_exibicao: `Sócio ${id}`, percentual: 0 }));
+    dados.workbook.socios = [...dados.workbook.socios, ...extras];
+    const set = dados.workbook.meses.find((m) => m.competencia === '2026-09')!;
+    for (const id of ['s3', 's4', 's5']) set.socios[id] = { saldo: 10, prolabore: 5 };
+    const c = montarConteudoDados(dados, '2026-10-12');
+    expect(c.celulas.get('AI22')).toBe('Demais sócios (2)');
+    expect(c.celulas.get('AB38')).toBe(10); // retirada: s4 + s5
+    expect(c.celulas.get('AF38')).toBe(20); // resultado atribuído: s4 + s5
+  });
+
   it('escreverCelulas preserva o estilo e herda o da linha modelo', () => {
     const xml = '<worksheet><dimension ref="A1:B2"/><sheetData><row r="2"><c r="A2" s="5"/><c r="B2" s="7"/></row></sheetData></worksheet>';
     const out = escreverCelulas(xml, new Map<string, string | number | null>([['A2', 10], ['B3', 'x']]), 2);

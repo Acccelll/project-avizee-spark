@@ -61,13 +61,16 @@ export async function obterTemplateFechamento(): Promise<WorkbookTemplate | null
   return (data ?? null) as WorkbookTemplate | null;
 }
 
-/** Workbooks de fechamento gerados (modelo atual e anterior), mais recentes primeiro. */
+/**
+ * Workbooks de fechamento gerados (modelo atual e anterior), mais recentes
+ * primeiro. Geração sem arquivo guardado continua na lista: `downloadGeracao`
+ * refaz o arquivo pelos parâmetros.
+ */
 export async function listarWorkbooksFechamento(limite = 12): Promise<WorkbookGeracao[]> {
   const { data, error } = await fromUntyped('workbook_geracoes')
     .select('*, workbook_templates!inner(nome, versao, codigo)')
     .in('workbook_templates.codigo', [WORKBOOK_FECHAMENTO_CODIGO, WORKBOOK_FECHAMENTO_V1_CODIGO])
     .eq('status', 'concluido')
-    .not('arquivo_path', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limite);
   if (error) throw error;

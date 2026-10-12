@@ -176,7 +176,7 @@ export default function FechamentoMes() {
       if (!template) {
         // Modelo ainda não registrado no banco: gera sem guardar no histórico.
         const { gerarWorkbookFechamentoV2 } = await import('@/lib/workbook/fechamento/v2');
-        return gerarWorkbookFechamentoV2(dados);
+        return { blob: await gerarWorkbookFechamentoV2(dados), competencia: dados.competencia };
       }
       const { blob } = await gerarWorkbook(
         {
@@ -190,10 +190,11 @@ export default function FechamentoMes() {
         user?.id,
         { dadosFechamento: dados },
       );
-      return blob;
+      return { blob, competencia: dados.competencia };
     },
-    onSuccess: (blob) => {
-      baixarBlob(blob, nomeArquivoWorkbook(competencia));
+    // O nome segue o mês gerado, mesmo que a tela tenha mudado de mês no meio.
+    onSuccess: ({ blob, competencia: gerada }) => {
+      baixarBlob(blob, nomeArquivoWorkbook(gerada));
       qc.invalidateQueries({ queryKey: ['workbook-fechamento-geracoes'] });
     },
     onError: (e) => toast.error(`Falha ao gerar o Workbook: ${e instanceof Error ? e.message : String(e)}`),

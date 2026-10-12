@@ -114,7 +114,19 @@ export function montarConteudoDados(dados: ApresentacaoFechamentoDados, geradoEm
     if (v === undefined || v === null || (typeof v === 'number' && !Number.isFinite(v))) return;
     celulas.set(ref, v);
   };
-  const socios = wb.socios.slice(0, VAGAS.socios);
+  // O modelo tem 4 vagas de sócio: acima disso, a última soma os demais (nada fica de fora).
+  const grupoSocio = (lista: typeof wb.socios, nome?: string) => ({
+    nome: nome ?? lista[0].nome_exibicao,
+    percentual: lista.reduce((t, x) => t + Number(x.percentual), 0),
+    ids: lista.map((x) => x.id),
+  });
+  const socios =
+    wb.socios.length > VAGAS.socios
+      ? [
+          ...wb.socios.slice(0, VAGAS.socios - 1).map((x) => grupoSocio([x])),
+          grupoSocio(wb.socios.slice(VAGAS.socios - 1), `Demais sócios (${wb.socios.length - VAGAS.socios + 1})`),
+        ]
+      : wb.socios.map((x) => grupoSocio([x]));
 
   // ── Tabela mensal ────────────────────────────────────────────────────────
   wb.meses.forEach((m, i) => {
@@ -144,9 +156,9 @@ export function montarConteudoDados(dados: ApresentacaoFechamentoDados, geradoEm
     set(`${COL.linkedin}${r}`, n(v.seguidores_linkedin));
     set(`${COL.instagram}${r}`, n(v.seguidores_instagram));
     socios.forEach((s, k) => {
-      const sm = m.socios?.[s.id];
-      set(`${COL.retirada[k]}${r}`, Number(sm?.prolabore ?? 0));
-      set(`${COL.atribuido[k]}${r}`, Number(sm?.saldo ?? 0));
+      const soma = (campo: 'prolabore' | 'saldo') => s.ids.reduce((t, id) => t + Number(m.socios?.[id]?.[campo] ?? 0), 0);
+      set(`${COL.retirada[k]}${r}`, soma('prolabore'));
+      set(`${COL.atribuido[k]}${r}`, soma('saldo'));
     });
   });
 
@@ -251,10 +263,10 @@ export function montarConteudoDados(dados: ApresentacaoFechamentoDados, geradoEm
     extratoPendentes: dados.pendencias?.extrato_pendentes ?? 0,
     ultimoExtrato: dados.pendencias?.extrato_ultima_data ? excelSerial(dados.pendencias.extrato_ultima_data.slice(0, 10)) : null,
     notasSaida: dados.pendencias?.notas_saida_mes ?? 0,
-    socio1: socios[0]?.nome_exibicao ?? null,
-    socio2: socios[1]?.nome_exibicao ?? null,
-    socio3: socios[2]?.nome_exibicao ?? null,
-    socio4: socios[3]?.nome_exibicao ?? null,
+    socio1: socios[0]?.nome ?? null,
+    socio2: socios[1]?.nome ?? null,
+    socio3: socios[2]?.nome ?? null,
+    socio4: socios[3]?.nome ?? null,
     participacao1: socios[0] ? Number(socios[0].percentual) / 100 : null,
     participacao2: socios[1] ? Number(socios[1].percentual) / 100 : null,
     participacao3: socios[2] ? Number(socios[2].percentual) / 100 : null,
