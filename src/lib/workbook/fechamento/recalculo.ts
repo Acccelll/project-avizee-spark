@@ -148,21 +148,22 @@ function referenciaFaixa(ref: string): { aba: string; c1: number; l1: number; c2
   return { aba, c1: Math.min(c1, c2), l1: Math.min(l1, l2), c2: Math.max(c1, c2), l2: Math.max(l1, l2) };
 }
 
-function cacheGrafico(tipo: 'num' | 'str', valores: Escalar[]): string {
+/** `p`: prefixo do namespace de gráficos ("c:" no Excel; vazio no openpyxl). */
+function cacheGrafico(tipo: 'num' | 'str', valores: Escalar[], p = 'c:'): string {
   const pts = valores
     .map((v, i) => {
       if (v === null || isErro(v)) return '';
       if (tipo === 'num') {
         if (typeof v !== 'number') return '';
-        return `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`;
+        return `<${p}pt idx="${i}"><${p}v>${v}</${p}v></${p}pt>`;
       }
       const s = typeof v === 'number' ? formatoGeral(v) : typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : v;
-      return `<c:pt idx="${i}"><c:v>${escapar(s)}</c:v></c:pt>`;
+      return `<${p}pt idx="${i}"><${p}v>${escapar(s)}</${p}v></${p}pt>`;
     })
     .join('');
   return tipo === 'num'
-    ? `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${valores.length}"/>${pts}</c:numCache>`
-    : `<c:strCache><c:ptCount val="${valores.length}"/>${pts}</c:strCache>`;
+    ? `<${p}numCache><${p}formatCode>General</${p}formatCode><${p}ptCount val="${valores.length}"/>${pts}</${p}numCache>`
+    : `<${p}strCache><${p}ptCount val="${valores.length}"/>${pts}</${p}strCache>`;
 }
 
 export interface ResumoRecalculo {
@@ -213,9 +214,11 @@ export async function gravarValoresCalculados(zip: JSZip, abas: Map<string, stri
   for (const path of graficos) {
     let xml = await zip.file(path)!.async('string');
     let mudou = false;
+    // Com prefixo "c:" (Excel) ou com o namespace padrão sem prefixo (openpyxl).
     xml = xml.replace(
-      /<c:(num|str)Ref><c:f>([^<]*)<\/c:f>(?:<c:(?:num|str)Cache>[\s\S]*?<\/c:(?:num|str)Cache>)?/g,
-      (orig, tipo: 'num' | 'str', formula: string) => {
+      /<(c:)?(num|str)Ref><\1f>([^<]*)<\/\1f>(?:<\1(?:num|str)Cache>[\s\S]*?<\/\1(?:num|str)Cache>)?/g,
+      (orig, prefixo: string | undefined, tipo: 'num' | 'str', formula: string) => {
+        const p = prefixo ?? '';
         const faixa = referenciaFaixa(decodificar(formula));
         if (!faixa || !modelo.has(faixa.aba)) return orig;
         const valores: Escalar[] = [];
@@ -223,7 +226,7 @@ export async function gravarValoresCalculados(zip: JSZip, abas: Map<string, stri
           for (let c = faixa.c1; c <= faixa.c2; c++) valores.push(planilha.valor(faixa.aba, c, l));
         }
         mudou = true;
-        return `<c:${tipo}Ref><c:f>${formula}</c:f>${cacheGrafico(tipo, valores)}`;
+        return `<${p}${tipo}Ref><${p}f>${formula}</${p}f>${cacheGrafico(tipo, valores, p)}`;
       },
     );
     if (mudou) {

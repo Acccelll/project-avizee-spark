@@ -74,6 +74,21 @@ describe('Workbook de Fechamento v2', () => {
     }
   });
 
+  it('grava o cache dos gráficos e evita sobreposição no Excel', async () => {
+    const { zip } = await abrir();
+    const graficos = Object.keys(zip.files).filter((p) => /^xl\/charts\/chart\d+\.xml$/.test(p));
+    expect(graficos.length).toBe(10);
+    for (const g of graficos) {
+      const x = await zip.file(g)!.async('string');
+      // Valores e rótulos já gravados (abre preenchido sem recálculo).
+      expect(x, g).toMatch(/<numCache>.*<pt idx="0">/);
+      expect(x, g).toMatch(/<cat><strRef><f>[^<]+<\/f><strCache>/);
+      // Título e legenda fora da área do gráfico; barras negativas sem inversão de cor.
+      expect(x, g).not.toMatch(/<overlay val="1"\/>/);
+      if (x.includes('<barChart>')) expect(x, g).toContain('<invertIfNegative val="0"/>');
+    }
+  });
+
   it('esconde as vagas vazias das listas', async () => {
     const { xml } = await abrir();
     const clientes = await xml('Clientes');
