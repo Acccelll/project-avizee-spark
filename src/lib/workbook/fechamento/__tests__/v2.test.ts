@@ -54,6 +54,8 @@ describe('Workbook de Fechamento v2', () => {
     expect(valor(resumo, 'F19')).toBe('OK');
     expect(valor(resumo, 'F20')).toBe('OK');
     expect(valor(resumo, 'F21')).toBe('OK');
+    // Sem caixa informado não há ajuste.
+    expect(valor(resumo, 'F22')).toBe('OK');
 
     const resultado = await xml('Resultado');
     expect(valor(resultado, 'K5')).toBeCloseTo(set.valores.receita_caixa!);
@@ -87,6 +89,19 @@ describe('Workbook de Fechamento v2', () => {
       expect(x, g).not.toMatch(/<overlay val="1"\/>/);
       if (x.includes('<barChart>')) expect(x, g).toContain('<invertIfNegative val="0"/>');
     }
+  });
+
+  it('ajuste ao extrato de centavos aparece como "Ajustado"', async () => {
+    const dados = dadosSinteticos('2026-09');
+    const set = dados.workbook.meses.find((m) => m.competencia === '2026-09')!;
+    set.valores.caixa_final_calculado = set.valores.caixa_final! - 0.5;
+    set.valores.ajuste_caixa = 0.5;
+    const out = (await preencherWorkbookFechamentoV2(modelo, dados, { tipo: 'uint8array', geradoEm: '2026-10-12' })) as Uint8Array;
+    const zip = await JSZip.loadAsync(out);
+    const abas = await mapaAbas(zip);
+    const resumo = await zip.file(abas.get('Resumo')!)!.async('string');
+    expect(valor(resumo, 'F22')).toBe('Ajustado');
+    expect(valor(resumo, 'I22')).toBeCloseTo(0.5);
   });
 
   it('esconde as vagas vazias das listas', async () => {

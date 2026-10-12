@@ -494,7 +494,9 @@ def aba_resumo(wb):
         put(ws, f'G{r}', f(va), 'num')
         put(ws, f'H{r}', f(vb), 'num')
         put(ws, f'I{r}', f(f'ROUND(G{r}-H{r},2)'), 'num')
-        put(ws, f'F{r}', f(f'IF(ABS(I{r})<1,"OK","{alerta[0] if alerta else "Verificar"}")'), 'texto')
+        # Conferências toleram arredondamento (< R$ 1); o ajuste aparece a partir de 1 centavo.
+        teste = f'I{r}=0' if alerta else f'ABS(I{r})<1'
+        put(ws, f'F{r}', f(f'IF({teste},"OK","{alerta[0] if alerta else "Verificar"}")'), 'texto')
     r += 1
     ws.merge_cells(f'B{r}:E{r}')
     put(ws, f'B{r}', 'Extrato do mês conciliado (linhas pendentes)', 'rot')
