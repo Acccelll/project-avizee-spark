@@ -32,6 +32,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference, Series
+from openpyxl.chart.data_source import AxDataSource, NumFmt
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.layout import Layout, ManualLayout
 from openpyxl.chart.series import SeriesLabel, StrRef
@@ -297,8 +298,11 @@ def estilo_grafico(ch, titulo=None, legenda=True):
     if titulo:
         ch.title = titulo
         ch.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True, solidFill=VINHO, latin=DFont(typeface=FONTE)))
+        # Sem "overlay" explícito o Excel desenha o título por cima do gráfico.
+        ch.title.overlay = False
     if legenda:
         ch.legend.position = 'b'
+        ch.legend.overlay = False
         ch.legend.txPr = _txt()
     else:
         ch.legend = None
@@ -324,6 +328,8 @@ def serie(ws, linha, c1, c2, titulo_ref, cor, tipo='bar'):
     if tipo == 'bar':
         s.graphicalProperties.solidFill = cor
         s.graphicalProperties.line.noFill = True
+        # Sem isso o Excel pinta de branco as barras negativas (pago).
+        s.invertIfNegative = False
     else:
         s.graphicalProperties.line.solidFill = cor
         s.graphicalProperties.line.width = 28000
@@ -340,7 +346,28 @@ def serie_coluna(ws, col, r1, r2, titulo_ref, cor):
     s.tx = SeriesLabel(strRef=StrRef(f"'{ws.title}'!{titulo_ref}"))
     s.graphicalProperties.solidFill = cor
     s.graphicalProperties.line.noFill = True
+    s.invertIfNegative = False
     return s
+
+
+def rotulos(ch, ws, col1, lin1, col2, lin2):
+    """Categorias como texto (strRef): os rótulos são "jan", "set/26", nomes."""
+    ref = f"'{ws.title}'!${L(col1)}${lin1}:${L(col2)}${lin2}"
+    for s in ch.series:
+        s.cat = AxDataSource(strRef=StrRef(f=ref))
+
+
+def barras_horizontais(ch):
+    """Ranking: valor escrito na ponta da barra, sem eixo de valores (que ia
+    para o topo e encostava no título)."""
+    ch.x_axis.scaling.orientation = 'maxMin'
+    ch.y_axis.delete = True
+    ch.y_axis.majorGridlines = None
+    for s in ch.series:
+        s.dLbls = DataLabelList(showVal=True, showSerName=False, showCatName=False, showLegendKey=False, showPercent=False)
+        s.dLbls.numFmt = '#,##0'
+        s.dLbls.position = 'outEnd'
+        s.dLbls.txPr = _txt(800, TINTA)
 
 
 LINHA_AUX = 90
@@ -361,10 +388,6 @@ def auxiliar(ws, origem, n=0):
 def mostrar_ocultas(ch):
     ch.visible_cells_only = False
     ch.display_blanks = 'gap'
-
-
-def categorias(ws, linha, c1, c2):
-    return Reference(ws, min_col=c1, max_col=c2, min_row=linha, max_row=linha)
 
 
 # ── Abas ─────────────────────────────────────────────────────────────────────
@@ -569,9 +592,10 @@ def aba_resultado(wb):
     ch.gapWidth = 60
     ch.series.append(serie(ws, 5, 3, 14, '$B$5', VINHO))
     ch.series.append(serie(ws, 6, 3, 14, '$B$6', TERRA2))
-    ch.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ch, ws, 3, 4, 14, 4)
     ln = LineChart()
     ln.series.append(serie(ws, auxiliar(ws, 8), 3, 14, '$B$8', TINTA, 'line'))
+    rotulos(ln, ws, 3, 4, 14, 4)
     estilo_grafico(ch, 'Recebido × pago e resultado acumulado')
     ch.x_axis.tickLblPos = 'low'
     mostrar_ocultas(ch)
@@ -621,7 +645,7 @@ def aba_faturamento(wb):
     ch.gapWidth = 50
     ch.series.append(serie(ws, 6, 3, 14, '$B$6', BEGE))
     ch.series.append(serie(ws, 7, 3, 14, '$B$7', VINHO))
-    ch.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ch, ws, 3, 4, 14, 4)
     estilo_grafico(ch, 'Faturamento por mês')
     ch.width, ch.height = 15, 8
     ws.add_chart(ch, 'B19')
@@ -632,7 +656,7 @@ def aba_faturamento(wb):
     ln.series.append(serie(ws, 15, 3, 14, '$B$15', BEGE, 'line'))
     ln.series[2].marker.symbol = 'none'
     ln.series[2].graphicalProperties.line.dashStyle = 'dash'
-    ln.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ln, ws, 3, 4, 14, 4)
     estilo_grafico(ln, 'Acumulado × meta × limite')
     mostrar_ocultas(ln)
     ln.width, ln.height = 15, 8
@@ -674,10 +698,11 @@ def aba_caixa(wb):
     ch.gapWidth = 50
     ch.series.append(serie(ws, 11, 3, 14, '$B$11', VINHO))
     ch.series.append(serie(ws, 10, 3, 14, '$B$10', TERRA3))
-    ch.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ch, ws, 3, 4, 14, 4)
     ln = LineChart()
     ln.series.append(serie(ws, 13, 3, 14, '$B$13', APAGADO, 'line'))
     ln.series[0].graphicalProperties.line.dashStyle = 'dash'
+    rotulos(ln, ws, 3, 4, 14, 4)
     estilo_grafico(ch, 'Caixa no fim do mês: disponível e bloqueado')
     ch += ln
     ch.width, ch.height = 26, 8.5
@@ -730,17 +755,20 @@ def aba_despesas(wb):
         r = rf + 1 + k
         lista = f'Dados!$AS${5 + k}'
         put(ws, f'B{r}', f(f'IF({lista}="","",{lista})'), 'rot')
+        # Razão social longa: reduz a fonte em vez de cortar o nome.
+        ws[f'B{r}'].alignment = Alignment(indent=1, vertical='center', shrink_to_fit=True)
         put(ws, f'C{r}', f(f'IF($B{r}="","",{det("Fornecedor", f"$B{r}", COMP)})'), 'num')
         put(ws, f'D{r}', f(f'IF($B{r}="","",IFERROR(C{r}/{vmes("E")},""))'), 'pct')
-    nota(ws, f'B{rf + 12}', 'Inclui retiradas dos sócios e impostos, como no extrato. "sem detalhe": ano importado só com o total pago.')
+    nota(ws, f'B{rf + 12}', 'Inclui retiradas dos sócios e impostos, como no extrato.')
+    nota(ws, f'B{rf + 13}', '"sem detalhe": ano importado só com o total pago.')
 
     ch = BarChart()
     ch.type = 'bar'
     ch.gapWidth = 40
     ch.series.append(serie_coluna(ws, 15, r0, r0 + 9, '$O$4', VINHO))
-    ch.set_categories(Reference(ws, min_col=2, max_col=2, min_row=r0, max_row=r0 + 9))
+    rotulos(ch, ws, 2, r0, 2, r0 + 9)
     estilo_grafico(ch, 'Maiores categorias no ano', legenda=False)
-    ch.x_axis.scaling.orientation = 'maxMin'
+    barras_horizontais(ch)
     ch.width, ch.height = 17, 8
     ws.add_chart(ch, f'F{rf - 1}')
     return ws
@@ -804,9 +832,9 @@ def aba_clientes(wb):
     ch.type = 'bar'
     ch.gapWidth = 40
     ch.series.append(serie_coluna(ws, 15, r0, r0 + 9, '$O$4', TERRA))
-    ch.set_categories(Reference(ws, min_col=2, max_col=2, min_row=r0, max_row=r0 + 9))
+    rotulos(ch, ws, 2, r0, 2, r0 + 9)
     estilo_grafico(ch, 'Dez maiores clientes no ano', legenda=False)
-    ch.x_axis.scaling.orientation = 'maxMin'
+    barras_horizontais(ch)
     ch.width, ch.height = 17, 8
     ws.add_chart(ch, f'E{r + 3}')
     return ws
@@ -857,9 +885,9 @@ def aba_estados(wb):
     ch.type = 'bar'
     ch.gapWidth = 40
     ch.series.append(serie_coluna(ws, 8, r0, r0 + 9, '$H$4', TERRA))
-    ch.set_categories(Reference(ws, min_col=2, max_col=2, min_row=r0, max_row=r0 + 9))
+    rotulos(ch, ws, 2, r0, 2, r0 + 9)
     estilo_grafico(ch, 'Dez maiores estados no ano', legenda=False)
-    ch.x_axis.scaling.orientation = 'maxMin'
+    barras_horizontais(ch)
     ch.width, ch.height = 15, 9
     ws.add_chart(ch, 'N4')
     return ws
@@ -919,7 +947,7 @@ def aba_capital(wb):
     ch.gapWidth = 60
     ch.series.append(serie(ws, tr, 3, 14, f'$B${tr}', TERRA))
     ch.series.append(serie(ws, tp, 3, 14, f'$B${tp}', VINHO))
-    ch.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ch, ws, 3, 4, 14, 4)
     estilo_grafico(ch, 'A receber × a pagar no fim do mês')
     ch.width, ch.height = 26, 8
     ws.add_chart(ch, 'B25')
@@ -964,7 +992,7 @@ def aba_estoque(wb):
     ch.gapWidth = 40
     ch.series.append(serie_coluna(ws, 3, r0, ultima, '$C$4', VINHO))
     ch.series.append(serie_coluna(ws, 4, r0, ultima, '$D$4', TERRA3))
-    ch.set_categories(Reference(ws, min_col=2, max_col=2, min_row=r0, max_row=ultima))
+    rotulos(ch, ws, 2, r0, 2, ultima)
     estilo_grafico(ch, 'Estoque no fim do mês')
     ch.width, ch.height = 18, 10
     ws.add_chart(ch, 'J4')
@@ -1060,7 +1088,7 @@ def aba_redes(wb):
     ln = LineChart()
     ln.series.append(serie(ws, auxiliar(ws, 5), 3, 14, '$B$5', VINHO, 'line'))
     ln.series.append(serie(ws, auxiliar(ws, 7, 1), 3, 14, '$B$7', TERRA, 'line'))
-    ln.set_categories(categorias(ws, 4, 3, 14))
+    rotulos(ln, ws, 3, 4, 14, 4)
     estilo_grafico(ln, 'Seguidores no fim do mês')
     mostrar_ocultas(ln)
     ln.y_axis.scaling.min = 0
