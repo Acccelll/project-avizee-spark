@@ -45,6 +45,7 @@ interface PedidoCompraTableProps {
   data: PedidoCompra[];
   loading: boolean;
   statusLabels: Record<string, string>;
+  numeroCotacaoById: Record<string, string>;
   onView: (p: PedidoCompra) => void;
   onEdit: (p: PedidoCompra) => void;
   onSend: (p: PedidoCompra) => void;
@@ -57,6 +58,7 @@ export function PedidoCompraTable({
   data,
   loading,
   statusLabels,
+  numeroCotacaoById,
   onView,
   onEdit,
   onSend,
@@ -69,11 +71,18 @@ export function PedidoCompraTable({
   const columns = [
     {
       key: "id",
-      label: "Nº Pedido",
+      label: "Nº OC",
       sortable: true,
       mobilePrimary: true,
       render: (p: PedidoCompra) => (
         <span className="font-mono text-xs font-semibold text-primary">{pedidoNumero(p)}</span>
+      ),
+    },
+    {
+      key: "cotacao_compra_id",
+      label: "Nº RC",
+      render: (p: PedidoCompra) => (
+        <span className="text-xs font-mono">{p.cotacao_compra_id ? (numeroCotacaoById[String(p.cotacao_compra_id)] ?? "—") : "Avulso"}</span>
       ),
     },
     {
@@ -89,6 +98,11 @@ export function PedidoCompraTable({
       label: "Emissão",
       sortable: true,
       render: (p: PedidoCompra) => <span className="text-xs">{formatDate(p.data_pedido)}</span>,
+    },
+    {
+      key: "observacoes",
+      label: "Resumo",
+      render: (p: PedidoCompra) => <span className="text-xs line-clamp-2 max-w-[220px]">{p.observacoes || "—"}</span>,
     },
     {
       key: "data_entrega_prevista",
@@ -108,7 +122,7 @@ export function PedidoCompraTable({
     },
     {
       key: "valor_total",
-      label: "Total",
+      label: "Valor total",
       sortable: true,
       mobileCard: true,
       render: (p: PedidoCompra) => (
