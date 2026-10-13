@@ -29,6 +29,7 @@ export default function PedidosCompra() {
   const { can } = useCan();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [recebDialog, setRecebDialog] = useState<{ id: string; numero: string } | null>(null);
   // Aprovar/Cancelar/Rejeitar pedido de compra requer permissão explícita; admin
   // mantém acesso total. Mantemos a prop `isAdmin` no Drawer para evitar refactor
@@ -141,6 +142,8 @@ export default function PedidosCompra() {
           data={filters.filteredData}
           loading={ctx.loading}
           statusLabels={statusLabels}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           onView={ctx.openView}
           onEdit={(p) => {
             if (isMobile) {
