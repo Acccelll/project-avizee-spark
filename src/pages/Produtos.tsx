@@ -370,26 +370,23 @@ const Produtos = () => {
   ];
 
   const semMinimoAtivo = ativoFilters.length === 1 && ativoFilters[0] === "ativo"
-    && estoqueFilters.length === 1 && estoqueFilters[0] === "sem_minimo";
+    && estoqueFilters.length === 1 && estoqueFilters[0] === "sem_minimo"
+    && cadastroFilters.length === 0 && tipoFilters.length === 0
+    && tipoItemFilters.length === 0 && grupoFilters.length === 0 && !searchTerm;
   const semPrecoAtivo = ativoFilters.length === 1 && ativoFilters[0] === "ativo"
-    && cadastroFilters.length === 1 && cadastroFilters[0] === "sem_preco";
+    && cadastroFilters.length === 1 && cadastroFilters[0] === "sem_preco"
+    && estoqueFilters.length === 0 && tipoFilters.length === 0
+    && tipoItemFilters.length === 0 && grupoFilters.length === 0 && !searchTerm;
   const togglePendencia = (kind: "sem_minimo" | "sem_preco") => {
-    if (kind === "sem_minimo" && semMinimoAtivo) {
-      setEstoqueFilters([]);
-      return;
-    }
-    if (kind === "sem_preco" && semPrecoAtivo) {
-      setCadastroFilters([]);
-      return;
-    }
-    setAtivoFilters(["ativo"]);
-    if (kind === "sem_minimo") {
-      setCadastroFilters([]);
-      setEstoqueFilters(["sem_minimo"]);
-    } else {
-      setEstoqueFilters([]);
-      setCadastroFilters(["sem_preco"]);
-    }
+    const alreadyActive = kind === "sem_minimo" ? semMinimoAtivo : semPrecoAtivo;
+    // Uma única atualização na URL preserva a consistência do filtro e faz
+    // o número do cartão corresponder ao universo efetivamente apresentado.
+    setFilter({
+      q: "", tipo: [], tipoItem: [], grupo: [],
+      ativo: alreadyActive ? [] : ["ativo"],
+      estoque: !alreadyActive && kind === "sem_minimo" ? ["sem_minimo"] : [],
+      cadastro: !alreadyActive && kind === "sem_preco" ? ["sem_preco"] : [],
+    });
   };
 
   const prodActiveFilters = useMemo(() => {
