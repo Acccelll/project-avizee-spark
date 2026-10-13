@@ -6,6 +6,8 @@ import {
   Pencil,
   PackageCheck,
   SendHorizontal,
+  Ban,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
@@ -51,6 +53,9 @@ interface PedidoCompraTableProps {
   onEdit: (p: PedidoCompra) => void;
   onSend: (p: PedidoCompra) => void;
   onReceive: (p: PedidoCompra) => void;
+  onGridAction: (kind: "cancelar" | "excluir", p: PedidoCompra) => void;
+  canCancel: boolean;
+  canDelete: boolean;
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
 }
@@ -64,6 +69,9 @@ export function PedidoCompraTable({
   onEdit,
   onSend,
   onReceive,
+  onGridAction,
+  canCancel,
+  canDelete,
   selectedIds,
   onSelectionChange,
 }: PedidoCompraTableProps) {
@@ -178,6 +186,7 @@ export function PedidoCompraTable({
       moduleKey="pedidos-compra"
       showColumnToggle={true}
       onRowClick={onView}
+      hidePrimaryAction
       onEdit={onEdit}
       selectable
       selectedIds={selectedIds}
@@ -235,14 +244,23 @@ export function PedidoCompraTable({
         const status = canonicalPedidoStatus(p.status);
         const canSend = status === "aprovado";
         const canReceive = pedidoCanReceive(status);
-        if (!canSend && !canReceive) return null;
+        const canCancelRow = canCancel && !["cancelado", "recebido", "parcialmente_recebido"].includes(status);
+        const canDeleteRow = canDelete && status === "rascunho";
+        if (!canSend && !canReceive && !canCancelRow && !canDeleteRow) return null;
         const primary = canSend
           ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }
           : { label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending };
         const secondary = canSend && canReceive
           ? [{ label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending }]
           : [];
-        return <RowActions primary={primary} secondary={secondary} />;
+        return <RowActions
+          primary={canSend || canReceive ? primary : undefined}
+          secondary={[
+            ...secondary,
+            ...(canCancelRow ? [{ label: "Cancelar OC", icon: Ban, onClick: () => onGridAction("cancelar", p) }] : []),
+          ]}
+          destructive={canDeleteRow ? { label: "Excluir OC", icon: Trash2, onClick: () => onGridAction("excluir", p) } : undefined}
+        />;
       }}
       mobileStatusKey="status"
       emptyTitle="Nenhum pedido de compra encontrado"
