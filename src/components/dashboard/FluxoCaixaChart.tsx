@@ -97,15 +97,15 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
 
   const today = isoMonth(new Date());
   const content = (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex shrink-0 items-center justify-between gap-2 flex-wrap">
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Fluxo financeiro · realizado + pendente</h3>
           <p className="text-[11px] text-muted-foreground">6 meses anteriores/incluindo atual + 3 futuros · saída abaixo de zero</p>
         </div>
         <a href="/fluxo-caixa" className="text-xs text-primary hover:underline">Detalhar →</a>
       </div>
-      <div className="min-h-[160px] flex-1">
+      <div className="h-[210px] w-full min-w-0 md:h-[190px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 6, left: -6, bottom: 0 }} barGap={1}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
@@ -122,14 +122,14 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] leading-4 text-muted-foreground">
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(142_76%_36%)]" />Recebido</span>
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(142_45%_68%)]" />A receber</span>
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(0_75%_51%)]" />Pago</span>
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(0_65%_78%)]" />A pagar</span>
         <span>Atual: {today}</span>
       </div>
-      <p className="text-[10px] text-muted-foreground">Previsões = saldos não baixados por vencimento, inclusive atrasados; não são saldo bancário.</p>
+      <p className="block text-[10px] leading-4 text-muted-foreground">Previsões = saldos não baixados por vencimento, inclusive atrasados; não são saldo bancário.</p>
     </div>
   );
 
