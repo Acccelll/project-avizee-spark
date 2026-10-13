@@ -43,7 +43,7 @@ export default function CotacoesCompra() {
   const { data: gridVinculos } = useQuery({ queryKey: ["compras-grid-vinculos"], queryFn: listComprasGridVinculos });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
-    data, loading, remove,
+    data, loading, remove, fetchData,
     modalOpen, setModalOpen,
     drawerOpen, setDrawerOpen,
     selected,
