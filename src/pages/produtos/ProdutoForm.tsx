@@ -316,6 +316,10 @@ export default function ProdutoForm({
   };
 
   const saveAndNewRef = useRef(false);
+  // Quando o cadastro principal foi criado mas um vínculo falhou, uma nova
+  // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
+  const pendingCreatedIdRef = useRef<string | null>(null);
+  const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,21 +378,35 @@ export default function ProdutoForm({
       }
 
       let produtoId: string;
+      let principalSalvo = false;
+      let composicaoSalva = false;
       try {
+        setPartialSaveMessage(null);
         if (mode === "create") {
-          const created = await createProduto(payload as never);
-          produtoId = (created as { id: string }).id;
+          if (pendingCreatedIdRef.current) {
+            // Retoma a criação interrompida; alterações feitas após o erro
+            // são enviadas para o mesmo produto em vez de gerar duplicidade.
+            produtoId = pendingCreatedIdRef.current;
+            delete payload.codigo_interno;
+            await updateProduto(produtoId, payload as never);
+          } else {
+            const created = await createProduto(payload as never);
+            produtoId = (created as { id: string }).id;
+            pendingCreatedIdRef.current = produtoId;
+          }
         } else if (id) {
           await updateProduto(id, payload as never);
           produtoId = id;
         } else {
-          return;
+          throw new Error("Produto não identificado para edição.");
         }
+        principalSalvo = true;
 
         const composicaoItens = form.eh_composto
           ? editComposicao.filter((c) => c.produto_filho_id).map((c) => ({ produto_filho_id: c.produto_filho_id, quantidade: c.quantidade }))
           : [];
         await saveProdutoComposicao({ produtoPaiId: produtoId, itens: composicaoItens, ehComposto: !!form.eh_composto });
+        composicaoSalva = true;
 
         const fornecedoresPayload = editFornecedores.filter((f) => f.fornecedor_id).map((f) => ({
           fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal ?? false,
@@ -398,6 +416,8 @@ export default function ProdutoForm({
         }));
         await saveProdutoFornecedores({ produtoId, itens: fornecedoresPayload });
 
+        pendingCreatedIdRef.current = null;
+        setPartialSaveMessage(null);
         markPristine();
         queryClient.invalidateQueries({ queryKey: ["produtos"] });
         toast.success(mode === "create" ? "Produto criado com sucesso" : "Produto atualizado");
@@ -419,8 +439,21 @@ export default function ProdutoForm({
           else navigate("/produtos");
         }
       } catch (err) {
-        notifyError(err);
+        if (principalSalvo) {
+          // A operação NÃO é transacional entre as três RPCs: deixar claro
+          // o que persistiu e permitir retentativa sem duplicar o produto.
+          const etapa = composicaoSalva ? "fornecedores" : "composição";
+          const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. As informações anteriores foram preservadas. Revise e clique em Salvar para tentar novamente.`;
+          setPartialSaveMessage(msg);
+          queryClient.invalidateQueries({ queryKey: ["produtos"] });
+          toast.warning(msg, { duration: 9000 });
+        } else {
+          notifyError(err);
+        }
       }
+    }).catch((err) => {
+      // useSubmitLock já mostra o erro e libera o bloqueio de envio.
+      if (!partialSaveMessage) console.error("Falha ao salvar produto", err);
     });
   };
 
@@ -597,6 +630,13 @@ export default function ProdutoForm({
                 <TabsTrigger value="compras" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><ShoppingCart className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
               </TabsListScrollable>
             </div>
+
+            {partialSaveMessage && (
+              <div role="alert" className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm text-foreground">
+                <p className="font-semibold">Salvamento parcialmente concluído</p>
+                <p className="mt-1 text-muted-foreground">{partialSaveMessage}</p>
+              </div>
+            )}
 
             {/* DADOS GERAIS */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0 min-h-[420px]">
