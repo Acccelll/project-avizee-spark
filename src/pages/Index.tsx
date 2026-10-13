@@ -380,6 +380,7 @@ const DashboardContent = () => {
     if (!isVisible(id)) return false;
     // Widget sem nenhuma situação real deixa de ocupar espaço.
     if (id === "operational") return operationalCards.length > 0;
+    if (id === "alertas") return stats.contasVencidas > 0 || fiscalStats.pendentes > 0 || comprasAtrasadasCount > 0 || remessasAtrasadas > 0;
     if (id === "fiscal") return fiscalStats.emitidas > 0 || fiscalStats.pendentes > 0 || fiscalStats.canceladas > 0;
     if (id === "logistica") return comprasAguardando.length > 0 || remessasAtrasadas > 0;
     return true;
