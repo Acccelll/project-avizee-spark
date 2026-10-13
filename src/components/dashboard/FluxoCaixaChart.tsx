@@ -42,8 +42,25 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
 
       // A view distingue baixa efetiva de saldo ainda pendente: somar cada categoria
       // apenas uma vez evita contabilizar um título pago como previsão novamente.
+      // Esta view ainda não consta no Database gerado; isolar a tipagem aqui.
+      type FlowQuery = PromiseLike<{
+        data: FluxoCaixaFinanceiroRow[] | null;
+        error: { message: string } | null;
+      }> & {
+        range: (from: number, to: number) => FlowQuery;
+        order: (column: string) => FlowQuery;
+      };
+      const viewClient = supabase as unknown as {
+        from: (table: string) => {
+          select: (columns: string) => {
+            gte: (column: string, value: string) => {
+              lte: (column: string, value: string) => FlowQuery;
+            };
+          };
+        };
+      };
       const rows = await fetchAllPages<FluxoCaixaFinanceiroRow>(() =>
-        supabase.from('vw_fluxo_caixa_financeiro')
+        viewClient.from('vw_fluxo_caixa_financeiro')
           .select('tipo, valor, data_ref, categoria')
           .gte('data_ref', dateFrom).lte('data_ref', dateTo)
           .order('data_ref').order('tipo').order('categoria'),
