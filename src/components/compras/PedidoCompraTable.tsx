@@ -1,4 +1,5 @@
 import { DataTable } from "@/components/DataTable";
+import { Link } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RowActions } from "@/components/list/RowActions";
 import {
@@ -82,7 +83,9 @@ export function PedidoCompraTable({
       key: "cotacao_compra_id",
       label: "Nº RC",
       render: (p: PedidoCompra) => (
-        <span className="text-xs font-mono">{p.cotacao_compra_id ? (numeroCotacaoById[String(p.cotacao_compra_id)] ?? "—") : "Avulso"}</span>
+        p.cotacao_compra_id && numeroCotacaoById[String(p.cotacao_compra_id)]
+          ? <Link to={`/cotacoes-compra/${p.cotacao_compra_id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-mono text-primary hover:underline">{numeroCotacaoById[String(p.cotacao_compra_id)]}</Link>
+          : <span className="text-xs text-muted-foreground">{p.cotacao_compra_id ? "—" : "Avulso"}</span>
       ),
     },
     {
