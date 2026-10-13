@@ -55,6 +55,7 @@ import {
   listProdutoComposicao,
   listProdutoFornecedores,
   saveProdutoComposicao,
+  calcularCustoComposicaoAtual,
   saveProdutoFornecedores,
   createUnidadeMedida,
   proximoSkuDoGrupo,
@@ -526,7 +527,7 @@ export default function ProdutoForm({
         ...rest,
         ncm: ncmDigits,
         variacoes: variacoesArr.length > 0 ? variacoesArr : null,
-        preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
+        preco_custo: form.preco_custo,
       };
       // Normaliza UUIDs opcionais — Postgres rejeita string vazia em coluna uuid.
       if (!payload.grupo_id) payload.grupo_id = null;
@@ -540,6 +541,13 @@ export default function ProdutoForm({
       let principalSalvo = false;
       let composicaoSalva = false;
       try {
+        // Consulta custos atuais antes de persistir qualquer campo ou vínculo.
+        if (form.eh_composto) {
+          payload.preco_custo = await calcularCustoComposicaoAtual(editComposicao.map((c) => ({
+            produto_filho_id: c.produto_filho_id,
+            quantidade: c.quantidade,
+          })));
+        }
         // Preserve o aviso até que toda a operação seja concluída.
         // Se a retentativa falhar antes de salvar o principal, o usuário
         // ainda precisa saber que existe um produto persistido.
@@ -1006,7 +1014,7 @@ export default function ProdutoForm({
                         <Plus className="w-3 h-3" /> Componente
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">O custo é calculado automaticamente pela soma dos componentes.</p>
+                    <p className="text-xs text-muted-foreground">O custo mostrado usa os preços carregados. Antes de salvar, os custos dos componentes são consultados novamente.</p>
                     {editComposicao.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum componente adicionado</p>}
                     {editComposicao.map((comp, idx) => {
                       const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
