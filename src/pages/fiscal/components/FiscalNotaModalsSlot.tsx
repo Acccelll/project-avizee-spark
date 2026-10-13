@@ -1,3 +1,4 @@
+import { useCan } from "@/hooks/useCan";
 import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import type { GridItem } from "@/components/ui/ItemsGrid";
@@ -44,6 +45,7 @@ export function FiscalNotaModalsSlot({
     ordensVenda, contasContabeis, cartoes,
     valorProdutos, totalImpostos, totalNF,
   } = modal;
+  const { can } = useCan();
 
   return (
     <>
@@ -78,7 +80,7 @@ export function FiscalNotaModalsSlot({
         xmlOriginInfo={xml.xmlOriginInfo}
         traducaoLinhasCount={xml.traducaoLinhas.length}
         onAbrirTraducao={xml.openTraducaoEdit}
-        onCriarProdutoQuick={xml.openQuickProdutoFromForm}
+        onCriarProdutoQuick={can("produtos:criar") ? xml.openQuickProdutoFromForm : undefined}
         onCriarFornecedorQuick={xml.openQuickFornecedorFromForm}
       />
 
