@@ -20,7 +20,6 @@ import { listGruposAtivos, fetchProdutosEstoqueSummary } from "@/services/produt
 import { Package, Archive, AlertCircle, Wrench } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
-import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
@@ -39,16 +38,16 @@ interface Produto {
 
 type ProdutoTableRow = Produto & { display_codigo: string; display_sku_secundario: string | null };
 
-type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "nao_controla";
+type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "sem_minimo";
 
 function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?: number | null }): SituacaoEstoque {
   const atual = Number(p.estoque_atual || 0);
   const minimo = Number(p.estoque_minimo || 0);
-  // Sem mínimo configurado e estoque zero → "não controla" (cinza, neutro).
-  if (minimo <= 0 && atual <= 0) return "nao_controla";
+  // Zero físico é um fato; mínimo não configurado não significa "não controla".
   if (atual <= 0) return "zerado";
-  if (minimo > 0 && atual <= minimo) return "critico";
-  if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
+  if (minimo <= 0) return "sem_minimo";
+  if (atual <= minimo) return "critico";
+  if (atual <= minimo * 1.2) return "atencao";
   return "normal";
 }
 
@@ -57,7 +56,7 @@ const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadg
   atencao:      { label: "Em atenção",       statusBadge: "pendente",   textClass: "text-warning"         },
   critico:      { label: "Abaixo do mínimo", statusBadge: "pendente",   textClass: "text-warning"         },
   zerado:       { label: "Sem estoque",      statusBadge: "cancelado",  textClass: "text-destructive"     },
-  nao_controla: { label: "Não controla",     statusBadge: "rascunho",   textClass: "text-muted-foreground" },
+  sem_minimo:  { label: "Mínimo não definido",     statusBadge: "rascunho",   textClass: "text-muted-foreground" },
 };
 
 function compactProductCode(value: string | null | undefined): string {
@@ -80,31 +79,6 @@ function getProdutoDisplaySkuSecundario(produto: Pick<Produto, "codigo_interno" 
   const skuNormalizado = normalizeProductCode(sku);
   const codigoPrincipal = normalizeProductCode(getProdutoDisplayCodigo(produto));
   return skuNormalizado && skuNormalizado !== codigoPrincipal ? sku : null;
-}
-function getProdutoCanonicalScore(produto: Pick<Produto, "codigo_interno" | "sku" | "variacoes">): number {
-  const rawPrimary = compactProductCode(produto.codigo_interno || produto.sku || "");
-  const variacoesCount = parseVariacoes(produto.variacoes).length;
-  let score = variacoesCount * 100;
-  if (rawPrimary && normalizeProductCode(rawPrimary) === rawPrimary) score += 20;
-  score -= rawPrimary.length;
-  return score;
-}
-function pickCanonicalProduto<T extends Produto>(current: T, candidate: T): T {
-  return getProdutoCanonicalScore(candidate) > getProdutoCanonicalScore(current) ? candidate : current;
-}
-function dedupeProdutosCanonicos<T extends Produto>(produtos: T[]): T[] {
-  const deduped = new Map<string, T>();
-  for (const produto of produtos) {
-    const key = [
-      normalizeProductCode(produto.codigo_interno || produto.sku),
-      String(produto.nome || "").trim().toUpperCase(),
-      String(produto.tipo_item || "produto"),
-    ].join("::");
-    if (!key.replace(/::/g, "")) { deduped.set(produto.id, produto); continue; }
-    const existing = deduped.get(key);
-    deduped.set(key, existing ? pickCanonicalProduto(existing, produto) : produto);
-  }
-  return Array.from(deduped.values());
 }
 
 const Produtos = () => {
@@ -152,8 +126,11 @@ const Produtos = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
   const hasEstoqueFilter = estoqueFilters.length > 0;
+  const needsCompleteResult = hasEstoqueFilter || hasSemGrupoFilter;
+  const [filteredPage, setFilteredPage] = useState(0);
 
   const sort = useServerSort("sku", "asc");
+  useEffect(() => { setFilteredPage(0); }, [debouncedSearch, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, ativoFilters, sort.sortKey, sort.sortDir]);
   const {
     data,
     loading,
@@ -165,6 +142,7 @@ const Produtos = () => {
     setPage,
     totalCount,
     hasMore,
+    truncated,
   } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
@@ -172,6 +150,7 @@ const Produtos = () => {
     filter: serverFilters,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm", "variacoes_text"],
     pageSize: 50,
+    paginationMode: needsCompleteResult ? "all" : "paged",
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
@@ -230,26 +209,32 @@ const Produtos = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot
   }, [location.search, location.state]);
 
-  const filteredData = useMemo(() => {
-    const needsClientFilter = hasEstoqueFilter || hasSemGrupoFilter;
-    const filtered = needsClientFilter
-      ? data.filter((p) => {
-          if (hasEstoqueFilter) {
-            const situacao = getSituacaoEstoque(p);
-            if (!estoqueFilters.includes(situacao)) return false;
-          }
-          if (hasSemGrupoFilter) {
-            if (!grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
-          }
-          return true;
-        })
-      : data;
-    return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
+  // Quando o filtro depende de uma regra composta (estoque ou sem grupo),
+  // consulte todas as páginas antes de filtrar. Nunca filtre somente os 50
+  // itens visíveis, pois isso quebra contagem e navegação.
+  const filteredAll = useMemo(() => data
+    .filter((p) => {
+      if (hasEstoqueFilter && !estoqueFilters.includes(getSituacaoEstoque(p))) return false;
+      if (hasSemGrupoFilter && !grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
+      return true;
+    })
+    // Nenhum cadastro é ocultado por deduplicação visual: cada linha tem ID próprio.
+    .map<ProdutoTableRow>((produto) => ({
       ...produto,
       display_codigo: getProdutoDisplayCodigo(produto),
       display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
-    }));
-  }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
+    })), [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
+
+  const effectiveFilteredPage = needsCompleteResult
+    ? Math.min(filteredPage, Math.max(0, Math.ceil(filteredAll.length / 50) - 1))
+    : page;
+  const filteredData = needsCompleteResult
+    ? filteredAll.slice(effectiveFilteredPage * 50, (effectiveFilteredPage + 1) * 50)
+    : filteredAll;
+  const visibleCount = needsCompleteResult ? filteredAll.length : (totalCount ?? data.length);
+  const visibleHasMore = needsCompleteResult
+    ? (effectiveFilteredPage + 1) * 50 < filteredAll.length
+    : hasMore;
 
   const columns = [
     { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
@@ -301,15 +286,6 @@ const Produtos = () => {
     { key: "estoque_atual", mobileCard: true, label: "Estoque", sortable: true, render: (p: Produto) => {
       const situacao = getSituacaoEstoque(p);
       const cfg = situacaoEstoqueConfig[situacao];
-      // "Não controla": evita o "0 CX" enganoso — mostra texto explícito.
-      if (situacao === "nao_controla") {
-        return (
-          <div className="space-y-0.5">
-            <span className="text-xs text-muted-foreground italic">não controlado</span>
-            <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
-          </div>
-        );
-      }
       return (
         <div className="space-y-0.5">
           <span className={`font-mono text-sm font-semibold ${cfg.textClass}`}>
@@ -319,9 +295,7 @@ const Produtos = () => {
           {Number(p.estoque_minimo) > 0 && (
             <p className="text-[10px] text-muted-foreground font-mono leading-none">mín: {p.estoque_minimo}</p>
           )}
-          {/* Mantemos badge apenas para estados acionáveis (zerado, crítico, não controla).
-              "atencao" só usa cor no número para reduzir ruído visual. */}
-          {(situacao === "zerado" || situacao === "critico") && (
+          {(situacao === "zerado" || situacao === "critico" || situacao === "sem_minimo") && (
             <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
           )}
         </div>
@@ -438,7 +412,7 @@ const Produtos = () => {
     { label: "Abaixo do mínimo", value: "critico" },
     { label: "Em atenção", value: "atencao" },
     { label: "Normal", value: "normal" },
-    { label: "Não controla", value: "nao_controla" },
+    { label: "Mínimo não definido", value: "sem_minimo" },
   ];
   const grupoOptions: MultiSelectOption[] = [
     ...grupos.map(g => ({ label: g.nome, value: g.id })),
@@ -561,7 +535,7 @@ const Produtos = () => {
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
           onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
-          count={totalCount ?? filteredData.length}
+          count={visibleCount}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[150px]" />
           <MultiSelect options={tipoItemOptions} selected={tipoItemFilters} onChange={setTipoItemFilters} placeholder="Classificação" className="w-[160px]" />
@@ -571,6 +545,9 @@ const Produtos = () => {
         </AdvancedFilterBar>
       </div>
 
+      {truncated && needsCompleteResult && (
+        <p role="alert" className="mb-3 text-sm text-destructive">A consulta de produtos atingiu o limite seguro. Refine os filtros para obter uma lista completa.</p>
+      )}
       <PullToRefresh onRefresh={fetchData}>
         <div data-help-id="produtos.tabela">
           {isError ? (
@@ -592,7 +569,7 @@ const Produtos = () => {
             mobileHideIdentifier
             mobileLabeledDetails
             mobileStatusKey="ativo"
-            serverPagination={{ page, setPage, totalCount, hasMore }}
+            serverPagination={{ page: effectiveFilteredPage, setPage: needsCompleteResult ? setFilteredPage : setPage, totalCount: visibleCount, hasMore: visibleHasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
             serverSortDir={sort.sortDir}
