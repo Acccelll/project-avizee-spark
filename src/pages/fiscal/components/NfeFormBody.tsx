@@ -59,7 +59,7 @@ export interface NfeFormBodyProps {
   xmlOriginInfo: { fornecedorNome: string } | null;
   traducaoLinhasCount: number;
   onAbrirTraducao: () => void;
-  onCriarProdutoQuick: () => void;
+  onCriarProdutoQuick?: () => void;
   /**
    * Quando definido, exibe o botão "Cadastrar novo fornecedor" no autocomplete
    * de Fornecedor (apenas em NFs de entrada). Mesmo padrão de Orçamentos.
