@@ -14,9 +14,11 @@ interface CotacaoCompraTableProps {
   onView: (c: CotacaoCompra) => void;
   onEdit: (c: CotacaoCompra) => void;
   onApprove?: (c: CotacaoCompra) => void;
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
 }
 
-export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, onApprove }: CotacaoCompraTableProps) {
+export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, onApprove, selectedIds, onSelectionChange }: CotacaoCompraTableProps) {
   const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const getNextAction = (c: CotacaoCompra): { label: string; show: boolean } => {
     const s = summaries[c.id];
@@ -162,8 +164,11 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, o
       loading={loading}
       moduleKey="cotacoes_compra"
       showColumnToggle={true}
-      onView={onView}
+      onRowClick={onView}
       onEdit={onEdit}
+      selectable
+      selectedIds={selectedIds}
+      onSelectionChange={onSelectionChange}
       mobileStatusKey="status"
       mobileLabeledDetails
       mobilePrimaryAction={(c) => {
