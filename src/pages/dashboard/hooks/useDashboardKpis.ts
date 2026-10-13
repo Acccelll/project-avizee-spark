@@ -16,6 +16,7 @@ interface KpiParams {
     contasVencidas: number;
   };
   estoqueBaixoCount: number;
+  minimosConfigurados: number;
   backlogOVsCount: number;
   comprasAtrasadasCount: number;
   remessasAtrasadasCount: number;
@@ -39,6 +40,7 @@ export function useDashboardKpis(params: KpiParams) {
     metas,
     stats,
     estoqueBaixoCount,
+    minimosConfigurados,
     backlogOVsCount,
     comprasAtrasadasCount,
     remessasAtrasadasCount,
@@ -158,10 +160,10 @@ export function useDashboardKpis(params: KpiParams) {
       {
         id: "estoque-critico",
         title: "Estoque Crítico",
-        value: formatNumber(estoqueBaixoCount),
-        subtitle: estoqueBaixoCount > 0 ? "abaixo do mínimo" : "saudável",
+        value: minimosConfigurados === 0 ? "—" : formatNumber(estoqueBaixoCount),
+        subtitle: minimosConfigurados === 0 ? "mínimos não configurados" : estoqueBaixoCount > 0 ? "abaixo do mínimo" : "sem itens críticos",
         icon: Package,
-        variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
+        variant: minimosConfigurados === 0 ? ("neutral" as const) : estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
         onClick: onOpenEstoque,
         onDetail: onEstoqueDetail,
         scope: { kind: "snapshot" as const },
@@ -205,6 +207,7 @@ export function useDashboardKpis(params: KpiParams) {
       backlogOVsCount,
       comprasAtrasadasCount,
       estoqueBaixoCount,
+      minimosConfigurados,
       onEstoqueDetail,
       onOpenBacklog,
       onOpenCompras,
