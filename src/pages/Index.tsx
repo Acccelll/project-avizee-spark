@@ -98,7 +98,7 @@ const DashboardContent = () => {
     scopes,
   } = useDashboardData();
 
-  const { kpiCards, operationalCards, saldoProjetado } = useDashboardKpis({
+  const { kpiCards, operationalCards } = useDashboardKpis({
     metas,
     stats,
     estoqueBaixoCount: estoqueBaixo.length,
