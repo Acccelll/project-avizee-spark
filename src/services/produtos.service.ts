@@ -223,9 +223,12 @@ export async function saveProdutoFornecedores(params: {
   if (error) throw new Error("Erro ao salvar fornecedores: " + (error.message || "tente novamente"));
 }
 
+/** Inativação reversível. Exclusão física é ação administrativa separada. */
 export async function deleteProduto(id: string): Promise<void> {
-  const { error } = await supabase.from("produtos").delete().eq("id", id);
+  const { data, error } = await supabase.from("produtos")
+    .update({ ativo: false }).eq("id", id).select("id").maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("Produto não inativado. Verifique suas permissões.");
 }
 
 // ── CRUD básico (ProdutoForm) ────────────────────────────────────────────────
