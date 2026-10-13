@@ -12,9 +12,7 @@ import type {
 
 export const sumOpenFinanceiro = (rows: FinRow[] = []) =>
   rows.reduce((sum, row) => {
-    const value = row.status === "parcial"
-      ? Number(row.saldo_restante ?? row.valor ?? 0)
-      : Number(row.valor ?? 0);
+    const value = Number(row.saldo_restante ?? row.valor ?? 0);
     return sum + value;
   }, 0);
 
@@ -51,9 +49,7 @@ export const aggregateTopClientes = (rows: RecDataRow[] = [], limit = 5): TopPoi
 
   for (const row of rows) {
     const nome = row.clientes?.nome_razao_social ?? "Sem cliente";
-    const value = row.status === "parcial"
-      ? Number(row.saldo_restante ?? row.valor ?? 0)
-      : Number(row.valor ?? 0);
+    const value = Number(row.saldo_restante ?? row.valor ?? 0);
     map.set(nome, (map.get(nome) ?? 0) + value);
   }
 
@@ -94,9 +90,7 @@ export const aggregateDailyFinanceiro = (days: string[], rows: DailyFinRow[] = [
   const map = new Map<string, number>(days.map((day) => [day, 0]));
 
   for (const row of rows) {
-    const value = row.status === "parcial"
-      ? Number(row.saldo_restante ?? row.valor ?? 0)
-      : Number(row.valor ?? 0);
+    const value = Number(row.saldo_restante ?? row.valor ?? 0);
     map.set(row.data_vencimento, (map.get(row.data_vencimento) ?? 0) + value);
   }
 
