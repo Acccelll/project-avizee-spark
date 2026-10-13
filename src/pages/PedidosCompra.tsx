@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { notifyError } from "@/utils/errorMessages";
+import { CompraGridConfirmDialog, type CompraGridAction } from "@/components/compras/CompraGridConfirmDialog";
+import { executarAcaoGridCompra } from "@/services/comprasGridActions.service";
+import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { listComprasGridVinculos } from "@/services/comprasGridVinculos.service";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
@@ -27,6 +32,17 @@ const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();
+  const queryClient = useQueryClient();
+  const [gridAction, setGridAction] = useState<CompraGridAction<PedidoCompra> | null>(null);
+  const confirmGridAction = async (action: CompraGridAction<PedidoCompra>, motivo: string) => {
+    try {
+      await executarAcaoGridCompra("oc", action.kind, String(action.record.id), motivo);
+      toast.success(action.kind === "cancelar" ? "OC cancelada." : "OC excluída.");
+      setSelectedIds((prev) => prev.filter((id) => id !== String(action.record.id)));
+      await ctx.refreshAll();
+      await queryClient.invalidateQueries({ queryKey: ["compras-grid-vinculos"] });
+    } catch (error) { notifyError(error); throw error; }
+  };
   const { data: gridVinculos } = useQuery({ queryKey: ["compras-grid-vinculos"], queryFn: listComprasGridVinculos });
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
@@ -145,6 +161,9 @@ export default function PedidosCompra() {
           data={filters.filteredData}
           loading={ctx.loading}
           statusLabels={statusLabels}
+          canCancel={isAdmin || can("compras:cancelar")}
+          canDelete={isAdmin || can("compras:editar")}
+          onGridAction={(kind, record) => setGridAction({ kind, record })}
           numeroCotacaoById={gridVinculos?.numeroCotacaoById ?? {}}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -204,6 +223,14 @@ export default function PedidosCompra() {
           statusLabels={statusLabels}
         />
       )}
+
+      <CompraGridConfirmDialog
+        key={gridAction ? `${gridAction.kind}-${gridAction.record.id}` : "idle"}
+        action={gridAction}
+        numero={gridAction ? pedidoNumero(gridAction.record) : ""}
+        onClose={() => setGridAction(null)}
+        onConfirm={confirmGridAction}
+      />
 
       {recebDialog && (
         <RegistrarRecebimentoDialog
