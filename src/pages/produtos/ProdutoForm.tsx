@@ -523,7 +523,7 @@ export default function ProdutoForm({
   const headerSubtitle =
     mode === "edit" && editingProduct
       ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
-      : "Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar.";
+      : "Preencha os dados essenciais e salve. Estoque, fiscal e fornecedores podem ser complementados quando necessário.";
   // Status agora é controlado exclusivamente pelo toggle nas headerActions
   const headerBadge = undefined;
   const headerActions = (
@@ -591,12 +591,11 @@ export default function ProdutoForm({
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
-              <TabsListScrollable cols={5}>
-                <TabsTrigger value="dados-gerais" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
+              <TabsListScrollable cols={4}>
+                <TabsTrigger value="dados-gerais" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Package className="h-3.5 w-3.5" />Dados essenciais</TabsTrigger>
                 <TabsTrigger value="estoque" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Archive className="h-3.5 w-3.5" />Estoque</TabsTrigger>
                 <TabsTrigger value="fiscal" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><FileText className="h-3.5 w-3.5" />Fiscal</TabsTrigger>
-                <TabsTrigger value="compras" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><ShoppingCart className="h-3.5 w-3.5" />Compras</TabsTrigger>
-                <TabsTrigger value="observacoes" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><AlignLeft className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+                <TabsTrigger value="compras" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><ShoppingCart className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
               </TabsListScrollable>
             </div>
 
@@ -645,16 +644,6 @@ export default function ProdutoForm({
                     {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
                       <p className="text-[11px] text-muted-foreground">Defina sigla no grupo para gerar SKU automático.</p>
                     )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
-                      Código Interno (ERP)
-                      <span className="text-muted-foreground font-normal text-xs">(sequencial — gerado automaticamente)</span>
-                    </Label>
-                    <Input value={form.codigo_interno} readOnly disabled
-                      className="font-mono bg-muted/40"
-                      placeholder={mode === "create" ? "Será gerado ao salvar" : ""}
-                      title="Código sequencial interno do ERP — não editável" />
                   </div>
                   <div className="space-y-2">
                     <Label>Grupo de Produto</Label>
@@ -738,6 +727,9 @@ export default function ProdutoForm({
                     </Select>
                   </div>
                 </div>
+                <details className="rounded-lg border bg-muted/15 px-3 py-2" key={editingProduct?.eh_composto ? "composed" : "regular"} defaultOpen={!!editingProduct?.eh_composto}>
+                  <summary className="cursor-pointer py-1 text-sm font-medium">Composição do produto (opcional)</summary>
+                  <div className="mt-3 space-y-3">
                 <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Tipo de composição</Label>
                   <div className="flex items-center gap-3">
@@ -827,6 +819,9 @@ export default function ProdutoForm({
                     )}
                   </div>
                 )}
+
+                  </div>
+                </details>
               </div>
 
               <div className="space-y-3">
@@ -870,6 +865,9 @@ export default function ProdutoForm({
                 </div>
               </div>
 
+              <details className="rounded-lg border px-3 py-2">
+                <summary className="cursor-pointer py-1 text-sm font-medium">Mais detalhes comerciais (opcional)</summary>
+                <div className="space-y-4 py-3">
               <div className="space-y-3 border-t pt-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Tag className="w-4 h-4" /> Variações Comerciais</h3>
                 <div className="space-y-2">
@@ -887,6 +885,18 @@ export default function ProdutoForm({
                   )}
                 </div>
               </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="descricao-produto">Descrição comercial</Label>
+                    <p className="text-xs text-muted-foreground">Usada em orçamentos, pedidos e catálogos.</p>
+                    <Textarea id="descricao-produto" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                      placeholder="Características, especificações ou conteúdo da embalagem…" rows={3} />
+                  </div>
+                  {mode === "edit" && form.codigo_interno && (
+                    <p className="text-xs text-muted-foreground">Código interno do ERP: <span className="font-mono">{form.codigo_interno}</span></p>
+                  )}
+                </div>
+              </details>
             </TabsContent>
 
             {/* ESTOQUE */}
@@ -898,7 +908,7 @@ export default function ProdutoForm({
                   const reservado = Number(((editingProduct as unknown) as { estoque_reservado?: number | null }).estoque_reservado ?? 0);
                   const disponivel = atual - reservado;
                   const min = Number(editingProduct.estoque_minimo ?? 0);
-                  const controla = !(atual === 0 && min === 0);
+                  const minimoDefinido = min > 0;
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="rounded-lg border bg-muted/20 p-2.5">
@@ -914,8 +924,8 @@ export default function ProdutoForm({
                         <p className={`font-mono font-semibold text-sm ${disponivel < 0 ? "text-destructive" : ""}`}>{disponivel} {editingProduct.unidade_medida}</p>
                       </div>
                       <div className="rounded-lg border bg-muted/20 p-2.5">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Controla estoque?</p>
-                        <p className="font-semibold text-sm">{controla ? "Sim" : "Não"}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque mínimo</p>
+                        <p className="font-semibold text-sm">{minimoDefinido ? "Configurado" : "Não definido"}</p>
                       </div>
                     </div>
                   );
@@ -925,13 +935,7 @@ export default function ProdutoForm({
                     <Label>Estoque Mínimo</Label>
                     <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                     {Number(form.estoque_minimo) === 0 && (
-                      <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium text-warning">Sem estoque mínimo definido.</span>{" "}
-                          Defina um valor para que o sistema alerte quando o produto precisar de reposição.
-                        </p>
-                      </div>
+                      <p className="text-xs text-muted-foreground">Opcional. Sem mínimo, não há alerta de reposição para este item.</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -1161,22 +1165,6 @@ export default function ProdutoForm({
 
             </TabsContent>
 
-            {/* OBSERVAÇÕES */}
-            <TabsContent value="observacoes" className="space-y-4 mt-0 min-h-[420px]">
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição comercial</h3>
-                <p className="text-xs text-muted-foreground">Texto exibido em orçamentos, pedidos e catálogos.</p>
-                <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Características, especificações técnicas, conteúdo da embalagem…"
-                  rows={5} className="min-h-[140px]" />
-              </div>
-              <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                <p className="text-sm font-medium">Observação interna</p>
-                <p className="text-xs text-muted-foreground">
-                  Para anotações internas que não devem aparecer em documentos comerciais, use o campo <strong>Observação</strong> dentro do orçamento ou pedido.
-                </p>
-              </div>
-            </TabsContent>
           </Tabs>
     </form>
     </TooltipProvider>
