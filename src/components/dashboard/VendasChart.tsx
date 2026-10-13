@@ -1,207 +1,126 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useState } from 'react';
+import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPages } from '@/services/relatorios/lib/fetchAllPages';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
-interface VendasPoint {
-  mes: string;
-  valor: number;
-  rawDate: string;
-}
+interface FaturamentoPoint { mes: string; rawDate: string; valor: number; notas: number; }
+interface VendasChartProps { onBarClick?: (monthStart: string, monthEnd: string) => void; }
 
-interface VendasChartProps {
-  /** Called with the ISO month string (YYYY-MM) when user clicks a bar. */
-  onBarClick?: (monthStart: string, monthEnd: string) => void;
-}
-
-/** Converts a "YYYY-MM" string into {label, start, end}. */
-function parseMonth(rawDate: string) {
-  const [year, mon] = rawDate.split('-');
-  const y = Number(year);
-  const m = Number(mon);
-  const label = new Date(y, m - 1).toLocaleDateString('pt-BR', {
-    month: 'short',
-    year: '2-digit',
-  });
-  const start = `${year}-${mon}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const end = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`;
-  return { label, start, end };
+function dates(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  return {
+    start: `${month}-01`,
+    end: `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`,
+  };
 }
 
 export function VendasChart({ onBarClick }: VendasChartProps) {
   const navigate = useNavigate();
-  const { range } = useDashboardPeriod();
-  const { data = [], isLoading: loading } = useQuery<VendasPoint[]>({
-    queryKey: ['dashboard', 'vendas', range.dateFrom, range.dateTo],
+  const [monthsShown, setMonthsShown] = useState<6 | 12>(6);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['dashboard', 'faturamento-historico-real'],
     queryFn: async () => {
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-      sixMonthsAgo.setDate(1);
-      const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
-      // Período global menor que 6m → respeita o range.
-      // Período maior → mantém janela de 6m para legibilidade.
-      const dateFrom =
-        range.dateFrom && range.dateFrom > sixMonthsAgoStr
-          ? range.dateFrom
-          : sixMonthsAgoStr;
-      const dateTo = range.dateTo || new Date().toISOString().slice(0, 10);
+      // Ancora o histórico na última NF de saída efetivamente registrada.
+      // Mês corrente vazio não apaga a evolução comercial anterior.
+      const latest = await supabase.from('notas_fiscais').select('data_emissao')
+        .eq('ativo', true).eq('tipo', 'saida').in('status', ['confirmada', 'importada'])
+        .order('data_emissao', { ascending: false }).limit(1);
+      if (latest.error) throw latest.error;
+      if (!latest.data?.length) return { points: [] as FaturamentoPoint[], lastMonth: '' };
 
-      // Frente 4 — paginação universal: 6 meses de NFs de saída podem
-      // ultrapassar 1000 linhas em volumes médios e zerar meses no gráfico.
-      const rows = await fetchAllPages<{ valor_total: number | string; data_emissao: string }>(() =>
-        supabase
-          .from('notas_fiscais')
-          .select('valor_total, data_emissao')
-          .eq('ativo', true)
-          .eq('tipo', 'saida')
+      const lastMonth = latest.data[0].data_emissao.slice(0, 7);
+      const [year, mon] = lastMonth.split('-').map(Number);
+      const first = new Date(year, mon - 12, 1);
+      const start = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}-01`;
+      const end = dates(lastMonth).end;
+      const rows = await fetchAllPages<{ data_emissao: string; valor_total: number | null }>(() =>
+        supabase.from('notas_fiscais').select('data_emissao, valor_total')
+          .eq('ativo', true).eq('tipo', 'saida')
           .in('status', ['confirmada', 'importada'])
-          .gte('data_emissao', dateFrom)
-          .lte('data_emissao', dateTo),
-        { onTruncated: () => { throw new Error('Histórico de notas ultrapassa limite seguro'); } },
+          .gte('data_emissao', start).lte('data_emissao', end)
+          .order('data_emissao').order('id'),
+        { onTruncated: () => { throw new Error('Histórico fiscal ultrapassa limite seguro'); } },
       );
-
-      const monthMap = new Map<string, number>();
-      for (const row of rows || []) {
-        const month = (row.data_emissao as string).slice(0, 7);
-        monthMap.set(month, (monthMap.get(month) ?? 0) + Number(row.valor_total || 0));
+      const map = new Map<string, FaturamentoPoint>();
+      for (let offset = -11; offset <= 0; offset++) {
+        const d = new Date(year, mon - 1 + offset, 1);
+        const rawDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        map.set(rawDate, {
+          rawDate, mes: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+          valor: 0, notas: 0,
+        });
       }
-
-      // Gera sequência de meses entre dateFrom e dateTo (preenchendo zeros),
-      // garantindo eixo X estável conforme o range global.
-      const [fy, fm] = dateFrom.split('-').map(Number);
-      const [ty, tm] = dateTo.split('-').map(Number);
-      const months: string[] = [];
-      const cursor = new Date(fy, fm - 1, 1);
-      const endCursor = new Date(ty, tm - 1, 1);
-      while (cursor <= endCursor) {
-        months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
-        cursor.setMonth(cursor.getMonth() + 1);
+      for (const r of rows) {
+        const p = map.get(r.data_emissao.slice(0, 7));
+        if (!p) continue;
+        p.valor += Number(r.valor_total ?? 0);
+        p.notas += 1;
       }
-      return months.map((month) => ({
-        mes: parseMonth(month).label,
-        valor: monthMap.get(month) ?? 0,
-        rawDate: month,
-      }));
+      return { points: [...map.values()], lastMonth };
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
-interface RechartsClickPayload {
-  activePayload?: Array<{ payload: VendasPoint }>;
-}
+  if (isLoading) return <Skeleton className="h-full min-h-[180px] w-full" />;
+  if (isError) return <div role="alert" className="p-3 text-sm text-destructive">Não foi possível carregar as notas de saída. <button type="button" className="underline" onClick={() => refetch()}>Tentar novamente</button></div>;
+  if (!data?.points.length) return <div className="p-3 text-sm text-muted-foreground">Sem notas fiscais de saída válidas no cadastro. <a href="/fiscal?tipo=saida" className="underline text-primary">Consultar notas</a></div>;
 
-  const handleBarClick = (payload: RechartsClickPayload) => {
-    if (!payload?.activePayload?.[0]) return;
-    const point = payload.activePayload[0].payload as VendasPoint;
-    const { start, end } = parseMonth(point.rawDate);
-
-    if (onBarClick) {
-      onBarClick(start, end);
-    } else {
-      navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col h-full space-y-3">
-        <Skeleton className="h-5 w-48 shrink-0" />
-        <Skeleton className="flex-1 w-full min-h-[160px]" />
-      </div>
-    );
-  }
-
-  const total = data.reduce((acc, p) => acc + p.valor, 0);
-  const melhor = data.reduce<VendasPoint | null>((best, p) => (!best || p.valor > best.valor ? p : best), null);
-  const currentRaw = (() => {
-    const t = new Date();
-    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
-  })();
-  const compactCurrency = (v: number) =>
-    v >= 1000 ? `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `R$ ${v.toFixed(0)}`;
+  const points = data.points.slice(-monthsShown);
+  const latest = data.points[data.points.length - 1];
+  const previous = data.points[data.points.length - 2];
+  const average = latest.notas ? latest.valor / latest.notas : 0;
+  const change = previous?.valor ? (latest.valor / previous.valor - 1) * 100 : null;
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const isStale = data.lastMonth !== currentMonth;
 
   return (
-    <figure
-      role="img"
-      aria-label="Gráfico de notas fiscais de saída válidas nos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
-      className="flex flex-col h-full"
-    >
-      <div className="mb-2 shrink-0 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <h3 className="font-semibold text-foreground text-sm">
-          NF de saída — últimos 6 meses
-          <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(janela fixa)</span>
-        </h3>
-        <span className="text-[11px] text-muted-foreground">
-          Total: <strong className="font-semibold text-foreground mono">{formatCurrency(total)}</strong>
-          {melhor && melhor.valor > 0 && (
-            <>
-              {' · '}Melhor mês:{' '}
-              <strong className="font-semibold text-foreground">{melhor.mes}</strong>
-            </>
-          )}
-        </span>
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold">Notas fiscais de saída · evolução mensal</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Último mês com NF: {latest.mes}{isStale ? ' · mês atual sem notas' : ''}
+          </p>
+        </div>
+        <div className="inline-flex rounded-md border p-0.5 text-xs">
+          <button type="button" onClick={() => setMonthsShown(6)} aria-pressed={monthsShown === 6}
+            className={`rounded px-2 py-1 ${monthsShown === 6 ? 'bg-muted font-semibold' : 'text-muted-foreground'}`}>6 meses</button>
+          <button type="button" onClick={() => setMonthsShown(12)} aria-pressed={monthsShown === 12}
+            className={`rounded px-2 py-1 ${monthsShown === 12 ? 'bg-muted font-semibold' : 'text-muted-foreground'}`}>12 meses</button>
+        </div>
       </div>
-      <div className="flex-1 min-h-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          onClick={handleBarClick}
-          style={{ cursor: 'pointer' }}
-          margin={{ top: 18, right: 8, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-          <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-          <YAxis hide />
-          <Tooltip
-            formatter={(value: number) => [formatCurrency(value), 'NF de saída']}
-            contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
-          />
-          <Bar
-            dataKey="valor"
-            radius={[4, 4, 0, 0]}
-            maxBarSize={56}
-            isAnimationActive={false}
-          >
-            {data.map((p) => (
-              <Cell
-                key={p.rawDate}
-                fill={
-                  p.rawDate === currentRaw
-                    ? 'hsl(var(--primary))'
-                    : 'hsl(var(--primary) / 0.5)'
-                }
-              />
-            ))}
-            <LabelList
-              dataKey="valor"
-              position="top"
-              className="hidden md:block"
-              formatter={(v: number) => (v > 0 ? compactCurrency(v) : '')}
-              style={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+        <span>Último mês: <strong className="text-foreground">{formatCurrency(latest.valor)}</strong></span>
+        <span>{latest.notas} NF{latest.notas !== 1 ? 's' : ''}</span>
+        <span>Média/NF: {formatCurrency(average)}</span>
+        {change !== null && <span className={change >= 0 ? 'text-success' : 'text-destructive'}>{change >= 0 ? '+' : ''}{change.toFixed(1)}% vs mês anterior</span>}
       </div>
-      <figcaption className="sr-only">
-        Clique em uma barra para navegar ao relatório de vendas filtrado pelo mês correspondente.
-      </figcaption>
-    </figure>
+      <div className="flex-1 min-h-[155px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: -10 }}
+            onClick={(e: { activePayload?: Array<{ payload: FaturamentoPoint }> }) => {
+              const point = e?.activePayload?.[0]?.payload;
+              if (!point) return;
+              const { start, end } = dates(point.rawDate);
+              if (onBarClick) onBarClick(start, end);
+              else navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`);
+            }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
+            <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+            <YAxis hide yAxisId="valor" />
+            <YAxis hide yAxisId="notas" orientation="right" />
+            <Tooltip formatter={(value: number, name: string) => [name === 'notas' ? Number(value).toLocaleString('pt-BR') : formatCurrency(value), name === 'notas' ? 'Quantidade de NFs' : 'Valor de NF de saída']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            <Bar yAxisId="valor" dataKey="valor" name="valor" fill="hsl(var(--primary))" radius={[3,3,0,0]} maxBarSize={35} isAnimationActive={false} />
+            <Line yAxisId="notas" dataKey="notas" name="notas" type="monotone" stroke="hsl(var(--secondary))" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="shrink-0 text-[10px] text-muted-foreground">Barras: valor · linha: quantidade de NFs. Inclui importadas válidas; não equivale necessariamente a vendas comerciais.</p>
+    </div>
   );
 }
