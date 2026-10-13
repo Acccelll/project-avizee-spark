@@ -31,6 +31,7 @@ interface DashboardDataState {
   dailyPagar: Array<{ dia: string; valor: number }>;
   dailyVendas: Array<{ dia: string; valor: number }>;
   valorEstoque: number;
+  minimosConfigurados: number;
   remessasAtrasadas: number;
   /** Per-block scope metadata so blocks can render a ScopeBadge. */
   scopes: {
@@ -74,6 +75,7 @@ const INITIAL_STATE: DashboardDataState = {
   dailyPagar: [],
   dailyVendas: [],
   valorEstoque: 0,
+  minimosConfigurados: 0,
   remessasAtrasadas: 0,
   scopes: {
     financeiro: { kind: 'snapshot' },
@@ -138,6 +140,7 @@ export function useDashboardData() {
           dailyPagar: financeiro.dailyPagar,
           dailyVendas: comercial.dailyVendas,
           valorEstoque: estoque.valorEstoque,
+          minimosConfigurados: estoque.minimosConfigurados,
           remessasAtrasadas: aux.remessasAtrasadas,
           scopes: {
             financeiro: { kind: 'snapshot' },
