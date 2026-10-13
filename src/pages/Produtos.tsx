@@ -13,11 +13,10 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
-import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { listGruposAtivos, fetchProdutosEstoqueSummary } from "@/services/produtos.service";
-import { Package, Archive, AlertCircle, Wrench } from "lucide-react";
+import { listGruposAtivos } from "@/services/produtos.service";
+import { Package, AlertCircle, Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
@@ -93,6 +92,7 @@ const Produtos = () => {
       estoque: { type: "stringArray" },
       grupo: { type: "stringArray" },
       ativo: { type: "stringArray" },
+      cadastro: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -107,6 +107,8 @@ const Produtos = () => {
   const setGrupoFilters = (v: string[]) => setFilter({ grupo: v });
   const ativoFilters = filterValue.ativo;
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const cadastroFilters = filterValue.cadastro;
+  const setCadastroFilters = (v: string[]) => setFilter({ cadastro: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { can } = useCan();
   const canExcluir = can("produtos:excluir");
@@ -131,7 +133,7 @@ const Produtos = () => {
   const [filteredPage, setFilteredPage] = useState(0);
 
   const sort = useServerSort("sku", "asc");
-  useEffect(() => { setFilteredPage(0); }, [debouncedSearch, tipoFilters.join(","), tipoItemFilters.join(","), estoqueFilters.join(","), grupoFilters.join(","), ativoFilters.join(","), sort.sortKey, sort.sortDir]);
+  useEffect(() => { setFilteredPage(0); }, [debouncedSearch, tipoFilters.join(","), tipoItemFilters.join(","), estoqueFilters.join(","), grupoFilters.join(","), ativoFilters.join(","), cadastroFilters.join(","), sort.sortKey, sort.sortDir]);
   const {
     data,
     loading,
@@ -149,30 +151,27 @@ const Produtos = () => {
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
+    orFilters: cadastroFilters.includes("sem_preco")
+      ? ["preco_venda.is.null,preco_venda.lte.0"] : undefined,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm", "variacoes_text"],
     pageSize: 50,
     paginationMode: needsCompleteResult ? "all" : "paged",
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
-  // KPIs precisam de counts globais (data agora é só a página corrente).
-  const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
-  const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
-  const totalServicos = useTableCount("produtos", { tipo_item: "servico" }).data ?? null;
-  // Conta global de itens com problema de estoque (RPC) — substitui o "(página)".
-  const { data: estoqueSummary } = useQuery({
-    queryKey: ["produtos", "estoque-summary"],
-    queryFn: fetchProdutosEstoqueSummary,
-    staleTime: 60_000,
-  });
-  const { data: minimosConfigurados } = useQuery({
-    queryKey: ["produtos", "minimos-configurados"],
+  // Indicadores de pendência são contagens globais do cadastro ativo,
+  // independentemente da página e dos filtros da listagem.
+  const { data: qualidade } = useQuery({
+    queryKey: ["produtos", "pendencias-cadastro"],
     queryFn: async () => {
-      const { count, error } = await supabase.from("produtos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true).gt("estoque_minimo", 0);
-      if (error) throw error;
-      return count ?? 0;
+      const [minimo, preco] = await Promise.all([
+        supabase.from("produtos").select("id", { count: "exact", head: true })
+          .eq("ativo", true).or("estoque_minimo.is.null,estoque_minimo.lte.0"),
+        supabase.from("produtos").select("id", { count: "exact", head: true })
+          .eq("ativo", true).or("preco_venda.is.null,preco_venda.lte.0"),
+      ]);
+      if (minimo.error || preco.error) throw minimo.error ?? preco.error;
+      return { semMinimo: minimo.count ?? 0, semPreco: preco.count ?? 0 };
     },
     staleTime: 60_000,
   });
@@ -250,7 +249,7 @@ const Produtos = () => {
     : hasMore;
 
   const columns = [
-    { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
+    { key: "sku", label: "SKU", hidden: true, sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs font-medium" title="SKU — código comercial (catálogo, vendas)">{p.sku || "—"}</span>
     )},
     // Cód. Interno passa a ser metadado dentro da célula Produto. Mantida
@@ -264,7 +263,7 @@ const Produtos = () => {
       const restantes = Math.max(0, variacoes.length - 1);
       const meta: string[] = [];
       if (p.sku) meta.push(`SKU ${p.sku}`);
-      if (p.codigo_interno && p.codigo_interno !== p.sku) meta.push(`Interno ${p.codigo_interno}`);
+      else if (p.codigo_interno) meta.push(`Cód. ${p.codigo_interno}`);
       if (primeiraVar) meta.push(`Var. ${primeiraVar}${restantes > 0 ? ` +${restantes}` : ""}`);
       return (
         <div className="min-w-0">
@@ -310,7 +309,7 @@ const Produtos = () => {
           ) : (
             <p className="text-[10px] text-muted-foreground leading-none">mínimo não definido</p>
           )}
-          {(situacao === "zerado" || situacao === "critico" || situacao === "sem_minimo") && (
+          {(situacao === "zerado" || situacao === "critico") && (
             <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
           )}
         </div>
@@ -319,10 +318,10 @@ const Produtos = () => {
     { key: "preco_venda", mobileCard: true, label: "P. Venda", sortable: true, render: (p: Produto) => (
       <span className="font-semibold font-mono text-sm">{formatCurrency(p.preco_venda)}</span>
     )},
-    { key: "preco_custo", label: "P. Custo", sortable: true, render: (p: Produto) => (
+    { key: "preco_custo", label: "P. Custo", hidden: true, sortable: true, render: (p: Produto) => (
       <span className="font-mono text-sm text-muted-foreground">{formatCurrency(p.preco_custo || 0)}</span>
     )},
-    { key: "margem", mobileCard: true, label: "Margem", render: (p: Produto) => {
+    { key: "margem", hidden: true, label: "Markup s/ custo", render: (p: Produto) => {
       const custo = Number(p.preco_custo || 0);
       const venda = Number(p.preco_venda || 0);
       // Estados explícitos para evitar "+R$ 0,00" enganoso.
@@ -370,27 +369,33 @@ const Produtos = () => {
     )},
   ];
 
-  // KPIs: total/produtos/insumos vêm de count() server-side. "criticos" agora
-  // vem da RPC `produtos_estoque_summary` — valor global, não da página.
-  const kpis = {
-    total: totalCount ?? data.length,
-    produtos: totalProdutos ?? 0,
-    insumos: totalInsumos ?? 0,
-    servicos: totalServicos ?? 0,
-    criticos: estoqueSummary?.abaixo_minimo ?? 0,
+  const semMinimoAtivo = ativoFilters.length === 1 && ativoFilters[0] === "ativo"
+    && estoqueFilters.length === 1 && estoqueFilters[0] === "sem_minimo";
+  const semPrecoAtivo = ativoFilters.length === 1 && ativoFilters[0] === "ativo"
+    && cadastroFilters.length === 1 && cadastroFilters[0] === "sem_preco";
+  const togglePendencia = (kind: "sem_minimo" | "sem_preco") => {
+    if (kind === "sem_minimo" && semMinimoAtivo) {
+      setEstoqueFilters([]);
+      return;
+    }
+    if (kind === "sem_preco" && semPrecoAtivo) {
+      setCadastroFilters([]);
+      return;
+    }
+    setAtivoFilters(["ativo"]);
+    if (kind === "sem_minimo") {
+      setCadastroFilters([]);
+      setEstoqueFilters(["sem_minimo"]);
+    } else {
+      setEstoqueFilters([]);
+      setCadastroFilters(["sem_preco"]);
+    }
   };
-
-  // Estado "ativo" dos cards quando filtram a tabela (feedback visual).
-  const isProdutosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "produto";
-  const isInsumosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "insumo";
-  const isServicosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "servico";
-  const isCriticosActive = estoqueFilters.length > 0
-    && estoqueFilters.every((f) => f === "critico" || f === "zerado")
-    && (estoqueFilters.includes("critico") || estoqueFilters.includes("zerado"));
 
   const prodActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
     ativoFilters.forEach(f => chips.push({ key: "ativo", label: "Status", value: [f], displayValue: f === "ativo" ? "Ativo" : "Inativo" }));
+    cadastroFilters.forEach(f => chips.push({ key: "cadastro", label: "Cadastro", value: [f], displayValue: f === "sem_preco" ? "Sem preço de venda" : f }));
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "simples" ? "Simples" : "Composto" }));
     tipoItemFilters.forEach(f => chips.push({ key: "tipoItem", label: "Classificação", value: [f], displayValue: f === "produto" ? "Produto" : f === "insumo" ? "Insumo" : "Serviço" }));
     estoqueFilters.forEach(f => chips.push({ key: "estoque", label: "Estoque", value: [f], displayValue: situacaoEstoqueConfig[f as SituacaoEstoque]?.label ?? f }));
@@ -399,10 +404,11 @@ const Produtos = () => {
       chips.push({ key: "grupo", label: "Grupo", value: [f], displayValue: g?.nome || "Sem grupo" });
     });
     return chips;
-  }, [ativoFilters, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, grupos]);
+  }, [ativoFilters, cadastroFilters, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, grupos]);
 
   const handleRemoveProdFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    if (key === "cadastro") setCadastroFilters(cadastroFilters.filter(v => v !== value));
     if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
     if (key === "tipoItem") setTipoItemFilters(tipoItemFilters.filter(v => v !== value));
     if (key === "estoque") setEstoqueFilters(estoqueFilters.filter(v => v !== value));
@@ -429,6 +435,9 @@ const Produtos = () => {
     { label: "Normal", value: "normal" },
     { label: "Mínimo não definido", value: "sem_minimo" },
   ];
+  const cadastroOptions: MultiSelectOption[] = [
+    { label: "Sem preço de venda", value: "sem_preco" },
+  ];
   const grupoOptions: MultiSelectOption[] = [
     ...grupos.map(g => ({ label: g.nome, value: g.id })),
     { label: "Sem grupo", value: "sem_grupo" },
@@ -444,102 +453,31 @@ const Produtos = () => {
       summaryCards={
         <>
           <SummaryCard
-            title="Total de Itens"
-            value={kpis.total}
+            title="Itens encontrados"
+            value={visibleCount}
             icon={Package}
             variant="info"
             density="compact"
           />
           <SummaryCard
-            title="Produtos"
-            value={kpis.produtos}
-            icon={Package}
-            variant="default"
-            density="compact"
-            active={isProdutosActive}
-            onClick={
-              isProdutosActive
-                ? () => setTipoItemFilters([])
-                : kpis.produtos > 0
-                ? () => setTipoItemFilters(["produto"])
-                : undefined
-            }
-            subtitle={
-              isProdutosActive
-                ? "Filtro ativo · clique para limpar"
-                : kpis.produtos > 0
-                ? "Clique para filtrar"
-                : undefined
-            }
-          />
-          <SummaryCard
-            title="Insumos"
-            value={kpis.insumos}
-            icon={Archive}
-            variant="default"
-            density="compact"
-            active={isInsumosActive}
-            onClick={
-              isInsumosActive
-                ? () => setTipoItemFilters([])
-                : kpis.insumos > 0
-                ? () => setTipoItemFilters(["insumo"])
-                : undefined
-            }
-            subtitle={
-              isInsumosActive
-                ? "Filtro ativo · clique para limpar"
-                : kpis.insumos > 0
-                ? "Clique para filtrar"
-                : undefined
-            }
-          />
-          <SummaryCard
-            title="Serviços"
-            value={kpis.servicos}
-            icon={Wrench}
-            variant="default"
-            density="compact"
-            active={isServicosActive}
-            onClick={
-              isServicosActive
-                ? () => setTipoItemFilters([])
-                : kpis.servicos > 0
-                ? () => setTipoItemFilters(["servico"])
-                : undefined
-            }
-            subtitle={
-              isServicosActive
-                ? "Filtro ativo · clique para limpar"
-                : kpis.servicos > 0
-                ? "Clique para filtrar"
-                : undefined
-            }
-          />
-          <SummaryCard
-            title="Abaixo do mínimo"
-            shortTitle="Estoque crítico"
-            value={minimosConfigurados === 0 ? "—" : minimosConfigurados == null ? "…" : kpis.criticos}
+            title="Sem estoque mínimo"
+            value={qualidade?.semMinimo ?? "—"}
             icon={AlertCircle}
-            variant={minimosConfigurados !== 0 && kpis.criticos > 0 ? "danger" : "default"}
+            variant="warning"
             density="compact"
-            active={isCriticosActive}
-            onClick={
-              isCriticosActive
-                ? () => setEstoqueFilters([])
-                : minimosConfigurados !== 0 && kpis.criticos > 0
-                ? () => setEstoqueFilters(["critico", "zerado"])
-                : undefined
-            }
-            subtitle={
-              isCriticosActive
-                ? "Filtro ativo · clique para limpar"
-                : minimosConfigurados === 0
-                ? "Configure mínimos para gerar alertas"
-                : kpis.criticos > 0
-                ? "itens no cadastro"
-                : undefined
-            }
+            active={semMinimoAtivo}
+            onClick={() => togglePendencia("sem_minimo")}
+            subtitle={semMinimoAtivo ? "Filtro ativo · clique para limpar" : "Clique para localizar e corrigir"}
+          />
+          <SummaryCard
+            title="Sem preço de venda"
+            value={qualidade?.semPreco ?? "—"}
+            icon={Tag}
+            variant="warning"
+            density="compact"
+            active={semPrecoAtivo}
+            onClick={() => togglePendencia("sem_preco")}
+            subtitle={semPrecoAtivo ? "Filtro ativo · clique para limpar" : "Clique para localizar e corrigir"}
           />
         </>
       }
@@ -551,7 +489,7 @@ const Produtos = () => {
           searchPlaceholder="Nome, SKU ou código"
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
-          onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
+          onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo", "cadastro"])}
           count={visibleCount}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[150px]" />
@@ -559,6 +497,7 @@ const Produtos = () => {
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />
           <MultiSelect options={estoqueOptions} selected={estoqueFilters} onChange={setEstoqueFilters} placeholder="Estoque" className="w-[180px]" />
           <MultiSelect options={grupoOptions} selected={grupoFilters} onChange={setGrupoFilters} placeholder="Grupos" className="w-[200px]" />
+          <MultiSelect options={cadastroOptions} selected={cadastroFilters} onChange={setCadastroFilters} placeholder="Pendências" className="w-[180px]" />
         </AdvancedFilterBar>
       </div>
 
