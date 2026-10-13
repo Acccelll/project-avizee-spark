@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useCan } from "@/hooks/useCan";
 import { supabase } from "@/integrations/supabase/client";
 import { listGruposAtivos, proximoSkuDoGrupo } from "@/services/produtos.service";
 import { toast } from "sonner";
@@ -58,6 +59,8 @@ export function QuickAddProductModal({
   defaultNome = "",
 }: QuickAddProductModalProps) {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar produto" });
+  const { can, loading: permissionsLoading } = useCan();
+  const canCreateProduct = can("produtos:criar");
   const [form, setForm] = useState({ ...emptyForm });
   const [isDirty, setIsDirty] = useState(false);
   const [unidades, setUnidades] = useState<UnidadeOption[]>([]);
@@ -95,11 +98,17 @@ export function QuickAddProductModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (permissionsLoading || !canCreateProduct) {
+      toast.error("Você não possui permissão para cadastrar produtos. Solicite acesso ao administrador.");
+      return;
+    }
     if (!form.nome.trim()) {
       toast.error("Nome é obrigatório");
       return;
     }
     await submit(async () => {
+      // A autorização é conferida novamente antes do envio da gravação.
+      if (!canCreateProduct) throw new Error("Sem permissão para cadastrar produtos.");
       const { data, error } = await supabase
         .from("produtos")
         .insert({
@@ -145,9 +154,14 @@ export function QuickAddProductModal({
           formId="quick-add-product-form"
           mode="create"
           primaryLabel="Cadastrar"
+          disabled={permissionsLoading || !canCreateProduct}
+          disabledReason="Sem permissão para cadastrar produtos"
         />
       }
     >
+      {!permissionsLoading && !canCreateProduct && (
+        <p role="alert" className="text-sm text-destructive">Você não possui permissão para cadastrar produtos. Solicite acesso ao administrador.</p>
+      )}
       <form id="quick-add-product-form" onSubmit={handleSubmit} className="space-y-5">
         <FormSection icon={Package} title="Identificação" noBorder>
           <div className="space-y-2">

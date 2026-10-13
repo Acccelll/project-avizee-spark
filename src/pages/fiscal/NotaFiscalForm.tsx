@@ -260,7 +260,6 @@ export default function NotaFiscalFormPage() {
                   xmlOriginInfo={null}
                   traducaoLinhasCount={0}
                   onAbrirTraducao={() => {}}
-                  onCriarProdutoQuick={() => {}}
                   onCriarFornecedorQuick={() => setQuickFornecedorOpen(true)}
                 />
               </fieldset>
