@@ -57,6 +57,7 @@ export const INVALIDATION_KEYS = {
   geracaoPedidoCompra: [
     "cotacoes_compra",
     "pedidos_compra",
+    "compras-grid-vinculos",
   ],
   /** Baixa financeira (lote ou individual). */
   baixaFinanceira: [
