@@ -116,6 +116,8 @@ export interface ProdutoFormProps {
   onSaved?: (produtoId: string) => void;
   /** Registro principal persistido, mesmo quando vínculos falham ou há Salvar e novo. */
   onPersisted?: (produtoId: string) => void;
+  /** Após salvar e novo a partir de uma cópia, remover a origem do modal. */
+  onCopyReset?: () => void;
   onPartialSaveChange?: (message: string | null) => void;
   /** Callback para fechar (embedded). */
   onCancel?: () => void;
@@ -130,6 +132,7 @@ export default function ProdutoForm({
   copyFromId,
   onSaved,
   onPersisted,
+  onCopyReset,
   onPartialSaveChange,
   onCancel,
   onDirtyChange,
@@ -585,6 +588,7 @@ export default function ProdutoForm({
           setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
           setNovoGrupoForm({ nome: "", sigla: "" });
           setNewProductSequence((n) => n + 1);
+          if (copyFromId) onCopyReset?.();
         } else {
           if (embedded) onSaved?.(produtoId);
           else navigate("/produtos");
