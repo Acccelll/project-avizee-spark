@@ -61,6 +61,7 @@ interface ProdutoDetail {
   movimentos: MovimentoEstoqueRow[];
   fornecedoresProd: ProdutoFornecedorViewRow[];
   custoMaxEntrada: number | null;
+  errosConsulta: string[];
 }
 
 export function ProdutoView({ id }: Props) {
@@ -80,19 +81,23 @@ export function ProdutoView({ id }: Props) {
     if (!res) return null;
     const { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes, custoMaxRes } = res;
 
-    const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T): T => {
-      if (r.status !== "fulfilled") return fallback;
+    const errosConsulta: string[] = [];
+    const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T, nome: string): T => {
+      if (r.status === "rejected" || (r.status === "fulfilled" && (r.value as { error?: unknown } | null)?.error)) {
+        errosConsulta.push(nome);
+        return fallback;
+      }
       const v = r.value as { data?: T | null } | null;
       return (v?.data ?? fallback) as T;
     };
 
-    const comprasData = pickData(comprasRes, [] as unknown[]);
-    const vendasData = pickData(vendasRes, [] as unknown[]);
-    const compData = pickData(compRes, [] as unknown[]);
-    const movData = pickData(movRes, [] as unknown[]);
-    const fornData = pickData(fornRes, [] as unknown[]);
-    const grupoData = pickData(grupoRes, null as Record<string, unknown> | null);
-    const custoMaxData = pickData(custoMaxRes, [] as Array<{ valor_unitario: number | null }>);
+    const comprasData = pickData(comprasRes, [] as unknown[], "Histórico de compras");
+    const vendasData = pickData(vendasRes, [] as unknown[], "Histórico de vendas");
+    const compData = pickData(compRes, [] as unknown[], "Composição");
+    const movData = pickData(movRes, [] as unknown[], "Movimentações de estoque");
+    const fornData = pickData(fornRes, [] as unknown[], "Fornecedores");
+    const grupoData = pickData(grupoRes, null as Record<string, unknown> | null, "Grupo do produto");
+    const custoMaxData = pickData(custoMaxRes, [] as Array<{ valor_unitario: number | null }>, "Maior custo em notas fiscais");
     const custoMaxEntrada = Array.isArray(custoMaxData) && custoMaxData.length > 0
       ? Number(custoMaxData[0]?.valor_unitario ?? 0) || null
       : null;
@@ -113,6 +118,7 @@ export function ProdutoView({ id }: Props) {
       movimentos: movData as MovimentoEstoqueRow[],
       fornecedoresProd: fornData as ProdutoFornecedorViewRow[],
       custoMaxEntrada,
+      errosConsulta,
     };
   });
 
@@ -123,6 +129,8 @@ export function ProdutoView({ id }: Props) {
   const composicao = data?.composicao ?? [];
   const movimentos = data?.movimentos ?? [];
   const fornecedoresProd = data?.fornecedoresProd ?? [];
+  const errosConsulta = data?.errosConsulta ?? [];
+  const falhouConsulta = (nome: string) => errosConsulta.includes(nome);
   // Custo doutrinário: maior valor unitário pago em entradas (decisão do usuário).
   // Fallback para `preco_custo` cadastrado quando ainda não há histórico de entradas.
   const custoMaxEntrada = data?.custoMaxEntrada ?? null;
@@ -297,6 +305,15 @@ export function ProdutoView({ id }: Props) {
 
   return (
     <div className="space-y-5">
+      {errosConsulta.length > 0 && (
+        <div role="alert" className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
+          <p className="font-semibold text-warning">Algumas informações não puderam ser consultadas</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Falha em: {errosConsulta.join(", ")}. Os campos afetados podem estar incompletos; isso não significa ausência de registros.
+            Feche e abra o produto para tentar novamente.
+          </p>
+        </div>
+      )}
       {healthAlerts.length > 0 && (
         <div className="flex flex-wrap gap-2" role="region" aria-label="Alertas do produto">
           {healthAlerts.map((a) => (
@@ -325,7 +342,7 @@ export function ProdutoView({ id }: Props) {
         <DrawerSummaryCard
           label={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior custo NF" : "Custo cadastrado"}
           value={custoEfetivo > 0 ? formatCurrency(custoEfetivo) : "—"}
-          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor unitário em NF de entrada" : "Custo registrado no cadastro"}
+          hint={falhouConsulta("Maior custo em notas fiscais") ? "Não foi possível consultar o maior custo das notas; valor exibido é o cadastrado" : custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor unitário em NF de entrada" : "Custo registrado no cadastro"}
           align="center"
         />
         <div className="col-span-2 sm:col-span-1">
@@ -407,6 +424,9 @@ export function ProdutoView({ id }: Props) {
               <p className="text-sm text-foreground/80 whitespace-pre-line">{selected.descricao}</p>
             </div>
           )}
+          {selected.eh_composto && falhouConsulta("Composição") && (
+            <p role="alert" className="text-xs text-warning">Não foi possível consultar a composição deste produto.</p>
+          )}
           {selected.eh_composto && composicao.length > 0 && (
             <div className="border-t pt-3">
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -438,7 +458,9 @@ export function ProdutoView({ id }: Props) {
           <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
             <ShoppingCart className="w-3.5 h-3.5" /> Fornecedores Vinculados
           </h4>
-          {fornecedoresProd.length === 0 ? (
+          {falhouConsulta("Fornecedores") ? (
+            <p role="alert" className="text-xs text-warning">Falha ao consultar fornecedores vinculados. Tente abrir o produto novamente.</p>
+          ) : fornecedoresProd.length === 0 ? (
             <DetailEmpty
               icon={ShoppingCart}
               title="Nenhum fornecedor vinculado"
@@ -498,7 +520,10 @@ export function ProdutoView({ id }: Props) {
               ))}
             </div>
           )}
-        {(historicoCompras.length > 0 || totalComprado > 0) && (
+        {falhouConsulta("Histórico de compras") && (
+          <p role="alert" className="text-xs text-warning">Não foi possível consultar o histórico de compras.</p>
+        )}
+        {!falhouConsulta("Histórico de compras") && (historicoCompras.length > 0 || totalComprado > 0) && (
             <div className="border-t pt-3">
               <p className="text-[11px] text-muted-foreground mb-2">Resumo das últimas {historicoCompras.length} linhas de NF de entrada carregadas, não do histórico completo.</p>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -675,7 +700,9 @@ export function ProdutoView({ id }: Props) {
               <span className="font-mono font-semibold text-sm">{formatCurrency(estoqueValor)}</span>
             </div>
           )}
-          {(ultimaEntrada || ultimaSaida) ? (
+          {falhouConsulta("Movimentações de estoque") ? (
+            <p role="alert" className="text-xs text-warning">Não foi possível consultar as movimentações de estoque.</p>
+          ) : (ultimaEntrada || ultimaSaida) ? (
             <div className="grid grid-cols-2 gap-3">
               {ultimaEntrada && (
                 <div className="rounded-lg border p-3 space-y-0.5">
@@ -783,7 +810,9 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Vendas */}
         <TabsContent value="vendas" className="space-y-3 mt-3">
-          {historicoVendas.length === 0 ? (
+          {falhouConsulta("Histórico de vendas") ? (
+            <p role="alert" className="text-xs text-warning">Não foi possível consultar o histórico de vendas.</p>
+          ) : historicoVendas.length === 0 ? (
             <DetailEmpty icon={FileText} title="Nenhuma venda registrada" message="Este produto ainda não foi vendido em notas fiscais de saída" />
           ) : (
             <>
