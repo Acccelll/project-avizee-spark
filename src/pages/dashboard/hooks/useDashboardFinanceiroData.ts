@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyFinanceiro, aggregateTopClientes, buildIsoDayRange, sumOpenFinanceiro } from "@/lib/dashboard/aggregations";
 import type { DailyFinRow, DashboardDateRange, FinRow, RecDataRow } from "./types";
-import { logger } from "@/lib/logger";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 interface FinanceiroData {
   contasReceber: number;
@@ -17,8 +17,6 @@ interface FinanceiroData {
 }
 
 export function useDashboardFinanceiroData(range: DashboardDateRange) {
-  const [dashboardErrors, setDashboardErrors] = useState<string[]>([]);
-
   const loadFinanceiroData = useCallback(async (): Promise<FinanceiroData> => {
     const { dateFrom, dateTo } = range;
     const local = new Date();
@@ -28,133 +26,60 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
     // período global do dashboard. Saldo em aberto existe hoje independente
     // da janela. Top clientes e gráficos diários continuam respeitando o
     // período mais abaixo.
-    const buildTotalQuery = (tipo: "receber" | "pagar") =>
-      supabase
-        .from("financeiro_lancamentos")
-        .select("valor, saldo_restante, status")
-        .eq("tipo", tipo)
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"]);
-
     const nextDays = buildIsoDayRange(0, 7);
-
-    const [
-      receberResult,
-      pagarResult,
-      vencidasResult,
-      receberHojeResult,
-      pagarHojeResult,
-      recDataResult,
-      dailyReceberResult,
-      dailyPagarResult,
-    ] = await Promise.all([
-      buildTotalQuery("receber"),
-      buildTotalQuery("pagar"),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .in("tipo", ["receber", "pagar"])
-        .in("status", ["aberto", "vencido", "parcial"])
-        .gt("saldo_restante", 0)
-        .lt("data_vencimento", today),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .eq("tipo", "receber")
+    // Todas as consultas agregadas são paginadas e ordenadas por PK, evitando
+    // truncamento no limite padrão de 1.000 registros do PostgREST.
+    const allPages = <T,>(factory: () => unknown): Promise<T[]> =>
+      fetchAllPages<T>(() => factory() as never, {
+        onTruncated: () => { throw new Error("Dashboard financeiro: volume além do limite seguro"); },
+      });
+    const open = () => supabase.from("financeiro_lancamentos")
+      .select("id, tipo, valor, saldo_restante, status, data_vencimento")
+      .eq("ativo", true).in("status", ["aberto", "vencido", "parcial"])
+      .gt("saldo_restante", 0);
+    const [todos, receberHojeResult, pagarHojeResult, recData] = await Promise.all([
+      allPages<FinRow & { id: string; tipo: "receber" | "pagar"; data_vencimento: string }>(
+        () => open().order("id")),
+      supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true })
+        .eq("ativo", true).eq("tipo", "receber")
         .in("status", ["aberto", "parcial", "vencido"])
-        .eq("data_vencimento", today),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .eq("tipo", "pagar")
+        .gt("saldo_restante", 0).eq("data_vencimento", today),
+      supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true })
+        .eq("ativo", true).eq("tipo", "pagar")
         .in("status", ["aberto", "parcial", "vencido"])
-        .eq("data_vencimento", today),
-      (() => {
-        // Top clientes: respect the global period filter when set.
-        let q = supabase
-          .from("financeiro_lancamentos")
-          .select("valor, saldo_restante, status, clientes(nome_razao_social)")
-          .eq("tipo", "receber")
-          .eq("ativo", true)
-          .in("status", ["aberto", "vencido", "parcial"]);
+        .gt("saldo_restante", 0).eq("data_vencimento", today),
+      allPages<RecDataRow>(() => {
+        let q = supabase.from("financeiro_lancamentos")
+          .select("id, valor, saldo_restante, status, clientes(nome_razao_social)")
+          .eq("ativo", true).eq("tipo", "receber")
+          .in("status", ["aberto", "vencido", "parcial"])
+          .gt("saldo_restante", 0);
         if (dateFrom) q = q.gte("data_vencimento", dateFrom);
         if (dateTo) q = q.lte("data_vencimento", dateTo);
-        return q;
-      })(),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("data_vencimento, valor, saldo_restante, status")
-        .eq("tipo", "receber")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"])
-        .in("data_vencimento", nextDays),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("data_vencimento, valor, saldo_restante, status")
-        .eq("tipo", "pagar")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"])
-        .in("data_vencimento", nextDays),
+        return q.order("id");
+      }),
     ]);
-
-    const erros: string[] = [];
-
-    if (receberResult.error) {
-      logger.error("[dashboard] erro ao carregar receber:", receberResult.error.message);
-      erros.push("receber");
+    if (receberHojeResult.error || pagarHojeResult.error) {
+      throw new Error("Dashboard financeiro: falha ao consultar vencimentos de hoje");
     }
-    if (pagarResult.error) {
-      logger.error("[dashboard] erro ao carregar pagar:", pagarResult.error.message);
-      erros.push("pagar");
-    }
-    if (vencidasResult.error) {
-      logger.error("[dashboard] erro ao carregar vencidas:", vencidasResult.error.message);
-      erros.push("vencidas");
-    }
-    if (receberHojeResult.error) {
-      logger.error("[dashboard] erro ao carregar receberHoje:", receberHojeResult.error.message);
-      erros.push("receberHoje");
-    }
-    if (pagarHojeResult.error) {
-      logger.error("[dashboard] erro ao carregar pagarHoje:", pagarHojeResult.error.message);
-      erros.push("pagarHoje");
-    }
-    if (recDataResult.error) {
-      logger.error("[dashboard] erro ao carregar topClientes:", recDataResult.error.message);
-      erros.push("topClientes");
-    }
-    if (dailyReceberResult.error) {
-      logger.error("[dashboard] erro ao carregar dailyReceber:", dailyReceberResult.error.message);
-      erros.push("dailyReceber");
-    }
-    if (dailyPagarResult.error) {
-      logger.error("[dashboard] erro ao carregar dailyPagar:", dailyPagarResult.error.message);
-      erros.push("dailyPagar");
-    }
-
-    setDashboardErrors(erros);
-    if (erros.length > 0) {
-      throw new Error(`Falha ao consultar indicadores financeiros: ${erros.join(", ")}`);
-    }
-
-    const receber = (receberResult.data ?? []) as FinRow[];
-    const pagar = (pagarResult.data ?? []) as FinRow[];
+    const receber = todos.filter((r) => r.tipo === "receber");
+    const pagar = todos.filter((r) => r.tipo === "pagar");
+    const overdue = todos.filter((r) => r.data_vencimento < today);
+    const dailyReceber = receber.filter((r) => nextDays.includes(r.data_vencimento));
+    const dailyPagar = pagar.filter((r) => nextDays.includes(r.data_vencimento));
 
     return {
       contasReceber: receber.length,
       contasPagar: pagar.length,
-      contasVencidas: vencidasResult.count ?? 0,
+      contasVencidas: overdue.length,
       totalReceber: sumOpenFinanceiro(receber),
       totalPagar: sumOpenFinanceiro(pagar),
       vencimentosHoje: { receber: receberHojeResult.count ?? 0, pagar: pagarHojeResult.count ?? 0 },
-      dailyReceber: aggregateDailyFinanceiro(nextDays, (dailyReceberResult.data ?? []) as DailyFinRow[]),
-      dailyPagar: aggregateDailyFinanceiro(nextDays, (dailyPagarResult.data ?? []) as DailyFinRow[]),
-      topClientes: aggregateTopClientes((recDataResult.data ?? []) as RecDataRow[]),
+      dailyReceber: aggregateDailyFinanceiro(nextDays, dailyReceber),
+      dailyPagar: aggregateDailyFinanceiro(nextDays, dailyPagar),
+      topClientes: aggregateTopClientes(recData),
     };
   }, [range]);
 
-  return { loadFinanceiroData, dashboardErrors };
+  return { loadFinanceiroData };
 }
