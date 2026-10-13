@@ -202,7 +202,6 @@ const DashboardContent = () => {
       <AlertStrip
         titulosVencidos={stats.contasVencidas}
         notasPendentes={fiscalStats.pendentes}
-        saldoProjetado={saldoProjetado}
         comprasAtrasadas={comprasAtrasadasCount}
         remessasAtrasadas={remessasAtrasadas}
       />
@@ -214,11 +213,7 @@ const DashboardContent = () => {
           title="Financeiro"
           icon={DollarSign}
           iconColor="text-primary"
-          summary={
-            stats.contasVencidas > 0
-              ? `Saldo ${fmtK(saldoProjetado)} · ${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? 's' : ''}`
-              : `Saldo ${fmtK(saldoProjetado)}`
-          }
+          summary={stats.contasVencidas > 0 ? `${stats.contasVencidas} títulos vencidos` : "Sem títulos vencidos"}
           defaultOpen
           persistKey="financeiro"
         >
