@@ -88,11 +88,9 @@ const DashboardContent = () => {
     dailyReceber,
     estoqueBaixo,
     minimosConfigurados,
-    faturamento,
     fiscalStats,
     recentOrcamentos,
     remessasAtrasadas,
-    ticketMedio,
     topClientes,
     valorEstoque,
     vencimentosHoje,
@@ -145,14 +143,6 @@ const DashboardContent = () => {
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
-
-  // Compact currency for accordion summaries (e.g. "R$ 12k").
-  const fmtK = (n: number): string => {
-    const sign = n < 0 ? '-' : '';
-    const abs = Math.abs(n);
-    if (abs >= 1000) return `${sign}R$ ${Math.round(abs / 1000)}k`;
-    return `${sign}R$ ${abs.toFixed(0)}`;
-  };
 
   // ---------------------------------------------------------------------------
   // Renderers map — a função de cada widget é renderizada de acordo com a
@@ -258,7 +248,7 @@ const DashboardContent = () => {
     vendas_chart: () => (
       <LazyInViewWidget fallback={<Skeleton className="min-h-[240px] w-full rounded-xl" />}>
         <DashboardCard tone="hero">
-          <BlockErrorBoundary label="Gráfico de Vendas">
+          <BlockErrorBoundary label="Histórico de notas de saída">
             <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
               <div className="h-[260px] md:h-[280px]">
                 <VendasChart
@@ -286,21 +276,14 @@ const DashboardContent = () => {
           title="Comercial"
           icon={ShoppingBag}
           iconColor="text-secondary"
-          summary={
-            faturamento.mesAtual > 0
-              ? `${fmtK(faturamento.mesAtual)} · ${stats.orcamentos} orç`
-              : `${stats.orcamentos} orç`
-          }
+          summary={`${stats.orcamentos} orçamentos em aberto`}
           persistKey="comercial"
         >
           <ComercialBlock
             cotacoesAbertas={stats.orcamentos}
             pedidosPendentes={backlogOVsCount}
-            ticketMedio={ticketMedio}
             recentOrcamentos={recentOrcamentos}
             loading={loading}
-            faturamentoMesAtual={faturamento.mesAtual}
-            faturamentoMesAnterior={faturamento.mesAnterior}
             hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
@@ -395,7 +378,14 @@ const DashboardContent = () => {
   const FULL_WIDTH = new Set<WidgetId>(["kpis", "operational", "alertas"]);
 
   // Constrói as linhas conforme prefs.order respeitando os pares.
-  const baseVisibleOrder = prefs.order.filter((id) => isVisible(id));
+  const baseVisibleOrder = prefs.order.filter((id) => {
+    if (!isVisible(id)) return false;
+    // Widget sem nenhuma situação real deixa de ocupar espaço.
+    if (id === "operational") return operationalCards.length > 0;
+    if (id === "fiscal") return fiscalStats.emitidas > 0 || fiscalStats.pendentes > 0 || fiscalStats.canceladas > 0;
+    if (id === "logistica") return comprasAguardando.length > 0 || remessasAtrasadas > 0;
+    return true;
+  });
   // Respeita a ordem persistida do usuário em qualquer breakpoint. No mobile
   // os pares caem para 1 coluna naturalmente (lg:grid-cols-2).
   const visibleOrder = baseVisibleOrder;
