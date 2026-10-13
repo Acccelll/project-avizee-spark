@@ -5,7 +5,7 @@ import { fetchProdutoDetalhes, deleteProduto } from "@/services/produtos.service
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { TabsListScrollable } from "@/components/ui/TabsListScrollable";
-import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign, MoreVertical } from "lucide-react";
+import { Package, AlertTriangle, Archive, FileText, Edit, Copy, Trash2, ShoppingCart, Layers, DollarSign, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -240,6 +240,12 @@ export function ProdutoView({ id }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                navigate(`/produtos?copyId=${id}`);
+                window.setTimeout(() => clearStack(), 0);
+              }}>
+                <Copy className="h-3.5 w-3.5 mr-2" /> Copiar como novo
+              </DropdownMenuItem>
               {canExcluir && selected.ativo && <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteConfirmOpen(true)}
@@ -271,6 +277,17 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => {
+              navigate(`/produtos?copyId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}
+          >
+            <Copy className="h-3.5 w-3.5" /> Copiar como novo
           </Button>
           {canExcluir && selected.ativo && <Tooltip>
             <TooltipTrigger asChild>

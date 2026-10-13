@@ -108,6 +108,7 @@ interface DataTableProps<T> {
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
   onDuplicate?: (item: T) => void;
+  duplicateLabel?: string;
   loading?: boolean;
   pageSize?: number;
   selectable?: boolean;
@@ -252,6 +253,7 @@ export function DataTable<T extends Record<string, any>>({
   onEdit,
   onDelete,
   onDuplicate,
+  duplicateLabel = 'Duplicar',
   loading,
   pageSize = 25,
   selectable = false,
@@ -618,7 +620,7 @@ export function DataTable<T extends Record<string, any>>({
               )}
               {onDuplicate && (
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
-                  <Copy className="mr-2 h-4 w-4" /> Duplicar
+                  <Copy className="mr-2 h-4 w-4" /> {duplicateLabel}
                 </DropdownMenuItem>
               )}
               {onDelete && (
@@ -667,7 +669,7 @@ export function DataTable<T extends Record<string, any>>({
           )}
           {onDuplicate && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
-              <Copy className="mr-2 h-4 w-4" /> Duplicar
+              <Copy className="mr-2 h-4 w-4" /> {duplicateLabel}
             </DropdownMenuItem>
           )}
           {onDelete && (
