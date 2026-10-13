@@ -451,9 +451,8 @@ export default function ProdutoForm({
           notifyError(err);
         }
       }
-    }).catch((err) => {
-      // useSubmitLock já mostra o erro e libera o bloqueio de envio.
-      if (!partialSaveMessage) console.error("Falha ao salvar produto", err);
+    }).catch(() => {
+      // useSubmitLock já notificou o usuário e liberou o bloqueio.
     });
   };
 
