@@ -234,6 +234,16 @@ const Produtos = () => {
       navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
       return;
     }
+    const copyId = params.get("copyId");
+    if (copyId) {
+      setCopyFromId(copyId);
+      setFormMode("create");
+      setFormProdutoId(undefined);
+      setFormOpen(true);
+      params.delete("copyId");
+      navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
+      return;
+    }
     if (params.get("new") === "1") {
       setCopyFromId(undefined);
       setFormMode("create");
