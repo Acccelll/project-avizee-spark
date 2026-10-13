@@ -49,6 +49,8 @@ interface PedidoCompraTableProps {
   onEdit: (p: PedidoCompra) => void;
   onSend: (p: PedidoCompra) => void;
   onReceive: (p: PedidoCompra) => void;
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
 }
 
 export function PedidoCompraTable({
@@ -59,6 +61,8 @@ export function PedidoCompraTable({
   onEdit,
   onSend,
   onReceive,
+  selectedIds,
+  onSelectionChange,
 }: PedidoCompraTableProps) {
   const sendLock = useActionLock();
   const receiveLock = useActionLock();
@@ -82,7 +86,7 @@ export function PedidoCompraTable({
     },
     {
       key: "data_pedido",
-      label: "Data Pedido",
+      label: "Emissão",
       sortable: true,
       render: (p: PedidoCompra) => <span className="text-xs">{formatDate(p.data_pedido)}</span>,
     },
@@ -156,8 +160,11 @@ export function PedidoCompraTable({
       loading={loading}
       moduleKey="pedidos-compra"
       showColumnToggle={true}
-      onView={onView}
+      onRowClick={onView}
       onEdit={onEdit}
+      selectable
+      selectedIds={selectedIds}
+      onSelectionChange={onSelectionChange}
       mobilePrimaryAction={(p: PedidoCompra) => {
         const status = canonicalPedidoStatus(p.status);
         const canSend = status === "aprovado";
