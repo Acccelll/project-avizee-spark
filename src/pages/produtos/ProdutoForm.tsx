@@ -143,6 +143,11 @@ export default function ProdutoForm({
   const pendingCreatedIdRef = useRef<string | null>(null);
   const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
+  const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
+  const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
+  const linksBaselineRef = useRef({ composicao: "[]", fornecedores: "[]" });
+  const linksDirty = JSON.stringify(editComposicao) !== linksBaselineRef.current.composicao ||
+    JSON.stringify(editFornecedores) !== linksBaselineRef.current.fornecedores;
   useBeforeUnloadGuard(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
 
   // Um registro principal já persistido, mas com vínculos incompletos,
@@ -151,11 +156,7 @@ export default function ProdutoForm({
     onDirtyChange?.(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
   }, [isDirty, linksDirty, partialSaveMessage, onDirtyChange]);
 
-  const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
-  const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
-  const linksBaselineRef = useRef({ composicao: "[]", fornecedores: "[]" });
-  const linksDirty = JSON.stringify(editComposicao) !== linksBaselineRef.current.composicao ||
-    JSON.stringify(editFornecedores) !== linksBaselineRef.current.fornecedores;
+
   const [margemOverride, setMargemOverride] = useState<number | null>(mode === "create" ? 30 : null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [grupos, setGrupos] = useState<{ id: string; nome: string; sigla?: string | null; aviso_interno?: string | null }[]>([]);
