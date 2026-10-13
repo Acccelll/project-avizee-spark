@@ -11,13 +11,8 @@ import type { Orcamento } from '@/types/domain';
 interface ComercialBlockProps {
   cotacoesAbertas: number;
   pedidosPendentes: number;
-  ticketMedio: number;
   recentOrcamentos: Orcamento[];
   loading?: boolean;
-  /** Faturamento confirmado no mês atual. */
-  faturamentoMesAtual?: number;
-  /** Faturamento confirmado no mês anterior — para comparativo MoM. */
-  faturamentoMesAnterior?: number;
   hideHeaderOnMobile?: boolean;
 }
 
@@ -42,20 +37,12 @@ const statusLabel: Record<string, string> = {
 export function ComercialBlock({
   cotacoesAbertas,
   pedidosPendentes,
-  ticketMedio,
   recentOrcamentos,
   loading,
-  faturamentoMesAtual = 0,
-  faturamentoMesAnterior = 0,
   hideHeaderOnMobile = false,
 }: ComercialBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
-
-  const variacaoMoM =
-    faturamentoMesAnterior > 0
-      ? ((faturamentoMesAtual - faturamentoMesAnterior) / faturamentoMesAnterior) * 100
-      : null;
 
   return (
     <div className="bg-card rounded-xl border flex flex-col">
@@ -81,38 +68,17 @@ export function ComercialBlock({
         </Button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 border-b border-border/60 md:grid-cols-4">
+      {/* Somente fila comercial atual: indicadores fiscais já possuem gráfico próprio. */}
+      <div className="grid grid-cols-2 border-b border-border/60">
         <div className="px-4 py-2">
           <p className="text-xs text-muted-foreground">Orçamentos em aberto</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(cotacoesAbertas)}</p>
+          <p className="text-[10px] text-muted-foreground">rascunhos, pendentes e aprovados</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground">Pedidos pendentes</p>
+          <p className="text-xs text-muted-foreground">Pedidos a faturar</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(pedidosPendentes)}</p>
-        </div>
-        <div className="px-4 py-2 border-l border-border/60 min-w-0">
-          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
-            <span>Média por NF de saída</span>
-            <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
-          </p>
-          <p className="text-lg font-bold mono mt-0.5">{formatCurrency(ticketMedio)}</p>
-        </div>
-        <div className="px-4 py-2 border-l border-border/60 min-w-0">
-          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
-            <span>NF de saída (mês)</span>
-            <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
-          </p>
-          <p className="text-lg font-bold mono mt-0.5">{formatCurrency(faturamentoMesAtual)}</p>
-          {variacaoMoM !== null && (
-            <p
-              className={`text-[11px] font-medium ${
-                variacaoMoM >= 0 ? 'text-success' : 'text-destructive'
-              }`}
-            >
-              {variacaoMoM >= 0 ? '▲' : '▼'} {Math.abs(variacaoMoM).toFixed(1)}% vs mês anterior
-            </p>
-          )}
+          <p className="text-[10px] text-muted-foreground">conforme relatório operacional</p>
         </div>
       </div>
 
