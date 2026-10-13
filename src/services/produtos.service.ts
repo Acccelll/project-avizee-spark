@@ -190,6 +190,20 @@ export async function listProdutoFornecedores(produtoId: string): Promise<Produt
   return (data || []) as ProdutoFornecedorRow[];
 }
 
+/** Erros das RPCs de Produtos em linguagem útil para o cadastro, sem ocultar falhas desconhecidas. */
+function mensagemErroVinculos(message: string, etapa: "composição" | "fornecedores"): string {
+  const m = message.toLowerCase();
+  if (m.includes("sem permissão") || m.includes("autenticação obrigatória") || m.includes("outra empresa") || m.includes("mesma empresa")) {
+    return "Sem permissão para alterar " + etapa + " ou vínculo pertencente a outra empresa. Verifique seu perfil e a empresa dos itens.";
+  }
+  if (m.includes("circular") || m.includes("ancestral")) return "Composição circular: remova a referência que faz um produto conter a si mesmo, direta ou indiretamente.";
+  if (m.includes("quantidade") || m.includes("chk_produto_composicoes_quantidade_positiva")) return "Informe quantidades maiores que zero para todos os componentes.";
+  if (m.includes("uq_produto_composicoes_pai_filho")) return "Remova os componentes duplicados da composição.";
+  if (m.includes("ux_produtos_fornecedores_um_principal")) return "Selecione apenas um fornecedor principal.";
+  if (m.includes("produtos_fornecedores_produto_fornecedor_uq")) return "O mesmo fornecedor não pode ser vinculado duas vezes.";
+  return "Erro ao salvar " + etapa + ": " + message;
+}
+
 export async function saveProdutoComposicao(params: {
   produtoPaiId: string;
   itens: { produto_filho_id: string; quantidade: number }[];
@@ -200,7 +214,7 @@ export async function saveProdutoComposicao(params: {
     p_itens: params.itens,
     p_payload: { eh_composto: params.ehComposto },
   });
-  if (error) throw new Error("Erro ao salvar composição: " + (error.message || "tente novamente"));
+  if (error) throw new Error(mensagemErroVinculos(error.message || "Tente novamente.", "composição"));
 }
 
 export async function saveProdutoFornecedores(params: {
@@ -220,7 +234,7 @@ export async function saveProdutoFornecedores(params: {
     p_produto_id: params.produtoId,
     p_itens: params.itens,
   });
-  if (error) throw new Error("Erro ao salvar fornecedores: " + (error.message || "tente novamente"));
+  if (error) throw new Error(mensagemErroVinculos(error.message || "Tente novamente.", "fornecedores"));
 }
 
 /** Inativação reversível. Exclusão física é ação administrativa separada. */
