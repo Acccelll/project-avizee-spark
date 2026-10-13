@@ -24,6 +24,7 @@ import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { MobileCardActionButton } from "@/components/ui/MobileCardActions";
 
 type TipoItem = "produto" | "insumo" | "servico";
@@ -130,7 +131,7 @@ const Produtos = () => {
   const [filteredPage, setFilteredPage] = useState(0);
 
   const sort = useServerSort("sku", "asc");
-  useEffect(() => { setFilteredPage(0); }, [debouncedSearch, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, ativoFilters, sort.sortKey, sort.sortDir]);
+  useEffect(() => { setFilteredPage(0); }, [debouncedSearch, tipoFilters.join(","), tipoItemFilters.join(","), estoqueFilters.join(","), grupoFilters.join(","), ativoFilters.join(","), sort.sortKey, sort.sortDir]);
   const {
     data,
     loading,
@@ -162,6 +163,17 @@ const Produtos = () => {
   const { data: estoqueSummary } = useQuery({
     queryKey: ["produtos", "estoque-summary"],
     queryFn: fetchProdutosEstoqueSummary,
+    staleTime: 60_000,
+  });
+  const { data: minimosConfigurados } = useQuery({
+    queryKey: ["produtos", "minimos-configurados"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("produtos")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true).gt("estoque_minimo", 0);
+      if (error) throw error;
+      return count ?? 0;
+    },
     staleTime: 60_000,
   });
   const { pushView } = useRelationalNavigation();
@@ -214,7 +226,8 @@ const Produtos = () => {
   // itens visíveis, pois isso quebra contagem e navegação.
   const filteredAll = useMemo(() => data
     .filter((p) => {
-      if (hasEstoqueFilter && !estoqueFilters.includes(getSituacaoEstoque(p))) return false;
+      if (hasEstoqueFilter && !estoqueFilters.includes(getSituacaoEstoque(p)) &&
+          !(estoqueFilters.includes("sem_minimo") && Number(p.estoque_minimo || 0) <= 0)) return false;
       if (hasSemGrupoFilter && !grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
       return true;
     })
@@ -292,8 +305,10 @@ const Produtos = () => {
             {p.estoque_atual ?? 0}
             <span className="text-[11px] text-muted-foreground ml-1 font-normal">{p.unidade_medida}</span>
           </span>
-          {Number(p.estoque_minimo) > 0 && (
+          {Number(p.estoque_minimo) > 0 ? (
             <p className="text-[10px] text-muted-foreground font-mono leading-none">mín: {p.estoque_minimo}</p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground leading-none">mínimo não definido</p>
           )}
           {(situacao === "zerado" || situacao === "critico" || situacao === "sem_minimo") && (
             <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
@@ -504,21 +519,23 @@ const Produtos = () => {
           <SummaryCard
             title="Abaixo do mínimo"
             shortTitle="Estoque crítico"
-            value={kpis.criticos}
+            value={minimosConfigurados === 0 ? "—" : minimosConfigurados == null ? "…" : kpis.criticos}
             icon={AlertCircle}
-            variant={kpis.criticos > 0 ? "danger" : "default"}
+            variant={minimosConfigurados !== 0 && kpis.criticos > 0 ? "danger" : "default"}
             density="compact"
             active={isCriticosActive}
             onClick={
               isCriticosActive
                 ? () => setEstoqueFilters([])
-                : kpis.criticos > 0
+                : minimosConfigurados !== 0 && kpis.criticos > 0
                 ? () => setEstoqueFilters(["critico", "zerado"])
                 : undefined
             }
             subtitle={
               isCriticosActive
                 ? "Filtro ativo · clique para limpar"
+                : minimosConfigurados === 0
+                ? "Configure mínimos para gerar alertas"
                 : kpis.criticos > 0
                 ? "itens no cadastro"
                 : undefined
