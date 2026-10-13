@@ -109,7 +109,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 6, left: -6, bottom: 0 }} barGap={1}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
-            <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+            <XAxis dataKey="mes" tick={{ fontSize: 10 }} minTickGap={14} interval="preserveStartEnd" />
             <YAxis hide />
             <Tooltip
               formatter={(raw: number, name: string) => [formatCurrency(Math.abs(Number(raw))), SERIES[name as keyof typeof SERIES] || name]}
@@ -123,7 +123,10 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
         </ResponsiveContainer>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-        <span>■ Recebido</span><span>□ A receber</span><span>■ Pago</span><span>□ A pagar</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(142_76%_36%)]" />Recebido</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(142_45%_68%)]" />A receber</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(0_75%_51%)]" />Pago</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(0_65%_78%)]" />A pagar</span>
         <span>Atual: {today}</span>
       </div>
       <p className="text-[10px] text-muted-foreground">Previsões = saldos não baixados por vencimento, inclusive atrasados; não são saldo bancário.</p>
