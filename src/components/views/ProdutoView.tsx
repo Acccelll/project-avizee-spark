@@ -127,7 +127,6 @@ export function ProdutoView({ id }: Props) {
     ? custoMaxEntrada
     : Number(selected?.preco_custo || 0);
 
-  const selectedMargem = selected && custoEfetivo > 0 ? (selected.preco_venda / (custoEfetivo || 1) - 1) * 100 : 0;
   const lucroBruto = selected ? selected.preco_venda - custoEfetivo : 0;
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
   const estoqueValor = selected ? (selected.estoque_atual || 0) * custoEfetivo : 0;
@@ -147,13 +146,10 @@ export function ProdutoView({ id }: Props) {
   const totalVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0), 0);
   const valorVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
   const ticketMedioVenda = totalVendido > 0 ? valorVendido / totalVendido : 0;
-  const margemMediaVenda = ticketMedioVenda > 0 && custoEfetivo > 0
-    ? ((ticketMedioVenda / custoEfetivo) - 1) * 100
-    : 0;
 
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
-  const naoControlaEstoque = selected ? Number(selected.estoque_minimo || 0) === 0 && Number(selected.estoque_atual || 0) === 0 : false;
-  const semEstoque = selected ? Number(selected.estoque_atual || 0) === 0 && Number(selected.estoque_minimo || 0) > 0 : false;
+  const minimoConfigurado = Number(selected?.estoque_minimo || 0) > 0;
+  const semEstoque = selected ? Number(selected.estoque_atual || 0) <= 0 : false;
   const reservado = Number((selected as { estoque_reservado?: number | null } | null)?.estoque_reservado || 0);
   const disponivel = Number(selected?.estoque_atual || 0) - reservado;
   const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
@@ -171,12 +167,10 @@ export function ProdutoView({ id }: Props) {
 
   type HealthAlert = { id: string; label: string; tone: "warning" | "destructive"; tab: string };
   const healthAlerts: HealthAlert[] = selected ? ([
-    semEstoque && { id: "sem-estoque", label: "Sem estoque", tone: "destructive" as const, tab: "estoque" },
-    !semEstoque && estoqueBaixo && { id: "abaixo-min", label: "Estoque abaixo do mínimo", tone: "warning" as const, tab: "estoque" },
-    fornecedoresCount === 0 && { id: "sem-fornecedor", label: "Sem fornecedor vinculado", tone: "warning" as const, tab: "compras" },
-    !fiscalCompleto && { id: "fiscal-inc", label: `Fiscal incompleto · faltam ${fiscalFaltantes.join(", ")}`, tone: "warning" as const, tab: "fiscal" },
+    minimoConfigurado && semEstoque && { id: "sem-estoque", label: "Sem estoque", tone: "destructive" as const, tab: "estoque" },
+    minimoConfigurado && !semEstoque && estoqueBaixo && { id: "abaixo-min", label: "Estoque abaixo do mínimo", tone: "warning" as const, tab: "estoque" },
     semVenda && { id: "sem-venda", label: "Preço de venda zerado", tone: "destructive" as const, tab: "preco" },
-    semCusto && !semVenda && { id: "sem-custo", label: "Custo ausente — afeta margem", tone: "warning" as const, tab: "preco" },
+    custoEfetivo <= 0 && !semVenda && { id: "sem-custo", label: "Custo ausente — margem indisponível", tone: "warning" as const, tab: "preco" },
   ].filter(Boolean) as HealthAlert[]) : [];
 
   // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
@@ -322,33 +316,21 @@ export function ProdutoView({ id }: Props) {
         </div>
       )}
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
+      {/* Destaque somente para consulta imediata; margens na aba Preço. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <DrawerSummaryCard label="Preço de venda" value={formatCurrency(selected.preco_venda)} align="center" />
         <DrawerSummaryCard
-          label="Custo"
-          value={formatCurrency(custoEfetivo)}
-          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor pago em entradas" : undefined}
-          align="center"
-        />
-        <DrawerSummaryCard
-          label="Lucro Bruto"
-          value={formatCurrency(lucroBruto)}
-          tone={lucroBruto > 0 ? "success" : lucroBruto < 0 ? "destructive" : "neutral"}
-          align="center"
-        />
-        <DrawerSummaryCard
-          label="Margem"
-          value={custoEfetivo > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
-          tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
+          label={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior custo NF" : "Custo cadastrado"}
+          value={custoEfetivo > 0 ? formatCurrency(custoEfetivo) : "—"}
+          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor unitário em NF de entrada" : "Custo registrado no cadastro"}
           align="center"
         />
         <div className="col-span-2 sm:col-span-1">
           <DrawerSummaryCard
-            label="Estoque"
-            value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
-            tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
-            hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
+            label="Estoque atual"
+            value={`${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
+            hint={!minimoConfigurado ? "Mínimo não definido" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
+            tone={minimoConfigurado && (semEstoque || estoqueBaixo) ? "destructive" : "neutral"}
             align="center"
           />
         </div>
@@ -361,13 +343,13 @@ export function ProdutoView({ id }: Props) {
             Compras{fornecedoresCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({fornecedoresCount})</span>}
           </TabsTrigger>
           <TabsTrigger value="preco" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
-            Preço{(semVenda || semCusto) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
+            Preço{(semVenda || custoEfetivo <= 0) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
           </TabsTrigger>
           <TabsTrigger value="estoque" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
-            Estoque{(estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
+            Estoque{minimoConfigurado && (estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
           </TabsTrigger>
           <TabsTrigger value="fiscal" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
-            Fiscal{!fiscalCompleto && <span className="ml-1 text-[10px] text-warning" aria-label="Fiscal incompleto">!</span>}
+            Fiscal
           </TabsTrigger>
           <TabsTrigger value="precos" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">Espec.</TabsTrigger>
           <TabsTrigger value="vendas" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
@@ -392,20 +374,7 @@ export function ProdutoView({ id }: Props) {
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
               <FieldItem label="Unidade" value={selected.unidade_medida} />
               <FieldItem label="Grupo" value={grupoNome} emptyText="Sem grupo" />
-              <FieldItem
-                label="Peso"
-                mono
-                value={selected.peso ? `${selected.peso} kg` : null}
-                emptyText="Peso não informado"
-              />
-              <FieldItem
-                label="Variações"
-                value={(() => {
-                  const raw = (selected as { variacoes?: string[] | null }).variacoes;
-                  return Array.isArray(raw) && raw.length > 0 ? `${raw.length} variação(ões)` : null;
-                })()}
-                emptyText="Sem variações"
-              />
+              {Number(selected.peso || 0) > 0 && <FieldItem label="Peso" mono value={`${selected.peso} kg`} />}
             </div>
           </div>
 
@@ -528,10 +497,11 @@ export function ProdutoView({ id }: Props) {
           )}
         {(historicoCompras.length > 0 || totalComprado > 0) && (
             <div className="border-t pt-3">
+              <p className="text-[11px] text-muted-foreground mb-2">Resumo das últimas {historicoCompras.length} linhas de NF de entrada carregadas, não do histórico completo.</p>
               <div className="grid grid-cols-3 gap-2 mb-3">
-                <DrawerSummaryCard label="Qtd Comprada" value={totalComprado.toLocaleString("pt-BR")} align="center" />
-                <DrawerSummaryCard label="Valor Total" value={formatCurrency(valorComprado)} align="center" />
-                <DrawerSummaryCard label="Custo Médio" value={formatCurrency(custoMedioCompras)} align="center" />
+                <DrawerSummaryCard label="Qtd nas NFs" value={totalComprado.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Valor nas NFs" value={formatCurrency(valorComprado)} align="center" />
+                <DrawerSummaryCard label="Preço médio NF" value={formatCurrency(custoMedioCompras)} align="center" />
               </div>
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Últimas Compras
@@ -561,7 +531,7 @@ export function ProdutoView({ id }: Props) {
           <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Custo</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">{custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior custo NF" : "Custo cadastrado"}</span>
                 <p className="font-mono font-semibold text-lg">{formatCurrency(custoEfetivo)}</p>
                 {custoMaxEntrada != null && custoMaxEntrada > 0 ? (
                   <p className="text-[10px] text-muted-foreground mt-0.5">Maior valor pago em entradas</p>
@@ -587,7 +557,7 @@ export function ProdutoView({ id }: Props) {
                   </TooltipTrigger>
                   <TooltipContent>Margem = (venda − custo) / venda × 100. Calculada sobre o preço de venda.</TooltipContent>
                 </Tooltip>
-                <p className={`font-mono font-semibold text-lg ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : ""}`}>
+                <p className={`font-mono font-semibold text-lg ${margemSobreVendaPct != null && margemSobreVendaPct > 0 ? "text-success" : margemSobreVendaPct != null && margemSobreVendaPct < 0 ? "text-destructive" : ""}`}>
                   {margemSobreVendaPct == null ? "—" : `${margemSobreVendaPct.toFixed(1)}%`}
                 </p>
               </div>
@@ -597,6 +567,7 @@ export function ProdutoView({ id }: Props) {
                 {semVenda && <p className="text-[10px] text-warning mt-0.5">Não definido</p>}
               </div>
             </div>
+            <p className="text-[11px] text-muted-foreground">Margens estimadas sobre o {custoMaxEntrada != null && custoMaxEntrada > 0 ? "maior custo histórico de compra" : "custo cadastrado"}, não a margem realizada em vendas.</p>
             <div className="border-t pt-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground text-xs">Lucro Bruto</span>
@@ -637,7 +608,7 @@ export function ProdutoView({ id }: Props) {
         <TabsContent value="estoque" className="space-y-3 mt-3">
           <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs">
             <span className="text-muted-foreground">Controla estoque?</span>
-            <span className="font-medium">{naoControlaEstoque ? "Não" : "Sim"}</span>
+            <span className="font-medium">{minimoConfigurado ? "Mínimo configurado" : "Mínimo não definido"}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className={`rounded-lg border p-3 text-center ${estoqueBaixo ? "border-destructive/40 bg-destructive/5" : ""}`}>
@@ -653,11 +624,11 @@ export function ProdutoView({ id }: Props) {
             </div>
             <div className="rounded-lg border p-3 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque Mínimo</p>
-              <p className="text-2xl font-bold font-mono">{selected.estoque_minimo ?? 0}</p>
+              <p className="text-2xl font-bold font-mono">{minimoConfigurado ? selected.estoque_minimo : "—"}</p>
               <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
             </div>
           </div>
-          {!naoControlaEstoque && Number(selected.estoque_minimo || 0) > 0 && Number(selected.estoque_atual || 0) > 0 && (
+          {minimoConfigurado && Number(selected.estoque_minimo || 0) > 0 && Number(selected.estoque_atual || 0) > 0 && (
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>Margem de segurança</span>
@@ -721,7 +692,7 @@ export function ProdutoView({ id }: Props) {
               )}
             </div>
           ) : (
-            !naoControlaEstoque && (
+            (
               <p className="text-xs text-muted-foreground italic px-1">Sem movimentações registradas.</p>
             )
           )}
@@ -752,7 +723,7 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Fiscal */}
         <TabsContent value="fiscal" className="space-y-3 mt-3">
-          {!fiscalCompleto && (
+          {!fiscalCompleto && selected.tipo_item !== "servico" && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
               <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -776,7 +747,7 @@ export function ProdutoView({ id }: Props) {
           )}
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Dados Fiscais</h4>
-            {fiscalCompleto ? (
+            {selected.tipo_item === "servico" ? <span className="text-xs text-muted-foreground">Tributação de serviços: conferir na edição</span> : fiscalCompleto ? (
               <span className="inline-flex items-center gap-1 text-[10px] text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full font-medium">
                 <span className="h-1.5 w-1.5 rounded-full bg-success inline-block" /> Cadastro Completo
               </span>
@@ -813,16 +784,11 @@ export function ProdutoView({ id }: Props) {
             <DetailEmpty icon={FileText} title="Nenhuma venda registrada" message="Este produto ainda não foi vendido em notas fiscais de saída" />
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <DrawerSummaryCard label="Qtd Vendida" value={totalVendido.toLocaleString("pt-BR")} align="center" />
-                <DrawerSummaryCard label="Faturamento" value={formatCurrency(valorVendido)} align="center" />
-                <DrawerSummaryCard label="Ticket Médio" value={formatCurrency(ticketMedioVenda)} align="center" />
-                <DrawerSummaryCard
-                  label="Margem Méd."
-                  value={custoEfetivo > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
-                  tone={margemMediaVenda > 0 ? "success" : margemMediaVenda < 0 ? "destructive" : "neutral"}
-                  align="center"
-                />
+              <p className="text-[11px] text-muted-foreground">Últimas {historicoVendas.length} linhas de NF de saída carregadas. Os totais não incluem necessariamente todas as vendas.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <DrawerSummaryCard label="Qtd nas NFs" value={totalVendido.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Valor nas NFs" value={formatCurrency(valorVendido)} align="center" />
+                <DrawerSummaryCard label="Preço médio unit." value={formatCurrency(ticketMedioVenda)} align="center" />
               </div>
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 pt-2">
                 <FileText className="w-3.5 h-3.5" /> Notas Fiscais de Saída
@@ -868,7 +834,7 @@ export function ProdutoView({ id }: Props) {
               </div>
               {valorVendido > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t text-xs">
-                  <span className="text-muted-foreground">Total no período</span>
+                  <span className="text-muted-foreground">Subtotal das NFs carregadas</span>
                   <span className="font-mono font-semibold">{formatCurrency(valorVendido)}</span>
                 </div>
               )}
