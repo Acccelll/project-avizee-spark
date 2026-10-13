@@ -593,6 +593,7 @@ const Produtos = () => {
         onClose={closeForm}
         onSaved={handleSaved}
         onPersisted={handleSaved}
+        onCopyReset={() => setCopyFromId(undefined)}
       />
 
       {can("produtos:criar") && <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />}
