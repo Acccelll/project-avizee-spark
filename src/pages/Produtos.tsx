@@ -552,6 +552,7 @@ const Produtos = () => {
             onView={openView}
             onEdit={openEdit}
             onDuplicate={openCopy}
+            duplicateLabel="Copiar como novo"
             onDelete={canExcluir ? handleInativar : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
