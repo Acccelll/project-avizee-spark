@@ -199,7 +199,15 @@ export function useDashboardKpis(params: KpiParams) {
         scope: { kind: "snapshot" as const },
         "aria-label": "Ver remessas atrasadas",
       },
-    ],
+    ].filter((card) => {
+      // Exceções, não um painel de zeros repetidos: estoque sem mínimos também
+      // exige intervenção para que o alerta possa funcionar.
+      if (card.id === "estoque-critico") return minimosConfigurados === 0 || estoqueBaixoCount > 0;
+      if (card.id === "ovs-aguardando") return backlogOVsCount > 0;
+      if (card.id === "compras-atrasadas") return comprasAtrasadasCount > 0;
+      if (card.id === "remessas-atrasadas") return remessasAtrasadasCount > 0;
+      return false;
+    }),
     [
       backlogOVsCount,
       comprasAtrasadasCount,
