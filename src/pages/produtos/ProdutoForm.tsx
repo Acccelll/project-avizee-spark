@@ -110,6 +110,9 @@ export interface ProdutoFormProps {
   embeddedId?: string;
   /** Callback após salvar com sucesso (embedded). Recebe o id criado/atualizado. */
   onSaved?: (produtoId: string) => void;
+  /** Registro principal persistido, mesmo quando vínculos falham ou há Salvar e novo. */
+  onPersisted?: (produtoId: string) => void;
+  onPartialSaveChange?: (message: string | null) => void;
   /** Callback para fechar (embedded). */
   onCancel?: () => void;
   /** Reportar mudanças de dirty state ao container (embedded). */
@@ -121,6 +124,8 @@ export default function ProdutoForm({
   embeddedMode,
   embeddedId,
   onSaved,
+  onPersisted,
+  onPartialSaveChange,
   onCancel,
   onDirtyChange,
 }: ProdutoFormProps = {}) {
@@ -416,6 +421,7 @@ export default function ProdutoForm({
       let composicaoSalva = false;
       try {
         setPartialSaveMessage(null);
+        onPartialSaveChange?.(null);
         if (mode === "create") {
           if (pendingCreatedIdRef.current) {
             // Retoma a criação interrompida; alterações feitas após o erro
@@ -452,12 +458,14 @@ export default function ProdutoForm({
 
         pendingCreatedIdRef.current = null;
         setPartialSaveMessage(null);
+        onPartialSaveChange?.(null);
         linksBaselineRef.current = {
           composicao: JSON.stringify(editComposicao),
           fornecedores: JSON.stringify(editFornecedores),
         };
         markPristine();
         queryClient.invalidateQueries({ queryKey: ["produtos"] });
+        if (saveAndNewRef.current && mode === "create") onPersisted?.(produtoId);
         toast.success(mode === "create" ? "Produto criado com sucesso" : "Produto atualizado");
 
         if (saveAndNewRef.current && mode === "create") {
@@ -485,7 +493,9 @@ export default function ProdutoForm({
           const etapa = composicaoSalva ? "fornecedores" : "composição";
           const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. As informações anteriores foram preservadas. Revise e clique em Salvar para tentar novamente.`;
           setPartialSaveMessage(msg);
+          onPartialSaveChange?.(msg);
           queryClient.invalidateQueries({ queryKey: ["produtos"] });
+          onPersisted?.(produtoId);
           toast.warning(msg, { duration: 9000 });
         } else {
           notifyError(err);
