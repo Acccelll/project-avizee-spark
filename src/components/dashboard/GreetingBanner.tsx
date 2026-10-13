@@ -34,6 +34,8 @@ export function GreetingBanner({
   const temBacklog = backlogOVsCount > 0;
   const temAlgo = temVencimentos || temBacklog;
 
+  if (!temAlgo) return null;
+
   return (
     <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
       <p className="text-sm font-medium text-foreground">
