@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   FileText,
   Receipt,
-  TrendingDown,
   Truck,
   ShoppingCart,
 } from 'lucide-react';
@@ -14,7 +13,6 @@ type Severity = 'error' | 'warning' | 'info';
 interface AlertStripProps {
   titulosVencidos: number;
   notasPendentes: number;
-  saldoProjetado?: number;
   comprasAtrasadas?: number;
   remessasAtrasadas?: number;
 }
@@ -40,7 +38,6 @@ const severityStyles = {
 export function AlertStrip({
   titulosVencidos,
   notasPendentes,
-  saldoProjetado,
   comprasAtrasadas = 0,
   remessasAtrasadas = 0,
 }: AlertStripProps) {
@@ -64,15 +61,6 @@ export function AlertStrip({
       severity: 'error',
       href: buildDrilldownUrl({ kind: 'financeiro:vencidos' }),
       show: titulosVencidos > 0,
-    },
-    {
-      id: 'saldo',
-      label: 'Saldo projetado negativo',
-      count: '!',
-      icon: TrendingDown,
-      severity: 'error',
-      href: buildDrilldownUrl({ kind: 'financeiro:saldo' }),
-      show: typeof saldoProjetado === 'number' && saldoProjetado < 0,
     },
     {
       id: 'compras',
