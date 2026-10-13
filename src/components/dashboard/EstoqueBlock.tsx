@@ -18,10 +18,11 @@ interface EstoqueBlockProps {
   itensBaixoMinimo: EstoqueBlockItem[];
   valorTotalEstoque: number;
   totalProdutosAtivos: number;
+  minimosConfigurados: number;
   hideHeaderOnMobile?: boolean;
 }
 
-export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProdutosAtivos, hideHeaderOnMobile = false }: EstoqueBlockProps) {
+export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProdutosAtivos, minimosConfigurados, hideHeaderOnMobile = false }: EstoqueBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
@@ -74,7 +75,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
         <div className="px-4 py-2.5">
           <div className="flex items-center gap-2 rounded-lg bg-success/5 border border-success/20 px-3 py-2">
             <div className="h-2 w-2 rounded-full bg-success shrink-0" />
-            <p className="text-xs text-success font-medium">Estoque dentro dos níveis mínimos.</p>
+            <p className="text-xs text-success font-medium">{minimosConfigurados === 0 ? "Configure o estoque mínimo dos produtos para monitorar itens críticos." : "Sem produtos abaixo do mínimo configurado."}</p>
           </div>
         </div>
       ) : (
