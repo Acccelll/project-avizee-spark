@@ -581,7 +581,8 @@ export default function ProdutoForm({
           // A operação NÃO é transacional entre as três RPCs: deixar claro
           // o que persistiu e permitir retentativa sem duplicar o produto.
           const etapa = composicaoSalva ? "fornecedores" : "composição";
-          const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. As informações anteriores foram preservadas. Revise e clique em Salvar para tentar novamente.`;
+          const detalhe = err instanceof Error ? err.message : "Verifique os vínculos informados.";
+          const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. ${detalhe} Revise os dados e clique em Salvar para tentar novamente.`;
           setPartialSaveMessage(msg);
           onPartialSaveChange?.(msg);
           queryClient.invalidateQueries({ queryKey: ["produtos"] });
