@@ -400,6 +400,14 @@ export default function ProdutoForm({
   const fiscalCompleto = !!(form.ncm && form.cst && form.cfop_padrao);
 
   const produtosDisponiveis = useMemo(() => produtosLookup, [produtosLookup]);
+  // Uma cópia pode carregar vínculos históricos hoje indisponíveis para novos cadastros.
+  // Não os remove silenciosamente: exige revisão antes de persistir.
+  const copyGroupUnavailable = !!copyFromId && !!grupoLookup && !!form.grupo_id &&
+    !grupoLookup.some((g) => g.id === form.grupo_id);
+  const copySuppliersUnavailable = !!copyFromId && !!fornecedorLookup &&
+    editFornecedores.some((f) => !!f.fornecedor_id && !fornecedorLookup.some((v) => v.id === f.fornecedor_id));
+  const copyComponentsUnavailable = !!copyFromId && form.eh_composto && !!produtosLookup &&
+    editComposicao.some((c) => !!c.produto_filho_id && !produtosLookup.some((p) => p.id === c.produto_filho_id));
 
   // Helpers de itens dinâmicos
   const addComponent = () =>
@@ -479,6 +487,11 @@ export default function ProdutoForm({
       return;
     }
 
+    if (copyFromId && (copyGroupUnavailable || copySuppliersUnavailable || copyComponentsUnavailable)) {
+      saveAndNewRef.current = false;
+      toast.error("A cópia contém grupo, fornecedor ou componente indisponível. Substitua os vínculos indicados antes de salvar.");
+      return;
+    }
     if (form.eh_composto && editComposicao.length === 0) { saveAndNewRef.current = false; toast.error("Produto composto precisa de ao menos um componente"); return; }
     if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { saveAndNewRef.current = false; toast.error("Selecione o produto para todos os componentes"); return; }
     if (form.eh_composto && editComposicao.some((c) => !Number.isFinite(c.quantidade) || c.quantidade <= 0)) {
@@ -802,6 +815,14 @@ export default function ProdutoForm({
               </TabsListScrollable>
             </div>
 
+            {copyFromId && (copyGroupUnavailable || copySuppliersUnavailable || copyComponentsUnavailable) && (
+              <div role="alert" className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm text-foreground">
+                A cópia contém vínculos que não estão mais disponíveis para novos cadastros.
+                {copyGroupUnavailable && <p>Grupo indisponível: selecione um grupo ativo.</p>}
+                {copySuppliersUnavailable && <p>Fornecedor indisponível: substitua ou remova o vínculo na aba Fornecedores.</p>}
+                {copyComponentsUnavailable && <p>Componente indisponível: substitua ou remova o item da composição.</p>}
+              </div>
+            )}
             {!permissionsLoading && !canSaveProduct && (
               <div role="alert" className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">{permissionMessage}</div>
             )}
