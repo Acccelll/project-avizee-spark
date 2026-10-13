@@ -108,6 +108,8 @@ export interface ProdutoFormProps {
   embeddedMode?: "create" | "edit";
   /** ID do produto a editar quando embedded. */
   embeddedId?: string;
+  /** Produto de origem para pré-preencher um novo cadastro (nunca editar a origem). */
+  copyFromId?: string;
   /** Callback após salvar com sucesso (embedded). Recebe o id criado/atualizado. */
   onSaved?: (produtoId: string) => void;
   /** Registro principal persistido, mesmo quando vínculos falham ou há Salvar e novo. */
@@ -123,6 +125,7 @@ export default function ProdutoForm({
   embedded = false,
   embeddedMode,
   embeddedId,
+  copyFromId,
   onSaved,
   onPersisted,
   onPartialSaveChange,
@@ -138,7 +141,7 @@ export default function ProdutoForm({
     : (id ? "edit" : "create");
   const { pushView } = useRelationalNavigation();
 
-  const [loading, setLoading] = useState(mode === "edit");
+  const [loading, setLoading] = useState(mode === "edit" || !!copyFromId);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
@@ -298,6 +301,74 @@ export default function ProdutoForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega somente após retry explícito
   }, [id, mode, loadAttempt]);
 
+  // Copiar como novo: reaproveita cadastro e vínculos, sem IDs exclusivos
+  // ou quantidades físicas. Nunca persiste até o usuário clicar em Salvar.
+  useEffect(() => {
+    if (mode !== "create" || !copyFromId) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const source = await getProdutoById(copyFromId);
+        if (!source) throw new Error("Produto de origem não encontrado.");
+        const [compData, fornData] = await Promise.all([
+          source.eh_composto ? listProdutoComposicao(source.id) : Promise.resolve([]),
+          listProdutoFornecedores(source.id),
+        ]);
+        if (cancelled) return;
+        // Criação: não herdar id, códigos únicos, estoque atual ou status inativo.
+        resetForm({ ...emptyProduto });
+        setForm({
+          ...emptyProduto,
+          nome: `Cópia de ${source.nome}`,
+          sku: "",
+          codigo_interno: "",
+          descricao: source.descricao || "",
+          unidade_medida: source.unidade_medida || "UN",
+          preco_custo: source.preco_custo ?? 0,
+          preco_venda: source.preco_venda ?? 0,
+          estoque_minimo: source.estoque_minimo ?? 0,
+          ncm: (source.ncm || "").replace(/\\D/g, ""),
+          cst: source.cst || "",
+          cfop_padrao: source.cfop_padrao || "",
+          peso: source.peso ?? 0,
+          eh_composto: !!source.eh_composto,
+          grupo_id: source.grupo_id || "",
+          tipo_item: source.tipo_item || "produto",
+          variacoes_texto: Array.isArray(source.variacoes) ? source.variacoes.join(", ") : "",
+          ativo: true,
+          codigo_servico_lc116: source.codigo_servico_lc116 ?? "",
+          codigo_tributacao_municipio: source.codigo_tributacao_municipio ?? "",
+          aliquota_iss: source.aliquota_iss ?? null,
+          retencao_iss: source.retencao_iss ?? false,
+          tipo_tributacao_iss: source.tipo_tributacao_iss ?? 1,
+        });
+        setEditComposicao(compData.map((c) => ({
+          produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
+          nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo,
+        })));
+        setEditFornecedores(fornData.map((f) => ({
+          fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
+          descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
+          unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0,
+          preco_compra: f.preco_compra || 0, fator_conversao: f.fator_conversao ?? 1,
+        })));
+        setMargemOverride(null);
+        setFormErrors({});
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError("Não foi possível copiar todos os dados do produto. Tente carregar novamente.");
+          notifyError(err);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apenas troca de origem ou tentativa explícita
+  }, [copyFromId, mode, loadAttempt]);
+
   // Cálculos derivados
   const custoComposto = editComposicao.reduce((s, c) => {
     const prod = produtosLookup.find((p) => p.id === c.produto_filho_id);
@@ -356,7 +427,7 @@ export default function ProdutoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || (mode === "edit" && loadError)) {
+    if (loading || loadError) {
       saveAndNewRef.current = false;
       toast.error("Carregamento incompleto. Tente novamente antes de salvar.");
       return;
@@ -680,9 +751,9 @@ export default function ProdutoForm({
   const formBody = (
     <TooltipProvider delayDuration={300}>
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
-          {mode === "edit" && loadError && (
+          {loadError && (
             <div role="alert" className="mb-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-              <p className="text-sm font-semibold text-destructive">Não foi possível carregar o produto completo</p>
+              <p className="text-sm font-semibold text-destructive">Não foi possível carregar os dados do produto</p>
               <p className="text-xs text-muted-foreground">{loadError}</p>
               <Button type="button" variant="outline" className="self-start" onClick={() => setLoadAttempt((n) => n + 1)}>
                 Tentar carregar novamente
