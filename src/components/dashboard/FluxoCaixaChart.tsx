@@ -1,316 +1,123 @@
-import { useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPages } from '@/services/relatorios/lib/fetchAllPages';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { FluxoCaixaFinanceiroRow } from '@/types/database-views';
-import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
 interface ChartPoint {
   mes: string;
-  entradas_real: number;
-  saidas_real: number;
-  entradas_prev: number;
-  saidas_prev: number;
+  chave: string;
+  recebido: number;
+  aReceber: number;
+  pago: number;
+  aPagar: number;
 }
 
 interface FluxoCaixaChartProps {
-  /**
-   * When `true`, renders without the outer card wrapper (bg-card, border, padding),
-   * and uses a responsive height to fill its container. Use this when embedding
-   * inside another card (e.g. FinanceiroBlock) to avoid nested card styles.
-   */
   embedded?: boolean;
 }
 
-export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
-  const [view, setView] = useState<'realizado' | 'previsto'>('realizado');
-  const { range } = useDashboardPeriod();
-  const { data = [], isLoading: loading } = useQuery<ChartPoint[]>({
-    queryKey: ['dashboard', 'fluxo-caixa', range.dateFrom, range.dateTo],
-    queryFn: async () => {
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-      sixMonthsAgo.setDate(1);
-      const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
-      // Mantém janela mínima de 6 meses para legibilidade do gráfico mensal,
-      // mas amplia se o período global for maior.
-      const dateFrom =
-        range.dateFrom && range.dateFrom < sixMonthsAgoStr
-          ? range.dateFrom
-          : sixMonthsAgoStr;
+const SERIES = {
+  recebido: 'Recebido',
+  aReceber: 'A receber (pendente)',
+  pago: 'Pago',
+  aPagar: 'A pagar (pendente)',
+} as const;
 
-      // Frente 4 — paginação universal: a view consolida realizados+previstos
-      // num horizonte >6 meses; pode ultrapassar 1000 linhas em volumes médios.
+function isoMonth(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
+  const { data = [], isLoading, isError, refetch } = useQuery<ChartPoint[]>({
+    queryKey: ['dashboard', 'fluxo-caixa', 'realizado-previsto-unificado'],
+    queryFn: async () => {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const last = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+      const dateFrom = `${isoMonth(first)}-01`;
+      const dateTo = `${isoMonth(last)}-${String(last.getDate()).padStart(2, '0')}`;
+
+      // A view distingue baixa efetiva de saldo ainda pendente: somar cada categoria
+      // apenas uma vez evita contabilizar um título pago como previsão novamente.
       const rows = await fetchAllPages<FluxoCaixaFinanceiroRow>(() =>
-        (supabase as unknown as {
-          from: (t: string) => {
-            select: (cols: string) => {
-              gte: (col: string, val: string) => unknown;
-            };
-          };
-        })
-          .from('vw_fluxo_caixa_financeiro')
+        supabase.from('vw_fluxo_caixa_financeiro')
           .select('tipo, valor, data_ref, categoria')
-          .gte('data_ref', dateFrom) as never,
+          .gte('data_ref', dateFrom).lte('data_ref', dateTo)
+          .order('data_ref').order('tipo').order('categoria'),
+        { onTruncated: () => { throw new Error('Fluxo de caixa excedeu o limite de consulta'); } },
       );
 
-      const realMap = new Map<string, { entradas_real: number; saidas_real: number }>();
-      const prevMap = new Map<string, { entradas_prev: number; saidas_prev: number }>();
-
-      for (const r of rows ?? []) {
+      const months = new Map<string, ChartPoint>();
+      for (let i = -5; i <= 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const chave = isoMonth(d);
+        months.set(chave, {
+          chave,
+          mes: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+          recebido: 0, aReceber: 0, pago: 0, aPagar: 0,
+        });
+      }
+      for (const r of rows) {
         if (!r.data_ref) continue;
-        const month = r.data_ref.slice(0, 7);
-        const valor = Number(r.valor || 0);
+        const p = months.get(r.data_ref.slice(0, 7));
+        if (!p) continue;
+        const amount = Number(r.valor ?? 0);
         if (r.categoria === 'realizado') {
-          const cur = realMap.get(month) || { entradas_real: 0, saidas_real: 0 };
-          if (r.tipo === 'receber') cur.entradas_real += valor;
-          else cur.saidas_real += valor;
-          realMap.set(month, cur);
-        } else {
-          const cur = prevMap.get(month) || { entradas_prev: 0, saidas_prev: 0 };
-          if (r.tipo === 'receber') cur.entradas_prev += valor;
-          else cur.saidas_prev += valor;
-          prevMap.set(month, cur);
+          if (r.tipo === 'receber') p.recebido += amount;
+          if (r.tipo === 'pagar') p.pago -= amount;
+        } else if (r.categoria === 'previsto') {
+          if (r.tipo === 'receber') p.aReceber += amount;
+          if (r.tipo === 'pagar') p.aPagar -= amount;
         }
       }
-
-      const months = Array.from(new Set([...realMap.keys(), ...prevMap.keys()])).sort();
-      return months.map((m) => {
-        const real = realMap.get(m) || { entradas_real: 0, saidas_real: 0 };
-        const prev = prevMap.get(m) || { entradas_prev: 0, saidas_prev: 0 };
-        const [year, mon] = m.split('-');
-        const mesLabel = new Date(Number(year), Number(mon) - 1).toLocaleDateString('pt-BR', {
-          month: 'short',
-          year: '2-digit',
-        });
-        return {
-          mes: mesLabel,
-          entradas_real: real.entradas_real,
-          saidas_real: real.saidas_real,
-          entradas_prev: prev.entradas_prev,
-          saidas_prev: prev.saidas_prev,
-        };
-      });
+      return [...months.values()];
     },
     staleTime: 2 * 60 * 1000,
   });
 
-  const showRealizado = view === 'realizado';
-  const showPrevisto = view === 'previsto';
-  const chartContent = (
-    <>
-      <defs>
-        <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="hsl(142 76% 36%)" stopOpacity={0.3} />
-          <stop offset="95%" stopColor="hsl(142 76% 36%)" stopOpacity={0} />
-        </linearGradient>
-        <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
-          <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-      <XAxis dataKey="mes" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-      <YAxis hide />
-      <Tooltip
-        formatter={(value: number, name: string) => [
-          formatCurrency(value),
-          name === 'entradas_real'
-            ? 'Recebimentos realizados'
-            : name === 'saidas_real'
-              ? 'Pagamentos realizados'
-              : name === 'entradas_prev'
-                ? 'A receber (previsto)'
-                : 'A pagar (previsto)',
-        ]}
-        contentStyle={{ fontSize: 12, borderRadius: 8 }}
-      />
-      {showRealizado && (
-        <>
-          <Area type="monotone" dataKey="entradas_real" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} />
-          <Area type="monotone" dataKey="saidas_real" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} />
-        </>
-      )}
-      {showPrevisto && (
-        <>
-          <Area type="monotone" dataKey="entradas_prev" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} strokeDasharray="5 3" />
-          <Area type="monotone" dataKey="saidas_prev" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} strokeDasharray="5 3" />
-        </>
-      )}
-    </>
-  );
-
-  if (loading) {
-    if (embedded) {
-      return (
-        <div className="flex flex-col h-full gap-3">
-          <Skeleton className="h-4 w-40 shrink-0" />
-          <Skeleton className="flex-1 w-full" />
+  const today = isoMonth(new Date());
+  const content = (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Fluxo financeiro · realizado + pendente</h3>
+          <p className="text-[11px] text-muted-foreground">6 meses anteriores/incluindo atual + 3 futuros · saída abaixo de zero</p>
         </div>
-      );
-    }
-    return (
-      <div className="bg-card rounded-xl border p-5">
-        <Skeleton className="h-5 w-40 mb-4" />
-        <Skeleton className="h-[200px] w-full" />
+        <a href="/fluxo-caixa" className="text-xs text-primary hover:underline">Detalhar →</a>
       </div>
-    );
-  }
-
-  if (data.length === 0) {
-    if (embedded) {
-      return (
-        <div className="flex flex-col h-full">
-          <p className="text-xs font-semibold text-foreground mb-2">Fluxo de Caixa</p>
-          <p className="text-sm text-muted-foreground text-center py-4">Sem dados financeiros para exibir.</p>
-        </div>
-      );
-    }
-    return (
-      <div className="bg-card rounded-xl border p-5">
-        <h3 className="font-semibold text-foreground mb-4">Fluxo de Caixa</h3>
-        <p className="text-sm text-muted-foreground text-center py-8">Sem dados financeiros para exibir.</p>
-      </div>
-    );
-  }
-
-  if (embedded) {
-    const totals = data.reduce(
-      (acc, p) => {
-        acc.recR += p.entradas_real;
-        acc.pagR += p.saidas_real;
-        acc.recP += p.entradas_prev;
-        acc.pagP += p.saidas_prev;
-        return acc;
-      },
-      { recR: 0, pagR: 0, recP: 0, pagP: 0 },
-    );
-    const saldoR = totals.recR - totals.pagR;
-    const saldoP = totals.recP - totals.pagP;
-    return (
-      <div
-        className="flex flex-col h-full"
-        role="img"
-        aria-label="Gráfico de fluxo de caixa — realizados vs previstos (6 meses)"
-      >
-        <div className="mb-1.5 shrink-0 flex items-center justify-between gap-2 flex-wrap">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground">Fluxo de Caixa</p>
-            <p className="text-[10px] text-muted-foreground mono truncate">
-              {showRealizado
-                ? `+${formatCurrency(totals.recR)} · −${formatCurrency(totals.pagR)} · Saldo ${formatCurrency(saldoR)}`
-                : `+${formatCurrency(totals.recP)} · −${formatCurrency(totals.pagP)} · Saldo ${formatCurrency(saldoP)}`}
-            </p>
-          </div>
-          <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 text-[10px]">
-            <button
-              type="button"
-              onClick={() => setView('realizado')}
-              className={
-                'px-2 py-0.5 rounded-sm transition-colors ' +
-                (showRealizado ? 'bg-background text-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground')
-              }
-              aria-pressed={showRealizado}
-            >
-              Realizado
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('previsto')}
-              className={
-                'px-2 py-0.5 rounded-sm transition-colors ' +
-                (showPrevisto ? 'bg-background text-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground')
-              }
-              aria-pressed={showPrevisto}
-            >
-              Previsto
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>{chartContent}</AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground shrink-0">
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-0.5 bg-[hsl(142_76%_36%)] inline-block" />
-            {showRealizado ? 'Recebido' : 'A receber'}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-0.5 bg-[hsl(0_84%_60%)] inline-block" />
-            {showRealizado ? 'Pago' : 'A pagar'}
-          </span>
-        </div>
-        {/* Accessible data table for screen readers */}
-        <div className="sr-only">
-          <table>
-            <caption>Fluxo de Caixa — Realizado vs Previsto (6 meses)</caption>
-            <thead><tr><th>Mês</th><th>Recebimentos Realizados</th><th>Pagamentos Realizados</th><th>A Receber (Previsto)</th><th>A Pagar (Previsto)</th></tr></thead>
-            <tbody>{data.map((p) => (<tr key={p.mes}><td>{p.mes}</td><td>{formatCurrency(p.entradas_real)}</td><td>{formatCurrency(p.saidas_real)}</td><td>{formatCurrency(p.entradas_prev)}</td><td>{formatCurrency(p.saidas_prev)}</td></tr>))}</tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <figure className="bg-card rounded-xl border p-5" role="img" aria-label="Gráfico de área do fluxo de caixa dos últimos seis meses com séries de recebimentos e pagamentos realizados e previstos.">
-      <h3 className="font-semibold text-foreground mb-4">Fluxo de Caixa — Realizado vs Previsto (6 meses)</h3>
-      <div
-        role="img"
-        aria-label={`Gráfico de área: fluxo de caixa dos últimos 6 meses. ${data.map((p) => `${p.mes}: recebimentos realizados ${formatCurrency(p.entradas_real)}, pagamentos realizados ${formatCurrency(p.saidas_real)}`).join('; ')}`}
-      >
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data}>{chartContent}</AreaChart>
+      <div className="min-h-[160px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 6, left: -6, bottom: 0 }} barGap={1}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
+            <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+            <YAxis hide />
+            <Tooltip
+              formatter={(raw: number, name: string) => [formatCurrency(Math.abs(Number(raw))), SERIES[name as keyof typeof SERIES] || name]}
+              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+            />
+            <Bar dataKey="recebido" stackId="entradas" fill="hsl(142 76% 36%)" isAnimationActive={false} />
+            <Bar dataKey="aReceber" stackId="entradas" fill="hsl(142 45% 68%)" isAnimationActive={false} />
+            <Bar dataKey="pago" stackId="saidas" fill="hsl(0 75% 51%)" isAnimationActive={false} />
+            <Bar dataKey="aPagar" stackId="saidas" fill="hsl(0 65% 78%)" isAnimationActive={false} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
-      {/* Accessible data table for screen readers */}
-      <div className="sr-only">
-        <table>
-          <caption>Fluxo de Caixa — Realizado vs Previsto (6 meses)</caption>
-          <thead>
-            <tr>
-              <th scope="col">Mês</th>
-              <th scope="col">Recebimentos Realizados</th>
-              <th scope="col">Pagamentos Realizados</th>
-              <th scope="col">A Receber (Previsto)</th>
-              <th scope="col">A Pagar (Previsto)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((p) => (
-              <tr key={p.mes}>
-                <td>{p.mes}</td>
-                <td>{formatCurrency(p.entradas_real)}</td>
-                <td>{formatCurrency(p.saidas_real)}</td>
-                <td>{formatCurrency(p.entradas_prev)}</td>
-                <td>{formatCurrency(p.saidas_prev)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+        <span>■ Recebido</span><span>□ A receber</span><span>■ Pago</span><span>□ A pagar</span>
+        <span>Atual: {today}</span>
       </div>
-      <div className="flex gap-6 mt-3 text-xs text-muted-foreground justify-center flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 bg-[hsl(142_76%_36%)]" />Recebimentos realizados
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 bg-[hsl(0_84%_60%)]" />Pagamentos realizados
-        </span>
-        <span className="flex items-center gap-1.5 opacity-60">
-          <span className="w-3 border-t border-dashed border-[hsl(142_76%_36%)]" />A receber (previsto)
-        </span>
-        <span className="flex items-center gap-1.5 opacity-60">
-          <span className="w-3 border-t border-dashed border-[hsl(0_84%_60%)]" />A pagar (previsto)
-        </span>
-      </div>
-      <figcaption className="sr-only">
-        O gráfico compara recebimentos e pagamentos realizados com valores previstos para facilitar o acompanhamento do caixa.
-      </figcaption>
-    </figure>
+      <p className="text-[10px] text-muted-foreground">Previsões = saldos não baixados por vencimento, inclusive atrasados; não são saldo bancário.</p>
+    </div>
   );
+
+  if (isLoading) return <Skeleton className={embedded ? 'h-full w-full' : 'h-64 w-full'} />;
+  if (isError) return <div role="alert" className="text-sm text-destructive">Erro ao consultar fluxo de caixa. <button type="button" className="underline" onClick={() => refetch()}>Tentar novamente</button></div>;
+  if (!data.some(p => p.recebido || p.aReceber || p.pago || p.aPagar)) {
+    return <p className="text-sm text-muted-foreground p-3">Sem movimentos realizados ou previstos nesta janela. <a className="text-primary underline" href="/fluxo-caixa">Abrir fluxo completo</a></p>;
+  }
+  if (embedded) return content;
+  return <div className="bg-card rounded-xl border p-4 h-[300px]">{content}</div>;
 }
