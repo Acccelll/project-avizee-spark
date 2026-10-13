@@ -12,6 +12,7 @@ interface ProdutoFormModalProps {
   onClose: () => void;
   onSaved?: (produtoId: string) => void;
   onPersisted?: (produtoId: string) => void;
+  onCopyReset?: () => void;
 }
 
 /**
@@ -19,7 +20,7 @@ interface ProdutoFormModalProps {
  * Mantém o padrão dos demais cadastros (Clientes/Fornecedores) sem perder
  * abas, composição, fornecedores e dialogs auxiliares do form.
  */
-export function ProdutoFormModal({ open, mode, produtoId, copyFromId, onClose, onSaved, onPersisted }: ProdutoFormModalProps) {
+export function ProdutoFormModal({ open, mode, produtoId, copyFromId, onClose, onSaved, onPersisted, onCopyReset }: ProdutoFormModalProps) {
   const [dirty, setDirty] = useState(false);
   const [partialWarning, setPartialWarning] = useState<string | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -70,6 +71,7 @@ export function ProdutoFormModal({ open, mode, produtoId, copyFromId, onClose, o
                   onClose();
                 }}
                 onPersisted={onPersisted}
+                onCopyReset={onCopyReset}
                 onPartialSaveChange={setPartialWarning}
                 onDirtyChange={setDirty}
               />
