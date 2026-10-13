@@ -4,18 +4,20 @@ import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValu
 import { OPEN_ORCAMENTO_STATUSES } from "@/lib/comercialStatuses";
 import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
 import { logger } from "@/lib/logger";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
-/** Pedidos registrados no orçamento que ainda têm saldo a faturar. */
+/** Regras do relatório Pedidos a Faturar, baseadas em orçamentos com saldo pendente. */
 const PEDIDO_STATUSES = ["aprovado", "convertido"];
 const PEDIDO_EM_ABERTO = ["aberto", "parcial"];
 
 interface ComercialData {
-  /** Cotações abertas (non-terminal) in the selected period. */
+  /** Orçamentos não-terminais do sistema, independentemente do período. */
   orcamentos: number;
   recentOrcamentos: RecentOrcamento[];
   backlogOVs: BacklogOv[];
   /** Real count of OVs awaiting faturamento (not limited by the preview list). */
   backlogOVsCount: number;
+  /** Valores de NFs de saída válidas; não equivalem necessariamente a vendas comerciais. */
   faturamento: { mesAtual: number; mesAnterior: number; nfAtualCount: number };
   dailyVendas: Array<{ dia: string; valor: number }>;
   topProdutos: TopPoint[];
@@ -31,7 +33,9 @@ export function useDashboardComercialData(range: DashboardDateRange) {
       const date = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
     })();
-    const fimMesAnterior = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const fimMesAnterior = inicioMesAtual;
+    const proximoMes = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const inicioProximoMes = `${proximoMes.getFullYear()}-${String(proximoMes.getMonth() + 1).padStart(2, "0")}-01`;
 
     const lastDays = buildIsoDayRange(-6, 7);
 
@@ -39,17 +43,13 @@ export function useDashboardComercialData(range: DashboardDateRange) {
       // For top produtos: respect global range when explicit; fallback to mês atual.
       const usingGlobalRange = !!(dateFrom && dateTo);
       const itensFrom = usingGlobalRange ? dateFrom : inicioMesAtual;
-      const itensTo = usingGlobalRange ? dateTo : undefined;
+      const itensTo = usingGlobalRange ? dateTo : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
 
       const [
         orcamentosResult,
         orcRecentResult,
         backlogResult,
         backlogCountResult,
-        nfAtualResult,
-        nfAnteriorResult,
-        dailyVendasResult,
-        itensResult,
       ] = await Promise.all([
         // Snapshot: orçamentos abertos (não-terminais) — sem filtro de período,
         // para se alinhar a `pedidosPendentes` (também snapshot) no bloco
@@ -68,61 +68,50 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .neq("origem", "importacao_historica")
           .order("created_at", { ascending: false })
           .limit(5),
-        // Preview list (capped at 15) for the UI detail view.
-        supabase
-          .from("orcamentos")
+        // Paridade exata com src/services/relatorios/loaders/pedidosAFaturar.ts.
+        supabase.from("orcamentos")
           .select("id, numero, pedido_cliente, valor_total, data_pedido_cliente, previsao_despacho, faturamento_status, clientes(nome_razao_social)")
-          .eq("ativo", true)
-          .in("status", PEDIDO_STATUSES)
+          .eq("ativo", true).in("status", PEDIDO_STATUSES)
           .in("faturamento_status", PEDIDO_EM_ABERTO)
-          .order("previsao_despacho", { ascending: true, nullsFirst: false })
-          .limit(15),
-        // Real total count for alert/KPI badges.
-        supabase
-          .from("orcamentos")
-          .select("id", { count: "exact", head: true })
-          .eq("ativo", true)
-          .in("status", PEDIDO_STATUSES)
+          .order("previsao_despacho", { ascending: true, nullsFirst: false }).limit(15),
+        supabase.from("orcamentos").select("id", { count: "exact", head: true })
+          .eq("ativo", true).in("status", PEDIDO_STATUSES)
           .in("faturamento_status", PEDIDO_EM_ABERTO),
-        supabase
-          .from("notas_fiscais")
-          .select("valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .in("status", ["confirmada", "importada"])
-          .gte("data_emissao", inicioMesAtual),
-        supabase
-          .from("notas_fiscais")
-          .select("valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .in("status", ["confirmada", "importada"])
-          .gte("data_emissao", inicioMesAnterior)
-          .lt("data_emissao", fimMesAnterior),
-        supabase
-          .from("notas_fiscais")
-          .select("data_emissao, valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .in("status", ["confirmada", "importada"])
-          .in("data_emissao", lastDays),
-        (() => {
-          let q = supabase
-            .from("notas_fiscais_itens")
-            .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
+      ]);
+
+      // Paginação explícita evita totais silenciosamente truncados pelo limite do PostgREST.
+      // Se o teto de segurança for alcançado, a consulta falha em vez de mostrar um número parcial.
+      const allPages = <T,>(build: () => unknown): Promise<T[]> =>
+        fetchAllPages<T>(() => build() as never, {
+          onTruncated: () => { throw new Error("Dashboard comercial: volume ultrapassou limite seguro de consulta"); },
+        });
+
+      const nfBase = () => supabase.from("notas_fiscais")
+        .select("valor_total").eq("ativo", true).eq("tipo", "saida")
+        .in("status", ["confirmada", "importada"]);
+      const [nfAtual, nfAnterior, dailyVendas, itens] = await Promise.all([
+        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAtual).lt("data_emissao", inicioProximoMes).order("id")),
+        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAnterior).lt("data_emissao", fimMesAnterior).order("id")),
+        allPages<DailyNfRow>(() => supabase.from("notas_fiscais")
+          .select("data_emissao, valor_total").eq("ativo", true).eq("tipo", "saida")
+          .in("status", ["confirmada", "importada"]).in("data_emissao", lastDays).order("id")),
+        allPages<NfItemRow>(() => {
+          let q = supabase.from("notas_fiscais_itens")
+            .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao, ativo)")
+            .eq("notas_fiscais.ativo", true)
             .in("notas_fiscais.status", ["confirmada", "importada"])
             .eq("notas_fiscais.tipo", "saida")
             .gte("notas_fiscais.data_emissao", itensFrom);
           if (itensTo) q = q.lte("notas_fiscais.data_emissao", itensTo);
-          return q;
-        })(),
+          return q.order("id");
+        }),
       ]);
-
-      if (orcamentosResult.error) logger.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
-      if (backlogResult.error) logger.error("[dashboard:comercial] backlog:", backlogResult.error.message);
-      if (nfAtualResult.error) logger.error("[dashboard:comercial] nfAtual:", nfAtualResult.error.message);
-
-      const nfAtual = (nfAtualResult.data ?? []) as NfRow[];
+      for (const [label, result] of [
+        ["orcamentos", orcamentosResult], ["recentes", orcRecentResult],
+        ["pedidos", backlogResult], ["pedidos-contagem", backlogCountResult],
+      ] as const) {
+        if (result.error) throw new Error(`Dashboard comercial (${label}): ${result.error.message}`);
+      }
 
       return {
         orcamentos: orcamentosResult.count ?? 0,
@@ -131,23 +120,15 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         backlogOVsCount: backlogCountResult.count ?? 0,
         faturamento: {
           mesAtual: sumNfValues(nfAtual),
-          mesAnterior: sumNfValues((nfAnteriorResult.data ?? []) as NfRow[]),
+          mesAnterior: sumNfValues(nfAnterior),
           nfAtualCount: nfAtual.length,
         },
-        dailyVendas: aggregateDailyVendas(lastDays, (dailyVendasResult.data ?? []) as DailyNfRow[]),
-        topProdutos: aggregateTopProdutos((itensResult.data ?? []) as NfItemRow[]),
+        dailyVendas: aggregateDailyVendas(lastDays, dailyVendas),
+        topProdutos: aggregateTopProdutos(itens),
       };
     } catch (error) {
       logger.error("[dashboard:comercial] erro inesperado:", error);
-      return {
-        orcamentos: 0,
-        recentOrcamentos: [],
-        backlogOVs: [],
-        backlogOVsCount: 0,
-        faturamento: { mesAtual: 0, mesAnterior: 0, nfAtualCount: 0 },
-        dailyVendas: [],
-        topProdutos: [],
-      };
+      throw error;
     }
   }, [range]);
 

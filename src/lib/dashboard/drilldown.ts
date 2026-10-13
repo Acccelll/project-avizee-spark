@@ -19,7 +19,7 @@
  * |-------------------------------------|------------------------------------------|---------------------------------------------------------------|
  * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido) — SNAPSHOT (sem janela) |
  * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido) — SNAPSHOT (sem janela)   |
- * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido — SNAPSHOT (sem janela)                                    |
+ * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | period=vencidos — atraso calculado pela página                                    |
  * | estoque:critico                     | useDashboardEstoqueData                  | critico=1                                                     |
  * | logistica:remessas-atrasadas        | useDashboardAuxData                      | tab=remessas + atrasadas=1                                    |
  * | compras:atrasadas                   | useDashboardAuxData (comprasAtrasadasCount)| atrasadas=1 (interpretação local em PedidosCompra.tsx)      |
@@ -52,7 +52,7 @@ export function buildDrilldownUrl(intent: DrilldownIntent): string {
     case 'financeiro:pagar-aberto':
       return '/financeiro?tipo=pagar&status=aberto,parcial,vencido';
     case 'financeiro:vencidos':
-      return '/financeiro?status=vencido';
+      return '/financeiro?period=vencidos';
     case 'financeiro:saldo':
       return '/fluxo-caixa';
     case 'estoque:critico':

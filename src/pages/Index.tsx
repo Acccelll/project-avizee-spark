@@ -76,6 +76,7 @@ const DashboardContent = () => {
   const {
     stats,
     loading,
+    hasError,
     fetching,
     loadedAt,
     loadData,
@@ -86,6 +87,7 @@ const DashboardContent = () => {
     dailyPagar,
     dailyReceber,
     estoqueBaixo,
+    minimosConfigurados,
     faturamento,
     fiscalStats,
     recentOrcamentos,
@@ -97,10 +99,11 @@ const DashboardContent = () => {
     scopes,
   } = useDashboardData();
 
-  const { kpiCards, operationalCards, saldoProjetado } = useDashboardKpis({
+  const { kpiCards, operationalCards } = useDashboardKpis({
     metas,
     stats,
     estoqueBaixoCount: estoqueBaixo.length,
+    minimosConfigurados,
     backlogOVsCount,
     comprasAtrasadasCount,
     remessasAtrasadasCount: remessasAtrasadas,
@@ -130,6 +133,15 @@ const DashboardContent = () => {
 
   if (loading) {
     return isMobile ? <MobileDashboardSkeleton /> : <DashboardSkeleton />;
+  }
+  if (hasError) {
+    return (
+      <div role="alert" className="rounded-xl border border-destructive/30 bg-card p-6 space-y-3">
+        <p className="text-sm font-semibold text-destructive">Não foi possível atualizar o Dashboard</p>
+        <p className="text-sm text-muted-foreground">Os indicadores estão indisponíveis. Nenhum valor zero será exibido como se a consulta tivesse sido concluída.</p>
+        <button type="button" onClick={loadData} className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Tentar novamente</button>
+      </div>
+    );
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
@@ -200,7 +212,6 @@ const DashboardContent = () => {
       <AlertStrip
         titulosVencidos={stats.contasVencidas}
         notasPendentes={fiscalStats.pendentes}
-        saldoProjetado={saldoProjetado}
         comprasAtrasadas={comprasAtrasadasCount}
         remessasAtrasadas={remessasAtrasadas}
       />
@@ -212,19 +223,11 @@ const DashboardContent = () => {
           title="Financeiro"
           icon={DollarSign}
           iconColor="text-primary"
-          summary={
-            stats.contasVencidas > 0
-              ? `Saldo ${fmtK(saldoProjetado)} · ${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? 's' : ''}`
-              : `Saldo ${fmtK(saldoProjetado)}`
-          }
+          summary={stats.contasVencidas > 0 ? `${stats.contasVencidas} títulos vencidos` : "Sem títulos vencidos"}
           defaultOpen
           persistKey="financeiro"
         >
           <FinanceiroBlock
-            totalReceber={stats.totalReceber}
-            totalPagar={stats.totalPagar}
-            contasVencidas={stats.contasVencidas}
-            saldoProjetado={saldoProjetado}
             recebimentosHoje={vencimentosHoje.receber}
             pagamentosHoje={vencimentosHoje.pagar}
             hideHeaderOnMobile={isMobile}
@@ -313,13 +316,14 @@ const DashboardContent = () => {
           summary={
             estoqueBaixo.length > 0
               ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
-              : `${stats.produtos} ativos`
+              : minimosConfigurados === 0 ? "Mínimos não configurados" : `${stats.produtos} ativos`
           }
-          defaultOpen={estoqueBaixo.length > 0}
+          defaultOpen={estoqueBaixo.length > 0 || minimosConfigurados === 0}
           persistKey="estoque"
         >
           <EstoqueBlock
             itensBaixoMinimo={estoqueBaixo}
+            minimosConfigurados={minimosConfigurados}
             valorTotalEstoque={valorEstoque}
             totalProdutosAtivos={stats.produtos}
             hideHeaderOnMobile={isMobile}

@@ -16,6 +16,7 @@ interface KpiParams {
     contasVencidas: number;
   };
   estoqueBaixoCount: number;
+  minimosConfigurados: number;
   backlogOVsCount: number;
   comprasAtrasadasCount: number;
   remessasAtrasadasCount: number;
@@ -39,6 +40,7 @@ export function useDashboardKpis(params: KpiParams) {
     metas,
     stats,
     estoqueBaixoCount,
+    minimosConfigurados,
     backlogOVsCount,
     comprasAtrasadasCount,
     remessasAtrasadasCount,
@@ -67,12 +69,9 @@ export function useDashboardKpis(params: KpiParams) {
         value: formatCurrency(stats.totalReceber),
         subtitle: `${formatNumber(stats.contasReceber)} título${stats.contasReceber !== 1 ? "s" : ""} em aberto`,
         icon: TrendingUp,
-        variation:
-          stats.contasVencidas > 0
-            ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}`
-            : "Sem vencidos",
-        variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
-        variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
+        variation: undefined,
+        variationType: "neutral" as const,
+        variant: "default" as const,
         sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
         onClick: onOpenReceber,
         onDetail: onReceberDetail,
@@ -107,16 +106,16 @@ export function useDashboardKpis(params: KpiParams) {
       },
       {
         id: "saldo",
-        title: "Saldo Projetado",
+        title: "Diferença em Aberto",
         value: formatCurrency(saldoProjetado),
-        subtitle: "receber − pagar (saldo atual em aberto)",
+        subtitle: "receber − pagar · não é saldo bancário",
         icon: BarChart2,
         variation:
           saldoProjetado >= 0
-            ? `Sobra de ${formatCurrency(saldoProjetado)}`
-            : `Déficit de ${formatCurrency(Math.abs(saldoProjetado))}`,
+            ? `Diferença positiva de ${formatCurrency(saldoProjetado)}`
+            : `Diferença negativa de ${formatCurrency(Math.abs(saldoProjetado))}`,
         variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
-        variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
+        variant: "default" as const,
         sparklineData:
           dailyReceber.length > 0 && dailyPagar.length > 0
             ? dailyReceber.map((r, index) => r.valor - (dailyPagar[index]?.valor ?? 0))
@@ -158,10 +157,10 @@ export function useDashboardKpis(params: KpiParams) {
       {
         id: "estoque-critico",
         title: "Estoque Crítico",
-        value: formatNumber(estoqueBaixoCount),
-        subtitle: estoqueBaixoCount > 0 ? "abaixo do mínimo" : "saudável",
+        value: minimosConfigurados === 0 ? "—" : formatNumber(estoqueBaixoCount),
+        subtitle: minimosConfigurados === 0 ? "mínimos não configurados" : estoqueBaixoCount > 0 ? "abaixo do mínimo" : "sem itens críticos",
         icon: Package,
-        variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
+        variant: minimosConfigurados === 0 ? ("default" as const) : estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
         onClick: onOpenEstoque,
         onDetail: onEstoqueDetail,
         scope: { kind: "snapshot" as const },
@@ -205,6 +204,7 @@ export function useDashboardKpis(params: KpiParams) {
       backlogOVsCount,
       comprasAtrasadasCount,
       estoqueBaixoCount,
+      minimosConfigurados,
       onEstoqueDetail,
       onOpenBacklog,
       onOpenCompras,

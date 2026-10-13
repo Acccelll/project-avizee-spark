@@ -4,6 +4,7 @@ import { summarizeFiscalStats } from "@/lib/dashboard/aggregations";
 import type { DashboardDateRange, NfRow } from "./types";
 import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
 import { logger } from "@/lib/logger";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 interface FiscalData {
   fiscalStats: {
@@ -29,26 +30,19 @@ export function useDashboardFiscalData(range?: DashboardDateRange) {
       : { kind: "fixed-window", janela: "mes-atual" };
 
     try {
-      let q = supabase
-        .from("notas_fiscais")
-        .select("status, valor_total")
-        .eq("ativo", true)
-        .gte("data_emissao", dateFrom);
-      if (dateTo) q = q.lte("data_emissao", dateTo);
-      const { data: nfStatsRows, error } = await q;
+      const nfStatsRows = await fetchAllPages<NfRow>(() => {
+        let q = supabase.from("notas_fiscais")
+          .select("status, valor_total").eq("ativo", true).gte("data_emissao", dateFrom);
+        if (dateTo) q = q.lte("data_emissao", dateTo);
+        return q.order("data_emissao", { ascending: false });
+      }, {
+        onTruncated: () => { throw new Error("Dashboard fiscal: consulta excedeu o limite seguro"); },
+      });
 
-      if (error) {
-        logger.error("[dashboard:fiscal] erro ao carregar NFs:", error.message);
-        return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 }, _scope: scope };
-      }
-
-      return {
-        fiscalStats: summarizeFiscalStats((nfStatsRows ?? []) as NfRow[]),
-        _scope: scope,
-      };
+      return { fiscalStats: summarizeFiscalStats(nfStatsRows), _scope: scope };
     } catch (error) {
       logger.error("[dashboard:fiscal] erro inesperado:", error);
-      return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 }, _scope: scope };
+      throw error;
     }
   }, [range]);
 

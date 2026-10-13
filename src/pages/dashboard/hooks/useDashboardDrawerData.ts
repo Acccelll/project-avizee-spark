@@ -24,7 +24,7 @@ export function useDashboardDrawerData(params: DrawerParams) {
         top: [] as TopPoint[],
       },
       saldo: {
-        title: "Saldo Diário Projetado (próximos 7 dias)",
+        title: "Diferença diária entre vencimentos (próximos 7 dias)",
         daily: dailyReceber.map((r, i) => ({
           dia: r.dia,
           valor: r.valor - (dailyPagar[i]?.valor ?? 0),

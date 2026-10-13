@@ -31,6 +31,7 @@ interface DashboardDataState {
   dailyPagar: Array<{ dia: string; valor: number }>;
   dailyVendas: Array<{ dia: string; valor: number }>;
   valorEstoque: number;
+  minimosConfigurados: number;
   remessasAtrasadas: number;
   /** Per-block scope metadata so blocks can render a ScopeBadge. */
   scopes: {
@@ -74,6 +75,7 @@ const INITIAL_STATE: DashboardDataState = {
   dailyPagar: [],
   dailyVendas: [],
   valorEstoque: 0,
+  minimosConfigurados: 0,
   remessasAtrasadas: 0,
   scopes: {
     financeiro: { kind: 'snapshot' },
@@ -138,6 +140,7 @@ export function useDashboardData() {
           dailyPagar: financeiro.dailyPagar,
           dailyVendas: comercial.dailyVendas,
           valorEstoque: estoque.valorEstoque,
+          minimosConfigurados: estoque.minimosConfigurados,
           remessasAtrasadas: aux.remessasAtrasadas,
           scopes: {
             financeiro: { kind: 'snapshot' },
@@ -165,7 +168,7 @@ export function useDashboardData() {
   const state = query.data ?? INITIAL_STATE;
 
   /**
-   * Ticket médio = faturamento confirmado no mês ÷ número de NFs emitidas no mês.
+   * Média por NF de saída = valor de NFs válidas no mês ÷ número dessas NFs.
    * Usar a contagem de NFs (não de orçamentos) garante que numerador e denominador
    * venham da mesma janela e da mesma fonte de dados.
    */
@@ -182,6 +185,7 @@ export function useDashboardData() {
   return {
     ...state,
     loading: query.isLoading,
+    hasError: query.isError,
     /** True quando há refetch silencioso em andamento (header pode mostrar "Atualizando…"). */
     fetching: query.isFetching && !query.isLoading,
     loadedAt,
