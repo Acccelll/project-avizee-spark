@@ -10,6 +10,7 @@ interface ProdutoFormModalProps {
   produtoId?: string;
   onClose: () => void;
   onSaved?: (produtoId: string) => void;
+  onPersisted?: (produtoId: string) => void;
 }
 
 /**
@@ -17,21 +18,25 @@ interface ProdutoFormModalProps {
  * Mantém o padrão dos demais cadastros (Clientes/Fornecedores) sem perder
  * abas, composição, fornecedores e dialogs auxiliares do form.
  */
-export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved }: ProdutoFormModalProps) {
+export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved, onPersisted }: ProdutoFormModalProps) {
   const [dirty, setDirty] = useState(false);
+  const [partialWarning, setPartialWarning] = useState<string | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const handleClose = async () => {
     if (dirty) {
       const ok = await confirm({
         title: "Descartar alterações?",
-        description: "Há alterações não salvas. Deseja sair mesmo assim?",
+        description: partialWarning
+          ? "O produto principal já foi gravado, mas há vínculos pendentes. Ao sair, localize o produto na listagem para concluir os dados. Deseja sair?"
+          : "Há alterações não salvas. Deseja sair mesmo assim?",
         confirmLabel: "Descartar",
         confirmVariant: "destructive",
       });
       if (!ok) return;
     }
     setDirty(false);
+    setPartialWarning(null);
     onClose();
   };
 
@@ -58,9 +63,12 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved }: Pr
                 onCancel={handleClose}
                 onSaved={(id) => {
                   setDirty(false);
+                  setPartialWarning(null);
                   onSaved?.(id);
                   onClose();
                 }}
+                onPersisted={onPersisted}
+                onPartialSaveChange={setPartialWarning}
                 onDirtyChange={setDirty}
               />
             )}
