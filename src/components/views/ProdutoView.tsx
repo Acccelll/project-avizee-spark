@@ -62,7 +62,7 @@ interface ProdutoDetail {
   fornecedoresProd: ProdutoFornecedorViewRow[];
   custoMaxEntrada: number | null;
   errosConsulta: string[];
-
+}
 
 export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
