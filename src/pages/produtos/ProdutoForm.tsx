@@ -464,6 +464,19 @@ export default function ProdutoForm({
 
     if (form.eh_composto && editComposicao.length === 0) { saveAndNewRef.current = false; toast.error("Produto composto precisa de ao menos um componente"); return; }
     if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { saveAndNewRef.current = false; toast.error("Selecione o produto para todos os componentes"); return; }
+    if (form.eh_composto && editComposicao.some((c) => !Number.isFinite(c.quantidade) || c.quantidade <= 0)) {
+      saveAndNewRef.current = false; toast.error("A quantidade de cada componente deve ser maior que zero."); return;
+    }
+    const componenteIds = form.eh_composto ? editComposicao.map((c) => c.produto_filho_id) : [];
+    if (componenteIds.length !== new Set(componenteIds).size) {
+      saveAndNewRef.current = false; toast.error("O mesmo componente não pode ser incluído duas vezes."); return;
+    }
+    if (mode === "edit" && id && componenteIds.includes(id)) {
+      saveAndNewRef.current = false; toast.error("Um produto não pode ser componente de si mesmo."); return;
+    }
+    if (editFornecedores.filter((f) => f.eh_principal).length > 1) {
+      saveAndNewRef.current = false; toast.error("Selecione somente um fornecedor principal."); return;
+    }
     const fornDups = editFornecedores.map(f => f.fornecedor_id).filter(Boolean);
     if (editFornecedores.some(f => !f.fornecedor_id)) { saveAndNewRef.current = false; toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios"); return; }
     if (fornDups.length !== new Set(fornDups).size) { saveAndNewRef.current = false; toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
@@ -568,7 +581,8 @@ export default function ProdutoForm({
           // A operação NÃO é transacional entre as três RPCs: deixar claro
           // o que persistiu e permitir retentativa sem duplicar o produto.
           const etapa = composicaoSalva ? "fornecedores" : "composição";
-          const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. As informações anteriores foram preservadas. Revise e clique em Salvar para tentar novamente.`;
+          const detalhe = err instanceof Error ? err.message : "Verifique os vínculos informados.";
+          const msg = `Produto salvo, mas houve falha ao salvar ${etapa}. ${detalhe} Revise os dados e clique em Salvar para tentar novamente.`;
           setPartialSaveMessage(msg);
           onPartialSaveChange?.(msg);
           queryClient.invalidateQueries({ queryKey: ["produtos"] });
