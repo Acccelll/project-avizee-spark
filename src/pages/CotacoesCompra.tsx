@@ -27,6 +27,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function CotacoesCompra() {
   const navigate = useNavigate();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
     data, loading, remove,
     modalOpen, setModalOpen,
@@ -192,6 +193,8 @@ export default function CotacoesCompra() {
           data={filteredData}
           loading={loading}
           summaries={summaries}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           onView={openView}
           onEdit={openEdit}
           onApprove={(c) => {
