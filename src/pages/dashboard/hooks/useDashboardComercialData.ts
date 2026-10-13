@@ -15,6 +15,7 @@ interface ComercialData {
   backlogOVs: BacklogOv[];
   /** Real count of OVs awaiting faturamento (not limited by the preview list). */
   backlogOVsCount: number;
+  /** Valores de NFs de saída válidas; não equivalem necessariamente a vendas comerciais. */
   faturamento: { mesAtual: number; mesAnterior: number; nfAtualCount: number };
   dailyVendas: Array<{ dia: string; valor: number }>;
   topProdutos: TopPoint[];
