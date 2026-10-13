@@ -104,6 +104,8 @@ interface DataTableProps<T> {
   data: T[];
   moduleKey?: string;
   onRowClick?: (item: T) => void;
+  /** Oculta o botão Visualizar quando a linha inteira já abre o registro. */
+  hidePrimaryAction?: boolean;
   onView?: (item: T) => void;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
@@ -249,6 +251,7 @@ export function DataTable<T extends Record<string, any>>({
   data,
   moduleKey,
   onRowClick,
+  hidePrimaryAction = false,
   onView,
   onEdit,
   onDelete,
@@ -336,7 +339,7 @@ export function DataTable<T extends Record<string, any>>({
     setColumnOrder: persistColumnOrder,
   } = useDataTablePrefs(moduleKey, initialHiddenKeys);
   const hiddenKeys = useMemo(() => new Set(hiddenKeysArr), [hiddenKeysArr]);
-  const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
+  const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails || rowExtraActions);
 
   // Scroll-shadow + scroll-position: detect horizontal overflow in the table container
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -585,7 +588,7 @@ export function DataTable<T extends Record<string, any>>({
   // expostos dentro do drawer (cabeçalho do ViewDrawerV2). Caso a tela não
   // implemente onView, caímos no edit como fallback de compatibilidade.
   const renderActions = (item: T) => {
-    const primaryAction = onView ?? onEdit;
+    const primaryAction = hidePrimaryAction ? null : (onView ?? onEdit);
     const extras = rowExtraActions?.(item);
     const hasOverflow = !!(onEdit || onDuplicate || onDelete);
     return (
