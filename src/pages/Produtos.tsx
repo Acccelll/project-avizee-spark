@@ -566,6 +566,7 @@ const Produtos = () => {
         produtoId={formProdutoId}
         onClose={closeForm}
         onSaved={handleSaved}
+        onPersisted={handleSaved}
       />
 
       <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />
