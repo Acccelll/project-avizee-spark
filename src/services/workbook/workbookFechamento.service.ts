@@ -45,6 +45,45 @@ export async function salvarEntradaManual(competencia: string, metrica: MetricaE
   if (error) throw error;
 }
 
+/** Carteira de pedidos informada no fechamento: mês previsto (AAAA-MM) → valor. */
+export async function carregarCarteira(competencia: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('workbook_valores_mensais')
+    .select('chave, valor')
+    .eq('competencia', competencia)
+    .eq('metrica', 'backlog');
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const r of data ?? []) out[r.chave] = Number(r.valor);
+  return out;
+}
+
+/**
+ * Grava a carteira do fechamento: um valor por mês previsto de faturamento.
+ * Meses com `null` são apagados; com 0 ficam gravados (carteira vazia no mês).
+ */
+export async function salvarCarteira(competencia: string, valores: Record<string, number | null>): Promise<void> {
+  const apagar = Object.keys(valores).filter((m) => valores[m] === null);
+  const gravar = Object.entries(valores)
+    .filter((e): e is [string, number] => e[1] !== null)
+    .map(([chave, valor]) => ({ competencia, metrica: 'backlog', chave, valor, fonte: 'manual', updated_at: new Date().toISOString() }));
+  if (apagar.length) {
+    const { error } = await supabase
+      .from('workbook_valores_mensais')
+      .delete()
+      .eq('competencia', competencia)
+      .eq('metrica', 'backlog')
+      .in('chave', apagar);
+    if (error) throw error;
+  }
+  if (gravar.length) {
+    const { error } = await supabase
+      .from('workbook_valores_mensais')
+      .upsert(gravar, { onConflict: 'empresa_id,competencia,metrica,chave' });
+    if (error) throw error;
+  }
+}
+
 /**
  * Informa o total de rendimentos de aplicações do mês. O banco mantém um
  * recebimento na conta 6.1.2.01.001 (último dia do mês) que completa o que já

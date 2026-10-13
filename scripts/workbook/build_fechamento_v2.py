@@ -24,6 +24,8 @@ Layout da aba Dados (precisa bater com src/lib/workbook/fechamento/v2/layout.ts)
   Parâmetros AH (rótulo) / AI (valor), linhas 5..28 (ver PARAM abaixo)
   Listas (linhas 5..44): AK cliente, AL 1ª compra, AN UF, AO estado,
     AQ categoria de despesa, AS fornecedor do mês
+  Carteira na data-base (linhas 5..8 = 4 meses seguintes, 9 = depois):
+    AU mês (data) | AV rótulo | AW carteira de pedidos | AX a receber | AY a pagar
   Detalhe, cabeçalho na linha 46, a partir da 47:
     A mês | B rótulo | C tipo (Cliente, Estado, Despesa, Fornecedor)
     D item | E chave | F valor | G notas
@@ -100,12 +102,16 @@ PARAM = [
     ('Sócio 1', None), ('Sócio 2', None), ('Sócio 3', None), ('Sócio 4', None),
     ('Participação sócio 1', PCT), ('Participação sócio 2', PCT), ('Participação sócio 3', PCT), ('Participação sócio 4', PCT),
     ('Grupos de clientes que compraram no ano', '0'), ('Grupos que compraram pela 1ª vez no ano', '0'),
+    ('Carteira informada no fechamento', '0'), ('Carteira prevista para o mês (fechamento anterior)', BRL2),
 ]
 P = {nome: f'Dados!$AI${5 + i}' for i, (nome, _) in enumerate(PARAM)}
 COMP, MES, ANO = P['Competência'], P['Mês'], P['Ano']
 
 LISTAS = [('AK', 'Cliente (grupo)'), ('AL', '1ª compra'), ('AN', 'UF'), ('AO', 'Estado'),
           ('AQ', 'Categoria de despesa'), ('AS', 'Fornecedor do mês')]
+CARTEIRA = [('AU', 'Mês previsto', DATA_MES), ('AV', 'Rótulo', None), ('AW', 'Carteira de pedidos', BRL2),
+            ('AX', 'A receber em aberto', BRL2), ('AY', 'A pagar em aberto', BRL2)]
+CART_INI, CART_MESES = 5, 4  # linhas 5..8 = meses seguintes; 9 = depois do 4º mês
 DET = [('A', 'Mês', DATA_MES), ('B', 'Rótulo', None), ('C', 'Tipo', None), ('D', 'Item', None),
        ('E', 'Chave', None), ('F', 'Valor', BRL2), ('G', 'Notas', '0')]
 
@@ -529,6 +535,7 @@ def aba_resumo(wb):
         ('Clientes', 'Faturamento por grupo econômico, participação, curva ABC e 1ª compra'),
         ('Estados', 'Faturamento por estado e trimestre, contra o mesmo período do ano anterior'),
         ('Capital de giro', 'A receber e a pagar por faixa de vencimento, nos últimos 12 meses'),
+        ('Carteira', 'Pedidos sem nota, títulos em aberto e caixa projetado nos próximos 4 meses'),
         ('Estoque', 'Produtos e materiais em 24 meses e cobertura em meses de faturamento'),
         ('Sócios', 'Retiradas do ano e resultado atribuído pela participação'),
         ('Redes', 'Seguidores no LinkedIn e no Instagram, mês a mês'),
@@ -963,6 +970,89 @@ def aba_capital(wb):
     return ws
 
 
+def aba_carteira(wb):
+    ws = nova_aba(wb, 'Carteira', f('"Carteira de pedidos e projeção · data-base "&' + P['Período']),
+                  'Pedidos confirmados sem nota na data-base, pelo mês previsto de faturamento, e títulos em aberto por mês de vencimento · R$',
+                  TERRA, largura_rotulo=40, logo_col='H')
+    larguras(ws, ['C', 'D', 'E', 'F', 'G', 'H'], 12)
+    put(ws, 'B4', 'R$', 'cab_esq')
+    for k in range(CART_MESES + 1):
+        put(ws, f'{L(3 + k)}4', f(f'Dados!$AV${CART_INI + k}'), 'cab')
+    put(ws, 'H4', 'Total', 'cab')
+
+    def linha(r, rotulo, col_dados, estilo='num', estilo_rot='rot'):
+        put(ws, f'B{r}', rotulo, estilo_rot)
+        for k in range(CART_MESES + 1):
+            put(ws, f'{L(3 + k)}{r}', f(f'N(Dados!${col_dados}${CART_INI + k})'), estilo)
+        put(ws, f'H{r}', f(f'SUM(C{r}:G{r})'), estilo)
+
+    linha(5, 'Carteira de pedidos (sem nota)', 'AW')
+    linha(6, 'A receber (títulos em aberto)', 'AX')
+    put(ws, 'B7', 'Entradas previstas', 'tot_rot')
+    for c in 'CDEFGH':
+        put(ws, f'{c}7', f(f'{c}5+{c}6'), 'tot')
+    linha(8, 'A pagar (títulos em aberto)', 'AY')
+    put(ws, 'B9', 'Resultado previsto', 'tot_rot')
+    for c in 'CDEFGH':
+        put(ws, f'{c}9', f(f'{c}7-{c}8'), 'tot')
+    put(ws, 'B10', 'Caixa projetado no fim do mês', 'rot')
+    ws['B10'].font = fonte(bold=True)
+    put(ws, 'C10', f(f'{vmes("G")}+C9'), 'num')
+    for c, ant in zip('DEF', 'CDE'):
+        put(ws, f'{c}10', f(f'{ant}10+{c}9'), 'num')
+    for c in 'CDEF':
+        ws[f'{c}10'].font = fonte(bold=True)
+    put(ws, 'G10', None, 'num')
+    put(ws, 'H10', None, 'num')
+    put(ws, 'B11', 'Vencidos na data-base (fora da projeção): a receber', 'rot_sub')
+    put(ws, 'C11', f(f'{vmes("P")}+{vmes("Q")}'), 'num_sub')
+    put(ws, 'B12', 'Vencidos na data-base (fora da projeção): a pagar', 'rot_sub')
+    put(ws, 'C12', f(f'{vmes("U")}+{vmes("V")}'), 'num_sub')
+
+    put(ws, 'B14', 'Faturamento', 'secao')
+    fat_ano = f'SUM(Dados!$F${JAN[0]}:$F${JAN[0] + 11})'
+    fat_ant = f'SUM(Dados!$F${JAN[-1]}:$F${JAN[-1] + 11})'
+    fim_ano = f'EOMONTH({COMP},12-{MES})'
+    media3 = f'({vmes("F")}+{vmes("F", MES_ANT)}+{vmes("F", f"EOMONTH({COMP},-3)+1")})/3'
+    indicadores = [
+        (15, 'Carteira total', 'H5', 'num'),
+        (16, 'Cobertura (meses de faturamento médio dos últimos 3 meses)', f'IFERROR(H5/({media3}),"")', 'num'),
+        (17, 'Faturado no ano até o mês', fat_ano, 'num'),
+        (18, 'Carteira com faturamento previsto ainda neste ano', f'SUMIFS(Dados!$AW${CART_INI}:$AW${CART_INI + CART_MESES - 1},Dados!$AU${CART_INI}:$AU${CART_INI + CART_MESES - 1},"<="&{fim_ano})', 'num'),
+        (19, 'Faturamento projetado do ano', 'C17+C18', 'tot'),
+        (20, 'Do limite de faturamento do ano', f'IFERROR(C19/{P["Limite de faturamento (ano)"]},"")', 'pct'),
+        (21, 'Crescimento projetado sobre o ano anterior', f'IFERROR(C19/{fat_ant}-1,"")', 'pct'),
+        (22, 'Meta de crescimento do ano', P['Meta de crescimento do ano'], 'pct'),
+    ]
+    for r, rot, expr, est in indicadores:
+        put(ws, f'B{r}', rot, 'tot_rot' if est == 'tot' else 'rot')
+        put(ws, f'C{r}', f(expr), est)
+    ws['C16'].number_format = MESES_TXT
+
+    put(ws, 'B24', 'Conversão do mês', 'secao')
+    put(ws, 'B25', 'Carteira prevista para o mês (fechamento anterior)', 'rot')
+    put(ws, 'C25', f(f'N({P["Carteira prevista para o mês (fechamento anterior)"]})'), 'num')
+    put(ws, 'B26', 'Faturado no mês', 'rot')
+    put(ws, 'C26', f(vmes('F')), 'num')
+    put(ws, 'B27', 'Faturado ÷ carteira prevista', 'rot')
+    put(ws, 'C27', f('IF(C25>0,C26/C25,"")'), 'pct')
+    nota(ws, 'B29', f('IF(' + P['Carteira informada no fechamento'] + '=1,"Carteira informada no fechamento (fotografia da data-base); entra como entrada prevista no próprio mês.","Carteira não informada neste fechamento: a projeção usa só os títulos em aberto.")'))
+    nota(ws, 'B30', 'Caixa projetado: caixa no fim da competência + entradas previstas − a pagar, mês a mês (sem os vencidos).')
+    ws.freeze_panes = 'C5'
+
+    ch = BarChart()
+    ch.type = 'col'
+    ch.gapWidth = 60
+    ch.series.append(serie(ws, 5, 3, 6, '$B$5', TERRA))
+    ch.series.append(serie(ws, 6, 3, 6, '$B$6', TERRA3))
+    ch.series.append(serie(ws, 8, 3, 6, '$B$8', VINHO))
+    rotulos(ch, ws, 3, 4, 6, 4)
+    estilo_grafico(ch, 'Próximos meses: carteira, a receber e a pagar')
+    ch.width, ch.height = 20, 8
+    ws.add_chart(ch, 'E14')
+    return ws
+
+
 def aba_estoque(wb):
     ws = nova_aba(wb, 'Estoque', f('"Estoque · 24 meses até "&' + P['Período']),
                   'Saldo no fim do mês pelo custo · cobertura: estoque ÷ faturamento médio dos últimos 3 meses · R$',
@@ -1131,8 +1221,13 @@ def aba_dados(wb):
         ws.column_dimensions[col].width = 26 if col in ('AK', 'AO', 'AQ', 'AS') else 9
         for r in range(5, 5 + SLOTS_LISTA):
             put(ws, f'{col}{r}', None, 'dados')
-    for col in ('AJ', 'AM', 'AP', 'AR'):
+    for col in ('AJ', 'AM', 'AP', 'AR', 'AT'):
         ws.column_dimensions[col].width = 3
+    for col, nome, fmt in CARTEIRA:
+        put(ws, f'{col}{D_CAB}', nome, 'dados_cab')
+        ws.column_dimensions[col].width = 12
+        for r in range(CART_INI, CART_INI + CART_MESES + 1):
+            put(ws, f'{col}{r}', None, 'dados', fmt=fmt)
     put(ws, f'A{DET_CAB - 1}', 'Detalhe do mês', 'secao')
     for col, nome, fmt in DET:
         put(ws, f'{col}{DET_CAB}', nome, 'dados_cab')
@@ -1156,6 +1251,7 @@ def main():
     aba_clientes(wb)
     aba_estados(wb)
     aba_capital(wb)
+    aba_carteira(wb)
     aba_estoque(wb)
     aba_socios(wb)
     aba_redes(wb)

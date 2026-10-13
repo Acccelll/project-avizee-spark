@@ -248,6 +248,56 @@ export function slideCaixa(base: BaseFechamento, p: Periodo, c: string): Slide {
   };
 }
 
+/**
+ * Carteira de pedidos (confirmados e sem nota na data-base) e projeção dos
+ * próximos meses. A carteira entra como entrada prevista no próprio mês
+ * previsto de faturamento. Sem carteira informada no fechamento, o slide sai.
+ */
+export function slideCarteira(base: BaseFechamento, c: string): Slide | null {
+  const cart = base.dados.workbook.carteira;
+  if (!cart?.informada) return null;
+  const meses = cart.meses;
+  const total = meses.reduce((t, m) => t + Number(m.backlog ?? 0), 0) + Number(cart.backlog_depois ?? 0);
+  const fat3 = [c, somarMeses(c, -1), somarMeses(c, -2)].map((m) => base.fat(m));
+  const media = fat3.reduce((t, v) => t + v, 0) / 3;
+  const cobertura = media > 0 ? total / media : null;
+
+  const ytd = base.soma('faturamento', base.doAno(base.ano, Number(c.slice(5, 7))));
+  const doAno = meses.filter((m) => m.mes.startsWith(`${base.ano}-`)).reduce((t, m) => t + Number(m.backlog ?? 0), 0);
+  const proj = ytd + doAno;
+  const limite = base.limite();
+  const caixaProj = meses.reduce((t, m) => t + Number(m.backlog ?? 0) + m.receber - m.pagar, base.caixa(c));
+  const prev = base.v(c, 'backlog_previsto');
+
+  const comentarios: string[] = [];
+  if (doAno > 0) {
+    comentarios.push(`Com a carteira, ${base.ano} chega a ${brl(proj)} de faturamento${limite ? ` (${pct(proj, limite)} do limite da ME)` : ''}.`);
+  }
+  if (prev > 0) {
+    comentarios.push(`Da carteira prevista para ${nomeMes(c)} (${brl(prev)}), foram faturados ${brl(base.fat(c))} (${pct(base.fat(c), prev)}).`);
+  }
+  comentarios.push(`Caixa projetado para o fim de ${mesAnoCurto(meses[meses.length - 1].mes)}: ${brl(caixaProj)} (carteira + a receber − a pagar).`);
+
+  return {
+    codigo: 'carteira',
+    rotulo: 'Carteira e projeção',
+    mensagem: cobertura != null
+      ? `A carteira de ${brl(total)} em ${fimDoMesCurto(c)} cobre ${mesesTxt(cobertura)} de faturamento`
+      : `Carteira de ${brl(total)} em ${fimDoMesCurto(c)}`,
+    visual: {
+      tipo: 'barras',
+      categorias: meses.map((m) => mesAnoCurto(m.mes)),
+      series: [
+        { nome: 'Carteira de pedidos', valores: meses.map((m) => Number(m.backlog ?? 0)), cor: 'atual' },
+        { nome: 'A receber', valores: meses.map((m) => m.receber), cor: 'neutro' },
+        { nome: 'A pagar', valores: meses.map((m) => m.pagar), cor: 'despesa' },
+      ],
+    },
+    comentarios: comentarios.slice(0, 3),
+    fonte: `Carteira informada no fechamento e títulos em aberto em ${fimDoMesCurto(c)}`,
+  };
+}
+
 export function slideCapitalGiro(base: BaseFechamento, c: string, extra?: string): Slide | null {
   const cr = base.aging(c, 'cr');
   const cp = base.aging(c, 'cp');

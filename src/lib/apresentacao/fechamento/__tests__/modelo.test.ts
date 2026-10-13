@@ -122,6 +122,30 @@ describe('deck mensal', () => {
     expect(caixa.comentarios[0]).toContain('de rendimentos de aplicações');
   });
 
+  it('com carteira informada, entra o slide de carteira e projeção depois do faturamento', () => {
+    const d = dadosSinteticos('2026-08', { carteira: true });
+    const b = new BaseFechamento(d);
+    const dk = montarDeck(d, 'mensal', { geradoEm: GERADO });
+    const codigos = dk.slides.map((s) => s.codigo);
+    expect(codigos.indexOf('carteira')).toBe(codigos.indexOf('faturamento') + 1);
+    const s = dk.slides.find((x) => x.codigo === 'carteira')!;
+    if (s.visual.tipo !== 'barras') throw new Error('barras');
+    expect(s.visual.categorias).toEqual(['set/26', 'out/26', 'nov/26', 'dez/26']);
+    expect(s.visual.series.map((x) => x.nome)).toEqual(['Carteira de pedidos', 'A receber', 'A pagar']);
+    expect(s.mensagem).toContain(brl(93000));
+    // Projeção do ano, conversão do mês e caixa projetado.
+    const fatAno = b.soma('faturamento', b.doAno(2026, 8));
+    expect(s.comentarios[0]).toContain(brl(fatAno + 93000));
+    expect(s.comentarios[1]).toContain('91%');
+    const caixaProj = b.caixa('2026-08') + 93000 + 23900 - 27500;
+    expect(s.comentarios[2]).toContain(brl(caixaProj));
+    semNumeroCru(dk);
+  });
+
+  it('sem carteira informada, o slide não entra', () => {
+    expect(deck.slides.map((s) => s.codigo)).not.toContain('carteira');
+  });
+
   it('sem rendimentos, a ponte não tem o passo', () => {
     const caixa = deck.slides.find((s) => s.codigo === 'caixa')!;
     if (caixa.visual.tipo !== 'ponte') throw new Error('ponte');

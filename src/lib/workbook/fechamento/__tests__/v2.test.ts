@@ -30,11 +30,11 @@ function valor(xml: string, ref: string): string | number | null {
 }
 
 describe('Workbook de Fechamento v2', () => {
-  it('o modelo tem as 12 abas na ordem do plano', async () => {
+  it('o modelo tem as 13 abas na ordem do plano', async () => {
     const zip = await JSZip.loadAsync(modelo);
     expect([...(await mapaAbas(zip)).keys()]).toEqual([
       'Resumo', 'Resultado', 'Faturamento', 'Caixa', 'Despesas', 'Clientes', 'Estados',
-      'Capital de giro', 'Estoque', 'Sócios', 'Redes', 'Dados',
+      'Capital de giro', 'Carteira', 'Estoque', 'Sócios', 'Redes', 'Dados',
     ]);
   });
 
@@ -79,7 +79,7 @@ describe('Workbook de Fechamento v2', () => {
   it('grava o cache dos gráficos e evita sobreposição no Excel', async () => {
     const { zip } = await abrir();
     const graficos = Object.keys(zip.files).filter((p) => /^xl\/charts\/chart\d+\.xml$/.test(p));
-    expect(graficos.length).toBe(10);
+    expect(graficos.length).toBe(11);
     for (const g of graficos) {
       const x = await zip.file(g)!.async('string');
       // Valores e rótulos já gravados (abre preenchido sem recálculo).
@@ -122,6 +122,31 @@ describe('Workbook de Fechamento v2', () => {
     // O recebido (Resultado e Resumo) continua com os rendimentos dentro.
     expect(valor(await ler('Resultado'), 'K5')).toBeCloseTo(set.valores.receita_caixa!);
     expect(valor(await ler('Resumo'), 'F23')).toBe('OK');
+  });
+
+  it('aba Carteira: carteira, títulos em aberto e caixa projetado', async () => {
+    const { dados, xml } = await abrir('2026-09', { carteira: true });
+    const set = dados.workbook.meses.find((m) => m.competencia === '2026-09')!;
+    const d = await xml('Dados');
+    expect(valor(d, 'AV5')).toBe('out/26');
+    expect(valor(d, 'AV9')).toBe('depois');
+    expect(valor(d, 'AW5')).toBeCloseTo(28000);
+    const c = await xml('Carteira');
+    expect(valor(c, 'C4')).toBe('out/26');
+    expect(valor(c, 'H5')).toBeCloseTo(93000);
+    expect(valor(c, 'C7')).toBeCloseTo(28000 + 23000);
+    expect(valor(c, 'C9')).toBeCloseTo(28000 + 23000 - 16000);
+    expect(valor(c, 'C10')).toBeCloseTo(set.valores.caixa_final! + 35000);
+    expect(valor(c, 'F10')).toBeCloseTo(set.valores.caixa_final! + 35000 + 12800 + 41800 - 200);
+    // Só out–dez contam no ano.
+    const fatAno = dados.workbook.meses.filter((m) => m.competencia.startsWith('2026-') && m.fechado)
+      .reduce((t, m) => t + m.valores.faturamento!, 0);
+    const fat3 = ['2026-07', '2026-08', '2026-09'].map((k) => dados.workbook.meses.find((m) => m.competencia === k)!.valores.faturamento!);
+    expect(valor(c, 'C16')).toBeCloseTo(93000 / ((fat3[0] + fat3[1] + fat3[2]) / 3));
+    expect(valor(c, 'C18')).toBeCloseTo(93000);
+    expect(valor(c, 'C19')).toBeCloseTo(fatAno + 93000);
+    expect(valor(c, 'C25')).toBeCloseTo(set.valores.backlog_previsto!);
+    expect(valor(c, 'C27')).toBeCloseTo(set.valores.faturamento! / set.valores.backlog_previsto!);
   });
 
   it('esconde as vagas vazias das listas', async () => {
