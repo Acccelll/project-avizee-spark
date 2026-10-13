@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
+import { useCan } from "@/hooks/useCan";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -68,6 +69,8 @@ export function ProdutoView({ id }: Props) {
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("geral");
   const { canHardDelete: isAdmin } = useCanHardDelete();
+  const { can } = useCan();
+  const canExcluir = can("produtos:excluir");
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
@@ -226,12 +229,12 @@ export function ProdutoView({ id }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
+              {canExcluir && selected.ativo && <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteConfirmOpen(true)}
               >
-                <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
-              </DropdownMenuItem>
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Inativar
+              </DropdownMenuItem>}
               {isAdmin && selected.ativo === false && (
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -258,20 +261,20 @@ export function ProdutoView({ id }: Props) {
           >
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
-          <Tooltip>
+          {canExcluir && selected.ativo && <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                aria-label="Excluir produto"
+                aria-label="Inativar produto"
                 onClick={() => setDeleteConfirmOpen(true)}
               >
-                <Trash2 className="h-3.5 w-3.5" /> Excluir
+                <Trash2 className="h-3.5 w-3.5" /> Inativar
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Excluir produto</TooltipContent>
-          </Tooltip>
+            <TooltipContent>Inativar produto</TooltipContent>
+          </Tooltip>}
           {isAdmin && selected.ativo === false && (
             <Button
               variant="ghost"
@@ -849,7 +852,7 @@ export function ProdutoView({ id }: Props) {
         onConfirm={async () => {
           try {
             await deleteProduto(id);
-            toast.success("Produto excluído com sucesso.");
+            toast.success("Produto inativado com sucesso.");
             clearStack();
           } catch (err) {
             notifyError(err);
@@ -857,10 +860,10 @@ export function ProdutoView({ id }: Props) {
             setDeleteConfirmOpen(false);
           }
         }}
-        title="Excluir produto"
+        title="Inativar produto"
         description={[
-          `Tem certeza que deseja excluir "${selected?.nome || ""}"${selected?.sku ? ` (SKU: ${selected.sku})` : ""}?`,
-          "Esta ação não pode ser desfeita.",
+          `Deseja inativar "${selected?.nome || ""}"${selected?.sku ? ` (SKU: ${selected.sku})` : ""}?`,
+          "O produto continuará no cadastro, mas ficará inativo.",
           fornecedoresProd.length > 0 ? `Este produto possui ${fornecedoresProd.length} fornecedor(es) vinculado(s).` : "",
           composicao.length > 0 ? "Este produto possui itens de composição." : "",
           (historicoCompras.length + historicoVendas.length) > 0 ? "Este produto possui histórico de notas fiscais." : "",

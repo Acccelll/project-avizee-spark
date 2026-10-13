@@ -137,16 +137,26 @@ export default function ProdutoForm({
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
-  useBeforeUnloadGuard(isDirty && !embedded);
+  const saveAndNewRef = useRef(false);
+  // Quando o cadastro principal foi criado mas um vínculo falhou, uma nova
+  // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
+  const pendingCreatedIdRef = useRef<string | null>(null);
+  const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
+
+  const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
+  const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
+  const linksBaselineRef = useRef({ composicao: "[]", fornecedores: "[]" });
+  const linksDirty = JSON.stringify(editComposicao) !== linksBaselineRef.current.composicao ||
+    JSON.stringify(editFornecedores) !== linksBaselineRef.current.fornecedores;
+  useBeforeUnloadGuard(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
 
   // Um registro principal já persistido, mas com vínculos incompletos,
   // também exige confirmação antes de abandonar a tela.
   useEffect(() => {
-    onDirtyChange?.(isDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
-  }, [isDirty, partialSaveMessage, onDirtyChange]);
+    onDirtyChange?.(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
+  }, [isDirty, linksDirty, partialSaveMessage, onDirtyChange]);
 
-  const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
-  const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
+
   const [margemOverride, setMargemOverride] = useState<number | null>(mode === "create" ? 30 : null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [grupos, setGrupos] = useState<{ id: string; nome: string; sigla?: string | null; aviso_interno?: string | null }[]>([]);
@@ -247,16 +257,22 @@ export default function ProdutoForm({
           listProdutoFornecedores(prod.id),
         ]);
         if (cancelled) return;
-        setEditComposicao(compData.map((c) => ({
+        const componentesCarregados = compData.map((c) => ({
           id: c.id, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
           nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo,
-        })));
-        setEditFornecedores(fornData.map((f) => ({
+        }));
+        const fornecedoresCarregados = fornData.map((f) => ({
           id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
           descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
           unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0,
           preco_compra: f.preco_compra || 0, fator_conversao: f.fator_conversao ?? 1,
-        })));
+        }));
+        linksBaselineRef.current = {
+          composicao: JSON.stringify(componentesCarregados),
+          fornecedores: JSON.stringify(fornecedoresCarregados),
+        };
+        setEditComposicao(componentesCarregados);
+        setEditFornecedores(fornecedoresCarregados);
         setMargemOverride(null);
       } catch (err) {
         notifyError(err);
@@ -309,7 +325,7 @@ export default function ProdutoForm({
       onCancel?.();
       return;
     }
-    if (isDirty || pendingCreatedIdRef.current || partialSaveMessage) {
+    if (isDirty || linksDirty || pendingCreatedIdRef.current || partialSaveMessage) {
       const ok = await confirmAction({
         title: "Descartar alterações?",
         description: partialSaveMessage
@@ -323,11 +339,6 @@ export default function ProdutoForm({
     navigate("/produtos");
   };
 
-  const saveAndNewRef = useRef(false);
-  // Quando o cadastro principal foi criado mas um vínculo falhou, uma nova
-  // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
-  const pendingCreatedIdRef = useRef<string | null>(null);
-  const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,6 +439,10 @@ export default function ProdutoForm({
 
         pendingCreatedIdRef.current = null;
         setPartialSaveMessage(null);
+        linksBaselineRef.current = {
+          composicao: JSON.stringify(editComposicao),
+          fornecedores: JSON.stringify(editFornecedores),
+        };
         markPristine();
         queryClient.invalidateQueries({ queryKey: ["produtos"] });
         toast.success(mode === "create" ? "Produto criado com sucesso" : "Produto atualizado");
@@ -438,6 +453,7 @@ export default function ProdutoForm({
             // Reseta o form para nova criação dentro do mesmo modal.
             resetForm(emptyProduto);
             setEditingProduct(null);
+            linksBaselineRef.current = { composicao: "[]", fornecedores: "[]" };
             setEditComposicao([]);
             setEditFornecedores([]);
             setMargemOverride(30);
@@ -776,7 +792,12 @@ export default function ProdutoForm({
                     </Select>
                   </div>
                 </div>
-                <details className="rounded-lg border bg-muted/15 px-3 py-2" key={editingProduct?.eh_composto ? "composed" : "regular"} defaultOpen={!!editingProduct?.eh_composto}>
+                <details className="rounded-lg border bg-muted/15 px-3 py-2" key={editingProduct?.id || "new"} ref={(node) => {
+                  if (node && !node.dataset.openInitialized) {
+                    node.open = !!editingProduct?.eh_composto;
+                    node.dataset.openInitialized = "true";
+                  }
+                }}>
                   <summary className="cursor-pointer py-1 text-sm font-medium">Composição do produto (opcional)</summary>
                   <div className="mt-3 space-y-3">
                 <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
@@ -914,7 +935,12 @@ export default function ProdutoForm({
                 </div>
               </div>
 
-              <details className="rounded-lg border px-3 py-2" key={editingProduct?.id || "new"} defaultOpen={mode === "edit" && !!(editingProduct?.descricao || (editingProduct?.variacoes && editingProduct.variacoes.length > 0))}>
+              <details className="rounded-lg border px-3 py-2" key={editingProduct?.id || "new"} ref={(node) => {
+                  if (node && !node.dataset.openInitialized) {
+                    node.open = mode === "edit" && !!(editingProduct?.descricao || (editingProduct?.variacoes && editingProduct.variacoes.length > 0));
+                    node.dataset.openInitialized = "true";
+                  }
+                }}>
                 <summary className="cursor-pointer py-1 text-sm font-medium">Mais detalhes comerciais (opcional)</summary>
                 <div className="space-y-4 py-3">
               <div className="space-y-3 border-t pt-3">
