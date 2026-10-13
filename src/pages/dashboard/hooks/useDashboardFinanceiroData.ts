@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { aggregateDailyFinanceiro, aggregateTopClientes, buildIsoDayRange, sumOpenFinanceiro } from "@/lib/dashboard/aggregations";
 import type { DailyFinRow, DashboardDateRange, FinRow, RecDataRow } from "./types";
 import { logger } from "@/lib/logger";
@@ -22,7 +21,8 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
 
   const loadFinanceiroData = useCallback(async (): Promise<FinanceiroData> => {
     const { dateFrom, dateTo } = range;
-    const today = new Date().toISOString().slice(0, 10);
+    const local = new Date();
+    const today = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
 
     // KPIs "A Receber" / "A Pagar" são SNAPSHOT atual: não respeitam o
     // período global do dashboard. Saldo em aberto existe hoje independente
@@ -52,10 +52,12 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
       buildTotalQuery("pagar"),
       supabase
         .from("financeiro_lancamentos")
-        .select("valor, saldo_restante, status")
+        .select("id", { count: "exact", head: true })
         .eq("ativo", true)
-        .eq("tipo", "receber")
-        .eq("status", "vencido"),
+        .in("tipo", ["receber", "pagar"])
+        .in("status", ["aberto", "vencido", "parcial"])
+        .gt("saldo_restante", 0)
+        .lt("data_vencimento", today),
       supabase
         .from("financeiro_lancamentos")
         .select("id", { count: "exact", head: true })
@@ -135,7 +137,7 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
 
     setDashboardErrors(erros);
     if (erros.length > 0) {
-      toast.warning(`Alguns dados do dashboard não puderam ser carregados (${erros.join(", ")})`);
+      throw new Error(`Falha ao consultar indicadores financeiros: ${erros.join(", ")}`);
     }
 
     const receber = (receberResult.data ?? []) as FinRow[];
@@ -144,7 +146,7 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
     return {
       contasReceber: receber.length,
       contasPagar: pagar.length,
-      contasVencidas: (vencidasResult.data ?? []).length,
+      contasVencidas: vencidasResult.count ?? 0,
       totalReceber: sumOpenFinanceiro(receber),
       totalPagar: sumOpenFinanceiro(pagar),
       vencimentosHoje: { receber: receberHojeResult.count ?? 0, pagar: pagarHojeResult.count ?? 0 },
