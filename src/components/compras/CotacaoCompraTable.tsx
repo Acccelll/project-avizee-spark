@@ -87,12 +87,6 @@ export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoI
       render: (c: CotacaoCompra) => <span className="text-xs line-clamp-2 max-w-[220px]">{c.observacoes || summaries[c.id]?.produto_principal || "—"}</span>,
     },
     {
-      key: "valor_total",
-      label: "Valor total",
-      hidden: true,
-      render: () => <span className="text-xs text-muted-foreground">—</span>,
-    },
-    {
       key: "itens",
       label: "Itens",
       render: (c: CotacaoCompra) => {
@@ -125,6 +119,12 @@ export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoI
           </div>
         );
       },
+    },
+    {
+      key: "valor_total",
+      label: "Valor total",
+      hidden: true,
+      render: () => <span className="text-xs text-muted-foreground">—</span>,
     },
     {
       key: "status",
