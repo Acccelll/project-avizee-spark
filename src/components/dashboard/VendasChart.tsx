@@ -72,6 +72,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
           .in('status', ['confirmada', 'importada'])
           .gte('data_emissao', dateFrom)
           .lte('data_emissao', dateTo),
+        { onTruncated: () => { throw new Error('Histórico de notas ultrapassa limite seguro'); } },
       );
 
       const monthMap = new Map<string, number>();
@@ -137,12 +138,12 @@ interface RechartsClickPayload {
   return (
     <figure
       role="img"
-      aria-label="Gráfico de barras de faturamento mensal dos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
+      aria-label="Gráfico de notas fiscais de saída válidas nos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
       className="flex flex-col h-full"
     >
       <div className="mb-2 shrink-0 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h3 className="font-semibold text-foreground text-sm">
-          Faturamento — últimos 6 meses
+          NF de saída — últimos 6 meses
           <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(janela fixa)</span>
         </h3>
         <span className="text-[11px] text-muted-foreground">
@@ -167,7 +168,7 @@ interface RechartsClickPayload {
           <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
           <YAxis hide />
           <Tooltip
-            formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
+            formatter={(value: number) => [formatCurrency(value), 'NF de saída']}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
             cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
           />
