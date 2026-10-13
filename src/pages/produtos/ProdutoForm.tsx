@@ -640,7 +640,7 @@ export default function ProdutoForm({
               </DropdownMenuItem>
             )}
             {mode === "create" && (
-              <DropdownMenuItem onClick={handleSaveAndNew} disabled={saving}>
+              <DropdownMenuItem onClick={handleSaveAndNew} disabled={saving || loading || !!loadError}>
                 Salvar e novo
               </DropdownMenuItem>
             )}
@@ -648,7 +648,7 @@ export default function ProdutoForm({
         </DropdownMenu>
       )}
       {/* Salvar visível somente em sm+; no mobile usamos footer sticky */}
-      <Button type="submit" form="produto-form" disabled={saving} className="hidden sm:inline-flex gap-2">
+      <Button type="submit" form="produto-form" disabled={saving || loading || !!loadError} className="hidden sm:inline-flex gap-2">
         <Save className="h-4 w-4" />
         {saving ? "Salvando..." : "Salvar"}
       </Button>
@@ -1467,7 +1467,7 @@ export default function ProdutoForm({
           <Button type="button" variant="outline" className="flex-1" onClick={handleBack} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving}>
+          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving || loading || !!loadError}>
             <Save className="h-4 w-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
@@ -1497,7 +1497,7 @@ export default function ProdutoForm({
         <Button type="button" variant="outline" className="flex-1 h-11" onClick={handleBack} disabled={saving}>
           Cancelar
         </Button>
-        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving}>
+        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving || loading || !!loadError}>
           <Save className="h-4 w-4" />
           {saving ? "Salvando..." : "Salvar"}
         </Button>
