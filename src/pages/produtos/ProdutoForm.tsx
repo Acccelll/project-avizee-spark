@@ -504,12 +504,6 @@ export default function ProdutoForm({
           onPersisted?.(produtoId);
           toast.warning(msg, { duration: 9000 });
         } else {
-          // Retentativa de criação que falhou após persistência anterior:
-          // mantém o alerta de cadastro parcial (e a confirmação no modal).
-          if (pendingCreatedIdRef.current && partialSaveMessage) {
-            setPartialSaveMessage(partialSaveMessage);
-            onPartialSaveChange?.(partialSaveMessage);
-          }
           notifyError(err);
         }
       }
