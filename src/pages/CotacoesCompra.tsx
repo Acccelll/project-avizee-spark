@@ -1,6 +1,13 @@
 
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { notifyError } from "@/utils/errorMessages";
+import { CompraGridConfirmDialog, type CompraGridAction } from "@/components/compras/CompraGridConfirmDialog";
+import { executarAcaoGridCompra } from "@/services/comprasGridActions.service";
+import type { CotacaoCompra } from "@/components/compras/cotacaoCompraTypes";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCan } from "@/hooks/useCan";
 import { listComprasGridVinculos } from "@/services/comprasGridVinculos.service";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -29,6 +36,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function CotacoesCompra() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isAdmin } = useIsAdmin();
+  const { can } = useCan();
+  const [gridAction, setGridAction] = useState<CompraGridAction<CotacaoCompra> | null>(null);
   const { data: gridVinculos } = useQuery({ queryKey: ["compras-grid-vinculos"], queryFn: listComprasGridVinculos });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
@@ -50,6 +61,18 @@ export default function CotacoesCompra() {
     setSelected,
     produtoOptions, fornecedorOptions,
   } = useCotacoesCompra();
+
+  const confirmGridAction = async (action: CompraGridAction<CotacaoCompra>, motivo: string) => {
+    try {
+      await executarAcaoGridCompra("rc", action.kind, String(action.record.id), motivo);
+      toast.success(action.kind === "cancelar" ? "RC cancelada." : "RC excluída.");
+      setSelectedIds((prev) => prev.filter((id) => id !== String(action.record.id)));
+      await queryClient.invalidateQueries({ queryKey: ["compras-grid-vinculos"] });
+      await queryClient.invalidateQueries({ queryKey: ["cotacoes_compra"] });
+      // useSupabaseCrud mantém um cache de lista próprio.
+      await fetchData();
+    } catch (error) { notifyError(error); throw error; }
+  };
 
   // Realtime: invalida queries quando outro usuário/aba altera registros.
   useComprasRealtime();
@@ -196,6 +219,9 @@ export default function CotacoesCompra() {
           data={filteredData}
           loading={loading}
           summaries={summaries}
+          canCancel={isAdmin || can("compras:cancelar")}
+          canDelete={isAdmin || can("compras:editar")}
+          onGridAction={(kind, record) => setGridAction({ kind, record })}
           pedidosByCotacaoId={gridVinculos?.pedidosByCotacaoId ?? {}}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -433,6 +459,13 @@ export default function CotacoesCompra() {
         onConfirm={() => { if (selected) { setDrawerOpen(false); remove(selected.id); } setDeleteConfirmOpen(false); }}
         title="Excluir cotação"
         description={`Tem certeza que deseja excluir a cotação ${selected?.numero || ""}? Esta ação não pode ser desfeita.`}
+      />
+      <CompraGridConfirmDialog
+        key={gridAction ? `${gridAction.kind}-${gridAction.record.id}` : "idle"}
+        action={gridAction}
+        numero={gridAction?.record.numero ?? ""}
+        onClose={() => setGridAction(null)}
+        onConfirm={confirmGridAction}
       />
       {discardDialog}
     </>
