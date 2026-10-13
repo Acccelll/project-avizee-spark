@@ -97,7 +97,7 @@ const DashboardContent = () => {
     scopes,
   } = useDashboardData();
 
-  const { kpiCards, operationalCards } = useDashboardKpis({
+  const { kpiCards } = useDashboardKpis({
     metas,
     stats,
     estoqueBaixoCount: estoqueBaixo.length,
@@ -173,27 +173,6 @@ const DashboardContent = () => {
             <SummaryCard {...c} density="compact" />
           </div>
         ))}
-      </div>
-    ),
-    operational: () => (
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Exceções operacionais
-          </p>
-          <ScopeBadge scope={{ kind: "snapshot" }} />
-        </div>
-        <div
-          aria-live="polite"
-          aria-atomic="false"
-          className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
-        >
-          {operationalCards.map((c) => (
-            <div key={c.id} className="min-w-0">
-              <SummaryCard {...c} density="compact" />
-            </div>
-          ))}
-        </div>
       </div>
     ),
     alertas: () => (
@@ -373,13 +352,12 @@ const DashboardContent = () => {
   }
 
   // Specials que sempre ocupam linha inteira independente de vizinhos.
-  const FULL_WIDTH = new Set<WidgetId>(["kpis", "operational", "alertas"]);
+  const FULL_WIDTH = new Set<WidgetId>(["kpis", "alertas"]);
 
   // Constrói as linhas conforme prefs.order respeitando os pares.
   const baseVisibleOrder = prefs.order.filter((id) => {
     if (!isVisible(id)) return false;
     // Widget sem nenhuma situação real deixa de ocupar espaço.
-    if (id === "operational") return operationalCards.length > 0;
     if (id === "alertas") return stats.contasVencidas > 0 || fiscalStats.pendentes > 0 || comprasAtrasadasCount > 0 || remessasAtrasadas > 0;
     if (id === "fiscal") return fiscalStats.emitidas > 0 || fiscalStats.pendentes > 0 || fiscalStats.canceladas > 0;
     if (id === "logistica") return comprasAguardando.length > 0 || remessasAtrasadas > 0;
