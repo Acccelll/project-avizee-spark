@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { useCan } from "@/hooks/useCan";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -71,6 +72,10 @@ export function ProdutoView({ id }: Props) {
   const [activeTab, setActiveTab] = useState<string>("geral");
   const { canHardDelete: isAdmin } = useCanHardDelete();
   const { can } = useCan();
+  const { roles } = useAuth();
+  const podeSalvarVinculos = roles.includes("admin") || (roles.includes("estoquista") && roles.includes("gestor_compras"));
+  const canEditar = can("produtos:editar") && podeSalvarVinculos;
+  const canCopiar = can("produtos:criar") && podeSalvarVinculos;
   const canExcluir = can("produtos:excluir");
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
@@ -222,7 +227,7 @@ export function ProdutoView({ id }: Props) {
       <>
         {/* Mobile: Editar (primário) + kebab */}
         <div className="flex items-center gap-1.5 w-full sm:hidden">
-          <Button
+          {canEditar && <Button
             size="sm"
             className="h-9 flex-1 gap-1.5 text-xs"
             aria-label="Editar produto"
@@ -232,7 +237,7 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Edit className="h-3.5 w-3.5" /> Editar
-          </Button>
+          </Button>}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mais ações">
@@ -240,12 +245,12 @@ export function ProdutoView({ id }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
+              {canCopiar && <DropdownMenuItem onClick={() => {
                 navigate(`/produtos?copyId=${id}`);
                 window.setTimeout(() => clearStack(), 0);
               }}>
                 <Copy className="h-3.5 w-3.5 mr-2" /> Copiar como novo
-              </DropdownMenuItem>
+              </DropdownMenuItem>}
               {canExcluir && selected.ativo && <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteConfirmOpen(true)}
@@ -266,7 +271,7 @@ export function ProdutoView({ id }: Props) {
 
         {/* Desktop: layout original */}
         <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
-          <Button
+          {canEditar && <Button
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 text-xs"
@@ -277,8 +282,8 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Edit className="h-3.5 w-3.5" /> Editar
-          </Button>
-          <Button
+          </Button>}
+          {canCopiar && <Button
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 text-xs"
@@ -288,7 +293,7 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Copy className="h-3.5 w-3.5" /> Copiar como novo
-          </Button>
+          </Button>}
           {canExcluir && selected.ativo && <Tooltip>
             <TooltipTrigger asChild>
               <Button

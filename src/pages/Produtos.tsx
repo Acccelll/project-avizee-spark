@@ -19,6 +19,7 @@ import { listGruposAtivos } from "@/services/produtos.service";
 import { Package, AlertCircle, Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
@@ -110,7 +111,11 @@ const Produtos = () => {
   const cadastroFilters = filterValue.cadastro;
   const setCadastroFilters = (v: string[]) => setFilter({ cadastro: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
-  const { can } = useCan();
+  const { can, loading: permissionsLoading } = useCan();
+  const { roles } = useAuth();
+  const rolesCadastroCompleto = roles.includes("admin") || (roles.includes("estoquista") && roles.includes("gestor_compras"));
+  const canCriar = can("produtos:criar") && rolesCadastroCompleto;
+  const canEditar = can("produtos:editar") && rolesCadastroCompleto;
   const canExcluir = can("produtos:excluir");
 
   const serverFilters = useMemo(() => {
@@ -222,9 +227,11 @@ const Produtos = () => {
   // Suporte ao deep-link legado (?editId=, ?new=1) e às rotas redirecionadas
   // /produtos/novo e /produtos/:id/editar (agora abrem modal).
   useEffect(() => {
+    if (permissionsLoading) return;
     const params = new URLSearchParams(location.search);
     const editId = (location.state as { editId?: string } | null)?.editId || params.get("editId");
     if (editId) {
+      if (!canEditar) { toast.error("Sem permissão para editar o cadastro completo deste produto."); params.delete("editId"); navigate({ pathname: "/produtos", search: params.toString() }, { replace: true }); return; }
       setCopyFromId(undefined);
       setFormMode("edit");
       setFormProdutoId(editId);
@@ -236,6 +243,7 @@ const Produtos = () => {
     }
     const copyId = params.get("copyId");
     if (copyId) {
+      if (!canCriar) { toast.error("Sem permissão para copiar produtos como novo cadastro."); params.delete("copyId"); navigate({ pathname: "/produtos", search: params.toString() }, { replace: true }); return; }
       setCopyFromId(copyId);
       setFormMode("create");
       setFormProdutoId(undefined);
@@ -245,6 +253,7 @@ const Produtos = () => {
       return;
     }
     if (params.get("new") === "1") {
+      if (!canCriar) { toast.error("Sem permissão para criar produtos."); params.delete("new"); navigate({ pathname: "/produtos", search: params.toString() }, { replace: true }); return; }
       setCopyFromId(undefined);
       setFormMode("create");
       setFormProdutoId(undefined);
@@ -253,7 +262,7 @@ const Produtos = () => {
       navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot
-  }, [location.search, location.state]);
+  }, [location.search, location.state, permissionsLoading, canCriar, canEditar]);
 
   // Quando o filtro depende de uma regra composta (estoque ou sem grupo),
   // consulte todas as páginas antes de filtrar. Nunca filtre somente os 50
@@ -480,7 +489,7 @@ const Produtos = () => {
       title="Produtos"
       subtitle="Consulta e gestão de produtos"
       addLabel="Novo Produto"
-      onAdd={openCreate}
+      onAdd={canCriar ? openCreate : undefined}
       addButtonHelpId="produtos.novoBtn"
       summaryCards={
         <>
@@ -550,8 +559,8 @@ const Produtos = () => {
             defaultSortKey="sku"
             showColumnToggle={true}
             onView={openView}
-            onEdit={openEdit}
-            onDuplicate={openCopy}
+            onEdit={canEditar ? openEdit : undefined}
+            onDuplicate={canCriar ? openCopy : undefined}
             duplicateLabel="Copiar como novo"
             onDelete={canExcluir ? handleInativar : undefined}
             deleteBehavior="soft"
@@ -586,9 +595,9 @@ const Produtos = () => {
         onPersisted={handleSaved}
       />
 
-      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />
+      {can("produtos:criar") && <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo produto" />}
       <QuickAddProductModal
-        open={quickAddOpen}
+        open={quickAddOpen && can("produtos:criar")}
         onClose={() => setQuickAddOpen(false)}
         onCreated={() => {
           setQuickAddOpen(false);

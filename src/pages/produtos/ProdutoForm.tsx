@@ -46,6 +46,8 @@ import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { produtoSchema, produtoInsumoSchema, produtoServicoSchema, validateForm } from "@/lib/validationSchemas";
 import { notifyError } from "@/utils/errorMessages";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCan } from "@/hooks/useCan";
 import {
   listGruposAtivos,
   listFornecedoresParaProduto,
@@ -133,6 +135,8 @@ export default function ProdutoForm({
   onDirtyChange,
 }: ProdutoFormProps = {}) {
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  const { can, loading: permissionsLoading } = useCan();
   const params = useParams<{ id?: string }>();
   const id = embedded ? embeddedId : params.id;
   const queryClient = useQueryClient();
@@ -140,6 +144,11 @@ export default function ProdutoForm({
     ? (embeddedMode ?? (embeddedId ? "edit" : "create"))
     : (id ? "edit" : "create");
   const { pushView } = useRelationalNavigation();
+  const hasRequiredRpcRoles = roles.includes("admin") || (roles.includes("estoquista") && roles.includes("gestor_compras"));
+  const canSaveProduct = can(mode === "create" ? "produtos:criar" : "produtos:editar") && hasRequiredRpcRoles;
+  const permissionMessage = !can(mode === "create" ? "produtos:criar" : "produtos:editar")
+    ? "Você não possui permissão para criar ou editar produtos. Solicite acesso ao administrador."
+    : "Para salvar o cadastro completo, é necessário perfil Administrador ou os dois perfis: Estoquista e Gestor de Compras. Solicite ao administrador a revisão do seu acesso.";
 
   const [loading, setLoading] = useState(mode === "edit" || !!copyFromId);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -427,6 +436,11 @@ export default function ProdutoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (permissionsLoading || !canSaveProduct) {
+      saveAndNewRef.current = false;
+      toast.error(permissionMessage);
+      return;
+    }
     if (loading || loadError) {
       saveAndNewRef.current = false;
       toast.error("Carregamento incompleto. Tente novamente antes de salvar.");
@@ -784,6 +798,9 @@ export default function ProdutoForm({
               </TabsListScrollable>
             </div>
 
+            {!permissionsLoading && !canSaveProduct && (
+              <div role="alert" className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">{permissionMessage}</div>
+            )}
             {partialSaveMessage && (
               <div role="alert" className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm text-foreground">
                 <p className="font-semibold">Salvamento parcialmente concluído</p>
@@ -1568,7 +1585,7 @@ export default function ProdutoForm({
           <Button type="button" variant="outline" className="flex-1" onClick={handleBack} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving || loading || !!loadError}>
+          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving || loading || !!loadError || permissionsLoading || !canSaveProduct}>
             <Save className="h-4 w-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
@@ -1598,7 +1615,7 @@ export default function ProdutoForm({
         <Button type="button" variant="outline" className="flex-1 h-11" onClick={handleBack} disabled={saving}>
           Cancelar
         </Button>
-        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving || loading || !!loadError}>
+        <Button type="submit" form="produto-form" className="flex-1 h-11 gap-2" disabled={saving || loading || !!loadError || permissionsLoading || !canSaveProduct}>
           <Save className="h-4 w-4" />
           {saving ? "Salvando..." : "Salvar"}
         </Button>
