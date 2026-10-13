@@ -218,10 +218,6 @@ const DashboardContent = () => {
           persistKey="financeiro"
         >
           <FinanceiroBlock
-            totalReceber={stats.totalReceber}
-            totalPagar={stats.totalPagar}
-            contasVencidas={stats.contasVencidas}
-            saldoProjetado={saldoProjetado}
             recebimentosHoje={vencimentosHoje.receber}
             pagamentosHoje={vencimentosHoje.pagar}
             hideHeaderOnMobile={isMobile}
