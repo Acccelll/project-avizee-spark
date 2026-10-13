@@ -185,6 +185,7 @@ export function useDashboardData() {
   return {
     ...state,
     loading: query.isLoading,
+    hasError: query.isError,
     /** True quando há refetch silencioso em andamento (header pode mostrar "Atualizando…"). */
     fetching: query.isFetching && !query.isLoading,
     loadedAt,
