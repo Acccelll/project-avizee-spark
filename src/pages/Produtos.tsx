@@ -160,6 +160,16 @@ const Produtos = () => {
     orderBy: sort.orderBy,
     ascending: sort.ascending,
   });
+  // Uma edição/inativação pode retirar o último item da página atual.
+  // Volta para a última página válida sem limpar os filtros do usuário.
+  useEffect(() => {
+    if (needsCompleteResult || loading || isError || page === 0 || data.length > 0) return;
+    const ultimaPagina = totalCount != null
+      ? Math.max(0, Math.ceil(totalCount / 50) - 1)
+      : Math.max(0, page - 1);
+    if (ultimaPagina < page) setPage(ultimaPagina);
+  }, [needsCompleteResult, loading, isError, page, data.length, totalCount, setPage]);
+
   // Indicadores de pendência são contagens globais do cadastro ativo,
   // independentemente da página e dos filtros da listagem.
   const { data: qualidade } = useQuery({
