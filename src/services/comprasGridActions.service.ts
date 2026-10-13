@@ -39,6 +39,15 @@ export async function executarAcaoGridCompra(tipo: "rc" | "oc", kind: "cancelar"
     return;
   }
   if (atual.status !== "rascunho") throw new Error("Somente OC em rascunho pode ser excluída.");
+  const [{ data: recebimentos, error: recebimentosError }, { data: financeiros, error: financeirosError }] = await Promise.all([
+    supabase.from("compras").select("id").eq("pedido_compra_id", id).limit(1),
+    supabase.from("financeiro_lancamentos").select("id").eq("pedido_compra_id", id).limit(1),
+  ]);
+  if (recebimentosError) throw recebimentosError;
+  if (financeirosError) throw financeirosError;
+  if (recebimentos?.length || financeiros?.length) {
+    throw new Error("Esta OC possui recebimento ou lançamento financeiro vinculado e não pode ser excluída.");
+  }
   const { data, error } = await supabase.from("pedidos_compra")
     .update({ ativo: false }).eq("id", id).eq("status", "rascunho")
     .eq("ativo", true).select("id");
