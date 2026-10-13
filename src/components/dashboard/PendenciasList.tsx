@@ -6,8 +6,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
-import { ScopeBadge } from './ScopeBadge';
 
 interface Pendencia {
   id: string;
@@ -20,76 +18,50 @@ interface Pendencia {
   plano_contas: string;
 }
 
-/**
- * Date window:
- * - Lower bound: max(range.dateFrom, today-60d) — never show stale items beyond 60 days.
- * - Upper bound: min(range.dateTo, today+7d)   — never inundate with far-future items.
- * This keeps the list operationally focused while honoring the global period.
- */
-function resolveBounds(rangeFrom?: string, rangeTo?: string) {
-  const today = new Date();
-  const sixtyAgo = new Date(today); sixtyAgo.setDate(today.getDate() - 60);
-  const sevenAhead = new Date(today); sevenAhead.setDate(today.getDate() + 7);
-  const iso = (d: Date) => {
-    // local date (YYYY-MM-DD) — avoids UTC off-by-one in BRT-3
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
-  const lowerCap = iso(sixtyAgo);
-  const upperCap = iso(sevenAhead);
-  const lower = rangeFrom && rangeFrom > lowerCap ? rangeFrom : lowerCap;
-  const upper = rangeTo && rangeTo < upperCap ? rangeTo : upperCap;
-  const clamped =
-    (!!rangeFrom && rangeFrom < lowerCap) || (!!rangeTo && rangeTo > upperCap);
-  return { lower, upper, clamped };
+/** Mostra vencidos reais sem limite retroativo, mais os próximos sete dias. */
+function localIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-async function fetchPendencias(rangeFrom?: string, rangeTo?: string): Promise<Pendencia[]> {
-  const { lower, upper } = resolveBounds(rangeFrom, rangeTo);
+async function fetchPendencias(): Promise<Pendencia[]> {
+  const today = new Date();
+  const todayIso = localIso(today);
+  const until = new Date(today);
+  until.setDate(until.getDate() + 7);
+  const cols = 'id, tipo, descricao, valor, saldo_restante, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_contabeis(codigo, descricao)';
+  const base = () => supabase.from('financeiro_lancamentos').select(cols)
+    .eq('ativo', true).in('status', ['aberto', 'parcial', 'vencido']).gt('saldo_restante', 0);
 
-  const { data, error } = await supabase
-    .from('financeiro_lancamentos')
-    .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_contabeis(codigo, descricao)')
-    .eq('ativo', true)
-    // "vencido" é derivado: buscamos abertos/parciais e calculamos no front via data_vencimento.
-    .in('status', ['aberto', 'parcial'])
-    .gte('data_vencimento', lower)
-    .lte('data_vencimento', upper)
-    .order('data_vencimento', { ascending: true })
-    .limit(20);
+  const [overdue, upcoming] = await Promise.all([
+    base().lt('data_vencimento', todayIso).order('data_vencimento', { ascending: false }).limit(10),
+    base().gte('data_vencimento', todayIso).lte('data_vencimento', localIso(until))
+      .order('data_vencimento', { ascending: true }).limit(10),
+  ]);
+  if (overdue.error || upcoming.error) {
+    throw new Error(overdue.error?.message || upcoming.error?.message || 'Erro ao consultar pendências');
+  }
 
-  if (error) throw error;
-
-  return (data || []).map((r: {
-    id: string;
-    tipo: string;
-    descricao: string | null;
-    valor: number;
-    data_vencimento: string;
-    status: string | null;
+  type PendingRow = {
+    id: string; tipo: string; descricao: string | null; valor: number;
+    saldo_restante: number | null; data_vencimento: string; status: string | null;
     clientes?: { nome_razao_social: string | null } | null;
     fornecedores?: { nome_razao_social: string | null } | null;
     contas_contabeis?: { codigo: string | null; descricao: string | null } | null;
-  }) => {
+  };
+  return ([...(overdue.data || []), ...(upcoming.data || [])] as PendingRow[]).map((r) => {
     const isReceber = r.tipo === 'receber';
-    const pessoa = (isReceber
-      ? r.clientes?.nome_razao_social
-      : r.fornecedores?.nome_razao_social) || (isReceber ? 'Cliente não informado' : 'Fornecedor não informado');
+    const pessoa = (isReceber ? r.clientes?.nome_razao_social : r.fornecedores?.nome_razao_social)
+      || (isReceber ? 'Cliente não informado' : 'Fornecedor não informado');
     const conta = r.contas_contabeis;
-    const plano_contas = conta
-      ? (conta.descricao || conta.codigo || 'Sem plano de contas')
-      : 'Sem plano de contas';
     return {
       id: r.id,
       tipo: r.tipo as 'receber' | 'pagar',
-      descricao: typeof r.descricao === 'string' && r.descricao ? r.descricao : (isReceber ? 'A receber' : 'A pagar'),
+      descricao: r.descricao || (isReceber ? 'A receber' : 'A pagar'),
       pessoa,
-      valor: Number(r.valor || 0),
+      valor: Number(r.saldo_restante ?? r.valor ?? 0),
       data_vencimento: r.data_vencimento,
       status: r.status ?? 'aberto',
-      plano_contas,
+      plano_contas: conta?.descricao || conta?.codigo || 'Sem plano de contas',
     };
   });
 }
@@ -99,17 +71,15 @@ const INITIAL_VISIBLE = 5;
 export function PendenciasList() {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
-  const { range } = useDashboardPeriod();
 
-  const { data: pendencias = [], isLoading } = useQuery<Pendencia[], Error>({
-    queryKey: ['dashboard', 'pendencias', range.dateFrom, range.dateTo] as const,
-    queryFn: () => fetchPendencias(range.dateFrom, range.dateTo),
+  const { data: pendencias = [], isLoading, isError } = useQuery<Pendencia[], Error>({
+    queryKey: ['dashboard', 'pendencias', 'operacional'] as const,
+    queryFn: fetchPendencias,
     staleTime: 2 * 60 * 1000,
   });
 
   const todayDate = new Date();
   const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-  const { clamped } = resolveBounds(range.dateFrom, range.dateTo);
 
   return (
     <div className="flex flex-col h-full">
@@ -118,14 +88,8 @@ export function PendenciasList() {
           <AlertTriangle className="h-4 w-4 text-warning" />
           Vencimentos / Pendências
         </h3>
-        <ScopeBadge scope={{ kind: 'fixed-window', janela: 'next-7d' }} />
+        <span className="text-[11px] text-muted-foreground">Vencidos + próximos 7 dias</span>
       </div>
-
-      {clamped && (
-        <div className="mb-2 rounded-md border border-info/20 bg-info/5 px-2.5 py-1.5 text-[11px] text-info">
-          Exibindo janela operacional de 60 dias retroativos e 7 dias à frente. O período global selecionado é mais amplo.
-        </div>
-      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -139,10 +103,12 @@ export function PendenciasList() {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <p role="alert" className="text-xs text-destructive">Não foi possível consultar pendências. Atualize para tentar novamente.</p>
       ) : pendencias.length === 0 ? (
         <div className="flex items-center gap-2 rounded-lg bg-success/5 border border-success/20 px-3 py-2.5">
           <div className="h-2 w-2 rounded-full bg-success shrink-0" />
-          <p className="text-xs text-success font-medium">Sem pendências nos próximos 7 dias.</p>
+          <p className="text-xs text-success font-medium">Sem vencidos nem vencimentos nos próximos 7 dias.</p>
         </div>
       ) : (
         <div className="space-y-1 flex-1">
@@ -226,16 +192,16 @@ export function PendenciasList() {
               className="w-full mt-1 text-xs text-primary hover:underline py-1 text-center"
               onClick={() => setShowAll((v) => !v)}
             >
-              {showAll ? 'Mostrar menos' : `Mostrar todas (${pendencias.length})`}
+              {showAll ? 'Mostrar menos' : `Mostrar itens carregados (${pendencias.length})`}
             </button>
           )}
-          {pendencias.length >= 20 && (
+          {pendencias.length >= 10 && (
             <button
               type="button"
               onClick={() => navigate('/financeiro')}
               className="mt-2 flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
             >
-              Ver todas no Financeiro
+              Consultar lista completa no Financeiro
               <ArrowRight className="h-3 w-3" />
             </button>
           )}
