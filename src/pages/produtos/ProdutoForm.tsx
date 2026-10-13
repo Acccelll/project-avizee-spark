@@ -134,6 +134,8 @@ export default function ProdutoForm({
   const { pushView } = useRelationalNavigation();
 
   const [loading, setLoading] = useState(mode === "edit");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
@@ -228,6 +230,7 @@ export default function ProdutoForm({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const p = await getProdutoById(id);
         if (!p) { toast.error("Produto não encontrado"); navigate("/produtos", { replace: true }); return; }
@@ -275,14 +278,19 @@ export default function ProdutoForm({
         setEditFornecedores(fornecedoresCarregados);
         setMargemOverride(null);
       } catch (err) {
-        notifyError(err);
+        if (!cancelled) {
+          // Uma consulta de vínculos que falhou NÃO significa lista vazia.
+          // O usuário deve recarregar antes de poder gravar novamente.
+          setLoadError("Não foi possível carregar todos os dados e vínculos deste produto. Nenhuma alteração será salva até a consulta ser refeita.");
+          notifyError(err);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega 1x por id
-  }, [id, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega somente após retry explícito
+  }, [id, mode, loadAttempt]);
 
   // Cálculos derivados
   const custoComposto = editComposicao.reduce((s, c) => {
@@ -342,6 +350,11 @@ export default function ProdutoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || (mode === "edit" && loadError)) {
+      saveAndNewRef.current = false;
+      toast.error("Carregamento incompleto. Tente novamente antes de salvar.");
+      return;
+    }
 
     const dataParaValidar = {
       nome: form.nome, sku: form.sku, codigo_interno: form.codigo_interno, descricao: form.descricao,
@@ -484,6 +497,10 @@ export default function ProdutoForm({
   };
 
   const handleSaveAndNew = () => {
+    if (loading || loadError) {
+      toast.error("Conclua o carregamento antes de salvar.");
+      return;
+    }
     saveAndNewRef.current = true;
     document.getElementById("produto-form")?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
@@ -604,7 +621,7 @@ export default function ProdutoForm({
         </Button>
       )}
       {mode === "create" && (
-        <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving} className="hidden sm:inline-flex">
+        <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving || loading || !!loadError} className="hidden sm:inline-flex">
           Salvar e novo
         </Button>
       )}
@@ -647,6 +664,15 @@ export default function ProdutoForm({
   const formBody = (
     <TooltipProvider delayDuration={300}>
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
+          {mode === "edit" && loadError && (
+            <div role="alert" className="mb-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+              <p className="text-sm font-semibold text-destructive">Não foi possível carregar o produto completo</p>
+              <p className="text-xs text-muted-foreground">{loadError}</p>
+              <Button type="button" variant="outline" className="self-start" onClick={() => setLoadAttempt((n) => n + 1)}>
+                Tentar carregar novamente
+              </Button>
+            </div>
+          )}
           <Tabs defaultValue="dados-gerais" className="w-full">
             <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
               <TabsListScrollable cols={4}>
