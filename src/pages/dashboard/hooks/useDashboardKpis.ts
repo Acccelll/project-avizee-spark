@@ -69,7 +69,7 @@ export function useDashboardKpis(params: KpiParams) {
         icon: TrendingUp,
         variation:
           stats.contasVencidas > 0
-            ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}`
+            ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""} (pagar + receber)`
             : "Sem vencidos",
         variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
         variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
