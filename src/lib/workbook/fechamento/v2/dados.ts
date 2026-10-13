@@ -4,9 +4,10 @@
  * planilha mostram os mesmos números.
  */
 import type { ApresentacaoFechamentoDados } from '@/lib/apresentacao/fechamento/tipos';
-import { NOME_ESTADO, mesAnoCurto, nomeCurto, nomeMes } from '@/lib/apresentacao/fechamento/formato';
+import { NOME_ESTADO, mesAnoCurto, nomeCurto, nomeMes, somarMeses } from '@/lib/apresentacao/fechamento/formato';
 import { excelSerial } from '../ooxml';
 import {
+  CARTEIRA,
   COL,
   COL_PARAMETRO,
   DEMAIS_CATEGORIAS,
@@ -274,8 +275,24 @@ export function montarConteudoDados(dados: ApresentacaoFechamentoDados, geradoEm
     participacao4: socios[3] ? Number(socios[3].percentual) / 100 : null,
     gruposNoAno: gruposNoAno.length,
     gruposNovos: gruposNoAno.filter((k) => (dados.primeira_compra?.[k] ?? '').startsWith(`${ano}-`)).length,
+    carteiraInformada: wb.carteira?.informada ? 1 : 0,
+    carteiraPrevistaMes: wb.meses.find((m) => m.competencia === comp)?.valores.backlog_previsto ?? null,
   };
   PARAMETROS.forEach((p, i) => set(`${COL_PARAMETRO}${PARAMETRO_PRIMEIRA_LINHA + i}`, valores[p]));
+
+  // ── Carteira na data-base ────────────────────────────────────────────────
+  const cart = wb.carteira;
+  for (let k = 0; k <= CARTEIRA.meses; k++) {
+    const r = CARTEIRA.primeiraLinha + k;
+    const depois = k === CARTEIRA.meses;
+    const m = depois ? undefined : cart?.meses[k];
+    const mesK = somarMeses(comp, k + 1);
+    if (!depois) set(`${CARTEIRA.mes}${r}`, excelSerial(`${mesK}-01`));
+    set(`${CARTEIRA.rotulo}${r}`, depois ? 'depois' : mesAnoCurto(mesK));
+    set(`${CARTEIRA.backlog}${r}`, Number((depois ? cart?.backlog_depois : m?.backlog) ?? 0));
+    set(`${CARTEIRA.receber}${r}`, Number((depois ? cart?.receber_depois : m?.receber) ?? 0));
+    set(`${CARTEIRA.pagar}${r}`, Number((depois ? cart?.pagar_depois : m?.pagar) ?? 0));
+  }
 
   // ── Linhas vazias a esconder ─────────────────────────────────────────────
   const vazias = (usadas: number, vagas: number, primeira: number) => intervalo(Math.max(0, vagas - usadas), primeira + usadas);

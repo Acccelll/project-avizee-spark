@@ -1,12 +1,12 @@
 import type { FechamentoMes } from '@/lib/workbook/fechamento/types';
-import { intervaloMeses } from '../formato';
+import { intervaloMeses, somarMeses } from '../formato';
 import type { ApresentacaoFechamentoDados, DetalheMes } from '../tipos';
 
 /**
  * Dados sintéticos de fechamento: 37 meses do Workbook (dez/(ano-3) a
  * dez/ano) e o detalhe por cliente, UF e categoria a partir de jan/(ano-1).
  */
-export function dadosSinteticos(competencia: string, opts: { limite?: number; semDetalhe?: boolean; seguidores?: boolean } = {}): ApresentacaoFechamentoDados {
+export function dadosSinteticos(competencia: string, opts: { limite?: number; semDetalhe?: boolean; seguidores?: boolean; carteira?: boolean } = {}): ApresentacaoFechamentoDados {
   const ano = Number(competencia.slice(0, 4));
   const meses = intervaloMeses(`${ano - 3}-12`, `${ano}-12`);
   let caixa = 20000;
@@ -42,6 +42,12 @@ export function dadosSinteticos(competencia: string, opts: { limite?: number; se
     };
   });
 
+  if (opts.carteira) {
+    // O fechamento anterior previa faturar 10% a mais do que saiu no mês.
+    const atual = wbMeses.find((w) => w.competencia === competencia)!;
+    atual.valores.backlog_previsto = Math.round((atual.valores.faturamento ?? 0) * 1.1 * 100) / 100;
+  }
+
   const detalhe: Record<string, DetalheMes> = {};
   if (!opts.semDetalhe) {
     for (const w of wbMeses) {
@@ -74,6 +80,25 @@ export function dadosSinteticos(competencia: string, opts: { limite?: number; se
         { id: 's2', nome: 'SOCIO DOIS', nome_exibicao: 'Sócio Dois', percentual: 40 },
       ],
       parametros: { [String(ano)]: { crescimento_meta: 0.1, limite_faturamento: opts.limite ?? 360000 } },
+      ...(opts.carteira
+        ? {
+            carteira: {
+              data_base: `${competencia}-30`,
+              informada: true,
+              meses: [1, 2, 3, 4].map((k) => ({
+                mes: somarMeses(competencia, k),
+                backlog: [28000, 22000, 43000, 0][k - 1],
+                receber: [23000, 300, 300, 300][k - 1],
+                pagar: [16000, 9500, 1500, 500][k - 1],
+              })),
+              backlog_depois: 0,
+              receber_vencido: 0,
+              pagar_vencido: 0,
+              receber_depois: 4000,
+              pagar_depois: 1100,
+            },
+          }
+        : {}),
     },
     detalhe,
     grupos: { '11111111': 'CLIENTE PRINCIPAL ALIMENTOS S.A.', '22222222': 'GRANJA BETA LTDA', '33333333': 'AVICOLA GAMA', '44444444': 'SITIO DELTA' },

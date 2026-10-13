@@ -63,6 +63,8 @@ export const PARAMETROS = [
   'participacao4',
   'gruposNoAno',
   'gruposNovos',
+  'carteiraInformada',
+  'carteiraPrevistaMes',
 ] as const;
 export type Parametro = (typeof PARAMETROS)[number];
 export const COL_PARAMETRO = 'AI';
@@ -77,6 +79,17 @@ export const LISTA = {
   estado: 'AO',
   categoria: 'AQ',
   fornecedor: 'AS',
+} as const;
+
+/** Carteira na data-base: linhas 5..8 = 4 meses seguintes à competência; 9 = depois. */
+export const CARTEIRA = {
+  primeiraLinha: 5,
+  meses: 4,
+  mes: 'AU',
+  rotulo: 'AV',
+  backlog: 'AW',
+  receber: 'AX',
+  pagar: 'AY',
 } as const;
 
 /** Detalhe do mês (formato longo), a partir da linha 47; as fórmulas leem até a 4000. */

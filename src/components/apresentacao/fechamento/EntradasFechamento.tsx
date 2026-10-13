@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { nomeMes } from '@/lib/apresentacao/fechamento/formato';
+import { fimDoMesCurto, mesAnoCurto, nomeMes, somarMeses } from '@/lib/apresentacao/fechamento/formato';
 import {
   avisoSeguidores,
   lerInteiro,
@@ -21,9 +21,11 @@ import {
 } from '@/lib/apresentacao/fechamento/entradas';
 import type { ApresentacaoFechamentoDados } from '@/lib/apresentacao/fechamento/tipos';
 import {
+  carregarCarteira,
   carregarEntradasManuais,
   carregarParametrosAno,
   registrarRendimentosMes,
+  salvarCarteira,
   salvarEntradaManual,
   salvarParametrosAno,
 } from '@/services/workbook';
@@ -35,6 +37,9 @@ interface Props {
   /** Chamado depois de salvar (para recarregar deck e Workbook). */
   onSalvo: () => void;
 }
+
+/** Meses seguintes à competência em que a carteira é informada. */
+const MESES_CARTEIRA = 4;
 
 const erroDe = (l: Leitura) => ('erro' in l ? l.erro : null);
 const valorDe = (l: Leitura) => ('valor' in l ? l.valor : null);
@@ -82,6 +87,8 @@ function Campo({ id, rotulo, valor, onChange, erro, aviso, ajuda, disabled, modo
  * ano. O caixa total do mês é disponível + bloqueado; a diferença para o
  * calculado pelo ERP vira o ajuste ao extrato no Workbook e na apresentação.
  * Os rendimentos viram um recebimento no Financeiro e entram no calculado.
+ * A carteira de pedidos (confirmados e sem nota na data-base) é informada por
+ * mês previsto de faturamento e fica gravada como fotografia do fechamento.
  */
 export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
   const qc = useQueryClient();
@@ -95,6 +102,14 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
     queryKey: ['workbook-entradas', competencia],
     queryFn: () => carregarEntradasManuais(competencia),
   });
+  const carteiraQ = useQuery({
+    queryKey: ['workbook-carteira', competencia],
+    queryFn: () => carregarCarteira(competencia),
+  });
+  const mesesCarteira = useMemo(
+    () => Array.from({ length: MESES_CARTEIRA }, (_, i) => somarMeses(competencia, i + 1)),
+    [competencia],
+  );
   const parametrosQ = useQuery({
     queryKey: ['workbook-parametros-ano', ano],
     queryFn: () => carregarParametrosAno(ano),
@@ -103,6 +118,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
   const [disponivel, setDisponivel] = useState('');
   const [bloqueado, setBloqueado] = useState('');
   const [rendimentos, setRendimentos] = useState('');
+  const [carteira, setCarteira] = useState<Record<string, string>>({});
   const [linkedin, setLinkedin] = useState('');
   const [instagram, setInstagram] = useState('');
   const [meta, setMeta] = useState('');
@@ -123,6 +139,11 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
     setRendimentos(rendimentosErp ? paraCampoReais(rendimentosErp) : '');
   }, [rendimentosErp]);
   useEffect(() => {
+    const c = carteiraQ.data;
+    if (!c) return;
+    setCarteira(Object.fromEntries(mesesCarteira.map((m) => [m, m in c ? paraCampoReais(c[m]) : ''])));
+  }, [carteiraQ.data, mesesCarteira]);
+  useEffect(() => {
     const p = parametrosQ.data;
     setMeta(p ? String(Math.round(p.crescimento_meta * 10000) / 100).replace('.', ',') : '');
     setLimite(p ? paraCampoReais(p.limite_faturamento) : '');
@@ -140,9 +161,13 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
   const lIg = lerInteiro(instagram);
   const lMeta = lerPercentual(meta);
   const lLim = lerReais(limite);
+  const lCarteira = mesesCarteira.map((m) => [m, lerReais(carteira[m] ?? '')] as const);
+  const erroCarteira = (l: Leitura) => erroDe(l) ?? ((valorDe(l) ?? 0) < 0 ? 'A carteira não pode ser negativa.' : null);
+  const totalCarteira = lCarteira.reduce((t, [, l]) => t + (valorDe(l) ?? 0), 0);
   const vRend = valorDe(lRend);
   const erroRend = erroDe(lRend) ?? (vRend !== null && vRend < 0 ? 'Rendimento não pode ser negativo.' : null);
-  const invalido = [lDisp, lBloq, lRend, lLi, lIg, lMeta, lLim].some((l) => !l.ok) || !!erroRend;
+  const invalido =
+    [lDisp, lBloq, lRend, lLi, lIg, lMeta, lLim].some((l) => !l.ok) || !!erroRend || lCarteira.some(([, l]) => !!erroCarteira(l));
   // O calculado pelo ERP já inclui os rendimentos gravados; com outro valor no campo, ele muda junto.
   const rendNovo = Math.round((vRend ?? 0) * 100) / 100;
   const caixaCalculado = Math.round((caixaCalculadoErp - rendimentosErp + rendNovo) * 100) / 100;
@@ -162,6 +187,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
       await salvarEntradaManual(competencia, 'bloqueado', vBloq);
       await salvarEntradaManual(competencia, 'seguidores_linkedin', valorDe(lLi));
       await salvarEntradaManual(competencia, 'seguidores_instagram', valorDe(lIg));
+      await salvarCarteira(competencia, Object.fromEntries(lCarteira.map(([m, l]) => [m, valorDe(l)])));
       const vMeta = valorDe(lMeta);
       const vLim = valorDe(lLim);
       if (vMeta !== null || vLim !== null) {
@@ -175,6 +201,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
     onSuccess: () => {
       toast.success('Entradas do fechamento salvas.');
       qc.invalidateQueries({ queryKey: ['workbook-entradas', competencia] });
+      qc.invalidateQueries({ queryKey: ['workbook-carteira', competencia] });
       qc.invalidateQueries({ queryKey: ['workbook-parametros-ano', ano] });
       setAlterado(false);
       onSalvo();
@@ -182,7 +209,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
     onError: (e) => toast.error(`Não foi possível salvar: ${e instanceof Error ? e.message : String(e)}`),
   });
 
-  const carregando = entradasQ.isLoading || parametrosQ.isLoading;
+  const carregando = entradasQ.isLoading || parametrosQ.isLoading || carteiraQ.isLoading;
   const bloqueadoCampos = !podeEditar || carregando || salvar.isPending;
 
   return (
@@ -246,6 +273,29 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
             aviso={avisoSeguidores(valorDe(lIg), antIg)}
             disabled={bloqueadoCampos}
           />
+        </div>
+
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs font-medium">Carteira de pedidos em {fimDoMesCurto(competencia)}</p>
+            <p className="text-xs text-muted-foreground">
+              Pedidos confirmados e ainda sem nota nessa data, pelo mês previsto de faturamento.
+              {totalCarteira > 0 && ` Total: ${formatCurrency(totalCarteira)}.`}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {lCarteira.map(([m, l]) => (
+              <Campo
+                key={m}
+                id={`ent-cart-${m}`}
+                rotulo={mesAnoCurto(m)}
+                valor={carteira[m] ?? ''}
+                onChange={editar((v) => setCarteira((c) => ({ ...c, [m]: v })))}
+                erro={erroCarteira(l)}
+                disabled={bloqueadoCampos}
+              />
+            ))}
+          </div>
         </div>
 
         <Collapsible>
