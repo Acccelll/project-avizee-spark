@@ -146,9 +146,6 @@ export function ProdutoView({ id }: Props) {
   const totalVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0), 0);
   const valorVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
   const ticketMedioVenda = totalVendido > 0 ? valorVendido / totalVendido : 0;
-  const margemMediaVenda = ticketMedioVenda > 0 && custoEfetivo > 0
-    ? ((ticketMedioVenda / custoEfetivo) - 1) * 100
-    : 0;
 
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
   const minimoConfigurado = Number(selected?.estoque_minimo || 0) > 0;
