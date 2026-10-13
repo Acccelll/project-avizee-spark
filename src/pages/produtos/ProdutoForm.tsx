@@ -304,6 +304,11 @@ export default function ProdutoForm({
     setEditFornecedores(editFornecedores.map((f, i) => ({ ...f, eh_principal: i === idx })));
 
   const handleBack = async () => {
+    // Modal pai já concentra a confirmação de saída; não pedir duas vezes.
+    if (embedded) {
+      onCancel?.();
+      return;
+    }
     if (isDirty || pendingCreatedIdRef.current || partialSaveMessage) {
       const ok = await confirmAction({
         title: "Descartar alterações?",
@@ -315,8 +320,7 @@ export default function ProdutoForm({
       });
       if (!ok) return;
     }
-    if (embedded) onCancel?.();
-    else navigate("/produtos");
+    navigate("/produtos");
   };
 
   const saveAndNewRef = useRef(false);
