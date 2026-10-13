@@ -43,7 +43,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
       // For top produtos: respect global range when explicit; fallback to mês atual.
       const usingGlobalRange = !!(dateFrom && dateTo);
       const itensFrom = usingGlobalRange ? dateFrom : inicioMesAtual;
-      const itensTo = usingGlobalRange ? dateTo : new Date(proximoMes.getTime() - 86400000).toLocaleDateString("en-CA");
+      const itensTo = usingGlobalRange ? dateTo : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
 
       const [
         orcamentosResult,
