@@ -76,6 +76,7 @@ const DashboardContent = () => {
   const {
     stats,
     loading,
+    hasError,
     fetching,
     loadedAt,
     loadData,
@@ -132,6 +133,15 @@ const DashboardContent = () => {
 
   if (loading) {
     return isMobile ? <MobileDashboardSkeleton /> : <DashboardSkeleton />;
+  }
+  if (hasError) {
+    return (
+      <div role="alert" className="rounded-xl border border-destructive/30 bg-card p-6 space-y-3">
+        <p className="text-sm font-semibold text-destructive">Não foi possível atualizar o Dashboard</p>
+        <p className="text-sm text-muted-foreground">Os indicadores estão indisponíveis. Nenhum valor zero será exibido como se a consulta tivesse sido concluída.</p>
+        <button type="button" onClick={loadData} className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Tentar novamente</button>
+      </div>
+    );
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
