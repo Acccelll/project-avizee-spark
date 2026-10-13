@@ -163,7 +163,7 @@ export function useDashboardKpis(params: KpiParams) {
         value: minimosConfigurados === 0 ? "—" : formatNumber(estoqueBaixoCount),
         subtitle: minimosConfigurados === 0 ? "mínimos não configurados" : estoqueBaixoCount > 0 ? "abaixo do mínimo" : "sem itens críticos",
         icon: Package,
-        variant: minimosConfigurados === 0 ? ("neutral" as const) : estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
+        variant: minimosConfigurados === 0 ? ("default" as const) : estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
         onClick: onOpenEstoque,
         onDetail: onEstoqueDetail,
         scope: { kind: "snapshot" as const },
