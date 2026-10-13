@@ -6,9 +6,8 @@
  *    partir da listagem `/produtos`. Padrão canônico Onda 11+ (alinhado com
  *    Clientes/Fornecedores).
  *
- * As 5 abas (Dados Gerais, Estoque, Fiscal, Compras, Observações), composição,
- * fornecedores e dialogs auxiliares (Nova UM, Editar Sigla) permanecem
- * idênticos nos dois modos.
+ * Quatro abas: Dados essenciais, Estoque, Fiscal e Fornecedores.
+ * Descrição, variações e composição ficam em detalhes opcionais.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
