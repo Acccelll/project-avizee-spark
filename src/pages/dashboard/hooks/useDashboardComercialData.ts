@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValues } from "@/lib/dashboard/aggregations";
-import { OPEN_ORCAMENTO_STATUSES, BACKLOG_OV_STATUSES, BACKLOG_FATURAMENTO_STATUSES } from "@/lib/comercialStatuses";
+import { OPEN_ORCAMENTO_STATUSES } from "@/lib/comercialStatuses";
 import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
 import { logger } from "@/lib/logger";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
-/** Pedidos registrados no orçamento que ainda têm saldo a faturar. */
+/** Regras do relatório Pedidos a Faturar, baseadas em orçamentos com saldo pendente. */
+const PEDIDO_STATUSES = ["aprovado", "convertido"];
+const PEDIDO_EM_ABERTO = ["aberto", "parcial"];
 
 interface ComercialData {
   /** Orçamentos não-terminais do sistema, independentemente do período. */
@@ -66,19 +68,15 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .neq("origem", "importacao_historica")
           .order("created_at", { ascending: false })
           .limit(5),
-        // Backlog é da entidade canônica ordens_venda, não de orçamentos.
-        supabase.from("ordens_venda")
-          .select("id, numero, pedido_cliente_ref, valor_total, data_po_cliente, data_prometida_despacho, status_faturamento, clientes:cliente_id(nome_razao_social)")
-          .eq("ativo", true)
-          .in("status", [...BACKLOG_OV_STATUSES])
-          .in("status_faturamento", [...BACKLOG_FATURAMENTO_STATUSES])
-          .order("data_prometida_despacho", { ascending: true, nullsFirst: false })
-          .limit(15),
-        supabase.from("ordens_venda")
-          .select("id", { count: "exact", head: true })
-          .eq("ativo", true)
-          .in("status", [...BACKLOG_OV_STATUSES])
-          .in("status_faturamento", [...BACKLOG_FATURAMENTO_STATUSES]),
+        // Paridade exata com src/services/relatorios/loaders/pedidosAFaturar.ts.
+        supabase.from("orcamentos")
+          .select("id, numero, pedido_cliente, valor_total, data_pedido_cliente, previsao_despacho, faturamento_status, clientes(nome_razao_social)")
+          .eq("ativo", true).in("status", PEDIDO_STATUSES)
+          .in("faturamento_status", PEDIDO_EM_ABERTO)
+          .order("previsao_despacho", { ascending: true, nullsFirst: false }).limit(15),
+        supabase.from("orcamentos").select("id", { count: "exact", head: true })
+          .eq("ativo", true).in("status", PEDIDO_STATUSES)
+          .in("faturamento_status", PEDIDO_EM_ABERTO),
       ]);
 
       // Paginação explícita evita totais silenciosamente truncados pelo limite do PostgREST.
@@ -118,13 +116,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
       return {
         orcamentos: orcamentosResult.count ?? 0,
         recentOrcamentos: (orcRecentResult.data ?? []) as RecentOrcamento[],
-        backlogOVs: (backlogResult.data ?? []).map((ov) => ({
-          id: ov.id, numero: ov.numero, pedido_cliente: ov.pedido_cliente_ref,
-          valor_total: ov.valor_total, data_pedido_cliente: ov.data_po_cliente,
-          previsao_despacho: ov.data_prometida_despacho,
-          faturamento_status: ov.status_faturamento,
-          clientes: ov.clientes,
-        })) as BacklogOv[],
+        backlogOVs: (backlogResult.data ?? []) as BacklogOv[],
         backlogOVsCount: backlogCountResult.count ?? 0,
         faturamento: {
           mesAtual: sumNfValues(nfAtual),
