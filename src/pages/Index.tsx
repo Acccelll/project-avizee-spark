@@ -227,7 +227,7 @@ const DashboardContent = () => {
         <DashboardCard tone="hero">
           <BlockErrorBoundary label="Histórico de notas de saída">
             <Suspense fallback={<Skeleton className="h-[280px] w-full" />}>
-              <div className="h-[260px] md:h-[280px]">
+              <div className="min-w-0">
                 <VendasChart
                   onBarClick={(start, end) =>
                     navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)

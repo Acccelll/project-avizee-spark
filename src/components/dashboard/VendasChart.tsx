@@ -82,7 +82,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
   const isStale = data.lastMonth !== currentMonth;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <div className="flex shrink-0 items-center justify-between gap-2 flex-wrap">
         <div>
           <h3 className="text-sm font-semibold">Notas fiscais de saída · evolução mensal</h3>
@@ -103,7 +103,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
         <span>Média/NF: {formatCurrency(average)}</span>
         {change !== null && <span className={change >= 0 ? 'text-success' : 'text-destructive'}>{change >= 0 ? '+' : ''}{change.toFixed(1)}% vs mês anterior</span>}
       </div>
-      <div className="flex-1 min-h-[155px]">
+      <div className="h-[205px] w-full min-w-0 md:h-[210px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: -10 }}
             onClick={(e: { activePayload?: Array<{ payload: FaturamentoPoint }> }) => {
@@ -123,7 +123,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="shrink-0 text-[10px] text-muted-foreground">Barras: valor · linha: quantidade de NFs. Inclui importadas válidas; não equivale necessariamente a vendas comerciais.</p>
+      <p className="text-[10px] leading-4 text-muted-foreground">Barras: valor · linha: quantidade de NFs. Inclui importadas válidas; não equivale necessariamente a vendas comerciais.</p>
     </div>
   );
 }
