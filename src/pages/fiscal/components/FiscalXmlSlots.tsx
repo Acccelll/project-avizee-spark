@@ -1,5 +1,6 @@
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { useCan } from "@/hooks/useCan";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import type { useFiscalXmlImport } from "@/pages/fiscal/hooks/useFiscalXmlImport";
@@ -21,6 +22,8 @@ interface FiscalXmlSlotsProps {
  * Mantém o `Fiscal.tsx` enxuto sem alterar comportamento (Etapa 6.3, Pass 2).
  */
 export function FiscalXmlSlots({ xml, produtos }: FiscalXmlSlotsProps) {
+  const { can } = useCan();
+  const canCreateProduct = can("produtos:criar");
   return (
     <>
       <input
@@ -40,14 +43,14 @@ export function FiscalXmlSlots({ xml, produtos }: FiscalXmlSlotsProps) {
         linhas={xml.traducaoLinhas}
         onCancel={xml.handleTraducaoCancel}
         onConfirm={xml.handleTraducaoConfirm}
-        onCreateProduto={(idx, nome) => {
+        onCreateProduto={canCreateProduct ? (idx, nome) => {
           xml.setQuickProdutoLinhaIdx(idx);
           xml.setQuickProdutoNome(nome);
-        }}
+        } : undefined}
       />
 
       <QuickAddProductModal
-        open={xml.quickProdutoLinhaIdx !== null}
+        open={xml.quickProdutoLinhaIdx !== null && canCreateProduct}
         defaultNome={xml.quickProdutoNome}
         onClose={() => {
           xml.setQuickProdutoLinhaIdx(null);
