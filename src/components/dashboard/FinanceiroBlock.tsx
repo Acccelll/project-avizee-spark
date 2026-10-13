@@ -1,58 +1,25 @@
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, TrendingDown, ArrowRight, DollarSign, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FluxoCaixaChart } from './FluxoCaixaChart';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ScopeBadge } from './ScopeBadge';
 import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 interface FinanceiroBlockProps {
-  totalReceber: number;
-  totalPagar: number;
-  contasVencidas: number;
-  saldoProjetado: number;
   recebimentosHoje: number;
   pagamentosHoje: number;
   /** When true, hides the inner card header on viewports <md (used when wrapped in a MobileCollapsibleBlock). */
   hideHeaderOnMobile?: boolean;
 }
 
-interface IndicadorProps {
-  label: string;
-  value: string;
-  subtext?: string;
-  variant?: 'default' | 'positive' | 'negative' | 'warning';
-}
-
-function Indicador({ label, value, subtext, variant = 'default' }: IndicadorProps) {
-  const valueColor = {
-    default: 'text-foreground',
-    positive: 'text-success',
-    negative: 'text-destructive',
-    warning: 'text-warning',
-  }[variant];
-
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn('text-sm font-bold mono', valueColor)}>{value}</span>
-      {subtext && <span className="text-[11px] text-muted-foreground">{subtext}</span>}
-    </div>
-  );
-}
-
 export function FinanceiroBlock({
-  totalReceber,
-  totalPagar,
-  contasVencidas,
-  saldoProjetado,
   recebimentosHoje,
   pagamentosHoje,
   hideHeaderOnMobile = false,
 }: FinanceiroBlockProps) {
   const navigate = useNavigate();
-  const saldoPositivo = saldoProjetado >= 0;
 
   return (
     <div className="bg-card rounded-xl border flex flex-col">
@@ -76,48 +43,6 @@ export function FinanceiroBlock({
         >
           Abrir módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>
-      </div>
-
-      {/* Indicadores rápidos */}
-      <div className="grid grid-cols-2 gap-px border-b border-border/60 md:grid-cols-4 shrink-0">
-        <div className="px-4 py-2">
-          <Indicador
-            label="A receber"
-            value={formatCurrency(totalReceber)}
-            subtext="em aberto"
-            variant="positive"
-          />
-        </div>
-        <div className="px-4 py-2 border-l border-border/60">
-          <Indicador
-            label="A pagar"
-            value={formatCurrency(totalPagar)}
-            subtext="em aberto"
-            variant={totalPagar > totalReceber ? 'negative' : 'default'}
-          />
-        </div>
-        <div className="px-4 py-2 border-l border-border/60">
-          <Indicador
-            label="Diferença em aberto"
-            value={formatCurrency(saldoProjetado)}
-            subtext="receber − pagar; não é caixa"
-            variant={saldoPositivo ? 'positive' : 'negative'}
-          />
-        </div>
-        <div className="px-4 py-2 border-l border-border/60">
-          {contasVencidas > 0 ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">Vencidos</span>
-              <span className="text-sm font-bold mono text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {formatNumber(contasVencidas)}
-              </span>
-              <span className="text-[11px] text-muted-foreground">em atraso</span>
-            </div>
-          ) : (
-            <Indicador label="Vencidos" value="0" subtext="sem atrasos" variant="positive" />
-          )}
-        </div>
       </div>
 
       {/* Gráfico de fluxo de caixa — embedded (sem card wrapper). Em mobile,
