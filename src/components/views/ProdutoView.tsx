@@ -342,7 +342,7 @@ export function ProdutoView({ id }: Props) {
         <DrawerSummaryCard
           label={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior custo NF" : "Custo cadastrado"}
           value={custoEfetivo > 0 ? formatCurrency(custoEfetivo) : "—"}
-          hint={custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor unitário em NF de entrada" : "Custo registrado no cadastro"}
+          hint={falhouConsulta("Maior custo em notas fiscais") ? "Não foi possível consultar o maior custo das notas; valor exibido é o cadastrado" : custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior valor unitário em NF de entrada" : "Custo registrado no cadastro"}
           align="center"
         />
         <div className="col-span-2 sm:col-span-1">
