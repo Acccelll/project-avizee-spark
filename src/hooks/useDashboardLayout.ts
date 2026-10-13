@@ -3,7 +3,6 @@ import { useUserPreference } from '@/hooks/useUserPreference';
 
 export type WidgetId =
   | 'kpis'
-  | 'operational'
   | 'alertas'
   | 'financeiro'
   | 'acoes_rapidas'
@@ -28,7 +27,6 @@ export interface DashboardLayoutPrefs {
 
 export const DEFAULT_ORDER: WidgetId[] = [
   'kpis',
-  'operational',
   'alertas',
   'financeiro',
   'acoes_rapidas',

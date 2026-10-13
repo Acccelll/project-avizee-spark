@@ -16,12 +16,11 @@ export interface WidgetMeta {
 }
 
 export const WIDGET_REGISTRY: Record<WidgetId, WidgetMeta> = {
-  kpis: { id: 'kpis', label: 'KPIs Financeiros', description: 'Receber, Pagar e Saldo Projetado', required: true },
-  operational: { id: 'operational', label: 'Indicadores Operacionais', description: 'Estoque crítico, backlog, atrasos' },
+  kpis: { id: 'kpis', label: 'KPIs Financeiros', description: 'Títulos a receber e a pagar em aberto', required: true },
   alertas: { id: 'alertas', label: 'Faixa de Alertas', description: 'Atalhos contextuais para exceções' },
   financeiro: { id: 'financeiro', label: 'Bloco Financeiro', description: 'Resumo + fluxo de caixa', pairWith: 'acoes_rapidas' },
   acoes_rapidas: { id: 'acoes_rapidas', label: 'Ações Rápidas', description: 'Atalhos para criar registros', pairWith: 'financeiro' },
-  vendas_chart: { id: 'vendas_chart', label: 'Gráfico de Vendas', description: 'Faturamento por dia', pairWith: 'comercial' },
+  vendas_chart: { id: 'vendas_chart', label: 'Evolução de NF de Saída', description: 'Valor e quantidade dos últimos 6 ou 12 meses', pairWith: 'comercial' },
   pendencias: { id: 'pendencias', label: 'Pendências Financeiras', description: 'Vencimentos e atrasos', pairWith: 'fiscal' },
   comercial: { id: 'comercial', label: 'Bloco Comercial', description: 'Orçamentos e pedidos', pairWith: 'vendas_chart' },
   estoque: { id: 'estoque', label: 'Bloco Estoque', description: 'Posição e itens críticos', pairWith: 'logistica' },
