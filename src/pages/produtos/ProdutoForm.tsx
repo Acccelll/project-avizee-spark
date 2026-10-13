@@ -143,7 +143,7 @@ export default function ProdutoForm({
   const pendingCreatedIdRef = useRef<string | null>(null);
   const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
-  useBeforeUnloadGuard(isDirty && !embedded);
+  useBeforeUnloadGuard(isDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
 
   // Um registro principal já persistido, mas com vínculos incompletos,
   // também exige confirmação antes de abandonar a tela.
