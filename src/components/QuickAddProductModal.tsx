@@ -154,6 +154,8 @@ export function QuickAddProductModal({
           formId="quick-add-product-form"
           mode="create"
           primaryLabel="Cadastrar"
+          disabled={permissionsLoading || !canCreateProduct}
+          disabledReason="Sem permissão para cadastrar produtos"
         />
       }
     >
