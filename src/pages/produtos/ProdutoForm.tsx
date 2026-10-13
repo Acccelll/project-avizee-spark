@@ -143,16 +143,19 @@ export default function ProdutoForm({
   const pendingCreatedIdRef = useRef<string | null>(null);
   const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
-  useBeforeUnloadGuard(isDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
+  useBeforeUnloadGuard(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
 
   // Um registro principal já persistido, mas com vínculos incompletos,
   // também exige confirmação antes de abandonar a tela.
   useEffect(() => {
-    onDirtyChange?.(isDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
-  }, [isDirty, partialSaveMessage, onDirtyChange]);
+    onDirtyChange?.(isDirty || linksDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
+  }, [isDirty, linksDirty, partialSaveMessage, onDirtyChange]);
 
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
+  const linksBaselineRef = useRef({ composicao: "[]", fornecedores: "[]" });
+  const linksDirty = JSON.stringify(editComposicao) !== linksBaselineRef.current.composicao ||
+    JSON.stringify(editFornecedores) !== linksBaselineRef.current.fornecedores;
   const [margemOverride, setMargemOverride] = useState<number | null>(mode === "create" ? 30 : null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [grupos, setGrupos] = useState<{ id: string; nome: string; sigla?: string | null; aviso_interno?: string | null }[]>([]);
@@ -315,7 +318,7 @@ export default function ProdutoForm({
       onCancel?.();
       return;
     }
-    if (isDirty || pendingCreatedIdRef.current || partialSaveMessage) {
+    if (isDirty || linksDirty || pendingCreatedIdRef.current || partialSaveMessage) {
       const ok = await confirmAction({
         title: "Descartar alterações?",
         description: partialSaveMessage
