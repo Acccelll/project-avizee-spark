@@ -295,7 +295,7 @@ const Produtos = () => {
         </div>
       );
     }},
-    { key: "estoque_atual", mobileCard: true, label: "Estoque", sortable: true, render: (p: Produto) => {
+    { key: "estoque_atual", mobileCard: true, label: "Estoque", sortable: true, serverSortable: true, render: (p: Produto) => {
       const situacao = getSituacaoEstoque(p);
       const cfg = situacaoEstoqueConfig[situacao];
       return (
@@ -315,10 +315,10 @@ const Produtos = () => {
         </div>
       );
     }},
-    { key: "preco_venda", mobileCard: true, label: "P. Venda", sortable: true, render: (p: Produto) => (
+    { key: "preco_venda", mobileCard: true, label: "P. Venda", sortable: true, serverSortable: true, render: (p: Produto) => (
       <span className="font-semibold font-mono text-sm">{formatCurrency(p.preco_venda)}</span>
     )},
-    { key: "preco_custo", label: "P. Custo", hidden: true, sortable: true, render: (p: Produto) => (
+    { key: "preco_custo", label: "P. Custo", hidden: true, sortable: true, serverSortable: true, render: (p: Produto) => (
       <span className="font-mono text-sm text-muted-foreground">{formatCurrency(p.preco_custo || 0)}</span>
     )},
     { key: "margem", hidden: true, label: "Markup s/ custo", render: (p: Produto) => {
