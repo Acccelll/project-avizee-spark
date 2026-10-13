@@ -148,6 +148,7 @@ const Produtos = () => {
     truncated,
   } = useSupabaseCrud<Produto>({
     table: "produtos",
+    showToasts: false, // Mensagens específicas para inativação, não "registro removido".
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
@@ -194,7 +195,17 @@ const Produtos = () => {
   const openEdit = (p: Produto) => { setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
   const openView = (p: Produto) => pushView("produto", p.id);
   const closeForm = () => setFormOpen(false);
-  const handleSaved = () => { fetchData?.(); };
+  const handleSaved = () => { void fetchData(); };
+  const handleInativar = async (produto: Produto) => {
+    try {
+      await remove(produto.id);
+      toast.success("Produto inativado. O cadastro permanece disponível no filtro de inativos.");
+      await fetchData();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Não foi possível inativar o produto.";
+      toast.error(message);
+    }
+  };
 
   // Suporte ao deep-link legado (?editId=, ?new=1) e às rotas redirecionadas
   // /produtos/novo e /produtos/:id/editar (agora abrem modal).
@@ -516,7 +527,7 @@ const Produtos = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (p) => remove(p.id) : undefined}
+            onDelete={canExcluir ? handleInativar : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
             mobileHideIdentifier
