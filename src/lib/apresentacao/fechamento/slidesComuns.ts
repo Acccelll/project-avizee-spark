@@ -190,9 +190,13 @@ export function slideCaixa(base: BaseFechamento, p: Periodo, c: string): Slide {
   const rec = base.soma('receita_caixa', p.meses);
   const desp = base.soma('despesa_caixa', p.meses);
   const ajuste = base.soma('ajuste_caixa', p.meses);
+  // Rendimentos já estão no recebido; na ponte aparecem num passo próprio.
+  const rend = base.soma('rendimentos', p.meses);
+  const temRend = Math.abs(rend) >= 1;
   const passos: Array<{ rotulo: string; valor: number; tipo: 'base' | 'entrada' | 'saida' }> = [
     { rotulo: `Caixa em ${fimDoMesCurto(ini)}`, valor: caixaIni, tipo: 'base' },
-    { rotulo: 'Recebimentos', valor: rec, tipo: 'entrada' },
+    { rotulo: 'Recebimentos', valor: temRend ? rec - rend : rec, tipo: 'entrada' },
+    ...(temRend ? [{ rotulo: 'Rendimentos', valor: rend, tipo: 'entrada' as const }] : []),
     { rotulo: 'Pagamentos', valor: -desp, tipo: 'saida' },
   ];
   if (Math.abs(ajuste) >= 1) passos.push({ rotulo: 'Ajuste ao extrato', valor: ajuste, tipo: ajuste > 0 ? 'entrada' : 'saida' });
@@ -219,14 +223,18 @@ export function slideCaixa(base: BaseFechamento, p: Periodo, c: string): Slide {
   const bloq = base.bloqueado(c);
   const comentarios: string[] = umMes
     ? [
-        `Entrou ${brl(rec)} e saiu ${brl(desp)} no mês.`,
+        temRend
+          ? `Entrou ${brl(rec)} (${brl(rend)} de rendimentos de aplicações) e saiu ${brl(desp)} no mês.`
+          : `Entrou ${brl(rec)} e saiu ${brl(desp)} no mês.`,
         alta >= 2
           ? `${alta}º mês seguido de alta; desde ${mesCurto(minMes)} o caixa cresceu ${brl(caixaFim - base.caixa(minMes))}.`
           : `Variação em 12 meses: ${brl(caixaFim - base.caixa(somarMeses(c, -12)))}.`,
         bloq != null && bloq > 0 ? `Valor bloqueado em garantias: ${brl(bloq)}.` : 'Valor bloqueado em garantias: não informado neste mês.',
       ]
     : [
-        `Recebido ${brl(rec)} · pago ${brl(desp)}.`,
+        temRend
+          ? `Recebido ${brl(rec)}, dos quais ${brl(rend)} de rendimentos · pago ${brl(desp)}.`
+          : `Recebido ${brl(rec)} · pago ${brl(desp)}.`,
         `Média de ${brl((rec - desp) / p.meses.length)} de resultado por mês.`,
         desp > 0 ? `Caixa cobre ${mesesTxt(caixaFim / (desp / p.meses.length))} da despesa média ${p.sufixo}.` : `Caixa em ${fimDoMesCurto(c)}: ${brl(caixaFim)}.`,
       ];

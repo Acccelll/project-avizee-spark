@@ -33,6 +33,8 @@ export const COL = {
   instagram: 'X',
   retirada: ['Y', 'Z', 'AA', 'AB'],
   atribuido: ['AC', 'AD', 'AE', 'AF'],
+  /** Rendimentos de aplicações do mês (já incluídos no recebido). */
+  rendimentos: 'AG',
 } as const;
 
 /** Parâmetros: rótulo em AH, valor em AI, a partir da linha 5 nesta ordem. */

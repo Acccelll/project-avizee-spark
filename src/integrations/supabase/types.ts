@@ -13449,6 +13449,10 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_rendimentos_mes: {
+        Args: { p_competencia: string; p_valor: number }
+        Returns: number
+      }
       registrar_retorno_sefaz: {
         Args: {
           p_ambiente?: string

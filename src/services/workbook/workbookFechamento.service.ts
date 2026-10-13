@@ -45,6 +45,17 @@ export async function salvarEntradaManual(competencia: string, metrica: MetricaE
   if (error) throw error;
 }
 
+/**
+ * Informa o total de rendimentos de aplicações do mês. O banco mantém um
+ * recebimento na conta 6.1.2.01.001 (último dia do mês) que completa o que já
+ * estiver lançado no Financeiro; 0 cancela esse recebimento. Devolve o total.
+ */
+export async function registrarRendimentosMes(competencia: string, valor: number): Promise<number> {
+  const { data, error } = await supabase.rpc('registrar_rendimentos_mes', { p_competencia: competencia, p_valor: valor });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 export async function carregarParametrosAno(ano: number): Promise<ParametrosAnoWorkbook | null> {
   const { data, error } = await supabase
     .from('workbook_parametros_anuais')

@@ -23,6 +23,7 @@ import type { ApresentacaoFechamentoDados } from '@/lib/apresentacao/fechamento/
 import {
   carregarEntradasManuais,
   carregarParametrosAno,
+  registrarRendimentosMes,
   salvarEntradaManual,
   salvarParametrosAno,
 } from '@/services/workbook';
@@ -77,16 +78,18 @@ function Campo({ id, rotulo, valor, onChange, erro, aviso, ajuda, disabled, modo
 
 /**
  * Valores do fechamento que não vêm do ERP: caixa do extrato (disponível e
- * bloqueado), seguidores das redes e parâmetros do ano. O caixa total do mês
- * é disponível + bloqueado; a diferença para o calculado pelo ERP vira o
- * ajuste ao extrato no Workbook e na apresentação.
+ * bloqueado), rendimentos de aplicações, seguidores das redes e parâmetros do
+ * ano. O caixa total do mês é disponível + bloqueado; a diferença para o
+ * calculado pelo ERP vira o ajuste ao extrato no Workbook e na apresentação.
+ * Os rendimentos viram um recebimento no Financeiro e entram no calculado.
  */
 export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
   const qc = useQueryClient();
   const competencia = dados.competencia;
   const ano = Number(competencia.slice(0, 4));
   const mes = dados.workbook.meses.find((m) => m.competencia === competencia);
-  const caixaCalculado = Number(mes?.valores.caixa_final_calculado ?? mes?.valores.caixa_final ?? 0);
+  const caixaCalculadoErp = Number(mes?.valores.caixa_final_calculado ?? mes?.valores.caixa_final ?? 0);
+  const rendimentosErp = Math.round(Number(mes?.valores.rendimentos ?? 0) * 100) / 100;
 
   const entradasQ = useQuery({
     queryKey: ['workbook-entradas', competencia],
@@ -99,6 +102,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
 
   const [disponivel, setDisponivel] = useState('');
   const [bloqueado, setBloqueado] = useState('');
+  const [rendimentos, setRendimentos] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [instagram, setInstagram] = useState('');
   const [meta, setMeta] = useState('');
@@ -116,6 +120,9 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
     setAlterado(false);
   }, [entradasQ.data]);
   useEffect(() => {
+    setRendimentos(rendimentosErp ? paraCampoReais(rendimentosErp) : '');
+  }, [rendimentosErp]);
+  useEffect(() => {
     const p = parametrosQ.data;
     setMeta(p ? String(Math.round(p.crescimento_meta * 10000) / 100).replace('.', ',') : '');
     setLimite(p ? paraCampoReais(p.limite_faturamento) : '');
@@ -128,11 +135,17 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
 
   const lDisp = lerReais(disponivel);
   const lBloq = lerReais(bloqueado);
+  const lRend = lerReais(rendimentos);
   const lLi = lerInteiro(linkedin);
   const lIg = lerInteiro(instagram);
   const lMeta = lerPercentual(meta);
   const lLim = lerReais(limite);
-  const invalido = [lDisp, lBloq, lLi, lIg, lMeta, lLim].some((l) => !l.ok);
+  const vRend = valorDe(lRend);
+  const erroRend = erroDe(lRend) ?? (vRend !== null && vRend < 0 ? 'Rendimento não pode ser negativo.' : null);
+  const invalido = [lDisp, lBloq, lRend, lLi, lIg, lMeta, lLim].some((l) => !l.ok) || !!erroRend;
+  // O calculado pelo ERP já inclui os rendimentos gravados; com outro valor no campo, ele muda junto.
+  const rendNovo = Math.round((vRend ?? 0) * 100) / 100;
+  const caixaCalculado = Math.round((caixaCalculadoErp - rendimentosErp + rendNovo) * 100) / 100;
   const vDisp = valorDe(lDisp);
   const vBloq = valorDe(lBloq);
   const total = vDisp !== null ? Math.round((vDisp + (vBloq ?? 0)) * 100) / 100 : null;
@@ -144,6 +157,7 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
   const salvar = useMutation({
     mutationFn: async () => {
       if (invalido) throw new Error('Corrija os campos marcados.');
+      if (rendNovo !== rendimentosErp) await registrarRendimentosMes(competencia, rendNovo);
       await salvarEntradaManual(competencia, 'caixa_final', total);
       await salvarEntradaManual(competencia, 'bloqueado', vBloq);
       await salvarEntradaManual(competencia, 'seguidores_linkedin', valorDe(lLi));
@@ -181,11 +195,23 @@ export function EntradasFechamento({ dados, podeEditar, onSalvo }: Props) {
           <Campo id="ent-disp" rotulo="Disponível (extrato)" valor={disponivel} onChange={editar(setDisponivel)} erro={erroDe(lDisp)} disabled={bloqueadoCampos} />
           <Campo id="ent-bloq" rotulo="Bloqueado (garantia)" valor={bloqueado} onChange={editar(setBloqueado)} erro={erroDe(lBloq)} disabled={bloqueadoCampos} />
         </div>
+        <Campo
+          id="ent-rend"
+          rotulo="Rendimentos de aplicações no mês"
+          valor={rendimentos}
+          onChange={editar(setRendimentos)}
+          erro={erroRend}
+          ajuda="CDB, reserva remunerada e CDI das carteiras, somados. Entra no Financeiro como recebimento do último dia do mês."
+          disabled={bloqueadoCampos}
+        />
         <div className="rounded-md bg-muted/50 px-3 py-2 text-xs tabular-nums">
           {total !== null ? (
             <>
               <div className="flex justify-between gap-2"><span>Caixa no fim do mês</span><span className="font-medium">{formatCurrency(total)}</span></div>
               <div className="flex justify-between gap-2 text-muted-foreground"><span>Calculado pelo ERP</span><span>{formatCurrency(caixaCalculado)}</span></div>
+              {rendNovo !== 0 && (
+                <div className="flex justify-between gap-2 text-muted-foreground"><span>dos quais rendimentos</span><span>{formatCurrency(rendNovo)}</span></div>
+              )}
               <div className={cn('flex justify-between gap-2', ajuste ? 'font-medium text-warning-foreground' : 'text-muted-foreground')}>
                 <span>Ajuste ao extrato</span>
                 <span>{ajuste ? formatCurrency(ajuste) : 'nenhum'}</span>

@@ -104,6 +104,26 @@ describe('Workbook de Fechamento v2', () => {
     expect(valor(resumo, 'I22')).toBeCloseTo(0.5);
   });
 
+  it('rendimentos ficam numa linha própria da ponte do caixa', async () => {
+    const dados = dadosSinteticos('2026-09');
+    const set = dados.workbook.meses.find((m) => m.competencia === '2026-09')!;
+    set.valores.rendimentos = 420.5;
+    const out = (await preencherWorkbookFechamentoV2(modelo, dados, { tipo: 'uint8array', geradoEm: '2026-10-12' })) as Uint8Array;
+    const zip = await JSZip.loadAsync(out);
+    const abas = await mapaAbas(zip);
+    const ler = (aba: string) => zip.file(abas.get(aba)!)!.async('string');
+    expect(valor(await ler('Dados'), 'AG38')).toBeCloseTo(420.5);
+    const caixa = await ler('Caixa');
+    // set/26 é a 9ª coluna de mês (K).
+    expect(valor(caixa, 'K6')).toBeCloseTo(set.valores.receita_caixa! - 420.5);
+    expect(valor(caixa, 'K7')).toBeCloseTo(420.5);
+    expect(valor(caixa, 'K10')).toBeCloseTo(set.valores.caixa_final!);
+    expect(valor(caixa, 'K15')).toBe(0);
+    // O recebido (Resultado e Resumo) continua com os rendimentos dentro.
+    expect(valor(await ler('Resultado'), 'K5')).toBeCloseTo(set.valores.receita_caixa!);
+    expect(valor(await ler('Resumo'), 'F23')).toBe('OK');
+  });
+
   it('esconde as vagas vazias das listas', async () => {
     const { xml } = await abrir();
     const clientes = await xml('Clientes');

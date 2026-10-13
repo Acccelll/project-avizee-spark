@@ -138,6 +138,7 @@ export function montarConteudoDados(dados: ApresentacaoFechamentoDados, geradoEm
     if (!m.fechado) return;
     const n = (x: number | undefined) => (x === undefined || x === null ? undefined : Number(x));
     set(`${COL.recebido}${r}`, n(v.receita_caixa) ?? 0);
+    set(`${COL.rendimentos}${r}`, n(v.rendimentos) ?? 0);
     set(`${COL.pago}${r}`, n(v.despesa_caixa) ?? 0);
     set(`${COL.faturamento}${r}`, n(v.faturamento) ?? 0);
     set(`${COL.caixaFinal}${r}`, n(v.caixa_final));
