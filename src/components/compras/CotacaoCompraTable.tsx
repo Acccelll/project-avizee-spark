@@ -1,4 +1,5 @@
 import { DataTable } from "@/components/DataTable";
+import { Link } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,9 @@ export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoI
       render: (c: CotacaoCompra) => {
         const pedidos = pedidosByCotacaoId[c.id] ?? [];
         return pedidos.length
-          ? <span className="text-xs font-mono">{pedidos.map((p) => p.numero).join(", ")}</span>
+          ? <div className="flex flex-wrap gap-x-2 gap-y-1">{pedidos.map((p) => (
+              <Link key={p.id} to={`/pedidos-compra/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-mono text-primary hover:underline">{p.numero}</Link>
+            ))}</div>
           : <span className="text-xs text-muted-foreground">—</span>;
       },
     },
@@ -86,6 +89,7 @@ export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoI
     {
       key: "valor_total",
       label: "Valor total",
+      hidden: true,
       render: () => <span className="text-xs text-muted-foreground">—</span>,
     },
     {
