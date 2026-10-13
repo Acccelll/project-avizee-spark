@@ -16,35 +16,43 @@ export interface DashboardEstoqueData {
   produtos: number;
   estoqueBaixo: ProdRow[];
   valorEstoque: number;
+  minimosConfigurados: number;
 }
 
 export async function fetchDashboardEstoqueData(): Promise<DashboardEstoqueData> {
   try {
-    const [produtosResult, estMinResult, valorResult] = await Promise.all([
+    const [produtosResult, minimoCountResult, valorResult] = await Promise.all([
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase
-        .from("produtos")
-        .select("id, nome, codigo_interno, estoque_atual, estoque_minimo, unidade_medida")
-        .eq("ativo", true)
-        .not("estoque_minimo", "is", null)
-        .limit(100),
+      supabase.from("produtos").select("id", { count: "exact", head: true }).eq("ativo", true).gt("estoque_minimo", 0),
       supabase.from("produtos").select("estoque_atual, preco_custo").eq("ativo", true),
     ]);
 
     if (produtosResult.error) logger.error("[dashboard:estoque] produtos:", produtosResult.error.message);
-    if (estMinResult.error) logger.error("[dashboard:estoque] estMinimo:", estMinResult.error.message);
+    if (minimoCountResult.error) logger.error("[dashboard:estoque] estMinimo:", minimoCountResult.error.message);
     if (valorResult.error) logger.error("[dashboard:estoque] valor:", valorResult.error.message);
 
+    if (produtosResult.error || minimoCountResult.error || valorResult.error) throw new Error("Falha ao carregar indicadores de estoque");
+
+    const criticos: ProdRow[] = [];
+    for (let from = 0; ; from += 500) {
+      const { data, error } = await supabase.from("produtos")
+        .select("id, nome, codigo_interno, estoque_atual, estoque_minimo, unidade_medida")
+        .eq("ativo", true).gt("estoque_minimo", 0).range(from, from + 499);
+      if (error) throw error;
+      criticos.push(...filterEstoqueBaixo((data ?? []) as ProdRow[]));
+      if ((data ?? []).length < 500) break;
+    }
     return {
       produtos: produtosResult.count ?? 0,
-      estoqueBaixo: filterEstoqueBaixo((estMinResult.data ?? []) as ProdRow[]),
+      minimosConfigurados: minimoCountResult.count ?? 0,
+      estoqueBaixo: criticos,
       valorEstoque: computeValorTotalEstoque(
         (valorResult.data ?? []) as Array<{ estoque_atual: number | null; preco_custo: number | null }>,
       ),
     };
   } catch (error) {
     logger.error("[dashboard:estoque] erro inesperado:", error);
-    return { produtos: 0, estoqueBaixo: [], valorEstoque: 0 };
+    throw error;
   }
 }
 
