@@ -26,8 +26,11 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
     queryFn: async () => {
       // Ancora o histórico na última NF de saída efetivamente registrada.
       // Mês corrente vazio não apaga a evolução comercial anterior.
+      const today = new Date();
+      const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const latest = await supabase.from('notas_fiscais').select('data_emissao')
-        .eq('ativo', true).eq('tipo', 'saida').in('status', ['confirmada', 'importada'])
+         .eq('ativo', true).eq('tipo', 'saida').in('status', ['confirmada', 'importada'])
+        .lte('data_emissao', todayIso)
         .order('data_emissao', { ascending: false }).limit(1);
       if (latest.error) throw latest.error;
       if (!latest.data?.length) return { points: [] as FaturamentoPoint[], lastMonth: '' };
@@ -111,7 +114,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
               else navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`);
             }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
-            <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+            <XAxis dataKey="mes" tick={{ fontSize: 10 }} minTickGap={18} interval="preserveStartEnd" />
             <YAxis hide yAxisId="valor" />
             <YAxis hide yAxisId="notas" orientation="right" />
             <Tooltip formatter={(value: number, name: string) => [name === 'notas' ? Number(value).toLocaleString('pt-BR') : formatCurrency(value), name === 'notas' ? 'Quantidade de NFs' : 'Valor de NF de saída']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
