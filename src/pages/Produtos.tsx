@@ -199,10 +199,12 @@ const Produtos = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formProdutoId, setFormProdutoId] = useState<string | undefined>(undefined);
+  const [copyFromId, setCopyFromId] = useState<string | undefined>(undefined);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
-  const openCreate = () => { setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
-  const openEdit = (p: Produto) => { setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
+  const openCreate = () => { setCopyFromId(undefined); setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
+  const openEdit = (p: Produto) => { setCopyFromId(undefined); setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
+  const openCopy = (p: Produto) => { setCopyFromId(p.id); setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
   const openView = (p: Produto) => pushView("produto", p.id);
   const closeForm = () => setFormOpen(false);
   const handleSaved = () => { void fetchData(); };
@@ -223,6 +225,7 @@ const Produtos = () => {
     const params = new URLSearchParams(location.search);
     const editId = (location.state as { editId?: string } | null)?.editId || params.get("editId");
     if (editId) {
+      setCopyFromId(undefined);
       setFormMode("edit");
       setFormProdutoId(editId);
       setFormOpen(true);
@@ -232,6 +235,7 @@ const Produtos = () => {
       return;
     }
     if (params.get("new") === "1") {
+      setCopyFromId(undefined);
       setFormMode("create");
       setFormProdutoId(undefined);
       setFormOpen(true);
@@ -537,6 +541,7 @@ const Produtos = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
+            onDuplicate={openCopy}
             onDelete={canExcluir ? handleInativar : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
@@ -564,6 +569,7 @@ const Produtos = () => {
         open={formOpen}
         mode={formMode}
         produtoId={formProdutoId}
+        copyFromId={copyFromId}
         onClose={closeForm}
         onSaved={handleSaved}
         onPersisted={handleSaved}
