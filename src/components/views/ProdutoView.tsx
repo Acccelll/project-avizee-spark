@@ -138,15 +138,18 @@ export function ProdutoView({ id }: Props) {
     ? custoMaxEntrada
     : Number(selected?.preco_custo || 0);
 
-  const lucroBruto = selected ? selected.preco_venda - custoEfetivo : 0;
-  const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
-  const estoqueValor = selected ? (selected.estoque_atual || 0) * custoEfetivo : 0;
+  const custoNfIndisponivel = falhouConsulta("Maior custo em notas fiscais");
+  const custoConfiavel = !custoNfIndisponivel && custoEfetivo > 0;
+  const lucroBruto = selected && custoConfiavel ? selected.preco_venda - custoEfetivo : null;
+  const custoCompostoView = !falhouConsulta("Composição") && composicao.length > 0 && composicao.every(c => c.preco_custo != null)
+    ? composicao.reduce((s, c) => s + c.quantidade * Number(c.preco_custo), 0) : null;
+  const estoqueValor = selected && custoConfiavel ? (selected.estoque_atual || 0) * custoEfetivo : null;
 
   const custoNum = custoEfetivo;
   const vendaNum = Number(selected?.preco_venda || 0);
-  const markupPct = custoNum > 0 ? ((vendaNum / custoNum) - 1) * 100 : null;
-  const margemSobreVendaPct = vendaNum > 0 ? ((vendaNum - custoNum) / vendaNum) * 100 : null;
-  const lucroEmEstoque = lucroBruto * Number(selected?.estoque_atual || 0);
+  const markupPct = custoConfiavel ? ((vendaNum / custoNum) - 1) * 100 : null;
+  const margemSobreVendaPct = custoConfiavel && vendaNum > 0 ? ((vendaNum - custoNum) / vendaNum) * 100 : null;
+  const lucroEmEstoque = lucroBruto == null ? null : lucroBruto * Number(selected?.estoque_atual || 0);
 
   // KPIs Compras
   const totalComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0), 0);
@@ -181,7 +184,7 @@ export function ProdutoView({ id }: Props) {
     minimoConfigurado && semEstoque && { id: "sem-estoque", label: "Sem estoque", tone: "destructive" as const, tab: "estoque" },
     minimoConfigurado && !semEstoque && estoqueBaixo && { id: "abaixo-min", label: "Estoque abaixo do mínimo", tone: "warning" as const, tab: "estoque" },
     semVenda && { id: "sem-venda", label: "Preço de venda zerado", tone: "destructive" as const, tab: "preco" },
-    custoEfetivo <= 0 && !semVenda && { id: "sem-custo", label: "Custo ausente — margem indisponível", tone: "warning" as const, tab: "preco" },
+    !custoNfIndisponivel && custoEfetivo <= 0 && !semVenda && { id: "sem-custo", label: "Custo ausente — margem indisponível", tone: "warning" as const, tab: "preco" },
   ].filter(Boolean) as HealthAlert[]) : [];
 
   // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
@@ -446,7 +449,7 @@ export function ProdutoView({ id }: Props) {
                 ))}
                 <div className="flex justify-between text-sm font-semibold pt-2">
                   <span>Custo Composto</span>
-                  <span className="font-mono text-primary">{formatCurrency(custoCompostoView)}</span>
+                  <span className="font-mono text-primary">{custoCompostoView == null ? "—" : formatCurrency(custoCompostoView)}</span>
                 </div>
               </div>
             </div>
@@ -560,9 +563,11 @@ export function ProdutoView({ id }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">{custoMaxEntrada != null && custoMaxEntrada > 0 ? "Maior custo NF" : "Custo cadastrado"}</span>
-                <p className="font-mono font-semibold text-lg">{formatCurrency(custoEfetivo)}</p>
+                <p className="font-mono font-semibold text-lg">{custoEfetivo > 0 ? formatCurrency(custoEfetivo) : "—"}</p>
                 {custoMaxEntrada != null && custoMaxEntrada > 0 ? (
                   <p className="text-[10px] text-muted-foreground mt-0.5">Maior valor pago em entradas</p>
+                ) : custoNfIndisponivel ? (
+                  <p className="text-[10px] text-warning mt-0.5">NF indisponível — custo cadastrado</p>
                 ) : semCusto ? (
                   <p className="text-[10px] text-warning mt-0.5">Sem custo</p>
                 ) : null}
@@ -595,25 +600,25 @@ export function ProdutoView({ id }: Props) {
                 {semVenda && <p className="text-[10px] text-warning mt-0.5">Não definido</p>}
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">Margens estimadas sobre o {custoMaxEntrada != null && custoMaxEntrada > 0 ? "maior custo histórico de compra" : "custo cadastrado"}, não a margem realizada em vendas.</p>
+            <p className="text-[11px] text-muted-foreground">{custoNfIndisponivel ? "Consulta do custo nas notas indisponível. Indicadores de margem e lucro suspensos; custo cadastrado exibido apenas como referência." : <>Margens estimadas sobre o {custoMaxEntrada != null && custoMaxEntrada > 0 ? "maior custo histórico de compra" : "custo cadastrado"}, não a margem realizada em vendas.</>}</p>
             <div className="border-t pt-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground text-xs">Lucro Bruto</span>
-                <span className={`font-mono font-semibold text-sm ${lucroBruto > 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(lucroBruto)}</span>
+                <span className={`font-mono font-semibold text-sm ${lucroBruto == null ? "text-muted-foreground" : lucroBruto > 0 ? "text-primary" : "text-destructive"}`}>{lucroBruto == null ? "—" : formatCurrency(lucroBruto)}</span>
               </div>
-              {Number(selected.estoque_atual || 0) > 0 && lucroBruto !== 0 && (
+              {lucroEmEstoque != null && Number(selected.estoque_atual || 0) > 0 && lucroBruto !== 0 && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">Lucro estimado em estoque</span>
                   <span className="font-mono text-xs">{formatCurrency(lucroEmEstoque)}</span>
                 </div>
               )}
-              {fornecedorPrincipal?.preco_compra != null && (
+              {!falhouConsulta("Fornecedores") && fornecedorPrincipal?.preco_compra != null && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">Últ. Custo (Fornec. Principal)</span>
                   <span className="font-mono text-xs">{formatCurrency(fornecedorPrincipal.preco_compra)}</span>
                 </div>
               )}
-              {custoMedioCompras > 0 && Math.abs(custoMedioCompras - custoNum) > 0.01 && (
+              {!falhouConsulta("Histórico de compras") && custoConfiavel && custoMedioCompras > 0 && Math.abs(custoMedioCompras - custoNum) > 0.01 && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">Custo médio das compras</span>
                   <span className="font-mono text-xs">
@@ -691,7 +696,7 @@ export function ProdutoView({ id }: Props) {
               </div>
             </div>
           )}
-          {estoqueValor > 0 && (
+          {estoqueValor != null && estoqueValor > 0 && (
             <div className="rounded-lg border bg-card p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
