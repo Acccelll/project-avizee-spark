@@ -149,6 +149,7 @@ export default function ProdutoForm({
   // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
   const pendingCreatedIdRef = useRef<string | null>(null);
   const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
+  const [newProductSequence, setNewProductSequence] = useState(0);
 
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
@@ -420,8 +421,9 @@ export default function ProdutoForm({
       let principalSalvo = false;
       let composicaoSalva = false;
       try {
-        setPartialSaveMessage(null);
-        onPartialSaveChange?.(null);
+        // Preserve o aviso até que toda a operação seja concluída.
+        // Se a retentativa falhar antes de salvar o principal, o usuário
+        // ainda precisa saber que existe um produto persistido.
         if (mode === "create") {
           if (pendingCreatedIdRef.current) {
             // Retoma a criação interrompida; alterações feitas após o erro
@@ -470,17 +472,21 @@ export default function ProdutoForm({
 
         if (saveAndNewRef.current && mode === "create") {
           saveAndNewRef.current = false;
-          if (embedded) {
-            // Reseta o form para nova criação dentro do mesmo modal.
-            resetForm(emptyProduto);
-            setEditingProduct(null);
-            linksBaselineRef.current = { composicao: "[]", fornecedores: "[]" };
-            setEditComposicao([]);
-            setEditFornecedores([]);
-            setMargemOverride(30);
-          } else {
-            navigate("/produtos/novo", { replace: true });
-          }
+          // Reutilizar a mesma tela exige zerar todos os estados do produto.
+          // Navegar para a própria rota não remonta o formulário standalone.
+          resetForm({ ...emptyProduto });
+          setEditingProduct(null);
+          linksBaselineRef.current = { composicao: "[]", fornecedores: "[]" };
+          setEditComposicao([]);
+          setEditFornecedores([]);
+          setMargemOverride(30);
+          setFormErrors({});
+          setLoadError(null);
+          setSiglaInput("");
+          setAvisoInput("");
+          setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
+          setNovoGrupoForm({ nome: "", sigla: "" });
+          setNewProductSequence((n) => n + 1);
         } else {
           if (embedded) onSaved?.(produtoId);
           else navigate("/produtos");
@@ -498,6 +504,12 @@ export default function ProdutoForm({
           onPersisted?.(produtoId);
           toast.warning(msg, { duration: 9000 });
         } else {
+          // Retentativa de criação que falhou após persistência anterior:
+          // mantém o alerta de cadastro parcial (e a confirmação no modal).
+          if (pendingCreatedIdRef.current && partialSaveMessage) {
+            setPartialSaveMessage(partialSaveMessage);
+            onPartialSaveChange?.(partialSaveMessage);
+          }
           notifyError(err);
         }
       }
@@ -683,7 +695,7 @@ export default function ProdutoForm({
               </Button>
             </div>
           )}
-          <Tabs defaultValue="dados-gerais" className="w-full">
+          <Tabs key={mode === "create" ? newProductSequence : id} defaultValue="dados-gerais" className="w-full">
             <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
               <TabsListScrollable cols={4}>
                 <TabsTrigger value="dados-gerais" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Package className="h-3.5 w-3.5" />Dados essenciais</TabsTrigger>
