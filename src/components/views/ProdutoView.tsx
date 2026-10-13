@@ -886,7 +886,8 @@ export function ProdutoView({ id }: Props) {
         onConfirm={async () => {
           try {
             await deleteProduto(id);
-            toast.success("Produto inativado com sucesso.");
+            await invalidate(["produtos"]);
+            toast.success("Produto inativado. O cadastro permanece disponível no filtro de inativos.");
             clearStack();
           } catch (err) {
             notifyError(err);
@@ -919,7 +920,7 @@ export function ProdutoView({ id }: Props) {
             ? "Histórico fiscal vinculado — exclusão será bloqueada."
             : "Sem histórico fiscal.",
         ]}
-        onDeleted={() => clearStack()}
+        onDeleted={async () => { await invalidate(["produtos"]); clearStack(); }}
       />
     </div>
   );
