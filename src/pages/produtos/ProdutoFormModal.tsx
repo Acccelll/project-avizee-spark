@@ -8,6 +8,7 @@ interface ProdutoFormModalProps {
   open: boolean;
   mode: "create" | "edit";
   produtoId?: string;
+  copyFromId?: string;
   onClose: () => void;
   onSaved?: (produtoId: string) => void;
   onPersisted?: (produtoId: string) => void;
@@ -18,7 +19,7 @@ interface ProdutoFormModalProps {
  * Mantém o padrão dos demais cadastros (Clientes/Fornecedores) sem perder
  * abas, composição, fornecedores e dialogs auxiliares do form.
  */
-export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved, onPersisted }: ProdutoFormModalProps) {
+export function ProdutoFormModal({ open, mode, produtoId, copyFromId, onClose, onSaved, onPersisted }: ProdutoFormModalProps) {
   const [dirty, setDirty] = useState(false);
   const [partialWarning, setPartialWarning] = useState<string | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -51,7 +52,7 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved, onPe
           ].join(" ")}
         >
           <DialogHeader className="sr-only">
-            <DialogTitle>{mode === "create" ? "Novo Produto" : "Editar Produto"}</DialogTitle>
+            <DialogTitle>{copyFromId ? "Copiar como novo" : mode === "create" ? "Novo Produto" : "Editar Produto"}</DialogTitle>
             <DialogDescription>Formulário de cadastro de produto.</DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
@@ -60,6 +61,7 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved, onPe
                 embedded
                 embeddedMode={mode}
                 embeddedId={produtoId}
+                copyFromId={copyFromId}
                 onCancel={handleClose}
                 onSaved={(id) => {
                   setDirty(false);
