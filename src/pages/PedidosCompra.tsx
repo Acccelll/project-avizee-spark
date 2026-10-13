@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listComprasGridVinculos } from "@/services/comprasGridVinculos.service";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -25,6 +27,7 @@ const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();
+  const { data: gridVinculos } = useQuery({ queryKey: ["compras-grid-vinculos"], queryFn: listComprasGridVinculos });
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
   const isMobile = useIsMobile();
@@ -142,6 +145,7 @@ export default function PedidosCompra() {
           data={filters.filteredData}
           loading={ctx.loading}
           statusLabels={statusLabels}
+          numeroCotacaoById={gridVinculos?.numeroCotacaoById ?? {}}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onView={ctx.openView}
