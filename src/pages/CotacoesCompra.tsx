@@ -1,5 +1,7 @@
 
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { listComprasGridVinculos } from "@/services/comprasGridVinculos.service";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { FormModal } from "@/components/FormModal";
@@ -27,6 +29,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function CotacoesCompra() {
   const navigate = useNavigate();
+  const { data: gridVinculos } = useQuery({ queryKey: ["compras-grid-vinculos"], queryFn: listComprasGridVinculos });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
     data, loading, remove,
@@ -193,6 +196,7 @@ export default function CotacoesCompra() {
           data={filteredData}
           loading={loading}
           summaries={summaries}
+          pedidosByCotacaoId={gridVinculos?.pedidosByCotacaoId ?? {}}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onView={openView}
