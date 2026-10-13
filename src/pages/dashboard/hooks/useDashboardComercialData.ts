@@ -90,11 +90,11 @@ export function useDashboardComercialData(range: DashboardDateRange) {
         .select("valor_total").eq("ativo", true).eq("tipo", "saida")
         .in("status", ["confirmada", "importada"]);
       const [nfAtual, nfAnterior, dailyVendas, itens] = await Promise.all([
-        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAtual).lt("data_emissao", inicioProximoMes)),
-        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAnterior).lt("data_emissao", fimMesAnterior)),
+        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAtual).lt("data_emissao", inicioProximoMes).order("id")),
+        allPages<NfRow>(() => nfBase().gte("data_emissao", inicioMesAnterior).lt("data_emissao", fimMesAnterior).order("id")),
         allPages<DailyNfRow>(() => supabase.from("notas_fiscais")
           .select("data_emissao, valor_total").eq("ativo", true).eq("tipo", "saida")
-          .in("status", ["confirmada", "importada"]).in("data_emissao", lastDays)),
+          .in("status", ["confirmada", "importada"]).in("data_emissao", lastDays).order("id")),
         allPages<NfItemRow>(() => {
           let q = supabase.from("notas_fiscais_itens")
             .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao, ativo)")
@@ -103,7 +103,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
             .eq("notas_fiscais.tipo", "saida")
             .gte("notas_fiscais.data_emissao", itensFrom);
           if (itensTo) q = q.lte("notas_fiscais.data_emissao", itensTo);
-          return q;
+          return q.order("id");
         }),
       ]);
       for (const [label, result] of [
