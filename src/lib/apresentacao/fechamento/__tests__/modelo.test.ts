@@ -106,6 +106,27 @@ describe('deck mensal', () => {
     expect(codigos).not.toContain('mapa');
     expect(codigos).not.toContain('redes');
   });
+
+  it('mostra os rendimentos num passo próprio da ponte do caixa', () => {
+    const d = dadosSinteticos('2026-08');
+    d.workbook.meses.find((m) => m.competencia === '2026-08')!.valores.rendimentos = 350;
+    const b = new BaseFechamento(d);
+    const caixa = montarDeck(d, 'mensal', { geradoEm: GERADO }).slides.find((s) => s.codigo === 'caixa')!;
+    if (caixa.visual.tipo !== 'ponte') throw new Error('ponte');
+    const passos = caixa.visual.passos;
+    expect(passos.map((x) => x.rotulo)).toContain('Rendimentos');
+    expect(passos.find((x) => x.rotulo === 'Recebimentos')!.valor).toBeCloseTo(b.rec('2026-08') - 350, 2);
+    expect(passos.find((x) => x.rotulo === 'Rendimentos')!.valor).toBe(350);
+    const soma = passos.slice(0, -1).reduce((t, x) => t + x.valor, 0);
+    expect(soma).toBeCloseTo(passos.at(-1)!.valor, 2);
+    expect(caixa.comentarios[0]).toContain('de rendimentos de aplicações');
+  });
+
+  it('sem rendimentos, a ponte não tem o passo', () => {
+    const caixa = deck.slides.find((s) => s.codigo === 'caixa')!;
+    if (caixa.visual.tipo !== 'ponte') throw new Error('ponte');
+    expect(caixa.visual.passos.map((x) => x.rotulo)).not.toContain('Rendimentos');
+  });
 });
 
 describe('deck trimestral e anual', () => {

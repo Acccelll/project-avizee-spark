@@ -20,6 +20,7 @@ Layout da aba Dados (precisa bater com src/lib/workbook/fechamento/v2/layout.ts)
     M..Q a receber: a vencer até 30, 31-90, >90, vencido até 30, >30
     R..V a pagar: mesmas faixas | W LinkedIn | X Instagram
     Y..AB retirada sócio 1..4 | AC..AF resultado do ano atribuído sócio 1..4
+    AG rendimentos de aplicações (já incluídos no recebido)
   Parâmetros AH (rótulo) / AI (valor), linhas 5..28 (ver PARAM abaixo)
   Listas (linhas 5..44): AK cliente, AL 1ª compra, AN UF, AO estado,
     AQ categoria de despesa, AS fornecedor do mês
@@ -87,6 +88,7 @@ COLS = [
     ('Y', 'Retirada sócio 1', BRL2), ('Z', 'Retirada sócio 2', BRL2), ('AA', 'Retirada sócio 3', BRL2), ('AB', 'Retirada sócio 4', BRL2),
     ('AC', 'Resultado atribuído sócio 1', BRL2), ('AD', 'Resultado atribuído sócio 2', BRL2),
     ('AE', 'Resultado atribuído sócio 3', BRL2), ('AF', 'Resultado atribuído sócio 4', BRL2),
+    ('AG', 'Rendimentos de aplicações', BRL2),
 ]
 IDX = {c: i + 1 for i, (c, _, _) in enumerate(COLS)}  # coluna -> índice no VLOOKUP a partir de A
 
@@ -522,7 +524,7 @@ def aba_resumo(wb):
     indice = [
         ('Resultado', 'Recebido, pago e resultado de caixa, por mês, trimestre e ano, contra o ano anterior'),
         ('Faturamento', 'Notas de saída em três anos, acumulado contra a meta e o limite do ano'),
-        ('Caixa', 'Ponte do caixa mês a mês, bloqueado, disponível e meses de despesa cobertos'),
+        ('Caixa', 'Ponte do caixa mês a mês (com rendimentos), bloqueado, disponível e meses de despesa cobertos'),
         ('Despesas', 'Pagamentos por categoria e os maiores fornecedores do mês'),
         ('Clientes', 'Faturamento por grupo econômico, participação, curva ABC e 1ª compra'),
         ('Estados', 'Faturamento por estado e trimestre, contra o mesmo período do ano anterior'),
@@ -680,38 +682,40 @@ def aba_caixa(wb):
         return f'IF({fechado(r)},{expr},"")'
 
     linha_mensal(ws, 5, 'Caixa inicial', lambda i, r, c: g(r, dref('G', r - 1)), 'num_sub', 'rot_sub')
-    linha_mensal(ws, 6, '+ Recebido', lambda i, r, c: g(r, dref('D', r)))
-    linha_mensal(ws, 7, '− Pago', lambda i, r, c: g(r, '-' + dref('E', r)))
-    linha_mensal(ws, 8, '± Ajuste ao extrato', lambda i, r, c: g(r, dref('I', r)))
-    linha_mensal(ws, 9, 'Caixa final', lambda i, r, c: g(r, dref('G', r)), 'tot', 'tot_rot')
-    linha_mensal(ws, 10, 'bloqueado em garantia', lambda i, r, c: g(r, dref('J', r)), 'num_sub', 'rot_sub')
-    linha_mensal(ws, 11, 'disponível', lambda i, r, c: g(r, f'{dref("G", r)}-{dref("J", r)}'))
-    ws['B11'].font = fonte(bold=True)
-    linha_mensal(ws, 12, 'Meses de despesa cobertos', lambda i, r, c: g(r, f'IFERROR({c}11/AVERAGE(Dados!$E${r - 2}:$E${r}),"")'), 'num_sub', 'rot_sub')
+    # O recebido da aba Dados inclui os rendimentos; aqui eles ficam numa linha própria.
+    linha_mensal(ws, 6, '+ Recebimentos', lambda i, r, c: g(r, f'{dref("D", r)}-{dref("AG", r)}'))
+    linha_mensal(ws, 7, '+ Rendimentos de aplicações', lambda i, r, c: g(r, dref('AG', r)))
+    linha_mensal(ws, 8, '− Pago', lambda i, r, c: g(r, '-' + dref('E', r)))
+    linha_mensal(ws, 9, '± Ajuste ao extrato', lambda i, r, c: g(r, dref('I', r)))
+    linha_mensal(ws, 10, 'Caixa final', lambda i, r, c: g(r, dref('G', r)), 'tot', 'tot_rot')
+    linha_mensal(ws, 11, 'bloqueado em garantia', lambda i, r, c: g(r, dref('J', r)), 'num_sub', 'rot_sub')
+    linha_mensal(ws, 12, 'disponível', lambda i, r, c: g(r, f'{dref("G", r)}-{dref("J", r)}'))
+    ws['B12'].font = fonte(bold=True)
+    linha_mensal(ws, 13, 'Meses de despesa cobertos', lambda i, r, c: g(r, f'IFERROR({c}12/AVERAGE(Dados!$E${r - 2}:$E${r}),"")'), 'num_sub', 'rot_sub')
     for c in mes_cols():
-        ws[f'{c}12'].number_format = MESES_TXT
-    linha_mensal(ws, 13, 'Caixa final do ano anterior', lambda i, r, c: f'IF({fechado(r - 12)},{dref("G", r - 12)},"")', 'num_sub', 'rot_sub')
-    linha_mensal(ws, 14, 'Diferença na ponte (deve ser zero)', lambda i, r, c: f'IF({c}9="","",ROUND({c}5+{c}6+{c}7+{c}8-{c}9,2))', 'num_sub', 'rot_sub')
-    destacar_mes(ws, 'C5:N14')
+        ws[f'{c}13'].number_format = MESES_TXT
+    linha_mensal(ws, 14, 'Caixa final do ano anterior', lambda i, r, c: f'IF({fechado(r - 12)},{dref("G", r - 12)},"")', 'num_sub', 'rot_sub')
+    linha_mensal(ws, 15, 'Diferença na ponte (deve ser zero)', lambda i, r, c: f'IF({c}10="","",ROUND({c}5+{c}6+{c}7+{c}8+{c}9-{c}10,2))', 'num_sub', 'rot_sub')
+    destacar_mes(ws, 'C5:N15')
     ws.freeze_panes = 'C5'
-    nota(ws, 'B15', 'Meses de despesa cobertos: caixa disponível ÷ média do pago nos últimos 3 meses.')
+    nota(ws, 'B16', 'Meses de despesa cobertos: caixa disponível ÷ média do pago nos últimos 3 meses. Rendimentos: CDB, reserva remunerada e CDI informados no fechamento.')
 
     ch = BarChart()
     ch.type = 'col'
     ch.grouping = 'stacked'
     ch.overlap = 100
     ch.gapWidth = 50
-    ch.series.append(serie(ws, 11, 3, 14, '$B$11', VINHO))
-    ch.series.append(serie(ws, 10, 3, 14, '$B$10', TERRA3))
+    ch.series.append(serie(ws, 12, 3, 14, '$B$12', VINHO))
+    ch.series.append(serie(ws, 11, 3, 14, '$B$11', TERRA3))
     rotulos(ch, ws, 3, 4, 14, 4)
     ln = LineChart()
-    ln.series.append(serie(ws, 13, 3, 14, '$B$13', APAGADO, 'line'))
+    ln.series.append(serie(ws, 14, 3, 14, '$B$14', APAGADO, 'line'))
     ln.series[0].graphicalProperties.line.dashStyle = 'dash'
     rotulos(ln, ws, 3, 4, 14, 4)
     estilo_grafico(ch, 'Caixa no fim do mês: disponível e bloqueado')
     ch += ln
     ch.width, ch.height = 26, 8.5
-    ws.add_chart(ch, 'B17')
+    ws.add_chart(ch, 'B18')
     return ws
 
 
@@ -1117,7 +1121,6 @@ def aba_dados(wb):
     ws.column_dimensions['C'].width = 7.5
     put(ws, f'AH{D_CAB}', 'Parâmetro', 'dados_cab')
     put(ws, f'AI{D_CAB}', 'Valor', 'dados_cab')
-    ws.column_dimensions['AG'].width = 3
     ws.column_dimensions['AH'].width = 34
     ws.column_dimensions['AI'].width = 16
     for i, (nome, fmt) in enumerate(PARAM):

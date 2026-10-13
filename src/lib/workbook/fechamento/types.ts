@@ -48,6 +48,8 @@ export const AGING_FAIXAS = [
 
 export type FechamentoMetrica =
   | 'receita_caixa'
+  /** Rendimentos de aplicações recebidos no mês (conta 6.1.2); já estão em receita_caixa. */
+  | 'rendimentos'
   | 'despesa_caixa'
   | 'faturamento'
   | 'bloqueado'
