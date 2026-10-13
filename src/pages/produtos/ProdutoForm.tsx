@@ -230,7 +230,7 @@ export default function ProdutoForm({
   useEffect(() => { if (unidadeLookup) setUnidadesMedida(unidadeLookup as UnidadeMedidaOption[]); }, [unidadeLookup]);
 
   // Lookup de produtos para autocompletar componentes (apenas se composto).
-  const { data: produtosLookup = [] } = useQuery({
+  const { data: produtosLookup = [], isSuccess: produtosLookupReady } = useQuery({
     queryKey: ["produtos", "lookup", "ativos"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -406,7 +406,7 @@ export default function ProdutoForm({
     !grupoLookup.some((g) => g.id === form.grupo_id);
   const copySuppliersUnavailable = !!copyFromId && !!fornecedorLookup &&
     editFornecedores.some((f) => !!f.fornecedor_id && !fornecedorLookup.some((v) => v.id === f.fornecedor_id));
-  const copyComponentsUnavailable = !!copyFromId && form.eh_composto && !!produtosLookup &&
+  const copyComponentsUnavailable = !!copyFromId && form.eh_composto && produtosLookupReady &&
     editComposicao.some((c) => !!c.produto_filho_id && !produtosLookup.some((p) => p.id === c.produto_filho_id));
 
   // Helpers de itens dinâmicos
