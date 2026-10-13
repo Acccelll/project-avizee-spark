@@ -139,9 +139,11 @@ export default function ProdutoForm({
   const { saving, submit } = useSubmitLock();
   useBeforeUnloadGuard(isDirty && !embedded);
 
+  // Um registro principal já persistido, mas com vínculos incompletos,
+  // também exige confirmação antes de abandonar a tela.
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChange?.(isDirty || !!pendingCreatedIdRef.current || !!partialSaveMessage);
+  }, [isDirty, partialSaveMessage, onDirtyChange]);
 
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
@@ -302,10 +304,12 @@ export default function ProdutoForm({
     setEditFornecedores(editFornecedores.map((f, i) => ({ ...f, eh_principal: i === idx })));
 
   const handleBack = async () => {
-    if (isDirty) {
+    if (isDirty || pendingCreatedIdRef.current || partialSaveMessage) {
       const ok = await confirmAction({
         title: "Descartar alterações?",
-        description: "Há alterações não salvas. Deseja sair mesmo assim?",
+        description: partialSaveMessage
+          ? "O produto principal já foi salvo, mas há informações complementares pendentes. Sair agora exigirá localizar o produto cadastrado para concluir a edição. Deseja sair?"
+          : "Há alterações não salvas. Deseja sair mesmo assim?",
         confirmLabel: "Descartar",
         confirmVariant: "destructive",
       });
@@ -337,6 +341,7 @@ export default function ProdutoForm({
     const schema = isServico ? produtoServicoSchema : isInsumo ? produtoInsumoSchema : produtoSchema;
     const validation = validateForm(schema, dataParaValidar);
     if (!validation.success) {
+      saveAndNewRef.current = false;
       setFormErrors(validation.errors);
       const firstErr = Object.values(validation.errors)[0];
       toast.error(firstErr || "Verifique os campos do formulário");
@@ -344,18 +349,19 @@ export default function ProdutoForm({
     }
     setFormErrors({});
 
-    if (form.sku && skuChecking) { toast.error("Aguarde a verificação do SKU."); return; }
+    if (form.sku && skuChecking) { saveAndNewRef.current = false; toast.error("Aguarde a verificação do SKU."); return; }
     if (form.sku && skuUnico === false) {
+      saveAndNewRef.current = false;
       setFormErrors((prev) => ({ ...prev, sku: "SKU já cadastrado em outro produto." }));
       toast.error("SKU já cadastrado em outro produto.");
       return;
     }
 
-    if (form.eh_composto && editComposicao.length === 0) { toast.error("Produto composto precisa de ao menos um componente"); return; }
-    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { toast.error("Selecione o produto para todos os componentes"); return; }
+    if (form.eh_composto && editComposicao.length === 0) { saveAndNewRef.current = false; toast.error("Produto composto precisa de ao menos um componente"); return; }
+    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { saveAndNewRef.current = false; toast.error("Selecione o produto para todos os componentes"); return; }
     const fornDups = editFornecedores.map(f => f.fornecedor_id).filter(Boolean);
-    if (editFornecedores.some(f => !f.fornecedor_id)) { toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios"); return; }
-    if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
+    if (editFornecedores.some(f => !f.fornecedor_id)) { saveAndNewRef.current = false; toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios"); return; }
+    if (fornDups.length !== new Set(fornDups).size) { saveAndNewRef.current = false; toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
 
     await submit(async () => {
       const variacoesArr = form.variacoes_texto
@@ -439,6 +445,7 @@ export default function ProdutoForm({
           else navigate("/produtos");
         }
       } catch (err) {
+        saveAndNewRef.current = false;
         if (principalSalvo) {
           // A operação NÃO é transacional entre as três RPCs: deixar claro
           // o que persistiu e permitir retentativa sem duplicar o produto.
@@ -903,7 +910,7 @@ export default function ProdutoForm({
                 </div>
               </div>
 
-              <details className="rounded-lg border px-3 py-2">
+              <details className="rounded-lg border px-3 py-2" key={editingProduct?.id || "new"} defaultOpen={mode === "edit" && !!(editingProduct?.descricao || (editingProduct?.variacoes && editingProduct.variacoes.length > 0))}>
                 <summary className="cursor-pointer py-1 text-sm font-medium">Mais detalhes comerciais (opcional)</summary>
                 <div className="space-y-4 py-3">
               <div className="space-y-3 border-t pt-3">
