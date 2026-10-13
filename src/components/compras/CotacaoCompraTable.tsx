@@ -11,6 +11,7 @@ interface CotacaoCompraTableProps {
   data: CotacaoCompra[];
   loading: boolean;
   summaries: Record<string, CotacaoSummary>;
+  pedidosByCotacaoId: Record<string, Array<{ id: string; numero: string }>>;
   onView: (c: CotacaoCompra) => void;
   onEdit: (c: CotacaoCompra) => void;
   onApprove?: (c: CotacaoCompra) => void;
@@ -18,7 +19,7 @@ interface CotacaoCompraTableProps {
   onSelectionChange: (ids: string[]) => void;
 }
 
-export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, onApprove, selectedIds, onSelectionChange }: CotacaoCompraTableProps) {
+export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoId, onView, onEdit, onApprove, selectedIds, onSelectionChange }: CotacaoCompraTableProps) {
   const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const getNextAction = (c: CotacaoCompra): { label: string; show: boolean } => {
     const s = summaries[c.id];
@@ -35,7 +36,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, o
   const columns = [
     {
       key: "numero",
-      label: "Cotação",
+      label: "Nº RC",
       mobilePrimary: true,
       render: (c: CotacaoCompra) => (
         <div>
@@ -55,6 +56,37 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit, o
           })()}
         </div>
       ),
+    },
+    {
+      key: "numero_oc",
+      label: "Nº OC",
+      render: (c: CotacaoCompra) => {
+        const pedidos = pedidosByCotacaoId[c.id] ?? [];
+        return pedidos.length
+          ? <span className="text-xs font-mono">{pedidos.map((p) => p.numero).join(", ")}</span>
+          : <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
+      key: "data_cotacao",
+      label: "Emissão",
+      sortable: true,
+      render: (c: CotacaoCompra) => <span className="text-xs">{formatDate(c.data_cotacao)}</span>,
+    },
+    {
+      key: "fornecedor",
+      label: "Fornecedor",
+      render: (c: CotacaoCompra) => <span className="text-xs">{summaries[c.id]?.vencedor_nome || "—"}</span>,
+    },
+    {
+      key: "observacoes",
+      label: "Resumo",
+      render: (c: CotacaoCompra) => <span className="text-xs line-clamp-2 max-w-[220px]">{c.observacoes || summaries[c.id]?.produto_principal || "—"}</span>,
+    },
+    {
+      key: "valor_total",
+      label: "Valor total",
+      render: () => <span className="text-xs text-muted-foreground">—</span>,
     },
     {
       key: "itens",
