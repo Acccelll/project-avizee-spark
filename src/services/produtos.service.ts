@@ -204,6 +204,38 @@ function mensagemErroVinculos(message: string, etapa: "composição" | "forneced
   return "Erro ao salvar " + etapa + ": " + message;
 }
 
+/**
+ * Recalcula custo composto no momento do salvamento, sem depender do lookup
+ * de autocomplete (cache e eventual falha de consulta).
+ * Não altera o preço de venda nem os preços dos componentes.
+ */
+export async function calcularCustoComposicaoAtual(
+  itens: Array<{ produto_filho_id: string; quantidade: number }>,
+): Promise<number> {
+  const ids = [...new Set(itens.map((item) => item.produto_filho_id))];
+  if (ids.length === 0) throw new Error("Adicione ao menos um componente para calcular o custo.");
+  if (itens.some((item) => !item.produto_filho_id || !Number.isFinite(item.quantidade) || item.quantidade <= 0)) {
+    throw new Error("Revise os componentes: informe produto e quantidade maior que zero.");
+  }
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("id, ativo, preco_custo")
+    .in("id", ids);
+  if (error) throw new Error("Não foi possível atualizar o custo dos componentes. Tente novamente: " + error.message);
+  const precos = new Map((data ?? []).map((p) => [p.id, p]));
+  let total = 0;
+  for (const item of itens) {
+    const prod = precos.get(item.produto_filho_id);
+    if (!prod || !prod.ativo) throw new Error("Um componente está inativo ou indisponível. Revise a composição.");
+    if (prod.preco_custo == null || !Number.isFinite(Number(prod.preco_custo)) || Number(prod.preco_custo) < 0) {
+      throw new Error("Um componente está sem custo válido. Atualize seu cadastro antes de salvar.");
+    }
+    total += item.quantidade * Number(prod.preco_custo);
+  }
+  if (!Number.isFinite(total) || total > 99999999999) throw new Error("Custo composto inválido ou acima do limite permitido.");
+  return Math.round((total + Number.EPSILON) * 10000) / 10000;
+}
+
 export async function saveProdutoComposicao(params: {
   produtoPaiId: string;
   itens: { produto_filho_id: string; quantidade: number }[];
