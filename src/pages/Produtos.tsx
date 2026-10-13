@@ -111,7 +111,7 @@ const Produtos = () => {
   const cadastroFilters = filterValue.cadastro;
   const setCadastroFilters = (v: string[]) => setFilter({ cadastro: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
-  const { can } = useCan();
+  const { can, loading: permissionsLoading } = useCan();
   const { roles } = useAuth();
   const rolesCadastroCompleto = roles.includes("admin") || (roles.includes("estoquista") && roles.includes("gestor_compras"));
   const canCriar = can("produtos:criar") && rolesCadastroCompleto;
@@ -227,6 +227,7 @@ const Produtos = () => {
   // Suporte ao deep-link legado (?editId=, ?new=1) e às rotas redirecionadas
   // /produtos/novo e /produtos/:id/editar (agora abrem modal).
   useEffect(() => {
+    if (permissionsLoading) return;
     const params = new URLSearchParams(location.search);
     const editId = (location.state as { editId?: string } | null)?.editId || params.get("editId");
     if (editId) {
@@ -261,7 +262,7 @@ const Produtos = () => {
       navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot
-  }, [location.search, location.state]);
+  }, [location.search, location.state, permissionsLoading, canCriar, canEditar]);
 
   // Quando o filtro depende de uma regra composta (estoque ou sem grupo),
   // consulte todas as páginas antes de filtrar. Nunca filtre somente os 50
