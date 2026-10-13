@@ -168,7 +168,7 @@ export function useDashboardData() {
   const state = query.data ?? INITIAL_STATE;
 
   /**
-   * Ticket médio = faturamento confirmado no mês ÷ número de NFs emitidas no mês.
+   * Média por NF de saída = valor de NFs válidas no mês ÷ número dessas NFs.
    * Usar a contagem de NFs (não de orçamentos) garante que numerador e denominador
    * venham da mesma janela e da mesma fonte de dados.
    */
