@@ -89,6 +89,12 @@ export function PedidoCompraTable({
       ),
     },
     {
+      key: "data_pedido",
+      label: "Emissão",
+      sortable: true,
+      render: (p: PedidoCompra) => <span className="text-xs">{formatDate(p.data_pedido)}</span>,
+    },
+    {
       key: "fornecedor",
       label: "Fornecedor",
       mobileCard: true,
@@ -97,23 +103,9 @@ export function PedidoCompraTable({
       ),
     },
     {
-      key: "data_pedido",
-      label: "Emissão",
-      sortable: true,
-      render: (p: PedidoCompra) => <span className="text-xs">{formatDate(p.data_pedido)}</span>,
-    },
-    {
       key: "observacoes",
       label: "Resumo",
       render: (p: PedidoCompra) => <span className="text-xs line-clamp-2 max-w-[220px]">{p.observacoes || "—"}</span>,
-    },
-    {
-      key: "data_entrega_prevista",
-      label: "Entrega Prevista",
-      mobileCard: true,
-      render: (p: PedidoCompra) => (
-        <EntregaCell dataEntrega={p.data_entrega_prevista} status={p.status} />
-      ),
     },
     {
       key: "condicao_pagamento",
@@ -130,6 +122,14 @@ export function PedidoCompraTable({
       mobileCard: true,
       render: (p: PedidoCompra) => (
         <span className="font-semibold font-mono text-sm">{formatCurrency(Number(p.valor_total || 0))}</span>
+      ),
+    },
+    {
+      key: "data_entrega_prevista",
+      label: "Entrega Prevista",
+      mobileCard: true,
+      render: (p: PedidoCompra) => (
+        <EntregaCell dataEntrega={p.data_entrega_prevista} status={p.status} />
       ),
     },
     {
