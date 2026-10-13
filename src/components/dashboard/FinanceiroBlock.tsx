@@ -45,11 +45,8 @@ export function FinanceiroBlock({
         </Button>
       </div>
 
-      {/* Gráfico de fluxo de caixa — embedded (sem card wrapper). Em mobile,
-          escondemos o gráfico (ilegível em <375px) e oferecemos um atalho.
-          Altura concreta (h-[200px]) é necessária para o ResponsiveContainer
-          do recharts resolver `height="100%"` corretamente. */}
-      <div className="block h-[270px] md:h-[250px] px-3 md:px-4 py-3">
+      {/* Gráfico com altura intrínseca, sem comprimir legenda e links no celular. */}
+      <div className="block min-w-0 px-3 py-3 md:px-4">
         <FluxoCaixaChart embedded />
       </div>
       {/* Vencimentos de hoje */}
