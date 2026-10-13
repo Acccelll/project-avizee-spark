@@ -335,7 +335,7 @@ export default function ProdutoForm({
           peso: source.peso ?? 0,
           eh_composto: !!source.eh_composto,
           grupo_id: source.grupo_id || "",
-          tipo_item: source.tipo_item || "produto",
+          tipo_item: source.tipo_item === "insumo" || source.tipo_item === "servico" ? source.tipo_item : "produto",
           variacoes_texto: Array.isArray(source.variacoes) ? source.variacoes.join(", ") : "",
           ativo: true,
           codigo_servico_lc116: source.codigo_servico_lc116 ?? "",
