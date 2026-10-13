@@ -98,9 +98,9 @@ export function FinanceiroBlock({
         </div>
         <div className="px-4 py-2 border-l border-border/60">
           <Indicador
-            label="Saldo projetado"
+            label="Diferença em aberto"
             value={formatCurrency(saldoProjetado)}
-            subtext={saldoPositivo ? 'positivo' : 'negativo'}
+            subtext="receber − pagar; não é caixa"
             variant={saldoPositivo ? 'positive' : 'negative'}
           />
         </div>
