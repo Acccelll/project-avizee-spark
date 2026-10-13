@@ -257,16 +257,22 @@ export default function ProdutoForm({
           listProdutoFornecedores(prod.id),
         ]);
         if (cancelled) return;
-        setEditComposicao(compData.map((c) => ({
+        const componentesCarregados = compData.map((c) => ({
           id: c.id, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
           nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo,
-        })));
-        setEditFornecedores(fornData.map((f) => ({
+        }));
+        const fornecedoresCarregados = fornData.map((f) => ({
           id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
           descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
           unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0,
           preco_compra: f.preco_compra || 0, fator_conversao: f.fator_conversao ?? 1,
-        })));
+        }));
+        linksBaselineRef.current = {
+          composicao: JSON.stringify(componentesCarregados),
+          fornecedores: JSON.stringify(fornecedoresCarregados),
+        };
+        setEditComposicao(componentesCarregados);
+        setEditFornecedores(fornecedoresCarregados);
         setMargemOverride(null);
       } catch (err) {
         notifyError(err);
@@ -433,6 +439,10 @@ export default function ProdutoForm({
 
         pendingCreatedIdRef.current = null;
         setPartialSaveMessage(null);
+        linksBaselineRef.current = {
+          composicao: JSON.stringify(editComposicao),
+          fornecedores: JSON.stringify(editFornecedores),
+        };
         markPristine();
         queryClient.invalidateQueries({ queryKey: ["produtos"] });
         toast.success(mode === "create" ? "Produto criado com sucesso" : "Produto atualizado");
@@ -443,6 +453,7 @@ export default function ProdutoForm({
             // Reseta o form para nova criação dentro do mesmo modal.
             resetForm(emptyProduto);
             setEditingProduct(null);
+            linksBaselineRef.current = { composicao: "[]", fornecedores: "[]" };
             setEditComposicao([]);
             setEditFornecedores([]);
             setMargemOverride(30);
