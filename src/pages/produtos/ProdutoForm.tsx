@@ -137,6 +137,12 @@ export default function ProdutoForm({
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
+  const saveAndNewRef = useRef(false);
+  // Quando o cadastro principal foi criado mas um vínculo falhou, uma nova
+  // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
+  const pendingCreatedIdRef = useRef<string | null>(null);
+  const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
+
   useBeforeUnloadGuard(isDirty && !embedded);
 
   // Um registro principal já persistido, mas com vínculos incompletos,
@@ -323,11 +329,6 @@ export default function ProdutoForm({
     navigate("/produtos");
   };
 
-  const saveAndNewRef = useRef(false);
-  // Quando o cadastro principal foi criado mas um vínculo falhou, uma nova
-  // tentativa reutiliza o mesmo ID. Nunca insira uma segunda cópia.
-  const pendingCreatedIdRef = useRef<string | null>(null);
-  const [partialSaveMessage, setPartialSaveMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -776,7 +777,12 @@ export default function ProdutoForm({
                     </Select>
                   </div>
                 </div>
-                <details className="rounded-lg border bg-muted/15 px-3 py-2" key={editingProduct?.eh_composto ? "composed" : "regular"} defaultOpen={!!editingProduct?.eh_composto}>
+                <details className="rounded-lg border bg-muted/15 px-3 py-2" key={editingProduct?.id || "new"} ref={(node) => {
+                  if (node && !node.dataset.openInitialized) {
+                    node.open = !!editingProduct?.eh_composto;
+                    node.dataset.openInitialized = "true";
+                  }
+                }}>
                   <summary className="cursor-pointer py-1 text-sm font-medium">Composição do produto (opcional)</summary>
                   <div className="mt-3 space-y-3">
                 <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
@@ -914,7 +920,12 @@ export default function ProdutoForm({
                 </div>
               </div>
 
-              <details className="rounded-lg border px-3 py-2" key={editingProduct?.id || "new"} defaultOpen={mode === "edit" && !!(editingProduct?.descricao || (editingProduct?.variacoes && editingProduct.variacoes.length > 0))}>
+              <details className="rounded-lg border px-3 py-2" key={editingProduct?.id || "new"} ref={(node) => {
+                  if (node && !node.dataset.openInitialized) {
+                    node.open = mode === "edit" && !!(editingProduct?.descricao || (editingProduct?.variacoes && editingProduct.variacoes.length > 0));
+                    node.dataset.openInitialized = "true";
+                  }
+                }}>
                 <summary className="cursor-pointer py-1 text-sm font-medium">Mais detalhes comerciais (opcional)</summary>
                 <div className="space-y-4 py-3">
               <div className="space-y-3 border-t pt-3">
