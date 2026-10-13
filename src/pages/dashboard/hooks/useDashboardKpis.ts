@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AlertTriangle, BarChart2, ClipboardList, DollarSign, Package, TrendingUp, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardList, DollarSign, Package, TrendingUp, Truck } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 interface KpiParams {
@@ -24,11 +24,9 @@ interface KpiParams {
   dailyPagar: Array<{ dia: string; valor: number }>;
   onOpenReceber: () => void;
   onOpenPagar: () => void;
-  onOpenSaldo: () => void;
   onOpenEstoque: () => void;
   onReceberDetail: () => void;
   onPagarDetail?: () => void;
-  onSaldoDetail?: () => void;
   onEstoqueDetail: () => void;
   onOpenBacklog: () => void;
   onOpenCompras: () => void;
@@ -48,18 +46,14 @@ export function useDashboardKpis(params: KpiParams) {
     dailyPagar,
     onOpenReceber,
     onOpenPagar,
-    onOpenSaldo,
     onOpenEstoque,
     onReceberDetail,
     onPagarDetail,
-    onSaldoDetail,
     onEstoqueDetail,
     onOpenBacklog,
     onOpenCompras,
     onOpenRemessas,
   } = params;
-
-  const saldoProjetado = stats.totalReceber - stats.totalPagar;
 
   const kpiCards = useMemo(
     () => [
@@ -104,42 +98,16 @@ export function useDashboardKpis(params: KpiParams) {
         meta: metas.pagar,
         realizado: stats.totalPagar,
       },
-      {
-        id: "saldo",
-        title: "Diferença em Aberto",
-        value: formatCurrency(saldoProjetado),
-        subtitle: "receber − pagar · não é saldo bancário",
-        icon: BarChart2,
-        variation:
-          saldoProjetado >= 0
-            ? `Diferença positiva de ${formatCurrency(saldoProjetado)}`
-            : `Diferença negativa de ${formatCurrency(Math.abs(saldoProjetado))}`,
-        variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
-        variant: "default" as const,
-        sparklineData:
-          dailyReceber.length > 0 && dailyPagar.length > 0
-            ? dailyReceber.map((r, index) => r.valor - (dailyPagar[index]?.valor ?? 0))
-            : undefined,
-        onClick: onOpenSaldo,
-        onDetail: onSaldoDetail,
-        "aria-label": "Ver saldo projetado no fluxo de caixa",
-        meta: metas.saldo,
-        realizado: saldoProjetado,
-      },
     ],
     [
       dailyPagar,
       dailyReceber,
       metas.pagar,
       metas.receber,
-      metas.saldo,
       onOpenPagar,
       onOpenReceber,
-      onOpenSaldo,
       onReceberDetail,
       onPagarDetail,
-      onSaldoDetail,
-      saldoProjetado,
       stats.contasPagar,
       stats.contasReceber,
       stats.contasVencidas,
@@ -222,5 +190,5 @@ export function useDashboardKpis(params: KpiParams) {
     ],
   );
 
-  return { kpiCards, operationalCards, saldoProjetado };
+  return { kpiCards, operationalCards };
 }
