@@ -487,6 +487,11 @@ export default function ProdutoForm({
       return;
     }
 
+    if (copyFromId && (!grupoLookup || !fornecedorLookup || (form.eh_composto && !produtosLookupReady))) {
+      saveAndNewRef.current = false;
+      toast.error("Aguarde a consulta dos cadastros disponíveis antes de salvar a cópia.");
+      return;
+    }
     if (copyFromId && (copyGroupUnavailable || copySuppliersUnavailable || copyComponentsUnavailable)) {
       saveAndNewRef.current = false;
       toast.error("A cópia contém grupo, fornecedor ou componente indisponível. Substitua os vínculos indicados antes de salvar.");
