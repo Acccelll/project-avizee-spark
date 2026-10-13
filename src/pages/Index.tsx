@@ -109,14 +109,12 @@ const DashboardContent = () => {
     dailyPagar,
     onOpenReceber: () => navigate(buildDrilldownUrl({ kind: "financeiro:receber-aberto" })),
     onOpenPagar: () => navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" })),
-    onOpenSaldo: () => navigate(buildDrilldownUrl({ kind: "financeiro:saldo" })),
     onOpenEstoque: () => navigate(buildDrilldownUrl({ kind: "estoque:critico" })),
     onOpenBacklog: () => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" })),
     onOpenCompras: () => navigate(buildDrilldownUrl({ kind: "compras:atrasadas" })),
     onOpenRemessas: () => navigate(buildDrilldownUrl({ kind: "logistica:remessas-atrasadas" })),
     onReceberDetail: () => setMetricDrawer("receber"),
     onPagarDetail: () => setMetricDrawer("pagar"),
-    onSaldoDetail: () => setMetricDrawer("saldo"),
     onEstoqueDetail: () => setMetricDrawer("estoque"),
   });
 
