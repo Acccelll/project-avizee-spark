@@ -47,7 +47,7 @@ export interface NfeCreateFormModalProps {
   xmlOriginInfo: { fornecedorNome: string } | null;
   traducaoLinhasCount: number;
   onAbrirTraducao: () => void;
-  onCriarProdutoQuick: () => void;
+  onCriarProdutoQuick?: () => void;
   onCriarFornecedorQuick?: () => void;
 }
 
