@@ -237,7 +237,7 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Edit className="h-3.5 w-3.5" /> Editar
-          </Button>}}
+          </Button>}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mais ações">
@@ -282,7 +282,7 @@ export function ProdutoView({ id }: Props) {
             }}
           >
             <Edit className="h-3.5 w-3.5" /> Editar
-          </Button>
+          </Button>}
           {canCopiar && <Button
             variant="outline"
             size="sm"
