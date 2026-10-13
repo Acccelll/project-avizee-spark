@@ -49,21 +49,9 @@ export function FinanceiroBlock({
           escondemos o gráfico (ilegível em <375px) e oferecemos um atalho.
           Altura concreta (h-[200px]) é necessária para o ResponsiveContainer
           do recharts resolver `height="100%"` corretamente. */}
-      <div className="hidden md:block h-[220px] px-4 py-3">
+      <div className="block h-[270px] md:h-[250px] px-3 md:px-4 py-3">
         <FluxoCaixaChart embedded />
       </div>
-      <div className="md:hidden border-t border-border/60 px-4 py-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 w-full justify-center gap-1.5 text-xs"
-          onClick={() => navigate('/fluxo-caixa')}
-        >
-          <TrendingUp className="h-3.5 w-3.5" />
-          Ver fluxo de caixa
-        </Button>
-      </div>
-
       {/* Vencimentos de hoje */}
       {(recebimentosHoje > 0 || pagamentosHoje > 0) && (
         <div className="flex items-center gap-4 border-t border-border/60 px-4 py-2 shrink-0">
