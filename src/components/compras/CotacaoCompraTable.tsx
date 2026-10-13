@@ -1,7 +1,8 @@
 import { DataTable } from "@/components/DataTable";
+import { RowActions } from "@/components/list/RowActions";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Trophy } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Trophy, Ban, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CotacaoCompra, CotacaoSummary } from "./cotacaoCompraTypes";
 import { statusLabels } from "./cotacaoCompraTypes";
@@ -16,11 +17,14 @@ interface CotacaoCompraTableProps {
   onView: (c: CotacaoCompra) => void;
   onEdit: (c: CotacaoCompra) => void;
   onApprove?: (c: CotacaoCompra) => void;
+  onGridAction: (kind: "cancelar" | "excluir", c: CotacaoCompra) => void;
+  canCancel: boolean;
+  canDelete: boolean;
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
 }
 
-export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoId, onView, onEdit, onApprove, selectedIds, onSelectionChange }: CotacaoCompraTableProps) {
+export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoId, onView, onEdit, onApprove, onGridAction, canCancel, canDelete, selectedIds, onSelectionChange }: CotacaoCompraTableProps) {
   const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const getNextAction = (c: CotacaoCompra): { label: string; show: boolean } => {
     const s = summaries[c.id];
@@ -201,10 +205,21 @@ export function CotacaoCompraTable({ data, loading, summaries, pedidosByCotacaoI
       moduleKey="cotacoes_compra"
       showColumnToggle={true}
       onRowClick={onView}
+      hidePrimaryAction
       onEdit={onEdit}
       selectable
       selectedIds={selectedIds}
       onSelectionChange={onSelectionChange}
+      rowExtraActions={(c) => {
+        const status = canonicalCotacaoStatus(c.status);
+        const cancel = canCancel && !["convertida", "cancelada", "rejeitada"].includes(status);
+        const del = canDelete && status === "rascunho" && !(pedidosByCotacaoId[c.id]?.length);
+        if (!cancel && !del) return null;
+        return <RowActions
+          secondary={cancel ? [{ label: "Cancelar RC", icon: Ban, onClick: () => onGridAction("cancelar", c) }] : []}
+          destructive={del ? { label: "Excluir RC", icon: Trash2, onClick: () => onGridAction("excluir", c) } : undefined}
+        />;
+      }}
       mobileStatusKey="status"
       mobileLabeledDetails
       mobilePrimaryAction={(c) => {
