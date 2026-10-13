@@ -329,7 +329,7 @@ export default function ProdutoForm({
           preco_custo: source.preco_custo ?? 0,
           preco_venda: source.preco_venda ?? 0,
           estoque_minimo: source.estoque_minimo ?? 0,
-          ncm: (source.ncm || "").replace(/\\D/g, ""),
+          ncm: (source.ncm || "").replace(/\D/g, ""),
           cst: source.cst || "",
           cfop_padrao: source.cfop_padrao || "",
           peso: source.peso ?? 0,
