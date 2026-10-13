@@ -86,6 +86,7 @@ const DashboardContent = () => {
     dailyPagar,
     dailyReceber,
     estoqueBaixo,
+    minimosConfigurados,
     faturamento,
     fiscalStats,
     recentOrcamentos,
@@ -101,6 +102,7 @@ const DashboardContent = () => {
     metas,
     stats,
     estoqueBaixoCount: estoqueBaixo.length,
+    minimosConfigurados,
     backlogOVsCount,
     comprasAtrasadasCount,
     remessasAtrasadasCount: remessasAtrasadas,
@@ -313,13 +315,14 @@ const DashboardContent = () => {
           summary={
             estoqueBaixo.length > 0
               ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
-              : `${stats.produtos} ativos`
+              : minimosConfigurados === 0 ? "Mínimos não configurados" : `${stats.produtos} ativos`
           }
-          defaultOpen={estoqueBaixo.length > 0}
+          defaultOpen={estoqueBaixo.length > 0 || minimosConfigurados === 0}
           persistKey="estoque"
         >
           <EstoqueBlock
             itensBaixoMinimo={estoqueBaixo}
+            minimosConfigurados={minimosConfigurados}
             valorTotalEstoque={valorEstoque}
             totalProdutosAtivos={stats.produtos}
             hideHeaderOnMobile={isMobile}
