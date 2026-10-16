@@ -17,7 +17,6 @@ import { HelpProvider, useHelp } from '@/contexts/HelpContext';
 import { HelpDrawer } from './help/HelpDrawer';
 import { ReportarProblemaDrawer } from './suporte/ReportarProblemaDrawer';
 import { CoachTour } from './help/CoachTour';
-import { FirstVisitToast } from './help/FirstVisitToast';
 import { CertificadoValidadeAlert } from './fiscal/CertificadoValidadeAlert';
 import { useTrackRecentRoutes } from '@/hooks/useRecentRoutes';
 
@@ -148,7 +147,6 @@ export function AppLayout() {
       <HelpDrawer />
       <ReportarProblemaDrawer />
       <CoachTour />
-      <FirstVisitToast />
 
       {import.meta.env.DEV && <ContrastDevTool />}
     </div>
