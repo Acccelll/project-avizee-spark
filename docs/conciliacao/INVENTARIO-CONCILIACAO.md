@@ -117,7 +117,13 @@ Ver §2.2 do AS-IS. Lista:
 - Baixa gerada usa forma `"extrato_conciliacao"`.
 - Reimport bloqueado por SHA-256 (arquivo idêntico).
 - Duplicidade por linha via `uq_fin_extrato_conta_fitid`.
-- Estorno: `estornar_baixa_financeira` (uma baixa por vez); estorno total = `financeiro_processar_estorno`.
+- Estorno: `estornar_baixa_financeira` (uma baixa por vez); estorno total = `financeiro_processar_estorno` (delega para a primeira, baixa a baixa).
+- Estorno é **lógico** (`estornada_em`/`estornada_por`/`motivo_estorno`), não
+  físico. Toda consulta a `financeiro_baixas` que represente movimentação
+  vigente precisa filtrar `estornada_em IS NULL`. Efeitos colaterais do
+  estorno: reverte `contas_bancarias.saldo_atual`, lança contrapartida em
+  `caixa_movimentos` (apenas se `caixa_movimento_registrado`), marca a baixa
+  como `desconciliado` e reabre a linha de extrato vinculada.
 
 ## 13. Configurações & Feature flags
 
