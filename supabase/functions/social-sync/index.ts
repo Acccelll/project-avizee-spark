@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { requireAnyPermission } from "../_shared/permissions.ts";
 import { fetchWithTimeout, isTimeoutError, timeoutResponse } from "../_shared/validate.ts";
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 /** Timeout para chamadas externas Graph/LinkedIn (20s por chamada). */
 const SOCIAL_TIMEOUT_MS = 20_000;
@@ -108,12 +109,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Token: o informado na chamada ou o guardado no Vault para esta conta.
+    let accessToken: string | undefined = body.access_token;
+    if (!accessToken) {
+      const { data: cred } = await serviceClient
+        .rpc("social_obter_credenciais", { _conta_id: accountId })
+        .maybeSingle();
+      accessToken = (cred as { access_token?: string } | null)?.access_token ?? undefined;
+    }
+
     if (platform === "instagram_business") {
-      return await syncInstagram(accountId, body.access_token, corsHeaders, mockOverride);
+      return await syncInstagram(accountId, accessToken, corsHeaders, mockOverride);
     }
 
     if (platform === "linkedin_page") {
-      return await syncLinkedIn(accountId, body.access_token, corsHeaders, mockOverride);
+      return await syncLinkedIn(accountId, accessToken, corsHeaders, mockOverride);
     }
 
     return new Response(
