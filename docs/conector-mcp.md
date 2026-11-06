@@ -38,7 +38,7 @@ Claude ──MCP──▶ Edge Function `mcp` ──(token do usuário)──▶
    - `SITE_BASE_URL`: URL pública do site (https).
    - `SITE_ERP_CONTENT_SECRET`: o mesmo valor de `ERP_CONTENT_SECRET` no site.
 3. **Permissões no ERP** (Administração → Usuários): dar à pessoa de conteúdo `conteudo:visualizar`, `conteudo:criar`, `conteudo:editar` e `conteudo:publicar`. Administradores já têm todas.
-4. **Instagram** (opcional): conectar a conta Business no módulo Social. A publicação exige o escopo `instagram_content_publish`, incluído no fluxo de conexão. Contas conectadas antes desta versão precisam reconectar. O app da Meta precisa desse escopo aprovado.
+4. **Instagram** (opcional): conectar a conta Business no módulo Social. Publicar exige o escopo `instagram_content_publish`, que **ainda não está** em `SCOPES` de `supabase/functions/instagram-oauth/index.ts`. Inclua-o só depois que o app da Meta tiver essa permissão aprovada; antes disso o Facebook recusa o login. Em seguida, reconecte a conta.
 
 ## Conectar no Claude (conta de criação)
 
