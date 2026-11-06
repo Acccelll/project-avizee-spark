@@ -27,3 +27,5 @@ project_id = "cpvdncsxzostovdduhci"
     verify_jwt = false
   [functions.consultadanfe-proxy]
     verify_jwt = true
+  [functions.site-publicar-materia]
+    verify_jwt = true

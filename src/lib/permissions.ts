@@ -36,6 +36,7 @@ export const ERP_RESOURCES = [
   "workbook",
   "apresentacao",
   "social",
+  "conteudo",
   "usuarios",
   "administracao",
   "socios",
@@ -64,6 +65,7 @@ export const ERP_ACTIONS = [
   "configurar",
   "sincronizar",
   "gerenciar_alertas",
+  "publicar",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
@@ -100,6 +102,7 @@ export const RESOURCE_LABELS: Record<ErpResource, string> = {
   workbook: "Workbook gerencial",
   apresentacao: "Apresentação gerencial",
   social: "Social",
+  conteudo: "Matérias do site",
   usuarios: "Usuários",
   administracao: "Administração",
   socios: "Sócios e Participações",
@@ -129,6 +132,7 @@ export const ACTION_LABELS: Record<ErpAction, string> = {
   configurar: "Configurar",
   sincronizar: "Sincronizar",
   gerenciar_alertas: "Gerenciar alertas",
+  publicar: "Aprovar e publicar",
 };
 
 export function humanizeResource(resource: ErpResource | string): string {
@@ -369,6 +373,7 @@ export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
     "exportar",
     "gerenciar_alertas",
   ],
+  conteudo: ["visualizar", "criar", "editar", "publicar"],
   usuarios: ["visualizar", "criar", "editar", "excluir"],
   administracao: ["visualizar", "editar", "configurar"],
   socios: ["visualizar", "editar", "exportar"],

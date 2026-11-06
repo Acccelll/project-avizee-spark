@@ -202,7 +202,7 @@ async function handleCallback(url: URL): Promise<Response> {
     if (!ig?.id) continue;
     const username = ig.username ?? page.name;
 
-    const { error } = await admin
+    const { data: contaRow, error } = await admin
       .from("social_contas")
       .upsert(
         {
@@ -210,7 +210,6 @@ async function handleCallback(url: URL): Promise<Response> {
           identificador_externo: ig.id,
           nome_conta: username,
           url_conta: `https://instagram.com/${username}`,
-          access_token: page.access_token, // page token (usado para Insights IG)
           token_expira_em: expiraEm,
           status_conexao: "conectado",
           ativo: true,
@@ -220,9 +219,22 @@ async function handleCallback(url: URL): Promise<Response> {
           ultima_sincronizacao: null,
         },
         { onConflict: "plataforma,identificador_externo" },
-      );
-    if (error) {
+      )
+      .select("id")
+      .single();
+    if (error || !contaRow) {
       console.error("[instagram-oauth] upsert error", error);
+      continue;
+    }
+    // Page token (Insights e publicação) vai para o Vault, nunca para a tabela.
+    const { error: credError } = await admin.rpc("social_salvar_credenciais", {
+      _conta_id: contaRow.id,
+      _access_token: page.access_token,
+      _refresh_token: null,
+      _expira_em: expiraEm,
+    });
+    if (credError) {
+      console.error("[instagram-oauth] vault error", credError.message);
       continue;
     }
     conectadas.push({ ig_id: ig.id, username });
