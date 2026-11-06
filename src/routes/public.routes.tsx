@@ -10,6 +10,7 @@ const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const AuthConfirm = lazy(() => import("@/pages/AuthConfirm"));
 const MfaChallenge = lazy(() => import("@/pages/MfaChallenge"));
+const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 
 /**
  * Rotas públicas (não autenticadas) — login, signup, recuperação,
@@ -26,5 +27,6 @@ export const publicRoutes = (
     <Route path="/reset-password" element={<LazyPage><ResetPassword /></LazyPage>} />
     <Route path="/auth/confirm" element={<LazyPage><AuthConfirm /></LazyPage>} />
     <Route path="/mfa" element={<LazyPage><MfaChallenge /></LazyPage>} />
+    <Route path="/oauth/consent" element={<LazyPage><OAuthConsent /></LazyPage>} />
   </>
 );
