@@ -24,6 +24,7 @@ const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "*";
 const SCOPES = [
   "instagram_basic",
   "instagram_manage_insights",
+  "instagram_content_publish",
   "pages_show_list",
   "pages_read_engagement",
   "business_management",
