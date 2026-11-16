@@ -32,11 +32,28 @@ export default tseslint.config(
       // Frontend deve usar `logger` (src/lib/logger.ts). Sem opções vazias:
       // ESLint 9 exige ao menos um item em `allow` quando a opção é informada.
       "no-console": "error",
+      // "Hoje" via new Date().toISOString().slice(0, 10) é a data em UTC: no
+      // Brasil, a partir das 21h vira o dia seguinte. Use todayISO() /
+      // toLocalISODate() de @/lib/dateUtils.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(slice|split|substring)$/][callee.object.type='CallExpression'][callee.object.callee.property.name='toISOString'][callee.object.callee.object.type='NewExpression'][callee.object.callee.object.callee.name='Date'][callee.object.callee.object.arguments.length=0]",
+          message:
+            "Cortar new Date().toISOString() dá a data em UTC (dia seguinte após 21h no Brasil). Use todayISO() de @/lib/dateUtils. (Timestamp completo com new Date().toISOString() continua liberado.)",
+        },
+      ],
     },
   },
   {
     files: ["src/lib/logger.ts", "supabase/functions/**", "scripts/**"],
     rules: { "no-console": "off" },
+  },
+  {
+    // Edge functions e scripts rodam no servidor (UTC) e não são "o dia" do usuário.
+    files: ["supabase/functions/**", "scripts/**"],
+    rules: { "no-restricted-syntax": "off" },
   },
   {
     // A API de fixtures do Playwright exige destructuring no primeiro argumento

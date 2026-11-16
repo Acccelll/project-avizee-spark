@@ -46,6 +46,7 @@ import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 type ProdutoRow = TableRow<"produtos">;
 
@@ -780,7 +781,7 @@ const Estoque = () => {
                 onChange={(next: PeriodValue) => {
                   if (next.preset) {
                     const from = periodToDateFrom(next.preset as Period);
-                    const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                    const to = periodToDateTo(next.preset as Period) ?? todayISO();
                     setDataInicio(from);
                     setDataFim(to);
                     return;

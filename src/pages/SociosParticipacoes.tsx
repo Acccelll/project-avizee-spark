@@ -18,8 +18,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import type { SocioRetirada } from "@/types/domain";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { todayISO } from "@/lib/dateUtils";
 
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+const currentMonth = () => todayISO().slice(0, 7);
 
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho", aprovado: "Aprovado", financeiro_gerado: "Financeiro gerado",
@@ -59,10 +60,10 @@ export default function SociosParticipacoes() {
   // Modais
   const [retiradaOpen, setRetiradaOpen] = useState(false);
   const [retiradaForm, setRetiradaForm] = useState({
-    socio_id: "", tipo: "pro_labore" as TipoRetirada, valor_calculado: 0, data_prevista: new Date().toISOString().split("T")[0], observacoes: "",
+    socio_id: "", tipo: "pro_labore" as TipoRetirada, valor_calculado: 0, data_prevista: todayISO(), observacoes: "",
   });
   const [gerarFinOpen, setGerarFinOpen] = useState<SocioRetirada | null>(null);
-  const [gerarForm, setGerarForm] = useState({ data_vencimento: new Date().toISOString().split("T")[0] });
+  const [gerarForm, setGerarForm] = useState({ data_vencimento: todayISO() });
   const [reabrirOpen, setReabrirOpen] = useState(false);
   const [reabrirMotivo, setReabrirMotivo] = useState("");
 
@@ -354,7 +355,7 @@ export default function SociosParticipacoes() {
                           </Button>
                         )}
                         {r.status === "aprovado" && (
-                          <Button size="sm" onClick={() => { setGerarFinOpen(r); setGerarForm({ data_vencimento: r.data_prevista ?? new Date().toISOString().split("T")[0] }); }}>
+                          <Button size="sm" onClick={() => { setGerarFinOpen(r); setGerarForm({ data_vencimento: r.data_prevista ?? todayISO() }); }}>
                             <FileText className="h-3.5 w-3.5 mr-1" /> Gerar financeiro
                           </Button>
                         )}

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { listContasBancarias } from "@/services/contasBancarias.service";
 import { baixarFaturaCartao } from "@/services/cartoesCredito.service";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Props {
   open: boolean;
@@ -32,7 +33,7 @@ export function BaixarFaturaDialog({ open, onOpenChange, faturaId, faturaLabel, 
   const qc = useQueryClient();
   const [contaId, setContaId] = useState("");
   const [forma, setForma] = useState("boleto_dda");
-  const [data, setData] = useState<string>(dataVencimento ?? new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState<string>(dataVencimento ?? todayISO());
   const [obs, setObs] = useState("");
   const [busy, setBusy] = useState(false);
 

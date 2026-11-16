@@ -1,3 +1,4 @@
+import { toLocalISODate } from "@/lib/dateUtils";
 /**
  * Funções puras de cálculo fiscal.
  *
@@ -57,7 +58,7 @@ export function calcularValorParcela(valorTotal: number, numParcelas: number): n
 export function calcularVencimentoParcela(dataBase: string, parcelaNumero: number): string {
   const date = new Date(dataBase + 'T00:00:00');
   date.setDate(date.getDate() + 30 * parcelaNumero);
-  return date.toISOString().split('T')[0];
+  return toLocalISODate(date);
 }
 
 // ── Impostos ──────────────────────────────────────────────────────────────────

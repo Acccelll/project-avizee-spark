@@ -44,6 +44,7 @@ import {
   pedidoCompraFormSchema,
   type PedidoCompraFormValues,
 } from "@/pages/pedidos/pedidoCompraForm.schema";
+import { todayISO } from "@/lib/dateUtils";
 
 type ProdutoRow = TableRow<"produtos"> & { preco_custo?: number | null };
 type FornecedorRow = TableRow<"fornecedores">;
@@ -68,7 +69,7 @@ export default function PedidoCompraForm() {
     mode: "onChange",
     defaultValues: {
       fornecedor_id: "",
-      data_pedido: new Date().toISOString().slice(0, 10),
+      data_pedido: todayISO(),
       data_entrega_prevista: "",
       data_entrega_real: "",
       frete_valor: "",
@@ -129,7 +130,7 @@ export default function PedidoCompraForm() {
       setPedido(ped as PedidoCompra);
       const initial: PedidoCompraFormValues = {
         fornecedor_id: ped.fornecedor_id ? String(ped.fornecedor_id) : "",
-        data_pedido: ped.data_pedido || new Date().toISOString().split("T")[0],
+        data_pedido: ped.data_pedido || todayISO(),
         data_entrega_prevista: ped.data_entrega_prevista || "",
         data_entrega_real: ped.data_entrega_real || "",
         frete_valor: String(ped.frete_valor ?? ""),

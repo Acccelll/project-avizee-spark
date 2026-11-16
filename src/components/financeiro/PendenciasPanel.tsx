@@ -17,6 +17,7 @@ import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { todayISO, toLocalISODate } from "@/lib/dateUtils";
 
 interface QuickPayoutRow {
   notaId: string;
@@ -28,7 +29,7 @@ interface QuickPayoutRow {
 function addMonths(iso: string, m: number): string {
   const [y, mo, d] = iso.split("-").map(Number);
   const dt = new Date(y, mo - 1 + m, d);
-  return dt.toISOString().split("T")[0];
+  return toLocalISODate(dt);
 }
 
 function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPayoutRow) {
@@ -37,7 +38,7 @@ function QuickPayoutPopover({ notaId, valorTotal, dataEmissao, onDone }: QuickPa
   const [forma, setForma] = useState<string>("boleto_dda");
   const [condicao, setCondicao] = useState<"a_vista" | "a_prazo">("a_vista");
   const [nParcelas, setNParcelas] = useState<number>(1);
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = todayISO();
   const [primeiroVenc, setPrimeiroVenc] = useState<string>(dataEmissao || hoje);
   const [saving, setSaving] = useState(false);
   const [cartaoId, setCartaoId] = useState<string>("");

@@ -1,9 +1,13 @@
+import { toLocalDateInput } from "@/lib/date";
+
 /**
  * Date utilities used across forms and persistence flows.
  *
+ * Datas "do dia" são sempre no horário local do usuário (ver `todayISO`).
+ *
  * @remarks
  * `todayISO()` is a function (not a constant) on purpose: defining
- * `const today = new Date().toISOString().slice(0, 10)` at module scope
+ * `const today = todayISO()` at module scope
  * freezes the value to the moment the bundle is loaded, which causes
  * "stale today" bugs in long-lived sessions (e.g. user opens the app
  * before midnight and continues using it the next day).
@@ -21,7 +25,7 @@
  * ```
  */
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateInput(new Date());
 }
 
 /**
@@ -31,5 +35,17 @@ export function todayISO(): string {
 export function isoDateOffset(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateInput(d);
 }
+
+/**
+ * Data local (`YYYY-MM-DD`) de um `Date` construído no horário local
+ * (ex.: `new Date()`, `new Date(ano, mes, dia)`, ou derivado deles com
+ * `setDate`).
+ *
+ * Não use `d.toISOString().slice(0, 10)` para isso: `toISOString` converte
+ * para UTC e, no Brasil, a partir das 21h devolve o dia seguinte.
+ * (Já para um `Date` vindo de `new Date("YYYY-MM-DD")`, que o JS lê como
+ * meia-noite UTC, `toISOString` é que preserva o dia.)
+ */
+export const toLocalISODate = toLocalDateInput;

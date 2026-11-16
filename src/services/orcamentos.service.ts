@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import { fetchAllPages } from "@/services/_lib/fetchAllPages";
+import { todayISO } from "@/lib/dateUtils";
 
 interface OrcamentoBase {
   id: string;
@@ -312,7 +313,7 @@ export async function getFormaPagamentoDescricao(id: string): Promise<string | n
 export async function listPrecosEspeciaisAtuais(
   clienteId: string,
 ): Promise<Tables<"precos_especiais">[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const { data, error } = await supabase
     .from("precos_especiais")
     .select("*")

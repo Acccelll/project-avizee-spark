@@ -21,6 +21,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 interface ContaBancaria {
   id: string;
@@ -62,7 +63,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [juros, setJuros] = useState(0);
   const [multa, setMulta] = useState(0);
   const [abatimento, setAbatimento] = useState(0);
-  const [dataBaixa, setDataBaixa] = useState(new Date().toISOString().split("T")[0]);
+  const [dataBaixa, setDataBaixa] = useState(todayISO());
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancariaId, setContaBancariaId] = useState("");
   const [cartaoId, setCartaoId] = useState("");
@@ -104,7 +105,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setJuros(0);
       setMulta(0);
       setAbatimento(0);
-      setDataBaixa(new Date().toISOString().split("T")[0]);
+      setDataBaixa(todayISO());
       setFormaPagamento("");
       setContaBancariaId("");
       setCartaoId("");

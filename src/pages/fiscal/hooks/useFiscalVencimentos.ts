@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 /**
  * Carrega o conjunto de IDs de notas fiscais cujos lançamentos financeiros
@@ -26,7 +27,7 @@ export function useFiscalVencimentosLoader(
       const start = vencimentoMes + "-01";
       const [y, m] = vencimentoMes.split("-").map(Number);
       const endDate = new Date(y, m, 0);
-      const end = endDate.toISOString().slice(0, 10);
+      const end = toLocalISODate(endDate);
       let rows: Array<{ nota_fiscal_id: string | null }> = [];
       try {
         rows = await fetchAllPages<{ nota_fiscal_id: string | null }>(() =>

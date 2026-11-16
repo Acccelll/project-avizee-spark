@@ -38,6 +38,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { cpfMask } from "@/utils/masks";
 import { CheckCircle2, XCircle, Loader2, EyeOff } from "lucide-react";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -103,7 +104,7 @@ interface FuncionarioForm {
 }
 
 const emptyForm: FuncionarioForm = {
-  nome: "", cpf: "", cargo: "", departamento: "", data_admissao: new Date().toISOString().split("T")[0],
+  nome: "", cpf: "", cargo: "", departamento: "", data_admissao: todayISO(),
   data_demissao: null, salario_base: 0, tipo_contrato: "clt", observacoes: "", ativo: true,
   motivo_inativacao: "",
 };
@@ -609,7 +610,7 @@ export default function Funcionarios() {
                   <Input
                     id="emp-demissao"
                     type="date"
-                    value={form.data_demissao ?? new Date().toISOString().split("T")[0]}
+                    value={form.data_demissao ?? todayISO()}
                     onChange={e => setForm({ ...form, data_demissao: e.target.value || null })}
                     required
                   />

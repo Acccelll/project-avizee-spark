@@ -23,6 +23,7 @@ import {
   type CandidatoLancamento,
 } from "@/services/conciliacaoCartao/faturaLinhas.service";
 import { gerarAjusteFatura } from "@/services/conciliacaoCartao/gerarAjusteFatura.service";
+import { todayISO } from "@/lib/dateUtils";
 
 function diasEntre(a: string, b: string): number {
   const da = new Date(`${a}T00:00:00Z`).getTime();
@@ -202,7 +203,7 @@ export function ReconciliacaoFaturaPanel({
         cartao_fatura_id: faturaId,
         empresa_id: empresa.data,
         diferenca: diffFatura,
-        data: dataFechamento ?? new Date().toISOString().slice(0, 10),
+        data: dataFechamento ?? todayISO(),
       });
       toast.success(`Ajuste de ${fmt(diffFatura)} inserido — concilie a linha para fechar`);
       invalidateAll();

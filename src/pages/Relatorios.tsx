@@ -43,17 +43,18 @@ import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
 import { logger } from "@/lib/logger";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
   const now = new Date();
   if (state.dreCompetencia === 'mes') {
     const [y, m] = state.dreMes.split('-').map(Number);
-    return { dataInicio: `${y}-${String(m).padStart(2, '0')}-01`, dataFim: new Date(y, m, 0).toISOString().slice(0, 10) };
+    return { dataInicio: `${y}-${String(m).padStart(2, '0')}-01`, dataFim: toLocalISODate(new Date(y, m, 0)) };
   }
   if (state.dreCompetencia === 'trimestre') {
     const q = Math.floor(now.getMonth() / 3);
-    return { dataInicio: new Date(now.getFullYear(), q * 3, 1).toISOString().slice(0, 10), dataFim: new Date(now.getFullYear(), q * 3 + 3, 0).toISOString().slice(0, 10) };
+    return { dataInicio: toLocalISODate(new Date(now.getFullYear(), q * 3, 1)), dataFim: toLocalISODate(new Date(now.getFullYear(), q * 3 + 3, 0)) };
   }
   return { dataInicio: `${now.getFullYear()}-01-01`, dataFim: `${now.getFullYear()}-12-31` };
 }

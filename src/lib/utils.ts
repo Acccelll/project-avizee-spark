@@ -35,6 +35,7 @@ export function toSlug(value: string) {
  */
 export function buildExportFilename(title: string, ext: string): string {
   const slug = toSlug(title) || "export";
+  // eslint-disable-next-line no-restricted-syntax -- timestamp no nome do arquivo, só para ordenar; UTC é aceitável
   const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   const cleanExt = ext.replace(/^\./, "");
   return `${slug}_${ts}.${cleanExt}`;

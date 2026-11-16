@@ -34,6 +34,7 @@ import type { ParcelaPlano } from "@/pages/fiscal/components/ParcelasFiscalEdito
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { useConfirmarNotaFiscal } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import type { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { todayISO } from "@/lib/dateUtils";
 
 type ConfirmarMutation = ReturnType<typeof useConfirmarNotaFiscal>;
 type InvalidateFn = ReturnType<typeof useInvalidateAfterMutation>;
@@ -171,8 +172,8 @@ export function useFiscalSubmit(args: UseFiscalSubmitArgs) {
             : [{
                 numero: 1,
                 vencimento: form.condicao_pagamento === "a_prazo"
-                  ? (form.data_vencimento || selected.data_emissao || new Date().toISOString().split("T")[0])
-                  : (selected.data_emissao || new Date().toISOString().split("T")[0]),
+                  ? (form.data_vencimento || selected.data_emissao || todayISO())
+                  : (selected.data_emissao || todayISO()),
                 valor: total,
               }];
         if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {
@@ -472,8 +473,8 @@ export function useFiscalSubmit(args: UseFiscalSubmitArgs) {
                 : [{
                     numero: 1,
                     vencimento: form.condicao_pagamento === "a_prazo"
-                      ? (form.data_vencimento || form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0])
-                      : (form.data_emissao || selected.data_emissao || new Date().toISOString().split("T")[0]),
+                      ? (form.data_vencimento || form.data_emissao || selected.data_emissao || todayISO())
+                      : (form.data_emissao || selected.data_emissao || todayISO()),
                     valor: totalRegen,
                   }];
             if (form.condicao_pagamento === "a_prazo" && parcelas > 1 && planoFinal.length !== parcelas) {

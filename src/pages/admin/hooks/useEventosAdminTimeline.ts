@@ -10,6 +10,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 export interface EventoAdminBucket {
   /** YYYY-MM-DD */
@@ -32,7 +33,7 @@ export interface EventosAdminTimeline {
 const SETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
 
 function ymd(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 
 async function fetchTimeline(): Promise<EventosAdminTimeline> {

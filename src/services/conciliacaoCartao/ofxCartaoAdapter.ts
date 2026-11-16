@@ -10,6 +10,7 @@
  */
 import { parseOFX, readOFXFileText } from "@/lib/parseOFX";
 import type { FaturaImportInput } from "./types";
+import { todayISO } from "@/lib/dateUtils";
 
 export function isOFXFaturaCartao(text: string): boolean {
   return /<\s*(?:[A-Z0-9_]+:)?CCSTMTRS\s*>/i.test(text);
@@ -17,7 +18,7 @@ export function isOFXFaturaCartao(text: string): boolean {
 
 function competenciaDoRange(datas: string[]): string {
   const ord = [...datas].sort();
-  const [y, m] = (ord[ord.length - 1] ?? new Date().toISOString().slice(0, 10)).split("-");
+  const [y, m] = (ord[ord.length - 1] ?? todayISO()).split("-");
   return `${y}-${m}`;
 }
 

@@ -75,6 +75,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 /**
  * Manifestação do Destinatário (Onda 8).
@@ -797,7 +798,7 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
   const [vencimento, setVencimento] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    return d.toISOString().slice(0, 10);
+    return toLocalISODate(d);
   });
   const [processando, setProcessando] = useState(false);
 

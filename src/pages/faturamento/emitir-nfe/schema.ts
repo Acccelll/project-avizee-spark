@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FileText, User, Package, Truck, ListChecks } from "lucide-react";
+import { todayISO } from "@/lib/dateUtils";
 
 /**
  * Schema, tipos e constantes do wizard NF-e (`/faturamento/emitir`).
@@ -104,7 +105,7 @@ export const FINALIDADE_MAP: Record<string, string> = {
 
 export const WIZARD_DEFAULTS: WizardData = {
   serie: "1",
-  data_emissao: new Date().toISOString().split("T")[0],
+  data_emissao: todayISO(),
   natureza_codigo: "",
   natureza_descricao: "",
   finalidade: "1",

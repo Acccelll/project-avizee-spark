@@ -46,6 +46,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PedidoEditModal } from "@/components/views/PedidoEditModal";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Pedido {
   id: string;
@@ -241,7 +242,7 @@ const Pedidos = () => {
   const handlePeriodChange = (next: PeriodValue) => {
     if (next.preset) {
       const from = periodToDateFrom(next.preset as Period);
-      const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+      const to = periodToDateTo(next.preset as Period) ?? todayISO();
       setSearchParams((prev) => {
         const np = new URLSearchParams(prev);
         np.set("de", from);

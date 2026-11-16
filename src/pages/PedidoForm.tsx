@@ -24,13 +24,14 @@ import {
   type PedidoFormValues,
 } from "@/pages/pedidos/pedidoForm.schema";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 const SCOPE_COLLAPSED_KEY = "pedido-form-scope-collapsed";
 
 const addDias = (dataBase: string, dias: number): string => {
   const d = new Date(dataBase + "T12:00:00");
   d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 };
 
 const diffDias = (dataInicio: string, dataFim: string): number => {

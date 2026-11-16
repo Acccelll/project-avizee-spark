@@ -32,6 +32,7 @@ import { FiscalNotasTable, type FiscalSortKey } from "@/pages/fiscal/components/
 import { FiscalNotaModalsSlot } from "@/pages/fiscal/components/FiscalNotaModalsSlot";
 import { getFiscalTipoConfig } from "@/pages/fiscal/fiscalFilterOptions";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -53,7 +54,7 @@ const Fiscal = () => {
     if (!emissaoMesState) return null;
     const start = `${emissaoMesState}-01`;
     const [y, m] = emissaoMesState.split("-").map(Number);
-    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    const end = toLocalISODate(new Date(y, m, 0));
     return { from: start, to: end };
   }, [emissaoMesState]);
   // Paginação server-side (Onda 8 / item 2.1). Substitui o `useSupabaseCrud`
@@ -283,7 +284,7 @@ const Fiscal = () => {
     if (!emissaoMes) return { dateFrom: null as string | null, dateTo: null as string | null };
     const start = `${emissaoMes}-01`;
     const [y, m] = emissaoMes.split("-").map(Number);
-    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    const end = toLocalISODate(new Date(y, m, 0));
     return { dateFrom: start, dateTo: end };
   }, [emissaoMes]);
 

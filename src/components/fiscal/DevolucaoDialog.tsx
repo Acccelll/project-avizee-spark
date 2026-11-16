@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { useGerarDevolucaoNF } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 /** Minimal shape of the originating NF used by the devolução flow. */
 export interface NfSimples {
@@ -42,7 +43,7 @@ interface DevolucaoDialogProps {
 }
 
 export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoItens, setDevolucaoItens, onSuccess }: DevolucaoDialogProps) {
-  const [dataDevolucao, setDataDevolucao] = useState(new Date().toISOString().split("T")[0]);
+  const [dataDevolucao, setDataDevolucao] = useState(todayISO());
   const [motivoDevolucao, setMotivoDevolucao] = useState("");
   const [processing, setProcessing] = useState(false);
   const gerarDevolucao = useGerarDevolucaoNF();

@@ -14,13 +14,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { carregarMetricasMatching } from "@/services/financeiro/matching/aprendizadoMetricas.service";
 import { logger } from "@/lib/logger";
+import { todayISO, toLocalISODate } from "@/lib/dateUtils";
 
 const isoInicioMes = () => {
   const d = new Date();
   d.setDate(1);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 };
-const isoHoje = () => new Date().toISOString().slice(0, 10);
+const isoHoje = () => todayISO();
 
 function useEmpresaId() {
   const [empresaId, setEmpresaId] = useState<string | null>(null);

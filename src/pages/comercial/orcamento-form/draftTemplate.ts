@@ -3,6 +3,7 @@ import type { OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import type { OrcamentoItem } from "@/components/Orcamento/OrcamentoItemsGrid";
 import type { OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { type ClienteSnapshot, emptyCliente } from "./types";
+import { todayISO } from "@/lib/dateUtils";
 
 export interface ApplyDraftDeps {
   reset: UseFormReset<OrcamentoFormValues>;
@@ -15,7 +16,7 @@ export function applyOrcamentoDraft(draft: Record<string, unknown>, deps: ApplyD
   const { reset, setClienteSnapshot, setItems } = deps;
   reset({
     numero: (draft.numero as string) || '',
-    dataOrcamento: (draft.dataOrcamento as string) || new Date().toISOString().split('T')[0],
+    dataOrcamento: (draft.dataOrcamento as string) || todayISO(),
     status: ((draft.status as OrcamentoFormValues['status']) || 'rascunho'),
     clienteId: (draft.clienteId as string) || '',
     validade: (draft.validade as string) || '',

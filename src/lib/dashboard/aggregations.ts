@@ -9,6 +9,7 @@ import type {
   RecDataRow,
   TopPoint,
 } from "@/pages/dashboard/hooks/types";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 export const sumOpenFinanceiro = (rows: FinRow[] = []) =>
   rows.reduce((sum, row) => {
@@ -78,7 +79,7 @@ export const buildIsoDayRange = (fromOffset: number, count: number): string[] =>
   Array.from({ length: count }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() + fromOffset + index);
-    return date.toISOString().slice(0, 10);
+    return toLocalISODate(date);
   });
 
 export const toShortDayLabel = (isoDate: string): string => {

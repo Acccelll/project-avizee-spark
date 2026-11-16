@@ -1,5 +1,6 @@
 import type { ContaBancaria } from "@/types/domain";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
+import { todayISO } from "@/lib/dateUtils";
 
 export interface ContaContabil {
   id: string;
@@ -39,7 +40,7 @@ export const emptyLancamentoForm: LancamentoForm = {
   tipo: "receber",
   descricao: "",
   valor: 0,
-  data_vencimento: new Date().toISOString().split("T")[0],
+  data_vencimento: todayISO(),
   data_pagamento: "",
   status: "aberto",
   forma_pagamento: "",

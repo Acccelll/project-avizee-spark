@@ -5,6 +5,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { getAnexoPedidoUrl } from "@/services/comercial/pedidoOrcamento.service";
 import { CANAL_LABEL, type CanalVenda } from "@/services/comercial/pedidoDireto.service";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Props {
   orcamento: {
@@ -23,7 +24,7 @@ interface Props {
 /** Quadro "Pedido do cliente": número, datas, previsão e anexo. */
 export function PedidoClienteResumo({ orcamento, onEditar }: Props) {
   const semNumero = orcamento.pedido_cliente === orcamento.numero;
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = todayISO();
   const atrasoDias =
     orcamento.previsao_despacho &&
     normalizeOrcamentoStatus(orcamento.status) === "aprovado" &&

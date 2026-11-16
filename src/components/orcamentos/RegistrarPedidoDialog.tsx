@@ -16,6 +16,7 @@ import {
   sugerirPrevisaoDespacho,
   type PedidoDuplicado,
 } from "@/services/comercial/pedidoOrcamento.service";
+import { todayISO } from "@/lib/dateUtils";
 
 export interface RegistrarPedidoOrcamento {
   id: string;
@@ -39,7 +40,7 @@ interface Props {
   onDone?: () => void;
 }
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => todayISO();
 
 /**
  * Janela "Registrar pedido do cliente": o orçamento vira o pedido com o

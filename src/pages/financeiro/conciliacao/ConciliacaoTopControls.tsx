@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { ContaBancariaDropdown } from "@/services/financeiro/conciliacaoLoaders.service";
 import { ExtratoUltimoMovimento } from "./ExtratoUltimoMovimento";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Props {
   isMobile: boolean;
@@ -62,7 +63,7 @@ export function ConciliacaoTopControls(p: Props) {
           onChange={(next: PeriodValue) => {
             if (next.preset) {
               const from = periodToDateFrom(next.preset as Period);
-              const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+              const to = periodToDateTo(next.preset as Period) ?? todayISO();
               p.setDataInicio(from);
               p.setDataFim(to);
               return;

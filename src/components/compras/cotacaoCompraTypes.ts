@@ -1,3 +1,4 @@
+import { todayISO } from "@/lib/dateUtils";
 export interface CotacaoCompra {
   id: string;
   numero: string;
@@ -68,7 +69,7 @@ export {
 export function buildEmptyForm() {
   return {
     numero: "",
-    data_cotacao: new Date().toISOString().slice(0, 10),
+    data_cotacao: todayISO(),
     data_validade: "",
     observacoes: "",
     status: "aberta",

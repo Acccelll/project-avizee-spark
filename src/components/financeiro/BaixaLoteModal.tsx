@@ -12,6 +12,7 @@ import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { todayISO } from "@/lib/dateUtils";
 
 interface ContaBancaria {
   id: string;
@@ -45,7 +46,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
     () => rawLancamentos.filter((l) => l.status !== "pago" && l.status !== "cancelado"),
     [rawLancamentos],
   );
-  const [baixaDate, setBaixaDate] = useState(new Date().toISOString().split("T")[0]);
+  const [baixaDate, setBaixaDate] = useState(todayISO());
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancaria, setContaBancaria] = useState("");
   const [tipoBaixa, setTipoBaixa] = useState<"total" | "parcial">("total");
@@ -62,7 +63,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
 
   useEffect(() => {
     if (open) {
-      setBaixaDate(new Date().toISOString().split("T")[0]);
+      setBaixaDate(todayISO());
       setFormaPagamento("");
       setContaBancaria("");
       setTipoBaixa("total");

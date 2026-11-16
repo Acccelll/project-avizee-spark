@@ -42,6 +42,7 @@ import { useUrlListState } from "@/hooks/useUrlListState";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Orcamento {
   id: string;
@@ -91,7 +92,7 @@ function PrevisaoDespacho({ o }: { o: Orcamento }) {
   if (!o.previsao_despacho) return <span className="text-xs text-muted-foreground">—</span>;
   const atrasado =
     normalizeOrcamentoStatus(o.status) === "aprovado" &&
-    o.previsao_despacho < new Date().toISOString().slice(0, 10);
+    o.previsao_despacho < todayISO();
   return (
     <span className={atrasado ? "text-xs font-medium text-destructive" : "text-xs"} title={atrasado ? "Previsão de despacho vencida" : undefined}>
       {formatDate(o.previsao_despacho)}
@@ -232,7 +233,7 @@ const Orcamentos = () => {
   const handlePeriodChange = (next: PeriodValue) => {
     if (next.preset) {
       const from = periodToDateFrom(next.preset as Period);
-      const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+      const to = periodToDateTo(next.preset as Period) ?? todayISO();
       setFilters({ de: from, ate: to });
       return;
     }

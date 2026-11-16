@@ -53,6 +53,7 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
+    // eslint-disable-next-line no-restricted-syntax -- timestamp no nome do arquivo, só para ordenar; UTC é aceitável
     const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     link.download = `erros_lote_${lote.id.slice(0, 8)}_${ts}.csv`;
     link.click();

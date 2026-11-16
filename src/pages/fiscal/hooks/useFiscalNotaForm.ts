@@ -24,6 +24,7 @@ import type {
 } from "@/pages/fiscal/components/NfeCreateFormModal";
 import { logger } from "@/lib/logger";
 import { camposDocumentoDaNota, totalBaseDocumento } from "@/pages/fiscal/hooks/fiscalDocumentoFields";
+import { todayISO } from "@/lib/dateUtils";
 
 /**
  * Estado canônico do formulário de NF-e — alinhado a `Fiscal.tsx::FiscalForm`
@@ -58,7 +59,7 @@ export interface NfItemFiscalData {
 
 export const emptyFiscalForm: FiscalFormState = {
   tipo: "entrada", numero: "", serie: "1", chave_acesso: "",
-  data_emissao: new Date().toISOString().split("T")[0],
+  data_emissao: todayISO(),
   fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente",
   observacoes: "", movimenta_estoque: false, gera_financeiro: true,
   forma_pagamento: "", condicao_pagamento: "a_vista",
