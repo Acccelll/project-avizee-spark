@@ -47,7 +47,7 @@ Corrige o que deixa números errados em todo o sistema.
 |---|---|---|
 | 1.1 | NF de mercadoria importada por XML nasce com "Movimenta estoque" marcado (CT-e e NFS-e não). O campo sobe para junto do pagamento, com o efeito escrito. Aviso ao salvar desmarcado. Inventário de partida em vez de reprocessar o passado. A descrição do status "Confirmada" passa a dizer a verdade | A·H3, B·N6, B·N10 |
 | 1.2 | ✅ **Feito (16/11).** Receita pelo prazo da NF ao vencimento: 91 títulos corrigidos e gatilho para os novos (migration `20261116173121`). Cartão: o título da fatura fica sem conta de despesa (é liquidação) e 125 itens herdaram a conta do lançamento vinculado; 20 itens ficam para o dono. Falta tirar o título da fatura da contagem de "sem conta" (entra junto com a Onda 4) | A·H5b |
-| 1.3 | Status de conciliação `nao_aplicavel` para baixas sem conta bancária ou por cartão, com correção das 167 existentes. Baixa por cartão deixa de pedir conta bancária | A·H7, B·B4 |
+| 1.3 | ✅ **Feito em parte (16/11).** Status `nao_aplicavel` só para baixas de **cartão** (123 corrigidas + gatilho; migration `20261116184117`). As 47 baixas de boleto/PIX/débito sem conta bancária ficam `pendente`: falta a conta, não é "não se aplica" — viram alerta "baixa sem conta bancária" (7.2). Falta: baixa por cartão deixar de pedir conta bancária na tela (B·B4) | A·H7, B·B4 |
 | 1.4 | "Hoje" em horário local: corrigir `todayISO()`, trocar as 49 ocorrências e criar uma regra de lint | B·T1 |
 | 1.5 | A baixa (individual e em lote) já abre com a forma e a conta do título, ou com as da última baixa da pessoa. Atalhos "No vencimento" e "Ontem" na data | B·B1, B·B2 |
 | 1.6 | Valores padrão pelo uso: novo lançamento em "Pagar" (ou último tipo usado); movimento de estoque em "Saída", mantendo o tipo após salvar; aba Financeiro do celular sem filtro "a receber" | B·F1, B·E1, B·G6, B·T2 |
@@ -111,7 +111,7 @@ Corrige o que deixa números errados em todo o sistema.
 
 | Item | O que fazer | Esf. | Ref. |
 |---|---|:-:|---|
-| 7.1 | Aviso "último extrato importado há N dias" por conta; conciliação abre na conta com mais pendências (sem "Todas as contas") | P | A·H7, B·C1, B·C3 |
+| 7.1 | ✅ **Feito em parte (16/11).** Aviso "último movimento importado: dd/mm (há N dias)" abaixo do seletor, em destaque acima de 10 dias; opção "Todas as contas" removida. Falta abrir já na conta com mais pendências | P | A·H7, B·C1, B·C3 |
 | 7.2 | **Painel "Hoje no financeiro"**: a pagar e a receber em 7 dias, vencidos, notas a concluir, sem conta, extrato atrasado e baixas a conciliar. Pendências separadas em pagar e receber | M | A·N1, B·H4 |
 | 7.3 | **Conferência antes do fechamento** (semáforo) e "Finalizar mês" como último passo | M | A·N7, B·R3 |
 | 7.4 | Régua de cobrança: "Cobrar" monta a mensagem para WhatsApp ou e-mail e registra no cliente | P/M | A·N9 |
