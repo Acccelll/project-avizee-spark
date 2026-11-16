@@ -37,10 +37,16 @@ export interface LancamentoForm {
 }
 
 export const emptyLancamentoForm: LancamentoForm = {
-  tipo: "receber",
+  // 73% dos lançamentos manuais são a pagar; a tela ainda ajusta pelo filtro
+  // ativo ou pelo último tipo usado (ver tipoInicialLancamento).
+  tipo: "pagar",
   descricao: "",
   valor: 0,
-  data_vencimento: todayISO(),
+  // Getter: `{ ...emptyLancamentoForm }` chama todayISO() na hora, e não no
+  // carregamento do módulo (sessão aberta de um dia para o outro).
+  get data_vencimento() {
+    return todayISO();
+  },
   data_pagamento: "",
   status: "aberto",
   forma_pagamento: "",
@@ -63,4 +69,32 @@ export interface FinanceiroAuxiliaresState {
   contasBancarias: ContaBancaria[];
   contasContabeis: ContaContabil[];
   cartoes: CartaoCredito[];
+}
+
+const ULTIMO_TIPO_KEY = "financeiro:ultimo-tipo-lancamento";
+
+/**
+ * Tipo com que o formulário de novo lançamento abre: o do filtro, quando só
+ * um está ativo; senão o último que a pessoa usou neste navegador; senão
+ * "pagar".
+ */
+export function tipoInicialLancamento(tiposFiltrados: string[]): LancamentoForm["tipo"] {
+  if (tiposFiltrados.length === 1 && (tiposFiltrados[0] === "pagar" || tiposFiltrados[0] === "receber")) {
+    return tiposFiltrados[0];
+  }
+  try {
+    const ultimo = localStorage.getItem(ULTIMO_TIPO_KEY);
+    if (ultimo === "pagar" || ultimo === "receber") return ultimo;
+  } catch {
+    /* armazenamento indisponível: usa o padrão */
+  }
+  return "pagar";
+}
+
+export function lembrarTipoLancamento(tipo: string): void {
+  try {
+    localStorage.setItem(ULTIMO_TIPO_KEY, tipo);
+  } catch {
+    /* armazenamento indisponível: não lembra */
+  }
 }

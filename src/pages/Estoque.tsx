@@ -130,7 +130,8 @@ const Estoque = () => {
   const [selectedPosicao, setSelectedPosicao] = useState<ProdutoPosicao | null>(null);
   const [form, setForm] = useState({
     produto_id: "",
-    tipo: "ajuste" as "entrada" | "saida" | "ajuste",
+    // Uso real: quase só saídas (as NFs não movimentam estoque).
+    tipo: "saida" as "entrada" | "saida" | "ajuste",
     quantidade: 0,
     motivo: "",
     categoria_ajuste: "correcao_inventario",
@@ -358,13 +359,14 @@ const Estoque = () => {
       void saldo_anterior; void saldo_atual;
 
       // The hook's onSuccess already calls toast.success + cache invalidation.
-      setForm({
+      // Mantém o tipo para lançar o próximo movimento em sequência.
+      setForm((prev) => ({
         produto_id: "",
-        tipo: "ajuste",
+        tipo: prev.tipo,
         quantidade: 0,
         motivo: "",
         categoria_ajuste: "correcao_inventario",
-      });
+      }));
       setPendingMovForm(null);
     } catch (err) {
       // onError in the hook already calls toast.error — log only for debugging.
@@ -1062,7 +1064,7 @@ const Estoque = () => {
                    <Button
                      type="button"
                      variant="outline"
-                     onClick={() => setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "", categoria_ajuste: "correcao_inventario" })}
+                     onClick={() => setForm({ produto_id: "", tipo: "saida", quantidade: 0, motivo: "", categoria_ajuste: "correcao_inventario" })}
                    >
                     Limpar
                   </Button>

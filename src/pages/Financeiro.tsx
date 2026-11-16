@@ -59,7 +59,7 @@ import { useFinanceiroActions } from "@/pages/financeiro/hooks/useFinanceiroActi
 import { useFinanceiroLancamentosPaged, useResetPageOnFiltersChange } from "@/pages/financeiro/hooks/useFinanceiroLancamentosPaged";
 import { buildFinanceiroColumns } from "@/pages/financeiro/config/financeiroColumns";
 import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/FinanceiroLancamentoForm";
-import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
+import { emptyLancamentoForm, tipoInicialLancamento, lembrarTipoLancamento, type LancamentoForm } from "@/pages/financeiro/types";
 import { ImportarDocumentoIaDialog } from "@/components/financeiro/ImportarDocumentoIaDialog";
 import { Sparkles } from "lucide-react";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
@@ -289,7 +289,9 @@ const Financeiro = () => {
       /* ignore */
     }
     setMode("create");
-    setForm({ ...emptyLancamentoForm, ...prefill });
+    // O filtro de tipo vem da URL (?tipo=pagar ou ?tipo=pagar,receber).
+    const tiposNaUrl = (searchParams.get("tipo") ?? "").split(",").filter(Boolean);
+    setForm({ ...emptyLancamentoForm, tipo: tipoInicialLancamento(tiposNaUrl), ...prefill });
     setIaFields(new Set());
     setModalOpen(true);
     setSearchParams(
@@ -505,7 +507,7 @@ const Financeiro = () => {
 
   const openCreate = () => {
     setMode("create");
-    setForm({ ...emptyLancamentoForm });
+    setForm({ ...emptyLancamentoForm, tipo: tipoInicialLancamento(tipoFilters) });
     setIaFields(new Set());
     setModalOpen(true);
   };
@@ -922,6 +924,7 @@ const Financeiro = () => {
           onCancel={() => setModalOpen(false)}
           onSubmit={(e) => {
             e.preventDefault();
+            if (mode === "create") lembrarTipoLancamento(form.tipo);
             handleSubmit(mode, form, selected, () => setModalOpen(false));
           }}
           iaFields={iaFields}
