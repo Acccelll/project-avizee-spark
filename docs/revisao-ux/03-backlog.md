@@ -46,7 +46,7 @@ Corrige o que deixa números errados em todo o sistema.
 | Item | O que fazer | Ref. |
 |---|---|---|
 | 1.1 | NF de mercadoria importada por XML nasce com "Movimenta estoque" marcado (CT-e e NFS-e não). O campo sobe para junto do pagamento, com o efeito escrito. Aviso ao salvar desmarcado. Inventário de partida em vez de reprocessar o passado. A descrição do status "Confirmada" passa a dizer a verdade | A·H3, B·N6, B·N10 |
-| 1.2 | Conta de receita padrão no a receber gerado por NF de saída e conta padrão na fatura de cartão, com correção em lote dos 57 títulos existentes | A·H5b |
+| 1.2 | ✅ **Feito (16/11).** Receita pelo prazo da NF ao vencimento: 91 títulos corrigidos e gatilho para os novos (migration `20261116173121`). Cartão: o título da fatura fica sem conta de despesa (é liquidação) e 125 itens herdaram a conta do lançamento vinculado; 20 itens ficam para o dono. Falta tirar o título da fatura da contagem de "sem conta" (entra junto com a Onda 4) | A·H5b |
 | 1.3 | Status de conciliação `nao_aplicavel` para baixas sem conta bancária ou por cartão, com correção das 167 existentes. Baixa por cartão deixa de pedir conta bancária | A·H7, B·B4 |
 | 1.4 | "Hoje" em horário local: corrigir `todayISO()`, trocar as 49 ocorrências e criar uma regra de lint | B·T1 |
 | 1.5 | A baixa (individual e em lote) já abre com a forma e a conta do título, ou com as da última baixa da pessoa. Atalhos "No vencimento" e "Ontem" na data | B·B1, B·B2 |
