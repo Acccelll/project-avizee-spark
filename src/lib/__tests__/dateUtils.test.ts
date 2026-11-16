@@ -19,6 +19,7 @@ describe("dateUtils no horário de Brasília", () => {
   it("todayISO devolve o dia local às 22h30 (em UTC já é amanhã)", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-17T01:30:00Z")); // 16/11 22:30 em Brasília
+    // eslint-disable-next-line no-restricted-syntax -- reproduz de propósito o bug antigo
     expect(new Date().toISOString().slice(0, 10)).toBe("2026-11-17"); // o bug antigo
     expect(todayISO()).toBe("2026-11-16");
   });
