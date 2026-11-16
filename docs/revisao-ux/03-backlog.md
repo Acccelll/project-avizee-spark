@@ -9,7 +9,20 @@
 
 ---
 
-## Decisões que precisam do dono antes de começar
+## Decisões tomadas (16/11/2026)
+
+- **D1 — Estoque por NF desligado foi intencional.** Fica desligado. Sai da
+  Onda 1 o item de religar (1.1). Entram: descrição verdadeira do status
+  "Confirmada" (B·N10), o movimento de estoque abre em "Saída" e mantém o tipo
+  (B·E1) e "Lançar saída a partir de uma nota" (B·E2, M), que vai para a Onda 6.
+- **D4 — Manter Compras, Logística e Social no menu.** O item 2.1 não esconde
+  módulos. Ficam só a correção dos atalhos errados ("Novo Pedido" → venda;
+  Ctrl+4) e os alertas e blocos que mostram dados inexistentes.
+- **D3 — Implantar centro de custo** (item 4.5, opção M): cadastro, campo no
+  lançamento e centro padrão por fornecedor.
+- **Ordem:** primeiro o CI da `main` verde, depois a Onda 1.
+
+## Decisões ainda em aberto
 
 Elas destravam ou mudam o escopo de várias ondas.
 
