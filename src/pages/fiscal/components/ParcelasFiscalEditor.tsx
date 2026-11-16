@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import { calcularFaturasParcelas } from "@/lib/cartaoFatura";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 export interface ParcelaPlano {
   numero: number;
@@ -31,7 +32,7 @@ interface Props {
 function addDays(iso: string, days: number): string {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return toLocalISODate(d);
 }
 
 export function gerarPlanoParcelas(
@@ -63,7 +64,7 @@ export function gerarPlanoParcelasCartao(
   const resto = +(total - valorBase * qtd).toFixed(2);
   return previews.map((p, i) => ({
     numero: i + 1,
-    vencimento: p.dataVencimento.toISOString().split("T")[0],
+    vencimento: toLocalISODate(p.dataVencimento),
     valor: i === qtd - 1 ? +(valorBase + resto).toFixed(2) : valorBase,
   }));
 }

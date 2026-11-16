@@ -25,6 +25,22 @@ export async function listContasBancariasParaConciliacao(): Promise<ContaBancari
   });
 }
 
+/**
+ * Data do movimento mais recente já importado de extrato para a conta
+ * (`YYYY-MM-DD`), ou `null` se a conta nunca recebeu extrato.
+ */
+export async function getUltimoMovimentoExtrato(contaId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("financeiro_extrato_importacoes")
+    .select("data")
+    .eq("conta_bancaria_id", contaId)
+    .order("data", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.data ?? null;
+}
+
 const LANC_SELECT =
   "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, cliente_id, fornecedor_id, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))";
 

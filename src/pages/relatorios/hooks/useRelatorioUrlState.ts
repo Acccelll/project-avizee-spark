@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { reportConfigs } from '@/config/relatoriosConfig';
 import type { TipoRelatorio } from '@/services/relatorios.service';
 import type { FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
+import { todayISO } from "@/lib/dateUtils";
 
 export interface RelatorioUrlState {
   tipo: TipoRelatorio | '';
@@ -64,7 +65,7 @@ export function useRelatorioUrlState(): RelatorioUrlState {
       tipos: searchParams.get('tp') ? searchParams.get('tp')!.split(',') : [],
       dreCompetencia:
         (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
-      dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
+      dreMes: searchParams.get('drm') || todayISO().slice(0, 7),
       dreModo:
         (searchParams.get('drmo') as FiltrosRelatorioState['dreModo']) || 'caixa',
     }),

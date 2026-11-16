@@ -46,6 +46,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { validarTransicaoCotacao } from "@/lib/comprasTransitions";
+import { todayISO } from "@/lib/dateUtils";
 
 type ProdutoRow = TableRow<"produtos">;
 type FornecedorRow = TableRow<"fornecedores">;
@@ -60,7 +61,7 @@ export default function CotacaoCompraForm() {
   const [cotacao, setCotacao] = useState<CotacaoCompra | null>(null);
   const [form, setForm] = useState({
     numero: "",
-    data_cotacao: new Date().toISOString().split("T")[0],
+    data_cotacao: todayISO(),
     data_validade: "",
     observacoes: "",
     status: "aberta",

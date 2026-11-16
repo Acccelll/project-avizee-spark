@@ -67,6 +67,7 @@ import { parseNfeXmlToDanfeInput } from "@/services/fiscal/nfeXmlToDanfe";
 import { DanfeRender } from "./components/DanfeRender";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ShieldAlert, Trash2, Activity } from "lucide-react";
+import { todayISO, toLocalISODate } from "@/lib/dateUtils";
 
 interface PortalRow {
   id: string;
@@ -137,8 +138,8 @@ function defaultPeriodo(): { ini: string; fim: string } {
   // ao recorte de 30 dias — o que deixava o grid vazio mesmo após sucesso.
   ini.setDate(ini.getDate() - 90);
   return {
-    ini: ini.toISOString().slice(0, 10),
-    fim: fim.toISOString().slice(0, 10),
+    ini: toLocalISODate(ini),
+    fim: toLocalISODate(fim),
   };
 }
 
@@ -436,7 +437,7 @@ export default function PortalFiscal() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `portal-nfe-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `portal-nfe-${todayISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

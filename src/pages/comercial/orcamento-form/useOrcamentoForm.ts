@@ -42,6 +42,7 @@ import { buildOrcamentoPayload as buildOrcamentoPayloadHelper } from "@/pages/co
 import { applyOrcamentoDraft } from "@/pages/comercial/orcamento-form/draftTemplate";
 import { generateOrcamentoPdf, buildOrcamentoPdfBlob } from "@/pages/comercial/orcamento-form/pdfUtils";
 import { type MailStep } from "@/pages/comercial/orcamento-form/EnviarEmailDialog";
+import { todayISO } from "@/lib/dateUtils";
 
 const LOCKED_STATUSES = new Set([
   // "aprovado" = Pedido: itens travados; ajustes só por revisão.
@@ -109,7 +110,7 @@ export function useOrcamentoForm() {
     mode: 'onChange',
     defaultValues: {
       numero: '',
-      dataOrcamento: new Date().toISOString().split('T')[0],
+      dataOrcamento: todayISO(),
       status: 'rascunho',
       clienteId: '',
       validade: '',

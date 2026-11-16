@@ -43,6 +43,7 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useGlobalPeriod } from "@/contexts/DashboardPeriodContext";
 import { logger } from "@/lib/logger";
+import { todayISO, toLocalISODate } from "@/lib/dateUtils";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -65,7 +66,7 @@ interface LancamentoForm {
  */
 const buildEmptyForm = (): LancamentoForm => ({
   tipo: "receber", descricao: "", valor: 0,
-  data_vencimento: new Date().toISOString().slice(0, 10),
+  data_vencimento: todayISO(),
   status: "aberto", forma_pagamento: "", conta_bancaria_id: "", observacoes: "",
 });
 
@@ -101,11 +102,11 @@ const FluxoCaixa = () => {
 
   const defaultDataInicio = () => {
     if (globalPeriod?.range?.dateFrom) return globalPeriod.range.dateFrom;
-    const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+    const d = new Date(); d.setDate(1); return toLocalISODate(d);
   };
   const defaultDataFim = () => {
     if (globalPeriod?.range?.dateTo) return globalPeriod.range.dateTo;
-    const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0];
+    const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return toLocalISODate(d);
   };
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
@@ -202,13 +203,13 @@ const FluxoCaixa = () => {
     const getKey = (dateStr: string): { display: string; sort: string } => {
       const d = new Date(dateStr + "T00:00:00");
       if (periodicidade === "diaria") {
-        const iso = d.toISOString().split("T")[0];
+        const iso = toLocalISODate(d);
         return { display: iso, sort: iso };
       }
       if (periodicidade === "semanal") {
         const start = new Date(d);
         start.setDate(d.getDate() - d.getDay());
-        const sort = start.toISOString().split("T")[0];
+        const sort = toLocalISODate(start);
         return { display: `Sem ${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, sort };
       }
       const sort = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -271,7 +272,7 @@ const FluxoCaixa = () => {
 
   // ─── Movements DataTable ──────────────────────────────────────────────────
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
-  const hojeStr = hoje.toISOString().split("T")[0];
+  const hojeStr = toLocalISODate(hoje);
 
   const movFiltered = useMemo(() => {
     let result = filtered;

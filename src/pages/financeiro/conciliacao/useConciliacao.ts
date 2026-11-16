@@ -39,6 +39,7 @@ import { registrarAuditoriaConciliacao } from "@/services/financeiro/conciliacao
 import { gerarLancamentoAjusteBancario } from "@/services/financeiro/ajusteBancario.service";
 import { confirmAsync } from "@/lib/globalConfirm";
 import { autoMatchBanco } from "@/services/financeiro/matching/autoMatchBanco";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 const SUGESTAO_SCORE_THRESHOLD = 0.7;
 const CONCILIACAO_LAST_CONTA_KEY = "conciliacao:bancaria:lastConta";
@@ -74,12 +75,12 @@ function setLocalPreference(key: string, value: string): void {
 const defaultDataInicio = () => {
   const d = new Date();
   d.setDate(1);
-  return d.toISOString().split("T")[0];
+  return toLocalISODate(d);
 };
 const defaultDataFim = () => {
   const d = new Date();
   d.setMonth(d.getMonth() + 1, 0);
-  return d.toISOString().split("T")[0];
+  return toLocalISODate(d);
 };
 
 /**

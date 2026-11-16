@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,13 @@ import { formatCurrency } from "@/lib/format";
 import { processarBaixaLote, type BaixaItemOverride } from "@/services/financeiro.service";
 import { Pencil, Check, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
+import { FORMA_PAGAMENTO_OPTIONS, normalizeFormaPagamento } from "@/lib/financeiro";
+import { sugerirContaBancariaBaixa } from "@/services/financeiro";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { todayISO } from "@/lib/dateUtils";
 
 interface ContaBancaria {
   id: string;
@@ -29,6 +32,19 @@ interface Lancamento {
   status?: string;
   clientes?: { nome_razao_social: string };
   fornecedores?: { nome_razao_social: string };
+  /** Usados para já abrir a baixa preenchida. */
+  forma_pagamento?: string | null;
+  conta_bancaria_id?: string | null;
+  fornecedor_id?: string | null;
+  cliente_id?: string | null;
+}
+
+/** Valor comum a todos os itens, ou null se algum for diferente/vazio. */
+function valorComum<T>(itens: T[], pegar: (i: T) => string | null | undefined): string | null {
+  const valores = new Set(itens.map((i) => pegar(i) ?? ""));
+  if (valores.size !== 1) return null;
+  const [unico] = valores;
+  return unico || null;
 }
 
 interface BaixaLoteModalProps {
@@ -45,7 +61,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
     () => rawLancamentos.filter((l) => l.status !== "pago" && l.status !== "cancelado"),
     [rawLancamentos],
   );
-  const [baixaDate, setBaixaDate] = useState(new Date().toISOString().split("T")[0]);
+  const [baixaDate, setBaixaDate] = useState(todayISO());
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancaria, setContaBancaria] = useState("");
   const [tipoBaixa, setTipoBaixa] = useState<"total" | "parcial">("total");
@@ -60,18 +76,50 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
     return selectedLancamentos.reduce((s, l) => s + Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0), 0);
   }, [selectedLancamentos]);
 
+  // Pré-preenchimento: forma comum aos títulos; conta comum aos títulos ou, como
+  // eles quase nunca trazem conta, a da última baixa da mesma pessoa (se todos
+  // forem da mesma) ou da mesma forma de pagamento. Tudo continua editável.
+  const formaComum = useMemo(() => {
+    const f = normalizeFormaPagamento(valorComum(selectedLancamentos, (l) => normalizeFormaPagamento(l.forma_pagamento)));
+    return f && FORMA_PAGAMENTO_OPTIONS.some((o) => o.value === f) ? f : "";
+  }, [selectedLancamentos]);
+  const contaComum = useMemo(() => valorComum(selectedLancamentos, (l) => l.conta_bancaria_id), [selectedLancamentos]);
+  const fornecedorComum = useMemo(() => valorComum(selectedLancamentos, (l) => l.fornecedor_id), [selectedLancamentos]);
+  const clienteComum = useMemo(() => valorComum(selectedLancamentos, (l) => l.cliente_id), [selectedLancamentos]);
+  const contasIdsRef = useRef<Set<string>>(new Set());
+  contasIdsRef.current = new Set(contasBancarias.map((c) => c.id));
+  const contaAtualRef = useRef("");
+  contaAtualRef.current = contaBancaria;
+  const [contaSugerida, setContaSugerida] = useState(false);
+
   useEffect(() => {
     if (open) {
-      setBaixaDate(new Date().toISOString().split("T")[0]);
-      setFormaPagamento("");
-      setContaBancaria("");
+      setBaixaDate(todayISO());
+      setFormaPagamento(formaComum);
+      const contaInicial = contaComum && contasIdsRef.current.has(contaComum) ? contaComum : "";
+      setContaBancaria(contaInicial);
+      setContaSugerida(false);
       setTipoBaixa("total");
       setValorPagoBaixa(totalBaixa);
       setOverrides({});
       setEditingId(null);
       setDraftOverride({});
+
+      if (!contaInicial && (fornecedorComum || clienteComum || formaComum)) {
+        let cancelado = false;
+        sugerirContaBancariaBaixa({ fornecedorId: fornecedorComum, clienteId: clienteComum, formaPagamento: formaComum || null })
+          .then((conta) => {
+            if (cancelado || !conta || !contasIdsRef.current.has(conta) || contaAtualRef.current) return;
+            setContaBancaria(conta);
+            setContaSugerida(true);
+          })
+          .catch((err) => logger.warn("[BaixaLoteModal] sugestão de conta falhou", err));
+        return () => {
+          cancelado = true;
+        };
+      }
     }
-  }, [open, totalBaixa]);
+  }, [open, totalBaixa, formaComum, contaComum, fornecedorComum, clienteComum]);
 
   const startEdit = (l: Lancamento) => {
     const existing = overrides[l.id] ?? {};
@@ -190,6 +238,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
                     ))}
                   </SelectContent>
                 </Select>
+                {contaSugerida && contaBancaria && (
+                  <p className="text-[11px] text-muted-foreground">Conta sugerida pela última baixa {fornecedorComum || clienteComum ? "desta pessoa" : "com esta forma"}. Confira antes de confirmar.</p>
+                )}
               </div>
             </div>
           )}
@@ -504,6 +555,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamen
                   ))}
                 </SelectContent>
               </Select>
+              {contaSugerida && contaBancaria && (
+                <p className="text-[11px] text-muted-foreground">Conta sugerida pela última baixa {fornecedorComum || clienteComum ? "desta pessoa" : "com esta forma"}. Confira antes de confirmar.</p>
+              )}
             </div>
           </div>
           )}

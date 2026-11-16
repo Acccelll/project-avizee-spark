@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,9 @@ import { useRegistrarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
-import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
+import { FORMA_PAGAMENTO_OPTIONS, normalizeFormaPagamento } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
-import { fetchBaixasAtivasDoLancamento } from "@/services/financeiro";
+import { fetchBaixasAtivasDoLancamento, sugerirContaBancariaBaixa } from "@/services/financeiro";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCanEditFinanceiroAvancado } from "@/hooks/useCanEditFinanceiroAvancado";
 import { logger } from "@/lib/logger";
+import { todayISO, isoDateOffset } from "@/lib/dateUtils";
 
 interface ContaBancaria {
   id: string;
@@ -50,6 +51,12 @@ interface BaixaParcialDialogProps {
     valor: number;
     saldo_restante?: number | null;
     status: string;
+    /** Usados para já abrir a baixa preenchida. */
+    data_vencimento?: string | null;
+    forma_pagamento?: string | null;
+    conta_bancaria_id?: string | null;
+    fornecedor_id?: string | null;
+    cliente_id?: string | null;
   } | null;
   contasBancarias: ContaBancaria[];
   cartoes?: CartaoCredito[];
@@ -62,7 +69,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [juros, setJuros] = useState(0);
   const [multa, setMulta] = useState(0);
   const [abatimento, setAbatimento] = useState(0);
-  const [dataBaixa, setDataBaixa] = useState(new Date().toISOString().split("T")[0]);
+  const [dataBaixa, setDataBaixa] = useState(todayISO());
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancariaId, setContaBancariaId] = useState("");
   const [cartaoId, setCartaoId] = useState("");
@@ -74,6 +81,12 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const registrarBaixa = useRegistrarBaixa();
   const isMobile = useIsMobile();
   const [historicoOpen, setHistoricoOpen] = useState(false);
+  /** Explica de onde veio o valor pré-preenchido (forma/conta). */
+  const [origemSugestao, setOrigemSugestao] = useState<string | null>(null);
+  const contasIdsRef = useRef<Set<string>>(new Set());
+  contasIdsRef.current = new Set(contasBancarias.map((c) => c.id));
+  const contaAtualRef = useRef("");
+  contaAtualRef.current = contaBancariaId;
 
   const saldoAtual = lancamento
     ? (lancamento.saldo_restante != null ? Number(lancamento.saldo_restante) : Number(lancamento.valor))
@@ -97,6 +110,14 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     ? (lancamento.saldo_restante != null ? Number(lancamento.saldo_restante) : Number(lancamento.valor))
     : 0;
 
+  // Pré-preenchimento: forma de pagamento do título e conta do título ou, como
+  // os títulos quase nunca trazem conta, a da última baixa da mesma pessoa
+  // (ou da mesma forma de pagamento). Tudo continua editável.
+  const tituloForma = normalizeFormaPagamento(lancamento?.forma_pagamento);
+  const tituloConta = lancamento?.conta_bancaria_id ?? null;
+  const tituloFornecedor = lancamento?.fornecedor_id ?? null;
+  const tituloCliente = lancamento?.cliente_id ?? null;
+
   useEffect(() => {
     if (open && lancamentoId) {
       setValorPago(lancamentoSaldo);
@@ -104,14 +125,37 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setJuros(0);
       setMulta(0);
       setAbatimento(0);
-      setDataBaixa(new Date().toISOString().split("T")[0]);
-      setFormaPagamento("");
-      setContaBancariaId("");
+      setDataBaixa(todayISO());
+      const formaValida = FORMA_PAGAMENTO_OPTIONS.some((o) => o.value === tituloForma) ? tituloForma! : "";
+      setFormaPagamento(formaValida);
+      const contaDoTitulo = tituloConta && contasIdsRef.current.has(tituloConta) ? tituloConta : "";
+      setContaBancariaId(contaDoTitulo);
+      setOrigemSugestao(contaDoTitulo ? "Forma e conta do título" : formaValida ? "Forma de pagamento do título" : null);
       setCartaoId("");
       setObservacoes("");
       loadBaixas(lancamentoId);
+
+      if (!contaDoTitulo) {
+        let cancelado = false;
+        sugerirContaBancariaBaixa({
+          fornecedorId: tituloFornecedor,
+          clienteId: tituloCliente,
+          formaPagamento: formaValida || null,
+        })
+          .then((conta) => {
+            if (cancelado || !conta || !contasIdsRef.current.has(conta)) return;
+            // Não sobrescreve se a pessoa já escolheu uma conta.
+            if (contaAtualRef.current) return;
+            setContaBancariaId(conta);
+            setOrigemSugestao("Conta da última baixa " + (tituloFornecedor || tituloCliente ? "desta pessoa" : "com esta forma"));
+          })
+          .catch((err) => logger.warn("[BaixaParcialDialog] sugestão de conta falhou", err));
+        return () => {
+          cancelado = true;
+        };
+      }
     }
-  }, [open, lancamentoId, lancamentoSaldo]);
+  }, [open, lancamentoId, lancamentoSaldo, tituloForma, tituloConta, tituloFornecedor, tituloCliente]);
 
   const loadBaixas = async (lancamentoId: string) => {
     setLoadingBaixas(true);
@@ -304,6 +348,27 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
               <div className="space-y-1.5">
                 <Label className="text-xs">Data de Baixa *</Label>
                 <Input type="date" value={dataBaixa} onChange={(e) => setDataBaixa(e.target.value)} className="h-11 sm:h-10" />
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { label: "Hoje", valor: todayISO() },
+                    { label: "Ontem", valor: isoDateOffset(-1) },
+                    ...(lancamento?.data_vencimento ? [{ label: "No vencimento", valor: lancamento.data_vencimento }] : []),
+                  ].map((atalho) => (
+                    <button
+                      key={atalho.label}
+                      type="button"
+                      onClick={() => setDataBaixa(atalho.valor)}
+                      className={cn(
+                        "rounded-md border px-2 py-0.5 text-[11px] transition-colors",
+                        dataBaixa === atalho.valor
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {atalho.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Forma de Pagamento *</Label>
@@ -328,6 +393,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                     ))}
                   </SelectContent>
                 </Select>
+                {origemSugestao && (formaPagamento || contaBancariaId) && (
+                  <p className="text-[11px] text-muted-foreground">Preenchido automaticamente: {origemSugestao.toLowerCase()}. Confira antes de confirmar.</p>
+                )}
               </div>
               {isCartao && (
                 <div className="col-span-2 sm:col-span-3 space-y-1.5">

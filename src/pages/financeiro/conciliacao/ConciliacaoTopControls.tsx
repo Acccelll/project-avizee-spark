@@ -9,6 +9,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { ContaBancariaDropdown } from "@/services/financeiro/conciliacaoLoaders.service";
+import { ExtratoUltimoMovimento } from "./ExtratoUltimoMovimento";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Props {
   isMobile: boolean;
@@ -36,15 +38,12 @@ export function ConciliacaoTopControls(p: Props) {
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
           <Landmark className="w-3 h-3" />Conta Bancária
         </label>
-        <Select
-          value={p.selectedConta || "__all__"}
-          onValueChange={(v) => p.onContaChange(v === "__all__" ? "" : v)}
-        >
+        {/* A conciliação só funciona com uma conta escolhida: sem a opção "Todas". */}
+        <Select value={p.selectedConta} onValueChange={p.onContaChange}>
           <SelectTrigger className="w-full sm:w-64">
-            <SelectValue placeholder="Todas as contas" />
+            <SelectValue placeholder="Selecione a conta" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">Todas as contas</SelectItem>
             {p.contasBancarias.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.nome}{c.banco ? ` — ${c.banco}` : ""}
@@ -52,6 +51,9 @@ export function ConciliacaoTopControls(p: Props) {
             ))}
           </SelectContent>
         </Select>
+        {p.selectedConta && (
+          <ExtratoUltimoMovimento contaId={p.selectedConta} uploading={p.uploading} />
+        )}
       </div>
 
       <div className="flex items-end">
@@ -61,7 +63,7 @@ export function ConciliacaoTopControls(p: Props) {
           onChange={(next: PeriodValue) => {
             if (next.preset) {
               const from = periodToDateFrom(next.preset as Period);
-              const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+              const to = periodToDateTo(next.preset as Period) ?? todayISO();
               p.setDataInicio(from);
               p.setDataFim(to);
               return;

@@ -29,6 +29,7 @@ import { excluirFatura } from "@/services/conciliacaoCartao/faturaLinhas.service
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { autoConciliarFaturas } from "@/services/conciliacaoCartao/autoConciliarService";
 import { exportarParaExcel } from "@/services/export.service";
+import { todayISO } from "@/lib/dateUtils";
 
 interface FaturaRow {
   id: string;
@@ -374,7 +375,7 @@ export default function ConciliacaoCartaoPage() {
               onChange={(next: PeriodValue) => {
                 if (next.preset) {
                   const from = periodToDateFrom(next.preset as Period);
-                  const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                  const to = periodToDateTo(next.preset as Period) ?? todayISO();
                   setInicio(from);
                   setFim(to);
                   return;

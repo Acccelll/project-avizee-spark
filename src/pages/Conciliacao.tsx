@@ -24,6 +24,7 @@ import { ConfirmFloatingBar } from "@/pages/financeiro/conciliacao/ConfirmFloati
 import { HistoricoImportacoesTab } from "@/pages/financeiro/conciliacao/HistoricoImportacoesTab";
 import { NovoLancamentoInlineModal } from "@/pages/financeiro/conciliacao/NovoLancamentoInlineModal";
 import type { LancamentoForm } from "@/pages/financeiro/types";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 const statusConciliacaoOptions: MultiSelectOption[] = [
   { value: "pendente", label: "Pendente" },
@@ -239,7 +240,7 @@ export default function Conciliacao() {
                     const [y, m, d] = v.dataFim.split("-").map(Number);
                     const next = new Date(y, m - 1, d);
                     next.setDate(next.getDate() + 30);
-                    v.setDataFim(next.toISOString().slice(0, 10));
+                    v.setDataFim(toLocalISODate(next));
                   }}>
                     <CalendarPlus className="w-4 h-4 mr-1.5" /> Ampliar período (+30 dias)
                   </Button>

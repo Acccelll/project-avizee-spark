@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronDown } from "lucide-react";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 export interface PeriodoFilterValue {
   dataInicio: string;
@@ -29,7 +30,7 @@ export interface PeriodoFilterProps {
 type QuickPeriod = "hoje" | "7d" | "15d" | "30d" | "mes" | "90d" | "year";
 
 function fmt(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 
 function rangeOf(period: QuickPeriod): PeriodoFilterValue {

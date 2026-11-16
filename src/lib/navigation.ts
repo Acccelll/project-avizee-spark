@@ -266,7 +266,7 @@ export const mobileBottomTabs: MobileBottomTab[] = [
   { key: DASHBOARD_KEY, title: 'Início', icon: LayoutDashboard, path: '/' },
   { key: 'comercial', title: 'Comercial', icon: FileText, path: '/orcamentos' },
   { key: 'cadastros', title: 'Cadastros', icon: Users, path: '/clientes' },
-  { key: 'financeiro', title: 'Financeiro', icon: DollarSign, path: '/financeiro?tipo=receber' },
+  { key: 'financeiro', title: 'Financeiro', icon: DollarSign, path: '/financeiro' },
 ];
 
 /** Sections shown in the mobile drawer menu (excludes those already in bottom tabs). */

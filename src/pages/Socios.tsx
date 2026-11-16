@@ -26,6 +26,7 @@ import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { SocioDrawer } from "@/components/socios/SocioDrawer";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { validateCPF } from "@/lib/validators";
+import { todayISO } from "@/lib/dateUtils";
 
 interface SocioForm {
   nome: string;
@@ -46,7 +47,7 @@ interface SocioForm {
 
 const emptyForm: SocioForm = {
   nome: "", cpf: "", email: "", telefone: "", ativo: true,
-  data_entrada: new Date().toISOString().split("T")[0], data_saida: null,
+  data_entrada: todayISO(), data_saida: null,
   forma_recebimento_padrao: "pix", chave_pix: "", banco: "", agencia: "", conta: "", tipo_conta: "corrente",
   observacoes: "",
 };
@@ -77,7 +78,7 @@ export default function Socios() {
   };
 
   const { participacoes, create: createPart, remove: removePart } = useSocioParticipacoes(selected?.id);
-  const [novaPart, setNovaPart] = useState({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
+  const [novaPart, setNovaPart] = useState({ percentual: 0, vigencia_inicio: todayISO(), vigencia_fim: "" });
 
   const { isUnique: cpfUnico } = useDocumentoUnico("cpf", form.cpf, selected?.id, "socios");
 
@@ -210,7 +211,7 @@ export default function Socios() {
       vigencia_inicio: novaPart.vigencia_inicio,
       vigencia_fim: novaPart.vigencia_fim || null,
     });
-    setNovaPart({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
+    setNovaPart({ percentual: 0, vigencia_inicio: todayISO(), vigencia_fim: "" });
   };
 
   const isDirty = useMemo(

@@ -12,6 +12,7 @@ import type {
   SocialSyncPayload,
   SocialUpdateContaPayload,
 } from '@/types/social';
+import { toLocalISODate } from "@/lib/dateUtils";
 export { socialPermissions, getSocialPermissionFlags } from '@/types/social';
 
 export async function listarContasSocial(): Promise<SocialConta[]> {
@@ -164,8 +165,8 @@ export async function listarAlertas(resolvido?: boolean): Promise<SocialAlerta[]
   const ago = new Date(today);
   ago.setDate(today.getDate() - 30);
   const { data, error } = await supabase.rpc('social_alertas_periodo', {
-    _data_inicio: ago.toISOString().slice(0, 10),
-    _data_fim: today.toISOString().slice(0, 10),
+    _data_inicio: toLocalISODate(ago),
+    _data_fim: toLocalISODate(today),
   });
   if (error) throw error;
   const rows = (data ?? []) as unknown as SocialAlerta[];

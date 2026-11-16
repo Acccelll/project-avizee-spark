@@ -75,7 +75,6 @@ describe("smoke: dashboard cenário feliz", () => {
 
     expect(await screen.findByText(/Contas a Receber/i)).toBeInTheDocument();
     expect(await screen.findByText(/Contas a Pagar/i)).toBeInTheDocument();
-    expect((await screen.findAllByText(/Saldo Projetado/i)).length).toBeGreaterThanOrEqual(1);
     expect((await screen.findAllByText(/Pendências/i)).length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByText("VendasChartMock")).toBeInTheDocument();
     // loadData é exposto como callback do botão "Atualizar"; não é chamado

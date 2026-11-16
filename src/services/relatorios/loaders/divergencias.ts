@@ -12,11 +12,12 @@ import {
   type RawFinanceiroLancamento,
 } from "@/services/relatorios/lib/shared";
 import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 export async function loadDivergencias(_filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 10);
+  const threeDaysAgoStr = toLocalISODate(threeDaysAgo);
 
   const [pedidos, nfs, financeiro] = await Promise.all([
     fetchAllPages<Record<string, unknown>>(() =>

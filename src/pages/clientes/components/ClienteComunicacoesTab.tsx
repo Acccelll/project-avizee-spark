@@ -14,6 +14,7 @@ import { MessageSquare, MessageSquarePlus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import { todayISO } from "@/lib/dateUtils";
 
 interface ComunicacaoCliente {
   id: string;
@@ -92,7 +93,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
         responsavel_nome: form.responsavel_nome || null,
         retorno_previsto: form.retorno_previsto || null,
         status: form.status,
-        data_registro: new Date().toISOString().split("T")[0],
+        data_registro: todayISO(),
         data_hora: new Date().toISOString(),
       });
       setDialogOpen(false);

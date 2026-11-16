@@ -43,6 +43,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { todayISO } from "@/lib/dateUtils";
 
 type Banco = Tables<"bancos">;
 
@@ -88,7 +89,7 @@ export default function CartoesCredito() {
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [baixaFatura, setBaixaFatura] = useState<CartaoFatura | null>(null);
   const [baixaContaId, setBaixaContaId] = useState("");
-  const [baixaData, setBaixaData] = useState(() => new Date().toISOString().split("T")[0]);
+  const [baixaData, setBaixaData] = useState(() => todayISO());
   const [baixaSaving, setBaixaSaving] = useState(false);
   const [baixaForma, setBaixaForma] = useState<string>("boleto_dda");
   const [baixaLancamentos, setBaixaLancamentos] = useState<
@@ -514,7 +515,7 @@ export default function CartoesCredito() {
                             onClick={async (e) => {
                               e.stopPropagation();
                               setBaixaFatura(f);
-                              setBaixaData(new Date().toISOString().split("T")[0]);
+                              setBaixaData(todayISO());
                               setBaixaForma("boleto_dda");
                               setBaixaLancsLoading(true);
                               try {

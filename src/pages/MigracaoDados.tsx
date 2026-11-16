@@ -51,6 +51,7 @@ import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Monitor } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { todayISO } from "@/lib/dateUtils";
 
 /** Interface comum dos hooks de importação consumidos por esta tela. */
 interface IImportacaoHook {
@@ -294,7 +295,7 @@ export default function MigracaoDados() {
       const cd = res.headers.get("content-disposition") || "";
       const match = /filename="([^"]+)"/.exec(cd);
       const ext = format === "sql" ? "sql" : "zip";
-      const filename = match?.[1] ?? `avizee_db_export_${new Date().toISOString().slice(0, 10)}.${ext}`;
+      const filename = match?.[1] ?? `avizee_db_export_${todayISO()}.${ext}`;
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;

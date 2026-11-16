@@ -18,6 +18,7 @@ import {
 } from "@/pages/fiscal/hooks/useFiscalNotaForm";
 import { interpretarDocumentoServicoXml, type DocumentoServicoXmlInterpretado } from "@/pages/fiscal/hooks/documentoServicoXml";
 import type { NotaFiscal } from "@/types/domain";
+import { todayISO } from "@/lib/dateUtils";
 
 /** Estado de origem XML para banner e fluxos derivados. */
 export interface XmlOriginInfo {
@@ -210,7 +211,7 @@ export function useFiscalXmlImport(args: UseFiscalXmlImportArgs) {
       : { ...emptyForm };
     setForm({
       ...baseForm, tipo, numero: nfe.numero, serie: nfe.serie, modelo_documento: nfe.modelo || "55", chave_acesso: nfe.chaveAcesso,
-      data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
+      data_emissao: nfe.dataEmissao || todayISO(),
       fornecedor_id: anexarNa ? (anexarNa.fornecedor_id || (tipo === "entrada" ? fornecedorId : "")) : (tipo === "entrada" ? fornecedorId : ""),
       cliente_id: anexarNa ? (anexarNa.cliente_id || (tipo === "saida" ? clienteId : "")) : (tipo === "saida" ? clienteId : ""),
       status: (anexarNa ? anexarNa.status : (temProtocolo ? "importada" : "pendente")) ?? "pendente",

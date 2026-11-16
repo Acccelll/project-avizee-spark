@@ -1,3 +1,4 @@
+import { todayISO } from "@/lib/dateUtils";
 export interface PedidoCompra {
   id: string;
   numero?: string | null;
@@ -45,7 +46,7 @@ export interface ProdutoOptionRow {
 export function buildEmptyPedidoForm() {
   return {
     fornecedor_id: "",
-    data_pedido: new Date().toISOString().slice(0, 10),
+    data_pedido: todayISO(),
     data_entrega_prevista: "",
     data_entrega_real: "",
     frete_valor: "",

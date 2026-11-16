@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Trash2, RefreshCw } from "lucide-react";
 import type { NFeFormData } from "./schema";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 interface Props {
   disabled?: boolean;
@@ -55,7 +56,7 @@ export function PagamentoNFe({ disabled }: Props) {
         : valorBase;
       return {
         numero: i + 1,
-        vencimento: d.toISOString().slice(0, 10),
+        vencimento: toLocalISODate(d),
         valor,
       };
     });

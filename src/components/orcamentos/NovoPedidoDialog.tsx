@@ -27,6 +27,7 @@ import {
   ultimosPrecosDoCliente,
   type CanalPedidoDireto,
 } from "@/services/comercial/pedidoDireto.service";
+import { todayISO } from "@/lib/dateUtils";
 
 interface Props {
   open: boolean;
@@ -42,7 +43,7 @@ interface LinhaItem {
   preco: string;
 }
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => todayISO();
 let seq = 0;
 const novaLinha = (): LinhaItem => ({ key: ++seq, produtoId: "", quantidade: "1", preco: "" });
 const num = (v: string) => Number(String(v).replace(",", ".")) || 0;
