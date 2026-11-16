@@ -158,3 +158,40 @@ export async function fetchBaixasAtivasDoLancamento(
   if (error) throw new Error(error.message);
   return (data ?? []) as BaixaAtiva[];
 }
+/**
+ * Sugere a conta bancária de uma nova baixa pelo histórico: a conta da última
+ * baixa ativa da mesma pessoa (fornecedor ou cliente); se não houver, a da
+ * última baixa com a mesma forma de pagamento. Os títulos em aberto quase
+ * nunca trazem conta, por isso a sugestão vem das baixas.
+ */
+export async function sugerirContaBancariaBaixa(params: {
+  fornecedorId?: string | null;
+  clienteId?: string | null;
+  formaPagamento?: string | null;
+}): Promise<string | null> {
+  const ultimaConta = async (filtro: { coluna: "fornecedor_id" | "cliente_id"; valor: string } | null) => {
+    let q = supabase
+      .from("financeiro_baixas")
+      .select("conta_bancaria_id, data_baixa, financeiro_lancamentos!inner(fornecedor_id, cliente_id)")
+      .is("estornada_em", null)
+      .not("conta_bancaria_id", "is", null)
+      .order("data_baixa", { ascending: false })
+      .limit(1);
+    if (filtro) q = q.eq(`financeiro_lancamentos.${filtro.coluna}`, filtro.valor);
+    else if (params.formaPagamento) q = q.eq("forma_pagamento", params.formaPagamento);
+    else return null;
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data?.[0]?.conta_bancaria_id as string | null | undefined) ?? null;
+  };
+
+  if (params.fornecedorId) {
+    const c = await ultimaConta({ coluna: "fornecedor_id", valor: params.fornecedorId });
+    if (c) return c;
+  }
+  if (params.clienteId) {
+    const c = await ultimaConta({ coluna: "cliente_id", valor: params.clienteId });
+    if (c) return c;
+  }
+  return ultimaConta(null);
+}
